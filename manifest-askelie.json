@@ -1,0 +1,16 @@
+{
+  "name": "Corridor GTM System",
+  "short_name": "Corridor",
+  "description": "Your done-for-you GTM system",
+  "start_url": "/demo-askelie.html",
+  "scope": "/demo-askelie.html",
+  "display": "standalone",
+  "background_color": "#0f1c3f",
+  "theme_color": "#0f1c3f",
+  "orientation": "portrait-primary",
+  "icons": [
+    { "src": "/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "/apple-touch-icon.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/apple-touch-icon.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

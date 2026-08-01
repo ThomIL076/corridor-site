@@ -1,0 +1,19 @@
+{
+  "regions": ["iad1"],
+  "functions": {
+    "api/generate.js": { "maxDuration": 60 }
+  },
+  "rewrites": [
+    { "source": "/demo-private", "destination": "/demo-private.html" },
+    { "source": "/legal/sub-processors", "destination": "/legal/sub-processors.html" }
+  ],
+  "headers": [
+    {
+      "source": "/sw.js",
+      "headers": [
+        { "key": "Service-Worker-Allowed", "value": "/" },
+        { "key": "Cache-Control", "value": "no-cache" }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "name": "Corridor",
+  "short_name": "Corridor",
+  "description": "GTM System for EMEA Expansion",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1a2b5e",
+  "theme_color": "#1a2b5e",
+  "icons": [
+    {
+      "src": "apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
+}

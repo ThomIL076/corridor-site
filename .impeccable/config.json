@@ -1,0 +1,45 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "design-system-font-size",
+        "value": "16px",
+        "createdAt": "2026-07-30T07:33:06.120Z",
+        "reason": "Mirrors privacy.html legal page template, confirmed intentional by user"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "42px",
+        "createdAt": "2026-07-30T07:33:11.945Z",
+        "reason": "Mirrors privacy.html legal page template, confirmed intentional by user"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "22px",
+        "createdAt": "2026-07-30T07:33:12.106Z",
+        "reason": "Mirrors privacy.html legal page template, confirmed intentional by user"
+      },
+      {
+        "rule": "overused-font",
+        "value": "plus jakarta sans",
+        "createdAt": "2026-07-30T07:34:09.389Z",
+        "reason": "Site-wide font established in privacy.html template, confirmed intentional by user"
+      },
+      {
+        "rule": "overused-font",
+        "value": "fraunces",
+        "createdAt": "2026-07-30T07:34:09.885Z",
+        "reason": "Site-wide font established in privacy.html template, confirmed intentional by user"
+      }
+    ]
+  },
+  "hook": {
+    "enabled": false,
+    "limits": {
+      "maxFindings": 5,
+      "maxChars": 8000
+    }
+  }
+}

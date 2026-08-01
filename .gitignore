@@ -1,0 +1,12 @@
+.vercel
+.env*
+node_modules/
+.agents/
+.claude/settings.local.json
+
+# Scripts ponctuels avec credentials en dur — jamais versionnés
+fix_last_contact.mjs
+yc_multibatch_import.mjs
+yc_w26_enrich.mjs
+yc_w26_enrich_apollo.mjs
+.claude/settings.local.json

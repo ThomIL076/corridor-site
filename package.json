@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "@supabase/supabase-js": "latest",
+    "langfuse": "latest",
+    "resend": "^6.18.0"
+  }
+}

@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Corridor : Plus de performance commerciale. Moins d'effort manuel.</title>
+<meta name="description" content="Plus de performance commerciale. Moins d'effort manuel. Corridor connecte vos signaux, ciblage, outreach et pipeline en un seul système qui tourne et s'améliore seul." />
+<link rel="canonical" href="https://www.corridor.systems/fr.html" />
+<meta property="og:title" content="Corridor : Système GTM EMEA ↔ Amérique du Nord" />
+<meta property="og:description" content="Plus de performance commerciale. Moins d'effort manuel. Corridor connecte vos signaux, ciblage, outreach et pipeline en un seul système qui tourne et s'améliore seul." />
+<meta property="og:image" content="https://www.corridor.systems/hero.png" />
+<meta property="og:url" content="https://www.corridor.systems/fr.html" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Corridor : Plus de performance commerciale. Moins d'effort manuel." />
+<meta name="twitter:description" content="Plus de performance commerciale. Moins d'effort manuel. Opérationnel en 4 semaines." />
+<meta name="twitter:image" content="https://www.corridor.systems/hero.png" />
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 23 23'%3E%3Crect x='0' y='0' width='10' height='10' rx='2' fill='%231a2b5e'/%3E%3Crect x='13' y='0' width='10' height='10' rx='2' fill='%2393A8D4'/%3E%3Crect x='0' y='13' width='10' height='10' rx='2' fill='%2393A8D4'/%3E%3Crect x='13' y='13' width='10' height='10' rx='2' fill='%231a2b5e'/%3E%3C/svg%3E">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@300;400;500&family=Geist:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #FFFFFF;
+  --surf: #F8F9FB;
+  --surf2: #F1F4F8;
+  --navy: #1a2b5e;
+  --navy-mid: #243875;
+  --navy-light: #EEF1FA;
+  --blue: #93A8D4;
+  --border: #E8ECF2;
+  --border-mid: #C8D0E0;
+  --text: #1E2A45;
+  --muted: #6B7A99;
+  --dim: #8896B3;
+  --white: #FFFFFF;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+html { scroll-behavior:smooth; width:100%; overflow-x:hidden; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Geist', sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100vw;
+}
+
+nav {
+  position: fixed;
+  top:0; left:0; right:0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 48px;
+  height: 56px;
+  background: rgba(255,255,255,0.92);
+  backdrop-filter: blur(16px);
+  border-bottom: 2px solid var(--border);
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+}
+
+.logo-mark {
+  width: 20px; height: 20px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px;
+}
+
+.logo-mark span { border-radius: 2px; }
+.logo-mark span:nth-child(1),
+.logo-mark span:nth-child(4) { background: var(--navy); }
+.logo-mark span:nth-child(2),
+.logo-mark span:nth-child(3) { background: var(--blue); }
+
+.logo-text { display: flex; flex-direction: column; }
+.logo-name { font-size: 14px; font-weight: 800; letter-spacing: 2px; color: var(--navy); line-height: 1; }
+.logo-tagline { font-size: 11px; font-style: italic; color: var(--dim); letter-spacing: 1px; line-height: 1; margin-top: 2px; }
+
+.nav-links { display: flex; align-items: center; gap: 32px; list-style: none; }
+.nav-links a { font-size: 13px; color: var(--muted); text-decoration: none; transition: color 0.2s; }
+.nav-links a:hover { color: var(--navy); }
+
+.nav-cta {
+  font-family: 'Geist Mono', monospace;
+  font-size: 13px; font-weight: 500;
+  color: var(--white); background: var(--navy);
+  padding: 8px 20px; border-radius: 6px;
+  text-decoration: none; letter-spacing: 0.3px;
+  transition: all 0.2s;
+}
+.nav-cta:hover { background: var(--navy-mid); transform: translateY(-1px); }
+
+.lang-switch {
+  font-family: 'Geist Mono', monospace;
+  font-size: 12px; color: var(--dim);
+  text-decoration: none; letter-spacing: 1px;
+  border: 1px solid var(--border);
+  padding: 5px 10px; border-radius: 4px;
+  transition: all 0.2s;
+}
+.lang-switch:hover { color: var(--navy); border-color: var(--navy); }
+
+.hero {
+  padding: 120px 48px 80px;
+  max-width: 1200px;
+  margin: 0 auto;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 80px;
+  min-height: 500px;
+}
+
+.hero-left { flex: 1; min-width: 0; }
+
+.hero-eyebrow {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 13px; font-weight: 600;
+  color: var(--muted); letter-spacing: 1.5px;
+  text-transform: uppercase; margin-bottom: 32px;
+  display: flex; align-items: center; gap: 12px;
+  opacity: 0; animation: fadeUp 0.6s 0.1s forwards;
+}
+
+.hero h1 {
+  font-size: clamp(44px, 5.5vw, 76px);
+  font-weight: 800; line-height: 1.05;
+  letter-spacing: -2px; color: var(--navy);
+  margin-bottom: 28px; max-width: 780px;
+  opacity: 0; animation: fadeUp 0.6s 0.2s forwards;
+}
+
+.hero h1 em { font-style: italic; font-weight: 300; color: var(--muted); }
+
+.hero-body {
+  font-size: 17px; color: var(--muted);
+  max-width: 500px; line-height: 1.75;
+  margin-bottom: 48px; font-weight: 300;
+  opacity: 0; animation: fadeUp 0.6s 0.3s forwards;
+}
+
+.hero-actions {
+  display: flex; align-items: center;
+  gap: 20px; flex-wrap: wrap;
+  opacity: 0; animation: fadeUp 0.6s 0.4s forwards;
+}
+
+.btn-primary {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 13px; font-weight: 600;
+  color: var(--white); background: var(--navy);
+  padding: 12px 28px; border-radius: 6px;
+  text-decoration: none; transition: all 0.2s;
+  display: inline-flex; align-items: center;
+  gap: 8px; white-space: nowrap;
+}
+.btn-primary:hover { background: var(--navy-mid); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(26,43,94,0.2); }
+
+.btn-secondary {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 13px; font-weight: 500;
+  color: var(--muted); text-decoration: none;
+  display: inline-flex; align-items: center;
+  gap: 6px; transition: color 0.2s;
+  white-space: nowrap;
+}
+.btn-secondary:hover { color: var(--navy); }
+
+/* HERO DASHBOARD MOCKUP */
+.hero-stat {
+  flex-shrink: 0;
+  width: 420px;
+  opacity: 0;
+  animation: fadeUp 0.8s 0.5s forwards;
+}
+.hero-dash { background: var(--surf); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; box-shadow: 0 4px 32px rgba(26,43,94,0.10); }
+.hero-dash-bar { background: var(--navy); padding: 10px 16px; display: flex; align-items: center; gap: 6px; }
+.hero-dash-dot { width: 10px; height: 10px; border-radius: 50%; background: rgba(255,255,255,0.18); }
+.hero-dash-title { font-family: 'Geist Mono', monospace; font-size: 10px; color: rgba(255,255,255,0.45); letter-spacing: 1.5px; margin-left: 8px; }
+.hero-dash-status { margin-left: auto; font-size: 10px; color: #4ade80; font-weight: 600; background: rgba(74,222,128,0.12); padding: 2px 8px; border-radius: 20px; letter-spacing: 0.5px; }
+.hero-dash-body { padding: 14px; }
+.hero-dash-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+.hero-dash-stat { background: var(--white); border: 1px solid var(--border); border-radius: 8px; padding: 9px 11px; }
+.hero-dash-stat-label { font-family: 'Geist Mono', monospace; font-size: 9px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px; }
+.hero-dash-stat-val { font-size: 18px; font-weight: 800; color: var(--navy); letter-spacing: -0.5px; line-height: 1; }
+.hero-dash-queue { background: var(--white); border: 1px solid var(--border); border-radius: 8px; padding: 11px 12px; margin-bottom: 10px; }
+.hero-dash-queue-label { font-family: 'Geist Mono', monospace; font-size: 9px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 9px; }
+.hero-dash-row { display: flex; align-items: center; gap: 8px; padding: 6px 9px; background: var(--surf); border-radius: 6px; border: 1px solid var(--border); margin-bottom: 5px; }
+.hero-dash-row:last-child { margin-bottom: 0; }
+.hero-dash-dot-sm { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.hero-dash-row-name { font-size: 10px; font-weight: 600; color: var(--navy); flex: 1; }
+.hero-dash-badge { font-size: 9px; padding: 2px 7px; border-radius: 20px; white-space: nowrap; }
+.hero-dash-bottom { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.hero-dash-module { background: var(--white); border: 1px solid var(--border); border-radius: 8px; padding: 9px 11px; }
+.hero-dash-module-label { font-family: 'Geist Mono', monospace; font-size: 9px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+.hero-dash-tags { display: flex; gap: 4px; flex-wrap: wrap; }
+.hero-dash-tag { font-size: 8px; background: #EEF1FA; color: var(--navy); padding: 2px 6px; border-radius: 4px; font-weight: 500; }
+.hero-dash-signal-name { display: flex; align-items: center; gap: 5px; margin-bottom: 2px; }
+.hero-dash-signal-dot { width: 6px; height: 6px; border-radius: 50%; background: #15803d; flex-shrink: 0; }
+.hero-dash-signal-text { font-size: 10px; font-weight: 600; color: var(--navy); }
+.hero-dash-signal-sub { font-size: 9px; color: var(--dim); padding-left: 11px; }
+.hero-dash-stats-footer { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 40px; padding-top: 28px; border-top: 1px solid var(--border); text-align: center; }
+.hero-dash-footer-num { font-size: 30px; font-weight: 800; color: var(--navy); letter-spacing: -1px; line-height: 1; margin-bottom: 4px; }
+.hero-dash-footer-label { font-family: 'Geist Mono', monospace; font-size: 10px; color: var(--dim); text-transform: uppercase; letter-spacing: 1px; }
+
+@keyframes fadeUp {
+  from { opacity:0; transform: translateY(16px); }
+  to { opacity:1; transform: translateY(0); }
+}
+
+.rule { border: none; border-top: 1px solid var(--border); max-width: 1200px; margin: 0 auto; }
+
+.section { max-width: 1200px; margin: 0 auto; padding: 88px 48px; }
+
+.section-label {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 13px; font-weight: 600;
+  color: var(--dim); letter-spacing: 1.5px;
+  text-transform: uppercase; margin-bottom: 48px;
+  display: flex; align-items: center; gap: 0;
+}
+
+.problem-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 72px; align-items: center; }
+.problem-text h2 { font-size: clamp(28px, 2.8vw, 44px); font-weight: 700; line-height: 1.15; letter-spacing: -1px; color: var(--navy); margin-bottom: 24px; }
+.problem-text p { font-size: 15px; color: var(--muted); line-height: 1.8; margin-bottom: 18px; font-weight: 300; }
+.problem-stats { display: flex; flex-direction: column; gap: 8px; }
+.stat-card { background: var(--surf); border: 1px solid var(--border); border-left: 3px solid var(--blue); border-radius: 8px; padding: 24px 28px; display: flex; align-items: center; gap: 20px; transition: border-color 0.2s; }
+.stat-card:hover { border-left-color: var(--navy); }
+.stat-card-num { font-size: 44px; font-weight: 800; line-height: 1; color: var(--navy); letter-spacing: -2px; white-space: nowrap; flex-shrink: 0; min-width: 120px; }
+.stat-card-text { font-size: 13px; color: var(--muted); line-height: 1.5; }
+
+.problem-text .section-label { margin-bottom: 16px; }
+.solution-section { background: var(--navy); padding: 88px 0; width: 100%; }
+.solution-inner { max-width: 1200px; margin: 0 auto; padding: 0 48px; }
+.solution-inner .section-label { color: #C7D3EE; }
+.solution-header { display: grid; grid-template-columns: 1fr 1fr; gap: 72px; margin-bottom: 64px; }
+.solution-header h2 { font-size: clamp(32px, 3vw, 48px); font-weight: 700; line-height: 1.1; letter-spacing: -1px; color: var(--white); }
+.solution-header p { font-size: 15px; color: rgba(255,255,255,0.85); line-height: 1.8; font-weight: 300; padding-top: 6px; }
+
+.steps-flow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.step-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(147,168,212,0.15); border-radius: 10px; padding: 28px; transition: background 0.3s, border-color 0.3s; position: relative; overflow: hidden; }
+.step-card:hover { background: rgba(255,255,255,0.07); border-color: rgba(147,168,212,0.35); }
+.step-card-num { font-family: 'Geist Mono', monospace; font-size: 12px; color: #C7D3EE; letter-spacing: 1.5px; margin-bottom: 16px; }
+.step-card-tag { position: absolute; top: 16px; right: 16px; font-family: 'Geist Mono', monospace; font-size: 11px; color: #C7D3EE; letter-spacing: 1px; text-transform: uppercase; border: 1px solid rgba(147,168,212,0.3); padding: 3px 8px; border-radius: 3px; }
+.step-card h3 { font-size: 17px; font-weight: 700; color: var(--white); margin-bottom: 10px; line-height: 1.2; }
+.step-card p { font-size: 13px; color: rgba(255,255,255,0.85); line-height: 1.7; font-weight: 300; }
+
+.pricing-section { padding: 88px 48px; max-width: 1200px; margin: 0 auto; }
+.pricing-toggle { display: flex; gap: 4px; background: var(--surf); border: 1px solid var(--border); border-radius: 8px; padding: 4px; width: fit-content; margin: 40px 0 32px; }
+.toggle-btn { font-family: 'Geist Mono', monospace; font-size: 13px; font-weight: 500; padding: 8px 20px; border-radius: 6px; border: none; background: transparent; color: var(--muted); cursor: pointer; transition: all 0.25s; letter-spacing: 0.3px; }
+.toggle-btn.active { background: var(--navy); color: var(--white); }
+
+.pricing-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.price-card { background: var(--surf); border: 1px solid var(--border); border-radius: 10px; padding: 36px 32px; position: relative; transition: transform 0.2s, box-shadow 0.2s; }
+.price-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(26,43,94,0.08); }
+.price-card.featured { background: var(--navy); border-color: var(--navy); }
+.price-card-label { font-family: 'Geist Mono', monospace; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: var(--dim); margin-bottom: 20px; }
+.price-card.featured .price-card-label { color: #C7D3EE; }
+.price-card-badge { display: inline-block; font-family: 'Geist Mono', monospace; font-size: 11px; background: var(--navy-light); color: var(--navy); padding: 4px 10px; border-radius: 20px; letter-spacing: 1px; text-transform: uppercase; font-weight: 600; border: 1px solid var(--blue); margin-bottom: 12px; }
+.price-card.featured .price-card-badge { background: rgba(147,168,212,0.15); color: var(--white); border-color: rgba(147,168,212,0.3); }
+.price-amount { font-size: 48px; font-weight: 800; letter-spacing: -2px; color: var(--navy); line-height: 1; margin-bottom: 4px; }
+.price-card.featured .price-amount { color: var(--white); }
+.price-period { font-family: 'Geist Mono', monospace; font-size: 13px; color: var(--dim); margin-bottom: 28px; }
+.price-card.featured .price-period { color: #C7D3EE; }
+.price-divider { border: none; border-top: 1px solid var(--border); margin-bottom: 24px; }
+.price-card.featured .price-divider { border-color: rgba(147,168,212,0.15); }
+.price-features { list-style: none; margin-bottom: 32px; }
+.price-features li { font-size: 13px; color: var(--muted); padding: 7px 0; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; gap: 10px; line-height: 1.5; }
+.price-card.featured .price-features li { color: rgba(147,168,212,0.65); border-bottom-color: rgba(147,168,212,0.1); }
+.price-features li:last-child { border-bottom: none; }
+.price-features li::before { content: '→'; font-family: 'Geist Mono', monospace; font-size: 13px; color: #C7D3EE; flex-shrink: 0; margin-top: 1px; }
+.price-cta { display: block; font-family: 'Geist Mono', monospace; font-size: 13px; font-weight: 500; text-align: center; padding: 12px; border-radius: 6px; text-decoration: none; transition: all 0.2s; letter-spacing: 0.3px; }
+.price-cta-outline { border: 1px solid var(--border-mid); color: var(--navy); background: transparent; }
+.price-cta-outline:hover { border-color: var(--navy); background: var(--navy-light); }
+.price-cta-fill { background: var(--blue); color: var(--white); border: 1px solid var(--blue); }
+.price-cta-fill:hover { background: var(--navy); border-color: var(--navy); }
+.price-cta-inverse { border: 1px solid rgba(147,168,212,0.3); color: var(--white); background: transparent; }
+.price-cta-inverse:hover { background: rgba(147,168,212,0.1); }
+.pricing-note { margin-top: 16px; font-family: 'Geist Mono', monospace; font-size: 13px; color: var(--dim); letter-spacing: 0.5px; padding: 10px 16px; background: var(--surf); border: 1px solid var(--border); border-radius: 6px; width: fit-content; }
+
+.compare-section { background: var(--surf); padding: 88px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); width: 100%; }
+.compare-inner { max-width: 1200px; margin: 0 auto; padding: 0 48px; }
+.compare-table { width: 100%; border-collapse: collapse; margin-top: 48px; }
+.compare-table th { font-family: 'Geist Mono', monospace; font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--dim); padding: 14px 20px; text-align: left; border-bottom: 2px solid var(--border); background: transparent; }
+.compare-table th.highlight { color: var(--navy); background: var(--navy-light); border-bottom-color: var(--blue); }
+.compare-table td { padding: 14px 20px; font-size: 13px; color: var(--muted); border-bottom: 1px solid var(--border); }
+.compare-table td:first-child { color: var(--text); font-weight: 500; }
+.compare-table td.highlight { color: var(--navy); background: var(--navy-light); font-weight: 500; }
+.compare-table .check { color: #166534; font-weight: 600; }
+.compare-table .cross { color: var(--border-mid); }
+
+.timeline-section { max-width: 1200px; margin: 0 auto; padding: 88px 48px; }
+.timeline { margin-top: 48px; position: relative; }
+.timeline::before { content: ''; position: absolute; left: 90px; top: 0; bottom: 0; width: 1px; background: var(--border); }
+.timeline-item { display: grid; grid-template-columns: 180px 1fr; gap: 40px; padding: 28px 0; border-bottom: 1px solid var(--border); position: relative; }
+.timeline-item::before { content: ''; position: absolute; left: 85px; top: 36px; width: 10px; height: 10px; background: var(--bg); border: 2px solid var(--border-mid); border-radius: 50%; z-index: 1; }
+.timeline-item.active::before { background: var(--navy); border-color: var(--navy); }
+.timeline-week { font-family: 'Geist Mono', monospace; font-size: 12px; color: #C7D3EE; letter-spacing: 1.5px; text-transform: uppercase; padding-top: 4px; text-align: right; }
+.timeline-content h3 { font-size: 18px; font-weight: 700; color: var(--navy); margin-bottom: 8px; }
+.timeline-content p { font-size: 13px; color: var(--muted); line-height: 1.7; font-weight: 300; }
+.timeline-deliverables { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 6px; }
+.deliverable-tag { font-family: 'Geist Mono', monospace; font-size: 12px; color: var(--navy); background: var(--navy-light); border: 1px solid var(--blue); padding: 3px 10px; border-radius: 20px; letter-spacing: 0.3px; }
+
+.founder-section { background: var(--navy); padding: 88px 48px; width: 100%; }
+.founder-inner { max-width: 720px; margin: 0 auto; text-align: center; }
+.founder-quote { font-size: clamp(18px, 2vw, 26px); font-weight: 300; font-style: italic; line-height: 1.6; color: rgba(255,255,255,0.8); letter-spacing: -0.3px; margin-bottom: 40px; }
+.founder-quote strong { font-weight: 600; color: var(--white); font-style: normal; }
+.founder-sig { display: flex; align-items: center; gap: 16px; justify-content: center; }
+.founder-avatar { width: 44px; height: 44px; border-radius: 50%; background: rgba(147,168,212,0.15); border: 1px solid rgba(147,168,212,0.3); display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; color: #C7D3EE; }
+.founder-name strong { display: block; font-size: 14px; font-weight: 600; color: var(--white); text-align: center; }
+.founder-name span { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 13px; font-weight: 300; color: rgba(147,168,212,0.85); letter-spacing: 0; text-align: center; }
+
+.cta-section { max-width: 1200px; margin: 0 auto; padding: 52px 48px; display: grid; grid-template-columns: 1fr 1fr; gap: 72px; align-items: center; }
+.cta-simple { max-width: 1200px; margin: 0 auto; padding: 48px 48px; text-align: center; }
+.cta-simple .cta-inner { display: flex; flex-direction: column; align-items: center; gap: 28px; }
+.cta-simple .cta-label { font-size: clamp(26px, 2.8vw, 40px); font-weight: 700; letter-spacing: -1px; line-height: 1.15; color: var(--navy); margin: 0; }
+.cta-text h2 { font-size: clamp(28px, 2.8vw, 42px); font-weight: 700; line-height: 1.15; letter-spacing: -1px; color: var(--navy); margin-bottom: 20px; }
+.cta-text p { font-size: 15px; color: var(--muted); line-height: 1.8; font-weight: 300; }
+.cta-form { background: var(--surf); border: 1px solid var(--border); border-radius: 12px; padding: 36px; }
+.cta-form h3 { font-size: 20px; font-weight: 700; color: var(--navy); margin-bottom: 6px; }
+.cta-form p { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 11px; font-weight: 500; color: var(--dim); margin-bottom: 24px; letter-spacing: 0.8px; white-space: nowrap; }
+.form-group { margin-bottom: 12px; }
+.form-group input, .form-group select { width: 100%; padding: 10px 14px; background: var(--white); border: 1px solid var(--border); border-radius: 6px; font-family: 'Geist', sans-serif; font-size: 16px; color: var(--text); outline: none; transition: border-color 0.2s; -webkit-appearance: none; }
+.form-group input:focus, .form-group select:focus { border-color: var(--navy); }
+.form-group input::placeholder { color: var(--dim); }
+.form-submit { width: 100%; font-family: 'Geist Mono', monospace; font-size: 13px; font-weight: 500; color: var(--white); background: var(--navy); border: none; padding: 12px; border-radius: 6px; cursor: pointer; transition: all 0.2s; margin-top: 8px; letter-spacing: 0.3px; }
+.form-submit:hover { background: var(--navy-mid); }
+.form-note { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 13px; color: var(--dim); text-align: center; margin-top: 10px; letter-spacing: 0; }
+.contact-form-wrap { margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border); }
+.contact-form-wrap h3 { font-size: 16px; margin-bottom: 14px; }
+.form-row { display: flex; gap: 10px; margin-bottom: 10px; }
+.form-row input { margin-bottom: 0; }
+.contact-form-wrap input, .contact-form-wrap textarea { width: 100%; box-sizing: border-box; padding: 10px 14px; background: var(--white); border: 1px solid var(--border); border-radius: 6px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 13px; color: var(--text); outline: none; transition: border-color 0.2s; margin-bottom: 10px; display: block; }
+.contact-form-wrap input:focus, .contact-form-wrap textarea:focus { border-color: var(--navy); }
+.contact-form-wrap input::placeholder, .contact-form-wrap textarea::placeholder { color: var(--dim); }
+.contact-form-wrap textarea { resize: vertical; }
+.contact-form-wrap button { width: 100%; font-family: 'Geist Mono', monospace; font-size: 13px; font-weight: 500; color: var(--white); background: var(--navy); border: none; padding: 12px; border-radius: 6px; cursor: pointer; transition: all 0.2s; margin-top: 4px; letter-spacing: 0.3px; }
+.contact-form-wrap button:hover { background: var(--navy-mid); }
+.contact-form-wrap button:disabled { opacity: 0.6; cursor: not-allowed; }
+#contact-success { background: var(--navy); color: var(--white); padding: 18px 22px; border-radius: 8px; font-size: 14px; font-weight: 500; line-height: 1.6; margin-top: 12px; }
+#cf-error { color: #c0392b; font-size: 13px; margin-bottom: 12px; line-height: 1.5; }
+#cf-error a { color: #c0392b; }
+
+footer { border-top: 1px solid var(--border); padding: 32px 48px; max-width: 1200px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; }
+.footer-links { display: flex; gap: 28px; list-style: none; flex-wrap: wrap; justify-content: center; }
+.footer-links a { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 13px; color: var(--dim); text-decoration: none; transition: color 0.2s; white-space: nowrap; }
+.footer-links a:hover { color: var(--navy); }
+.footer-copy { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 13px; color: var(--dim); letter-spacing: 0.5px; }
+
+.reveal { opacity: 0; transform: translateY(20px); transition: opacity 0.6s ease, transform 0.6s ease; }
+.reveal.visible { opacity: 1; transform: translateY(0); }
+
+.nav-mobile-menu { display: none; }
+
+@media(max-width: 900px) {
+  nav { padding: 0 20px; width: 100%; }
+  .nav-links { display: none; }
+  .nav-cta { font-size: 12px; padding: 7px 12px; white-space: nowrap; }
+  .hero { flex-direction: column; gap: 40px; min-height: auto; padding: 96px 20px 64px; width: 100%; }
+  .hero-stat { width: 100%; display: none; }
+  .hero-left { width: 100%; }
+  .solution-inner { padding: 0 20px; width: 100%; }
+  .founder-section { padding: 64px 20px; }
+  .nav-mobile-menu { display: flex; flex-direction: column; gap: 4px; cursor: pointer; padding: 4px; }
+  .nav-mobile-menu span { width: 20px; height: 2px; background: var(--navy); border-radius: 1px; }
+  .section, .pricing-section, .timeline-section, .cta-simple, .cta-section { padding: 64px 20px; }
+  .solution-inner, .compare-inner, .founder-section { padding-left: 20px; padding-right: 20px; }
+  .problem-grid { grid-template-columns: 1fr; gap: 40px; }
+  .solution-header { grid-template-columns: 1fr; gap: 20px; }
+  .steps-flow { grid-template-columns: 1fr; }
+  .pricing-grid { grid-template-columns: 1fr; }
+  .cta-section { grid-template-columns: 1fr; gap: 40px; }
+  .timeline-item { grid-template-columns: 80px 1fr; gap: 20px; }
+  .timeline::before { left: 70px; }
+  .timeline-item::before { left: 65px; }
+  .compare-table { font-size: 13px; display: block; overflow-x: auto; }
+  .compare-table th, .compare-table td { padding: 10px 12px; }
+  footer { flex-direction: column; gap: 20px; padding: 24px 20px; text-align: center; }
+  .hero-actions { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .btn-secondary { font-size: 14px; padding: 11px 24px; border: 1px solid var(--border-mid); border-radius: 6px; color: var(--navy); background: transparent; white-space: nowrap; }
+  .cta-section { overflow: hidden; width: 100%; box-sizing: border-box; }
+  .cta-form { overflow: hidden; box-sizing: border-box; }
+  .cta-form p { white-space: normal; }
+}
+.what-you-own {
+  background: #1a2b5e;
+  padding: 80px 40px;
+  text-align: center;
+}
+.wyo-inner {
+  max-width: 640px;
+  margin: 0 auto;
+}
+.what-you-own .section-label {
+  color: rgba(255,255,255,0.5);
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+}
+.what-you-own h2 {
+  color: #ffffff;
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 40px;
+  line-height: 1.2;
+}
+.wyo-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  text-align: left;
+}
+.wyo-list li {
+  color: rgba(255,255,255,0.85);
+  font-size: 1rem;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+.wyo-list li:last-child {
+  border-bottom: none;
+}
+/* News feed */
+.news-feed-header { display:flex; align-items:center; gap:8px; margin-bottom:14px; }
+.news-live-dot { width:8px; height:8px; border-radius:50%; background:#00c9a7; flex-shrink:0; animation:pulse-dot 2s ease-in-out infinite; }
+@keyframes pulse-dot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(1.4)} }
+.news-live-label { font-size:11px; font-weight:600; letter-spacing:0.12em; text-transform:uppercase; color:var(--dim); }
+.news-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.news-card { background:var(--surf); border:1px solid var(--border); border-radius:8px; padding:14px 16px; cursor:pointer; text-decoration:none; display:block; transition:border-color .2s; }
+.news-card:hover { border-color:var(--navy); }
+.news-card-headline { font-size:13px; font-weight:500; color:var(--text); line-height:1.45; margin-bottom:8px; }
+.news-card-meta { font-size:11px; color:var(--dim); display:flex; justify-content:space-between; gap:8px; }
+.news-card-skel { background:var(--surf); border:1px solid var(--border); border-radius:8px; padding:14px 16px; }
+.news-skel-line { background:var(--border); border-radius:4px; margin-bottom:6px; animation:skel-pulse 1.5s ease-in-out infinite; }
+@keyframes skel-pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+@media (max-width:600px) { .news-grid { grid-template-columns:1fr; } }
+</style>
+<!-- RB2B Visitor Tracking (consent-gated; visible in source for RB2B validation) -->
+<script>
+(function() {
+  function getCookie(name) {
+    var v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
+    return v ? v[2] : null;
+  }
+  if (getCookie('rb2b_consent') === 'true') {
+    !function(key) {
+      if (window.reb2b) return;
+      window.reb2b = {loaded: true};
+      var s = document.createElement("script");
+      s.async = true;
+      s.src = "https://ddwl4m2hdecbv.cloudfront.net/b/" + key + "/" + key + ".js.gz";
+      document.getElementsByTagName("script")[0].parentNode.insertBefore(s, document.getElementsByTagName("script")[0]);
+    }("0NW1GHZ0GWO4");
+  }
+})();
+</script>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="/" class="logo">
+    <div class="logo-mark"><span></span><span></span><span></span><span></span></div>
+    <div class="logo-text">
+      <span class="logo-name">CORRIDOR</span>
+      <span class="logo-tagline">GTM System</span>
+    </div>
+  </a>
+  <ul class="nav-links">
+    <li><a href="#how-it-works">Comment ça marche</a></li>
+    <li><a href="#why-corridor">Pourquoi Corridor</a></li>
+    <li><a href="#timeline">Calendrier</a></li>
+    <li><a href="/" class="lang-switch">EN</a></li>
+  </ul>
+  <a href="#contact" class="nav-cta">Réserver un appel →</a>
+  <div class="nav-mobile-menu" onclick="toggleMobileMenu()">
+    <span></span><span></span><span></span>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-left">
+    <div class="hero-eyebrow">SYSTÈME GTM · PERFORMANCE COMMERCIALE</div>
+    <h1>Plus de performance commerciale.<br><em>Moins d'effort manuel.</em></h1>
+    <p class="hero-body">Vous avez un CRM, des outils et un process. Le problème, c'est que rien ne tourne sans vous. Corridor connecte vos signaux, votre ciblage, votre outreach et votre pipeline en un seul système qui s'améliore seul.</p>
+    <div class="hero-actions">
+      <a href="#contact" class="btn-primary">
+        Réserver un appel découverte
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+      </a>
+    </div>
+  </div>
+  <div class="hero-stat">
+    <div class="hero-dash">
+      <div class="hero-dash-bar">
+        <div class="hero-dash-dot"></div>
+        <div class="hero-dash-dot"></div>
+        <div class="hero-dash-dot"></div>
+        <span class="hero-dash-title">CORRIDOR &middot; PIPELINE</span>
+        <span class="hero-dash-status">ACTIF</span>
+      </div>
+      <div class="hero-dash-body">
+        <div class="hero-dash-stats">
+          <div class="hero-dash-stat" id="hero-prospects-stat">
+            <div class="hero-dash-stat-label">Prospects</div>
+            <div class="hero-dash-stat-val" id="hero-prospects-val">—</div>
+          </div>
+          <div class="hero-dash-stat">
+            <div class="hero-dash-stat-label">Agents IA</div>
+            <div class="hero-dash-stat-val">15</div>
+          </div>
+          <div class="hero-dash-stat">
+            <div class="hero-dash-stat-label">Exp. GTM</div>
+            <div class="hero-dash-stat-val">20+</div>
+          </div>
+        </div>
+        <div class="hero-dash-queue">
+          <div class="hero-dash-queue-label">File d'envoi du jour</div>
+          <div class="hero-dash-row">
+            <div class="hero-dash-dot-sm" style="background:#15803d"></div>
+            <span class="hero-dash-row-name">AdTech &middot; Serie B &middot; Tel Aviv</span>
+            <span class="hero-dash-badge" style="color:#15803d;background:#dcfce7">Zoom aujourd'hui</span>
+          </div>
+          <div class="hero-dash-row">
+            <div class="hero-dash-dot-sm" style="background:#93A8D4"></div>
+            <span class="hero-dash-row-name">Fintech &middot; Seed &middot; Londres</span>
+            <span class="hero-dash-badge" style="color:#6B7A99;background:#EEF1FA">J+0 envoye</span>
+          </div>
+          <div class="hero-dash-row">
+            <div class="hero-dash-dot-sm" style="background:#b45309"></div>
+            <span class="hero-dash-row-name">B2B SaaS &middot; Serie A &middot; Paris</span>
+            <span class="hero-dash-badge" style="color:#b45309;background:#fef3c7">Reponse recue</span>
+          </div>
+        </div>
+        <div class="hero-dash-bottom">
+          <div class="hero-dash-module">
+            <div class="hero-dash-module-label">Modules actifs</div>
+            <div class="hero-dash-tags">
+              <span class="hero-dash-tag">Pipeline</span>
+              <span class="hero-dash-tag">CMO IA</span>
+              <span class="hero-dash-tag">Envoi</span>
+              <span class="hero-dash-tag">Signaux</span>
+            </div>
+          </div>
+          <div class="hero-dash-module">
+            <div class="hero-dash-module-label">Dernier signal</div>
+            <div class="hero-dash-signal-name">
+              <div class="hero-dash-signal-dot"></div>
+              <span class="hero-dash-signal-text">Entree nouveau marche</span>
+            </div>
+            <div class="hero-dash-signal-sub">Fintech &middot; Allemagne</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="hero-dash-stats-footer">
+      <div>
+        <div class="hero-dash-footer-num">3&ndash;4</div>
+        <div class="hero-dash-footer-label">Semaines go-live</div>
+      </div>
+      <div>
+        <div class="hero-dash-footer-num">15</div>
+        <div class="hero-dash-footer-label">Agents IA inclus</div>
+      </div>
+      <div>
+        <div class="hero-dash-footer-num">30+</div>
+        <div class="hero-dash-footer-label">Pays couverts</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="rule">
+
+<!-- PROBLEM -->
+<section class="section" id="problem">
+  <div class="problem-grid reveal">
+    <div class="problem-text">
+      <div class="section-label">Le problème</div>
+      <h2>Un pipeline qui dépend de l'effort individuel ne peut pas passer à l'échelle</h2>
+      <p>Pas parce que le marché n'existe pas. Parce que l'effort commercial est fragmenté, manuel, et dépendant de la disponibilité de chacun. L'outreach se fait quand quelqu'un a le temps. Le suivi dépend de la mémoire. Le pipeline avance quand on le pousse. Le résultat : une croissance irrégulière, et une opération commerciale qui repart de zéro chaque fois qu'une personne clé quitte l'équipe.</p>
+    </div>
+    <div class="problem-stats" id="news-section-fr">
+      <div class="news-feed-header">
+        <span class="news-live-dot"></span>
+        <span class="news-live-label">SIGNAUX MARCH&Eacute; &middot; LIVE</span>
+      </div>
+      <div class="news-grid" id="news-grid-fr"></div>
+    </div>
+  </div>
+</section>
+
+<!-- SOLUTION -->
+<section class="solution-section" id="how-it-works">
+  <div class="solution-inner">
+    <div class="section-label">Ce que fait Corridor</div>
+    <div class="solution-header reveal">
+      <h2>Un système GTM complet. Installé, configuré, opérationnel.</h2>
+      <p>Corridor est un système outbound en temps réel, une machine à contenu IA et un dashboard pipeline, installés et configurés pour votre entreprise. Construit sur la même infrastructure. Opérationnel en 3 à 4 semaines.</p>
+    </div>
+    <div class="steps-flow reveal">
+      <div class="step-card">
+        <div class="step-card-num">01</div>
+        <div class="step-card-tag">Semaine 1</div>
+        <h3>Signal Intelligence</h3>
+        <p>Intelligence signaux configurée sur votre ICP. Alertes en temps réel quand un prospect lève des fonds, recrute ou annonce une expansion. Contacts Tier A identifiés avant vos concurrents.</p>
+      </div>
+      <div class="step-card">
+        <div class="step-card-num">02</div>
+        <div class="step-card-tag">Semaine 2</div>
+        <h3>Outreach Automatisé</h3>
+        <p>Séquences J+0, J+5 rédigées pour vos personas. Enrichissement email en cascade. Dashboard pipeline LinkedIn qui trace chaque contact, chaque étape, chaque relance.</p>
+      </div>
+      <div class="step-card">
+        <div class="step-card-num">03</div>
+        <div class="step-card-tag">Semaine 2</div>
+        <h3>Dashboard Pipeline</h3>
+        <p>Dashboard React avec scoring ICP, conseils outreach générés par IA, rappels automatiques et rapports hebdomadaires. Chaque contact. Chaque signal. Une seule vue.</p>
+      </div>
+      <div class="step-card">
+        <div class="step-card-num">04</div>
+        <div class="step-card-tag">Semaine 3</div>
+        <h3>CMO IA : 15 Agents IA</h3>
+        <p>Morning Scan, Signal Alert, Pipeline Intelligence, Weekly Report, CMO Orchestrateur, Positionnement, Strat&eacute;gie de contenu, Copywriter, Repurposing, SEO &amp; AEO, Distribution, Performance, Veille concurrentielle, Agent Prospect, Gestion des objections. Configur&eacute; pour votre marque en 45 minutes.</p>
+      </div>
+      <div class="step-card">
+        <div class="step-card-num">05</div>
+        <div class="step-card-tag">Semaines 3–4</div>
+        <h3>Onboarding & Go-Live</h3>
+        <p>Deux sessions d'onboarding pour configurer et valider la plateforme. Vous repartez avec le système en marche et une vision claire de ce qui s'automatise. Les 20 premières invitations sont envoyées avant la fin de l'implémentation.</p>
+      </div>
+      <div class="step-card">
+        <div class="step-card-num">06</div>
+        <div class="step-card-tag">En continu</div>
+        <h3>Mises à jour mensuelles du système</h3>
+        <p>Séquences actualisées, scores ICP recalibrés, nouvelles fonctionnalités déployées. La plateforme évolue chaque mois à partir de vos données. Inclus dans votre abonnement. Sans prestation séparée.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-simple" id="pricing">
+  <div class="cta-inner">
+    <p class="cta-label">Prêt à construire votre pipeline ?</p>
+    <a href="#contact" class="btn-primary">Réserver un appel →</a>
+  </div>
+</section>
+
+
+<!-- COMPARE -->
+<section class="compare-section">
+  <div class="compare-inner">
+    <div class="section-label reveal">Comment Corridor se compare</div>
+    <table class="compare-table reveal">
+      <thead>
+        <tr>
+          <th></th>
+          <th class="highlight">Corridor</th>
+          <th>Country Manager</th>
+          <th>Agence SDR</th>
+          <th>En interne</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Délai avant premier outreach</td>
+          <td class="highlight check">3–4 semaines</td>
+          <td>4–6 mois</td>
+          <td>2–4 semaines</td>
+          <td>3–6 mois</td>
+        </tr>
+        <tr>
+          <td>Système que vous possédez</td>
+          <td class="highlight check">✓</td>
+          <td class="cross">✗</td>
+          <td class="cross">✗</td>
+          <td class="check">✓</td>
+        </tr>
+        <tr>
+          <td>Configuration & déploiement expert</td>
+          <td class="highlight check">✓</td>
+          <td class="check">✓</td>
+          <td class="cross">✗</td>
+          <td class="cross">✗</td>
+        </tr>
+        <tr>
+          <td>Machine à contenu incluse</td>
+          <td class="highlight check">✓</td>
+          <td class="cross">✗</td>
+          <td class="cross">✗</td>
+          <td class="cross">✗</td>
+        </tr>
+        <tr>
+          <td>Réseau EMEA, immédiat</td>
+          <td class="highlight check">✓ 20+ ans</td>
+          <td class="cross">Se construit de zéro</td>
+          <td class="cross">✗</td>
+          <td class="cross">✗</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- CE QUE VOUS POSSEDEZ -->
+<section class="what-you-own">
+  <div class="wyo-inner">
+    <p class="section-label">CE QUE VOUS POSS&Eacute;DEZ</p>
+    <h2>Le syst&egrave;me vous appartient.<br>D&egrave;s le premier jour.</h2>
+    <ul class="wyo-list">
+      <li>&#10003; Votre base de prospects et de signaux</li>
+      <li>&#10003; Votre mod&egrave;le ICP et vos r&egrave;gles de scoring</li>
+      <li>&#10003; Vos s&eacute;quences d&apos;outreach et votre logique de campagne</li>
+      <li>&#10003; Votre base de connaissance marque et messaging</li>
+      <li>&#10003; Votre historique pipeline et journal d&apos;activit&eacute;</li>
+      <li>&#10003; Vos 15 agents IA, configur&eacute;s pour votre marque</li>
+      <li>&#10003; Vos workflows, qui tournent sans vous</li>
+    </ul>
+  </div>
+</section>
+
+<!-- TIMELINE -->
+<section class="timeline-section" id="timeline">
+  <div class="section-label reveal">Calendrier d'implémentation</div>
+  <div class="timeline reveal">
+    <div class="timeline-item active">
+      <div class="timeline-week">Semaine 1</div>
+      <div class="timeline-content">
+        <h3>ICP & Signal Intelligence</h3>
+        <p>Session de définition ICP de 60 minutes. Intelligence signaux en ligne, alertes temps réel configurées, contexte de marque défini. Premiers contacts Tier A identifiés sous 48 heures.</p>
+        <div class="timeline-deliverables">
+          <span class="deliverable-tag">Carte ICP</span>
+          <span class="deliverable-tag">Intelligence signaux active</span>
+          <span class="deliverable-tag">Alertes temps réel</span>
+          <span class="deliverable-tag">Contexte Marque</span>
+        </div>
+      </div>
+    </div>
+    <div class="timeline-item active">
+      <div class="timeline-week">Semaine 2</div>
+      <div class="timeline-content">
+        <h3>Déploiement du stack</h3>
+        <p>Dashboard déployé avec votre configuration de marque. 8 workflows d'automatisation en ligne et testés. Séquences J+0/J+5 rédigées pour vos 2 personas principaux.</p>
+        <div class="timeline-deliverables">
+          <span class="deliverable-tag">Dashboard Live</span>
+          <span class="deliverable-tag">8 Workflows</span>
+          <span class="deliverable-tag">Séquences Rédigées</span>
+          <span class="deliverable-tag">Automatisations Actives</span>
+        </div>
+      </div>
+    </div>
+    <div class="timeline-item">
+      <div class="timeline-week">Semaine 3</div>
+      <div class="timeline-content">
+        <h3>CMO IA + Onboarding</h3>
+        <p>15 agents IA configurés pour votre marque. Calendrier éditorial LinkedIn sur 30 jours. Session d'onboarding 1. 50+ contacts importés, scores ICP validés.</p>
+        <div class="timeline-deliverables">
+          <span class="deliverable-tag">CMO IA Actif</span>
+          <span class="deliverable-tag">Plan Contenu 30J</span>
+          <span class="deliverable-tag">Onboarding 1</span>
+          <span class="deliverable-tag">50+ Contacts</span>
+        </div>
+      </div>
+    </div>
+    <div class="timeline-item">
+      <div class="timeline-week">Semaine 4</div>
+      <div class="timeline-content">
+        <h3>Go-Live</h3>
+        <p>Session d'onboarding 2. Les 20 premières invitations LinkedIn envoyées. Système validé de bout en bout. Contrat de retainer signé si applicable.</p>
+        <div class="timeline-deliverables">
+          <span class="deliverable-tag">Onboarding 2</span>
+          <span class="deliverable-tag">Premier Outreach</span>
+          <span class="deliverable-tag">Checklist Go-Live</span>
+          <span class="deliverable-tag">Retainer Signé</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOUNDER -->
+<section class="founder-section">
+  <div class="founder-inner reveal">
+    <p class="founder-quote">« Après vingt ans à construire des moteurs commerciaux dans trente pays, le problème est toujours le même : bon produit, pipeline imprévisible. Corridor est l'infrastructure qui règle ça, que vous entriez sur un nouveau marché ou que vous accélériez sur l'un de ceux que vous connaissez déjà. »</p>
+    <div class="founder-sig">
+      <div class="founder-avatar">T</div>
+      <div class="founder-name">
+        <strong>Thomas Dratler</strong>
+        <span>Fondateur, Corridor · 20+ ans GTM EMEA</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section" id="contact">
+  <div class="cta-text reveal">
+    <h2>Plus de performance commerciale. Moins d'effort manuel. Opérationnel en 4 semaines.</h2>
+    <p>Un appel découverte de 30 minutes. Pas de deck, pas de pitch. Vous expliquez votre marché cible et où vous bloquez. Je vous dis exactement ce que Corridor ferait pour vous et si ça a du sens.</p>
+  </div>
+  <div class="cta-form reveal">
+    <h3>Réserver un appel découverte</h3>
+    <p>30 MIN · SANS ENGAGEMENT · RÉPONSE SOUS 24H</p>
+    <div class="calendly-inline-widget" data-url="https://calendly.com/thomas-corridor/30min?hide_event_type_details=1&hide_gdpr_banner=1" style="min-width:280px;height:380px;"></div>
+    <script type="text/javascript" src="https://assets.calendly.com/assets/external/widget.js" async></script>
+    <div class="contact-form-wrap">
+      <h3>Ou envoyez-nous un message</h3>
+      <form id="contact-form">
+        <div class="form-row">
+          <input type="text" id="cf-firstname" placeholder="Prenom" required>
+          <input type="text" id="cf-lastname" placeholder="Nom" required>
+        </div>
+        <input type="email" id="cf-email" placeholder="Email" required>
+        <input type="tel" id="cf-phone" placeholder="Telephone (optionnel)">
+        <textarea id="cf-message" placeholder="Votre message" rows="4" required></textarea>
+        <button type="button" onclick="submitContactForm()">Envoyer le message</button>
+      </form>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <a href="/" class="logo">
+    <div class="logo-mark"><span></span><span></span><span></span><span></span></div>
+    <div class="logo-text">
+      <span class="logo-name">CORRIDOR</span>
+      <span class="logo-tagline" style="display:block">GTM System</span>
+    </div>
+  </a>
+  <ul class="footer-links">
+    <li><a href="mailto:contact@corridor.systems">contact@corridor.systems</a></li>
+    <li><a href="https://www.linkedin.com/company/corridor-gtm-system" target="_blank" rel="noopener">LinkedIn</a></li>
+    <li><a href="/privacy-fr.html">Confidentialité</a></li>
+    <li><a href="/legal/terms.html">Conditions</a></li>
+    <li><a href="/legal/refunds.html">Remboursements</a></li>
+    <li><a href="/legal/sub-processors?lang=fr">Sous-traitants</a></li>
+    <li><a href="#" onclick="manageCookies();return false;">Gérer mes cookies</a></li>
+    <li><a href="/">Version EN</a></li>
+  </ul>
+  <p class="footer-copy">© 2026 Corridor · corridor.systems</p>
+</footer>
+
+<script>
+async function submitContactForm() {
+  const form = document.getElementById('contact-form');
+  if (!form.reportValidity()) return;
+
+  const firstName = document.getElementById('cf-firstname').value.trim();
+  const lastName = document.getElementById('cf-lastname').value.trim();
+  const email = document.getElementById('cf-email').value.trim();
+  const phone = document.getElementById('cf-phone').value.trim();
+  const message = document.getElementById('cf-message').value.trim();
+
+  const btn = form.querySelector('button');
+  const origText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Envoi...';
+
+  const prevErr = document.getElementById('cf-error');
+  if (prevErr) prevErr.remove();
+
+  try {
+    const res = await fetch('/api/contact', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ firstName, lastName, email, phone, message })
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      form.style.display = 'none';
+      let successEl = document.getElementById('contact-success');
+      if (!successEl) {
+        successEl = document.createElement('div');
+        successEl.id = 'contact-success';
+        form.parentNode.appendChild(successEl);
+      }
+      successEl.textContent = "Merci - nous avons bien recu votre message et vous repondrons rapidement.";
+      successEl.style.display = 'block';
+    } else {
+      throw new Error(data.error || 'Unknown error');
+    }
+  } catch (err) {
+    const errEl = document.createElement('p');
+    errEl.id = 'cf-error';
+    errEl.innerHTML = 'Une erreur est survenue. Reessayez ou ecrivez-nous directement a <a href="mailto:contact@corridor.systems">contact@corridor.systems</a>.';
+    form.insertAdjacentElement('beforebegin', errEl);
+    btn.disabled = false;
+    btn.textContent = origText;
+  }
+}
+
+function toggleMobileMenu() {
+  const links = document.querySelector('.nav-links');
+  if(links) {
+    links.style.display = links.style.display === 'flex' ? 'none' : 'flex';
+    links.style.flexDirection = 'column';
+    links.style.position = 'absolute';
+    links.style.top = '56px';
+    links.style.left = '0';
+    links.style.right = '0';
+    links.style.background = '#fff';
+    links.style.padding = '20px';
+    links.style.borderBottom = '1px solid #E8ECF2';
+    links.style.gap = '16px';
+  }
+}
+
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if(e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); }
+  });
+}, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+(function loadProspectsCount() {
+  var valEl = document.getElementById('hero-prospects-val');
+  var statEl = document.getElementById('hero-prospects-stat');
+  if (!valEl) return;
+  fetch('/api/prospects-count')
+    .then(function(res) { return res.ok ? res.json() : Promise.reject(res.status); })
+    .then(function(data) {
+      if (typeof data.count === 'number') {
+        valEl.textContent = data.count.toLocaleString('fr-FR');
+      } else {
+        if (statEl) statEl.style.display = 'none';
+      }
+    })
+    .catch(function() {
+      if (statEl) statEl.style.display = 'none';
+    });
+})();
+
+document.querySelectorAll('a[href^="#"]').forEach(a => {
+  a.addEventListener('click', e => {
+    e.preventDefault();
+    const target = document.querySelector(a.getAttribute('href'));
+    if(target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+});
+</script>
+
+<!-- Bannière de consentement cookies + chargement conditionnel RB2B -->
+<div id="cookie-banner" style="display:none;position:fixed;bottom:16px;left:16px;right:16px;max-width:560px;margin:0 auto;z-index:99999;background:#1a2b5e;color:#fff;border-radius:12px;padding:16px 20px;box-shadow:0 8px 30px rgba(26,43,94,0.35);font-family:inherit;align-items:center;gap:16px;flex-wrap:wrap;justify-content:space-between">
+  <span style="font-size:13px;line-height:1.5;flex:1;min-width:220px">Nous utilisons des cookies pour identifier les visiteurs B2B et améliorer notre prospection. <a href="/privacy-fr.html" style="color:#93A8D4;text-decoration:underline">En savoir plus</a></span>
+  <span style="display:flex;gap:8px;flex-shrink:0">
+    <button onclick="rb2bConsent(true)" style="background:#fff;color:#1a2b5e;border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">Accepter</button>
+    <button onclick="rb2bConsent(false)" style="background:transparent;color:#fff;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Refuser</button>
+  </span>
+</div>
+<script>
+(function(){
+  function getCookie(n){return document.cookie.split('; ').reduce(function(a,c){var p=c.split('=');return p[0]===n?decodeURIComponent(p.slice(1).join('=')):a;},'');}
+  function setCookie(n,v,days){var d=new Date();d.setTime(d.getTime()+days*864e5);document.cookie=n+'='+v+';expires='+d.toUTCString()+';path=/;SameSite=Lax';}
+  function loadRB2B(){(function(key){if(window.reb2b)return;window.reb2b={loaded:true};var s=document.createElement('script');s.async=true;s.src='https://ddwl4m2hdecbv.cloudfront.net/b/'+key+'/'+key+'.js.gz';document.getElementsByTagName('script')[0].parentNode.insertBefore(s,document.getElementsByTagName('script')[0]);})('0NW1GHZ0GWO4');}
+  window.rb2bConsent=function(accept){setCookie('rb2b_consent',accept?'true':'false',365);var b=document.getElementById('cookie-banner');if(b)b.style.display='none';if(accept)loadRB2B();};
+  window.manageCookies=function(){setCookie('rb2b_consent','',-1);var b=document.getElementById('cookie-banner');if(b)b.style.display='flex';};
+  var c=getCookie('rb2b_consent');
+  if(c==='true'){loadRB2B();}
+  else if(c==='false'){/* refusé : ne pas charger */}
+  else{var b=document.getElementById('cookie-banner');if(b)b.style.display='flex';}
+})();
+</script>
+<script>
+(function(){
+  var GRID='news-grid-fr',SECT='news-section-fr',LANG='fr',MS=900000;
+  function ago(d){var s=(Date.now()-new Date(d).getTime())/1e3;return s<3600?Math.floor(s/60)+'min':'il y a '+( s<86400?Math.floor(s/3600)+'h':Math.floor(s/86400)+'j');}
+  function skel(g){g.innerHTML=Array(6).fill('<div class="news-card-skel"><div class="news-skel-line" style="height:12px;width:85%"></div><div class="news-skel-line" style="height:12px;width:65%"></div><div class="news-skel-line" style="height:10px;width:45%;margin-top:8px"></div></div>').join('');}
+  function render(g,arts){
+    if(!arts||!arts.length){var s=document.getElementById(SECT);if(s)s.style.display='none';return;}
+    g.innerHTML=arts.slice(0,6).map(function(a){
+      var h=a.title||'';h=h.length>80?h.slice(0,80)+'…':h;
+      var src=a.source&&a.source.name?a.source.name:'';
+      var t=a.publishedAt?ago(a.publishedAt):'';
+      return '<a class="news-card" href="'+(a.url||'#')+'" target="_blank" rel="noopener noreferrer"><div class="news-card-headline">'+h+'</div><div class="news-card-meta"><span>'+src+'</span><span>'+t+'</span></div></a>';
+    }).join('');
+  }
+  function load(g){fetch('/api/news?lang='+LANG).then(function(r){return r.json();}).then(function(d){render(g,d.articles);}).catch(function(){var s=document.getElementById(SECT);if(s)s.style.display='none';});}
+  var g=document.getElementById(GRID);
+  if(g){skel(g);load(g);setInterval(function(){load(g);},MS);}
+})();
+</script>
+</body>
+</html>

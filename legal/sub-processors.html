@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sub-Processor List | Corridor</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,700;1,9..144,300&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy: #1a2b5e;
+  --navy-light: #EEF1FA;
+  --blue: #93A8D4;
+  --muted: #6B7A99;
+  --dim: #8896B3;
+  --text: #1E2A45;
+  --border: #E8ECF2;
+  --bg: #ffffff;
+  --surf: #F8F9FB;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 16px; line-height: 1.8; color: var(--text); background: var(--bg); }
+nav { padding: 20px 48px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+.logo-mark { display: grid; grid-template-columns: 9px 9px; grid-template-rows: 9px 9px; gap: 3px; }
+.logo-mark span { display: block; border-radius: 2px; }
+.logo-mark span:nth-child(1), .logo-mark span:nth-child(4) { background: var(--navy); }
+.logo-mark span:nth-child(2), .logo-mark span:nth-child(3) { background: var(--blue); }
+.logo-name { font-size: 14px; font-weight: 800; letter-spacing: 2px; color: var(--navy); }
+.logo-tagline { font-size: 10px; font-style: italic; color: var(--dim); }
+.nav-right { display: flex; align-items: center; gap: 16px; }
+.lang-switcher { display: flex; gap: 4px; }
+.lang-btn { font-size: 11px; font-weight: 600; letter-spacing: 0.5px; padding: 5px 10px; border-radius: 6px; border: 1px solid var(--border); background: transparent; color: var(--muted); cursor: pointer; font-family: inherit; transition: all 0.2s; }
+.lang-btn:hover { color: var(--navy); border-color: var(--blue); }
+.lang-btn.active { background: var(--navy); color: #fff; border-color: var(--navy); }
+.back-link { font-size: 13px; color: var(--muted); text-decoration: none; white-space: nowrap; }
+.back-link:hover { color: var(--navy); }
+main { max-width: 880px; margin: 0 auto; padding: 72px 48px 96px; }
+h1 { font-family: 'Fraunces', serif; font-size: 42px; font-weight: 700; color: var(--navy); letter-spacing: -1px; line-height: 1.1; margin-bottom: 8px; }
+.meta { font-size: 13px; color: var(--dim); margin-bottom: 40px; padding-bottom: 28px; border-bottom: 1px solid var(--border); }
+.intro { font-size: 15px; color: var(--text); font-weight: 300; margin-bottom: 32px; max-width: 680px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 32px; }
+thead th { text-align: left; font-weight: 700; color: var(--navy); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 12px 14px; background: var(--surf); border-bottom: 2px solid var(--border); }
+tbody td { padding: 14px; border-bottom: 1px solid var(--border); color: var(--text); font-weight: 300; vertical-align: top; }
+tbody tr:hover { background: var(--surf); }
+.cat { font-weight: 600; color: var(--navy); }
+.yes { color: #15803d; font-weight: 700; }
+.pending { color: #b45309; font-weight: 600; }
+.dash { color: var(--dim); }
+.note { font-size: 14px; color: var(--muted); font-weight: 300; max-width: 680px; }
+footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 880px; margin: 0 auto; display: flex; gap: 24px; }
+footer a { font-size: 13px; color: var(--muted); text-decoration: none; font-weight: 600; }
+footer a:hover { color: var(--navy); }
+@media (max-width: 720px) {
+  nav { padding: 16px 20px; }
+  main { padding: 48px 20px 72px; }
+  h1 { font-size: 32px; }
+  table { font-size: 12px; }
+  thead th, tbody td { padding: 10px 8px; }
+  footer { padding: 20px; flex-direction: column; gap: 10px; }
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="logo">
+    <div class="logo-mark"><span></span><span></span><span></span><span></span></div>
+    <div>
+      <div class="logo-name">CORRIDOR</div>
+      <div class="logo-tagline">GTM System</div>
+    </div>
+  </a>
+  <div class="nav-right">
+    <div class="lang-switcher">
+      <button class="lang-btn active" onclick="setLang('en')">EN</button>
+      <button class="lang-btn" onclick="setLang('fr')">FR</button>
+    </div>
+    <a href="/" class="back-link" data-en="← Back to corridor.systems" data-fr="← Retour au site">← Back to corridor.systems</a>
+  </div>
+</nav>
+
+<main>
+  <h1 data-en="Sub-Processor List" data-fr="Liste des sous-traitants">Sub-Processor List</h1>
+  <p class="meta" data-en="Last updated: June 2026" data-fr="Dernière mise à jour : juin 2026">Last updated: June 2026</p>
+
+  <p class="intro" data-en="Corridor uses the following categories of sub-processors to deliver its GTM System services. All sub-processors are bound by data processing agreements and appropriate transfer mechanisms where applicable." data-fr="Corridor utilise les catégories de sous-traitants suivantes pour fournir ses services GTM System. Tous les sous-traitants sont liés par des accords de traitement des données et des mécanismes de transfert appropriés le cas échéant.">Corridor uses the following categories of sub-processors to deliver its GTM System services. All sub-processors are bound by data processing agreements and appropriate transfer mechanisms where applicable.</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th data-en="Sub-processor Category" data-fr="Catégorie de sous-traitant">Sub-processor Category</th>
+        <th data-en="Service Provided" data-fr="Service fourni">Service Provided</th>
+        <th data-en="Data Location" data-fr="Localisation des données">Data Location</th>
+        <th data-en="Transfer Mechanism" data-fr="Mécanisme de transfert">Transfer Mechanism</th>
+        <th data-en="DPA in Place" data-fr="DPA signé">DPA in Place</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="cat" data-en="Cloud database &amp; authentication provider" data-fr="Fournisseur de base de données et d'authentification cloud">Cloud database &amp; authentication provider</td>
+        <td data-en="Data storage, user authentication, access control" data-fr="Stockage des données, authentification, contrôle d'accès">Data storage, user authentication, access control</td>
+        <td data-en="European Union" data-fr="Union Européenne">European Union</td>
+        <td class="dash">—</td>
+        <td class="yes">✅</td>
+      </tr>
+      <tr>
+        <td class="cat" data-en="Workflow automation provider" data-fr="Fournisseur d'automatisation des workflows">Workflow automation provider</td>
+        <td data-en="Automated data processing and routing" data-fr="Traitement automatisé et routage des données">Automated data processing and routing</td>
+        <td data-en="European Union" data-fr="Union Européenne">European Union</td>
+        <td class="dash">—</td>
+        <td class="yes">✅</td>
+      </tr>
+      <tr>
+        <td class="cat" data-en="AI language model provider" data-fr="Fournisseur de modèle de langage IA">AI language model provider</td>
+        <td data-en="Natural language processing, content generation" data-fr="Traitement du langage naturel, génération de contenu">Natural language processing, content generation</td>
+        <td data-en="United States" data-fr="États-Unis">United States</td>
+        <td data-en="Standard Contractual Clauses (SCC)" data-fr="Clauses Contractuelles Types (CCT)">Standard Contractual Clauses (SCC)</td>
+        <td class="yes">✅</td>
+      </tr>
+      <tr>
+        <td class="cat" data-en="Cloud hosting &amp; deployment provider" data-fr="Fournisseur d'hébergement et déploiement cloud">Cloud hosting &amp; deployment provider</td>
+        <td data-en="Application hosting, edge functions" data-fr="Hébergement applicatif, fonctions edge">Application hosting, edge functions</td>
+        <td data-en="United States" data-fr="États-Unis">United States</td>
+        <td data-en="Standard Contractual Clauses (SCC)" data-fr="Clauses Contractuelles Types (CCT)">Standard Contractual Clauses (SCC)</td>
+        <td class="yes">✅</td>
+      </tr>
+      <tr>
+        <td class="cat" data-en="Signal intelligence provider" data-fr="Fournisseur d'intelligence de signaux">Signal intelligence provider</td>
+        <td data-en="LinkedIn signal monitoring, lead scoring" data-fr="Surveillance des signaux LinkedIn, scoring des leads">LinkedIn signal monitoring, lead scoring</td>
+        <td data-en="European Union" data-fr="Union Européenne">European Union</td>
+        <td class="pending" data-en="⏳ In progress" data-fr="⏳ En cours">⏳ In progress</td>
+        <td class="dash">—</td>
+      </tr>
+      <tr>
+        <td class="cat" data-en="Email enrichment provider (1)" data-fr="Fournisseur d'enrichissement email (1)">Email enrichment provider (1)</td>
+        <td data-en="Professional email discovery" data-fr="Découverte d'adresses email professionnelles">Professional email discovery</td>
+        <td data-en="United States" data-fr="États-Unis">United States</td>
+        <td data-en="Standard Contractual Clauses (SCC)" data-fr="Clauses Contractuelles Types (CCT)">Standard Contractual Clauses (SCC)</td>
+        <td class="yes">✅</td>
+      </tr>
+      <tr>
+        <td class="cat" data-en="Email enrichment provider (2)" data-fr="Fournisseur d'enrichissement email (2)">Email enrichment provider (2)</td>
+        <td data-en="Contact data enrichment" data-fr="Enrichissement des données de contact">Contact data enrichment</td>
+        <td data-en="United States" data-fr="États-Unis">United States</td>
+        <td data-en="Standard Contractual Clauses (SCC)" data-fr="Clauses Contractuelles Types (CCT)">Standard Contractual Clauses (SCC)</td>
+        <td class="yes">✅</td>
+      </tr>
+      <tr>
+        <td class="cat" data-en="Email validation provider" data-fr="Fournisseur de validation d'email">Email validation provider</td>
+        <td data-en="Email address verification" data-fr="Vérification des adresses email">Email address verification</td>
+        <td data-en="United States" data-fr="États-Unis">United States</td>
+        <td data-en="Standard Contractual Clauses (SCC)" data-fr="Clauses Contractuelles Types (CCT)">Standard Contractual Clauses (SCC)</td>
+        <td class="yes">✅</td>
+      </tr>
+      <tr>
+        <td class="cat" data-en="Monitoring &amp; observability provider" data-fr="Fournisseur de monitoring et d'observabilité">Monitoring &amp; observability provider</td>
+        <td data-en="AI call tracing, usage and cost monitoring" data-fr="Traçage des appels IA, suivi de l'usage et des coûts">AI call tracing, usage and cost monitoring</td>
+        <td data-en="United States" data-fr="États-Unis">United States</td>
+        <td data-en="EU SCCs (Module 2, Decision 2021/914)" data-fr="CCT UE (Module 2, Décision 2021/914)">EU SCCs (Module 2, Decision 2021/914)</td>
+        <td class="yes">✅</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p class="note" data-html data-en="Clients are notified of material changes to this list with 30 days' notice and may object in writing within that period. For questions, contact: <a href='mailto:thomas@corridor.systems'>thomas@corridor.systems</a>" data-fr="Les clients sont informés de toute modification importante de cette liste avec un préavis de 30 jours et peuvent s'y opposer par écrit dans ce délai. Pour toute question : <a href='mailto:thomas@corridor.systems'>thomas@corridor.systems</a>">Clients are notified of material changes to this list with 30 days' notice and may object in writing within that period. For questions, contact: <a href="mailto:thomas@corridor.systems">thomas@corridor.systems</a></p>
+</main>
+
+<footer>
+  <a href="/" data-en="← corridor.systems" data-fr="← Retour au site">← corridor.systems</a>
+  <a href="/privacy.html" data-en="Privacy Policy" data-fr="Politique de confidentialité">Privacy Policy</a>
+</footer>
+
+<script>
+let currentLang = 'en';
+function applyLang() {
+  document.querySelectorAll('[data-en]').forEach(el => {
+    const v = (currentLang === 'fr' && el.dataset.fr != null) ? el.dataset.fr : el.dataset.en;
+    if (el.hasAttribute('data-html')) el.innerHTML = v; else el.textContent = v;
+  });
+}
+function setLang(lang) {
+  currentLang = lang;
+  document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.textContent.trim().toLowerCase() === lang));
+  applyLang();
+}
+(function(){
+  const p = new URLSearchParams(location.search);
+  if (p.get('lang') === 'fr') setLang('fr'); else applyLang();
+})();
+</script>
+
+</body>
+</html>

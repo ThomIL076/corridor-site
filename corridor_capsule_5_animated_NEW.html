@@ -1,0 +1,223 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Corridor · 15 AI Agents</title><style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; background: #0d1117; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; overflow: hidden; }
+.slide { display: none; position: absolute; inset: 0; padding: 60px 80px; flex-direction: column; justify-content: center; }
+.slide.active { display: flex; }
+#s0 { flex-direction: column; align-items: center; justify-content: center; text-align: center; background: radial-gradient(ellipse at center, #1a2b5e 0%, #0d1117 70%); }
+.intro-logo { width: 200px; opacity: 0; margin-bottom: 36px; border-radius: 10px; }
+.intro-title { font-size: 52px; font-weight: 800; color: #fff; letter-spacing: -2px; opacity: 0; margin-bottom: 16px; }
+.intro-sub { font-size: 22px; color: #93A8D4; opacity: 0; }
+.intro-line { width: 0px; height: 2px; background: linear-gradient(90deg,#93A8D4,#4ade80); border-radius: 1px; margin: 24px auto; }
+.eyebrow { font-size: 15px; letter-spacing: 3px; color: #93A8D4; text-transform: uppercase; margin-bottom: 14px; opacity: 0; font-weight: 700; }
+.headline { font-size: 46px; font-weight: 800; color: #fff; line-height: 1.1; margin-bottom: 12px; letter-spacing: -1.5px; opacity: 0; }
+.sub { font-size: 20px; color: #a0b0cc; line-height: 1.5; margin-bottom: 28px; opacity: 0; }
+/* Agent tabs */
+.agent-tabs { display: flex; gap: 20px; width: 100%; }
+.tab-section { background: #1a2235; border: 1px solid #2a3550; border-radius: 14px; padding: 16px 18px; flex: 1; opacity: 0; transform: translateY(18px); }
+.tab-section-title { font-size: 13px; letter-spacing: 2px; color: #8a9ab8; text-transform: uppercase; margin-bottom: 12px; font-weight: 700; }
+.tab-agent { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid #1e2d45; opacity: 0; transform: translateX(-10px); }
+.tab-agent:last-child { border-bottom: none; }
+.tab-agent-icon { font-size: 16px; }
+.tab-agent-name { font-size: 13px; font-weight: 700; color: #fff; }
+.tab-agent-role { font-size: 11px; color: #6B7A99; margin-top: 1px; }
+/* Chat */
+.chat-block { background: #1a2235; border: 1px solid #2a3550; border-radius: 16px; padding: 20px 24px; opacity: 0; transform: translateY(20px); max-width: 700px; }
+.chat-header { font-size: 13px; letter-spacing: 2px; color: #8a9ab8; text-transform: uppercase; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; font-weight: 700; }
+.chat-hdot { width: 6px; height: 6px; border-radius: 50%; background: #4ade80; animation: blink 1.2s infinite; }
+.chat-q { display: flex; gap: 12px; margin-bottom: 14px; opacity: 0; transform: translateY(8px); }
+.chat-q-label { font-size: 11px; font-weight: 700; color: #6B7A99; text-transform: uppercase; letter-spacing: 1px; white-space: nowrap; margin-top: 2px; }
+.chat-q-text { font-size: 14px; color: #c8d0e0; line-height: 1.6; }
+.chat-a { display: flex; gap: 12px; opacity: 0; transform: translateY(8px); }
+.chat-a-label { font-size: 11px; font-weight: 700; color: #4ade80; text-transform: uppercase; letter-spacing: 1px; white-space: nowrap; margin-top: 2px; }
+.chat-a-text { font-size: 14px; color: #c8d0e0; line-height: 1.6; }
+.chat-a-text em { color: #93A8D4; font-style: normal; }
+/* Compound */
+.compound-block { background: #1a2235; border: 1px solid #2a3550; border-radius: 16px; padding: 20px 24px; opacity: 0; transform: translateY(20px); width: 100%; max-width: 780px; }
+.compound-header { font-size: 13px; letter-spacing: 2px; color: #8a9ab8; text-transform: uppercase; font-weight: 700; margin-bottom: 14px; }
+.compound-row { display: flex; gap: 16px; padding: 10px 0; border-bottom: 1px solid #2a3550; opacity: 0; transform: translateX(-14px); }
+.compound-row:last-child { border-bottom: none; }
+.compound-month { font-size: 13px; font-weight: 700; color: #93A8D4; white-space: nowrap; min-width: 65px; margin-top: 2px; }
+.compound-text { font-size: 14px; color: #c8d0e0; line-height: 1.5; }
+.compound-text strong { color: #fff; }
+/* Final */
+.final-logo { width: 180px; opacity: 0; margin-bottom: 28px; border-radius: 8px; }
+.final-hl { font-size: 52px; font-weight: 800; color: #fff; line-height: 1.1; margin-bottom: 18px; letter-spacing: -2px; opacity: 0; text-align: center; }
+.final-sub { font-size: 20px; color: #a0b0cc; margin-bottom: 24px; line-height: 1.6; max-width: 640px; opacity: 0; text-align: center; }
+.final-url { font-size: 21px; color: #93A8D4; letter-spacing: 1px; opacity: 0; text-align: center; cursor: pointer; transition: color 0.2s; }
+.final-url:hover { color: #fff; }
+.nav { position: fixed; bottom: 32px; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; padding: 0 80px; }
+.dots { display: flex; gap: 8px; }
+.dot { width: 36px; height: 4px; border-radius: 2px; background: #2a3550; cursor: pointer; transition: background 0.3s; }
+.dot.active { background: #93A8D4; } .dot.done { background: #4ade80; }
+.btn { background: #1a2b5e; border: 1px solid #93A8D4; color: #fff; font-size: 14px; font-weight: 700; padding: 10px 26px; border-radius: 10px; cursor: pointer; font-family: inherit; transition: all 0.2s; }
+.btn:hover { background: #2a3d6e; }
+.step-info { font-size: 14px; color: #8a9ab8; letter-spacing: 1px; }
+@keyframes fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+@keyframes fadeIn { from{opacity:0} to{opacity:1} }
+@keyframes slideLeft { from{opacity:0;transform:translateX(-14px)} to{opacity:1;transform:translateX(0)} }
+@keyframes agentIn { from{opacity:0;transform:translateX(-10px)} to{opacity:1;transform:translateX(0)} }
+@keyframes lineGrow { from{width:0px} to{width:120px} }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+</style></head><body>
+
+<!-- SLIDE 0: INTRO -->
+<div class="slide active" id="s0">
+  <img class="intro-logo" id="i-logo" src="data:image/jpeg;base64,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" alt="Corridor">
+  <div class="intro-line" id="i-line"></div>
+  <div class="intro-title" id="i-title">15 AI Agents</div>
+  <div class="intro-sub" id="i-sub">Commercial execution without the friction.</div>
+</div>
+
+<!-- SLIDE 1: THE AGENTS -->
+<div class="slide" id="s1">
+  <div class="eyebrow" id="s1-ey">Corridor · 15 AI Agents</div>
+  <div class="headline" id="s1-hl">Commercial execution.<br>Without the friction.</div>
+  <div class="sub" id="s1-sub">Signal intelligence, outreach and pipeline in one system.</div>
+  <div class="agent-tabs">
+    <div class="tab-section" id="tab0">
+      <div class="tab-section-title">GTM Tab · 9 agents</div>
+      <div class="tab-agent" id="ag0"><span class="tab-agent-icon">🔍</span><div><div class="tab-agent-name">Signal Scanner</div><div class="tab-agent-role">Morning scan</div></div></div>
+      <div class="tab-agent" id="ag1"><span class="tab-agent-icon">🎯</span><div><div class="tab-agent-name">ICP Scorer</div><div class="tab-agent-role">Prospect ranking</div></div></div>
+      <div class="tab-agent" id="ag2"><span class="tab-agent-icon">✍️</span><div><div class="tab-agent-name">Outreach Writer</div><div class="tab-agent-role">J+0 / J+5 / J+12</div></div></div>
+      <div class="tab-agent" id="ag3"><span class="tab-agent-icon">🎯</span><div><div class="tab-agent-name">CRO Advisor</div><div class="tab-agent-role">Pipeline strategy</div></div></div>
+      <div class="tab-agent" id="ag4"><span class="tab-agent-icon">🤝</span><div><div class="tab-agent-name">Deal Closer</div><div class="tab-agent-role">Closing playbook</div></div></div>
+      <div class="tab-agent" id="ag5"><span class="tab-agent-icon">📋</span><div><div class="tab-agent-name">Call Briefing</div><div class="tab-agent-role">Pre-meeting prep</div></div></div>
+    </div>
+    <div class="tab-section" id="tab1">
+      <div class="tab-section-title">CMO Tab · 8 agents</div>
+      <div class="tab-agent" id="ag6"><span class="tab-agent-icon">⭐</span><div><div class="tab-agent-name">CMO Orchestrator</div><div class="tab-agent-role">Marketing strategy</div></div></div>
+      <div class="tab-agent" id="ag7"><span class="tab-agent-icon">✍️</span><div><div class="tab-agent-name">Copywriter</div><div class="tab-agent-role">LinkedIn + email</div></div></div>
+      <div class="tab-agent" id="ag8"><span class="tab-agent-icon">📣</span><div><div class="tab-agent-name">Content Strategist</div><div class="tab-agent-role">30-day calendar</div></div></div>
+      <div class="tab-agent" id="ag9"><span class="tab-agent-icon">🔎</span><div><div class="tab-agent-name">SEO and AEO</div><div class="tab-agent-role">AI search visibility</div></div></div>
+      <div class="tab-agent" id="ag10"><span class="tab-agent-icon">📈</span><div><div class="tab-agent-name">Performance Analyst</div><div class="tab-agent-role">What is working</div></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- SLIDE 2: DEAL CLOSER -->
+<div class="slide" id="s2">
+  <div class="eyebrow" id="s2-ey">Deal Closer · Agent</div>
+  <div class="headline" id="s2-hl">A senior advisor.<br>On every deal.</div>
+  <div class="sub" id="s2-sub">Configured for your vertical. Available in seconds.</div>
+  <div class="chat-block" id="cb0">
+    <div class="chat-header"><span class="chat-hdot"></span>Deal Closer · CEO · B2B SaaS · London</div>
+    <div class="chat-q" id="cq0"><div class="chat-q-label">You</div><div class="chat-q-text">They replied positively. Demo booked for next week. How do I prepare to close this?</div></div>
+    <div class="chat-a" id="ca0"><div class="chat-a-label">Deal Closer</div><div class="chat-a-text">Their core pain is <em>building EMEA pipeline without a local team</em>. Lead with signal intelligence. Show how Corridor identifies who is ready before outreach starts.<br><br>Key question: <em>who else needs to be in the room</em>. Get both confirmed before you send the invite.<br><br>On pricing: anchor on the cost of hiring a country manager. Do not move until you understand their hiring timeline.</div></div>
+  </div>
+</div>
+
+<!-- SLIDE 3: CMO ORCHESTRATOR -->
+<div class="slide" id="s3">
+  <div class="eyebrow" id="s3-ey">CMO Orchestrator · Agent</div>
+  <div class="headline" id="s3-hl">Your marketing engine.<br>Running in parallel.</div>
+  <div class="sub" id="s3-sub">Content, positioning, distribution, while you run the pipeline.</div>
+  <div class="chat-block" id="cb1">
+    <div class="chat-header"><span class="chat-hdot"></span>CMO Orchestrator · Corridor brand context loaded</div>
+    <div class="chat-q" id="cq1"><div class="chat-q-label">You</div><div class="chat-q-text">Give me the 3 priority content themes for this month.</div></div>
+    <div class="chat-a" id="ca1"><div class="chat-a-label">CMO Orchestrator</div><div class="chat-a-text"><em>Theme 1: The pipeline that runs without you.</em> Commercial execution that does not depend on any single person.<br><br><em>Theme 2: Growth is not a hiring problem.</em> Why companies keep recruiting when the real fix is a system.<br><br><em>Theme 3: The engine compounds.</em> The longer Corridor runs, the harder it is to catch up with.</div></div>
+  </div>
+</div>
+
+<!-- SLIDE 4: COMPOUND EFFECT -->
+<div class="slide" id="s4">
+  <div class="eyebrow" id="s4-ey">The Ongoing Value</div>
+  <div class="headline" id="s4-hl">The longer it runs.<br>The stronger it gets.</div>
+  <div class="sub" id="s4-sub">Stopping means starting over. Keeping it running means compounding.</div>
+  <div class="compound-block" id="comp-block">
+    <div class="compound-header">What compounds every month</div>
+    <div class="compound-row" id="cm0"><div class="compound-month">Month 1</div><div class="compound-text"><strong>Engine installed.</strong> Signals live. First replies incoming. Pipeline built from a system, not from memory.</div></div>
+    <div class="compound-row" id="cm1"><div class="compound-month">Month 3</div><div class="compound-text"><strong>ICP refined.</strong> Agents know what triggers a reply in your market. First deal closed.</div></div>
+    <div class="compound-row" id="cm2"><div class="compound-month">Month 6</div><div class="compound-text"><strong>Commercial position building.</strong> Less dependent on any single person. Warm pipeline feeding itself.</div></div>
+    <div class="compound-row" id="cm3"><div class="compound-month">Month 12</div><div class="compound-text"><strong>Structural advantage.</strong> 12 months of signal data, deal patterns, refined sequences. Cannot be rebuilt overnight.</div></div>
+  </div>
+</div>
+
+<!-- SLIDE 5: FINAL -->
+<div class="slide" style="flex-direction:column;align-items:center;justify-content:center;text-align:center;" id="s5">
+  <img class="final-logo" id="f-logo" src="data:image/jpeg;base64,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" alt="Corridor">
+  <div class="final-hl" id="f-hl">The commercial engine<br>your business is missing.</div>
+  <div class="final-sub" id="f-sub">15 agents · GTM intelligence · Marketing engine · Compounds over time</div>
+  <div class="final-url" id="f-url" onclick="window.open('https://corridor.systems','_blank')">corridor.systems</div>
+</div>
+
+<div class="nav">
+  <span class="step-info" id="step-info">Intro</span>
+  <div class="dots">
+    <div class="dot active" onclick="goTo(0)"></div>
+    <div class="dot" onclick="goTo(1)"></div>
+    <div class="dot" onclick="goTo(2)"></div>
+    <div class="dot" onclick="goTo(3)"></div>
+    <div class="dot" onclick="goTo(4)"></div>
+    <div class="dot" onclick="goTo(5)"></div>
+  </div>
+  <button class="btn" id="next-btn" onclick="nextSlide()">Next →</button>
+</div>
+
+<script>
+const labels=['Intro','1/5 · The agents','2/5 · Deal Closer','3/5 · CMO Orchestrator','4/5 · Compound effect','5/5 · Corridor'];
+const ids=['s0','s1','s2','s3','s4','s5'];
+let cur=0,timers=[];
+function clearT(){timers.forEach(t=>clearTimeout(t));timers=[];}
+function later(d,fn){const t=setTimeout(fn,d);timers.push(t);}
+function animate(el,delay,kf,dur){if(!el)return;later(delay,()=>{el.style.animation=kf+' '+dur+'s ease forwards';});}
+function resetAll(){
+  ['i-logo','i-title','i-sub'].forEach(i=>{const e=document.getElementById(i);if(e){e.style.animation='';e.style.opacity='0';}});
+  const il=document.getElementById('i-line');if(il){il.style.animation='';il.style.width='0px';}
+  ['s1-ey','s1-hl','s1-sub'].forEach(i=>{const e=document.getElementById(i);if(e){e.style.animation='';e.style.opacity='0';}});
+  ['tab0','tab1'].forEach(i=>{const e=document.getElementById(i);if(e){e.style.animation='';e.style.opacity='0';e.style.transform='translateY(18px)';}});
+  for(let i=0;i<=10;i++){const e=document.getElementById('ag'+i);if(e){e.style.animation='';e.style.opacity='0';e.style.transform='translateX(-10px)';}}
+  ['s2-ey','s2-hl','s2-sub','cb0'].forEach(i=>{const e=document.getElementById(i);if(e){e.style.animation='';e.style.opacity='0';e.style.transform='translateY(20px)';}});
+  ['cq0','ca0'].forEach(i=>{const e=document.getElementById(i);if(e){e.style.animation='';e.style.opacity='0';e.style.transform='translateY(8px)';}});
+  ['s3-ey','s3-hl','s3-sub','cb1'].forEach(i=>{const e=document.getElementById(i);if(e){e.style.animation='';e.style.opacity='0';e.style.transform='translateY(20px)';}});
+  ['cq1','ca1'].forEach(i=>{const e=document.getElementById(i);if(e){e.style.animation='';e.style.opacity='0';e.style.transform='translateY(8px)';}});
+  ['s4-ey','s4-hl','s4-sub'].forEach(i=>{const e=document.getElementById(i);if(e){e.style.animation='';e.style.opacity='0';}});
+  const cb=document.getElementById('comp-block');if(cb){cb.style.animation='';cb.style.opacity='0';cb.style.transform='translateY(20px)';}
+  ['cm0','cm1','cm2','cm3'].forEach(i=>{const e=document.getElementById(i);if(e){e.style.animation='';e.style.opacity='0';e.style.transform='translateX(-14px)';}});
+  ['f-logo','f-hl','f-sub','f-url'].forEach(i=>{const e=document.getElementById(i);if(e){e.style.animation='';e.style.opacity='0';}});
+}
+function run0(){
+  animate(document.getElementById('i-logo'),100,'fadeUp',0.7);
+  later(600,()=>{const l=document.getElementById('i-line');if(l)l.style.animation='lineGrow 0.8s ease forwards';});
+  animate(document.getElementById('i-title'),900,'fadeUp',0.7);
+  animate(document.getElementById('i-sub'),1200,'fadeUp',0.6);
+}
+function run1(){
+  animate(document.getElementById('s1-ey'),100,'fadeIn',0.5);
+  animate(document.getElementById('s1-hl'),300,'fadeUp',0.6);
+  animate(document.getElementById('s1-sub'),550,'fadeUp',0.6);
+  animate(document.getElementById('tab0'),800,'fadeUp',0.6);
+  animate(document.getElementById('tab1'),1000,'fadeUp',0.6);
+  [0,1,2,3,4,5].forEach(i=>animate(document.getElementById('ag'+i),1000+i*150,'agentIn',0.4));
+  [6,7,8,9,10].forEach(i=>animate(document.getElementById('ag'+i),1200+(i-6)*150,'agentIn',0.4));
+}
+function run2(){
+  animate(document.getElementById('s2-ey'),100,'fadeIn',0.5);
+  animate(document.getElementById('s2-hl'),300,'fadeUp',0.6);
+  animate(document.getElementById('s2-sub'),550,'fadeUp',0.6);
+  animate(document.getElementById('cb0'),800,'fadeUp',0.6);
+  animate(document.getElementById('cq0'),1100,'fadeUp',0.5);
+  animate(document.getElementById('ca0'),1700,'fadeUp',0.5);
+}
+function run3(){
+  animate(document.getElementById('s3-ey'),100,'fadeIn',0.5);
+  animate(document.getElementById('s3-hl'),300,'fadeUp',0.6);
+  animate(document.getElementById('s3-sub'),550,'fadeUp',0.6);
+  animate(document.getElementById('cb1'),800,'fadeUp',0.6);
+  animate(document.getElementById('cq1'),1100,'fadeUp',0.5);
+  animate(document.getElementById('ca1'),1700,'fadeUp',0.5);
+}
+function run4(){
+  animate(document.getElementById('s4-ey'),100,'fadeIn',0.5);
+  animate(document.getElementById('s4-hl'),300,'fadeUp',0.6);
+  animate(document.getElementById('s4-sub'),550,'fadeUp',0.6);
+  animate(document.getElementById('comp-block'),800,'fadeUp',0.6);
+  ['cm0','cm1','cm2','cm3'].forEach((id,i)=>animate(document.getElementById(id),1100+i*300,'slideLeft',0.5));
+}
+function run5(){['f-logo','f-hl','f-sub','f-url'].forEach((id,i)=>animate(document.getElementById(id),200+i*300,'fadeUp',0.7));}
+const runners=[run0,run1,run2,run3,run4,run5];
+function goTo(n){clearT();document.getElementById(ids[cur]).classList.remove('active');resetAll();cur=n;document.getElementById(ids[cur]).classList.add('active');document.querySelectorAll('.dot').forEach((d,i)=>{d.classList.remove('active','done');if(i<cur)d.classList.add('done');if(i===cur)d.classList.add('active');});document.getElementById('step-info').textContent=labels[cur];document.getElementById('next-btn').textContent=cur===ids.length-1?'Restart':'Next →';runners[cur]();}
+function nextSlide(){if(cur===ids.length-1){goTo(0);return;}goTo(cur+1);}
+document.addEventListener('keydown',e=>{if(e.key==='ArrowRight'||e.key===' ')nextSlide();if(e.key==='ArrowLeft'&&cur>0)goTo(cur-1);});
+setTimeout(()=>run0(),100);
+</script></body></html>

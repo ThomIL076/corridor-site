@@ -1,0 +1,307 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Corridor · Signal Intelligence</title><style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; background: #0d1117; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; overflow: hidden; }
+.slide { display: none; position: absolute; inset: 0; padding: 60px 80px; flex-direction: column; justify-content: center; }
+.slide.active { display: flex; }
+.slide-lr { flex-direction: row !important; align-items: flex-end !important; gap: 48px !important; padding-bottom: 170px !important; }
+.slide-lr .slide-left { flex: 1; min-width: 0; }
+.slide-right { width: 320px; flex-shrink: 0; opacity: 0; }
+#s0 { flex-direction: column; align-items: center; justify-content: center; text-align: center; background: radial-gradient(ellipse at center, #1a2b5e 0%, #0d1117 70%); }
+.intro-logo { width: 200px; opacity: 0; margin-bottom: 36px; border-radius: 10px; }
+.intro-title { font-size: 52px; font-weight: 800; color: #fff; letter-spacing: -2px; opacity: 0; margin-bottom: 16px; }
+.intro-sub { font-size: 22px; color: #93A8D4; opacity: 0; }
+.intro-line { width: 0px; height: 2px; background: linear-gradient(90deg,#93A8D4,#4ade80); border-radius: 1px; margin: 24px auto; }
+.eyebrow { font-size: 15px; letter-spacing: 3px; color: #93A8D4; text-transform: uppercase; margin-bottom: 14px; opacity: 0; font-weight: 700; }
+.headline { font-size: 46px; font-weight: 800; color: #fff; line-height: 1.1; margin-bottom: 12px; letter-spacing: -1.5px; opacity: 0; }
+.sub { font-size: 20px; color: #a0b0cc; line-height: 1.5; margin-bottom: 28px; opacity: 0; }
+/* Pills */
+.signal-types { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
+.signal-pill { background: #1a2235; border: 1px solid #2a3550; border-radius: 10px; padding: 12px 16px; display: flex; align-items: center; gap: 10px; opacity: 0; transform: translateY(14px); }
+.signal-pill.active-pill { border-color: #f59e0b; }
+.signal-pill.active-pill .signal-label { color: #f59e0b; }
+.signal-icon { font-size: 18px; }
+.signal-label { font-size: 14px; font-weight: 700; color: #fff; }
+.signal-desc { font-size: 12px; color: #6B7A99; margin-top: 1px; }
+/* Scan */
+.scan-block { background: #1a2235; border: 1px solid #2a3550; border-radius: 16px; padding: 20px 26px; opacity: 0; transform: translateY(20px); }
+.scan-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.scan-title { font-size: 13px; letter-spacing: 2px; color: #8a9ab8; text-transform: uppercase; font-weight: 700; }
+.scan-live { font-size: 12px; color: #4ade80; font-weight: 700; display: flex; align-items: center; gap: 5px; }
+.scan-dot { width: 6px; height: 6px; border-radius: 50%; background: #4ade80; animation: blink 1.5s infinite; }
+.scan-row { display: flex; align-items: center; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid #2a3550; opacity: 0; transform: translateX(-16px); }
+.scan-row:last-child { border-bottom: none; }
+.scan-co { font-size: 14px; font-weight: 700; color: #fff; }
+.scan-signal { font-size: 13px; color: #f59e0b; margin-top: 2px; }
+.scan-score { font-size: 14px; font-weight: 800; color: #4ade80; }
+/* Cards */
+.card { background: #1a2235; border: 1px solid #2a3550; border-radius: 14px; padding: 18px 22px; margin-bottom: 12px; opacity: 0; transform: translateY(20px); cursor: pointer; transition: border-color 0.2s, transform 0.15s; }
+.card:hover { border-color: #4a5a7a; transform: translateY(-2px); }
+.card.selected { border-color: #4ade80; background: rgba(74,222,128,0.05); }
+.card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.card-name { font-size: 16px; font-weight: 700; color: #fff; }
+.badge { font-size: 12px; padding: 4px 11px; border-radius: 20px; font-weight: 700; }
+.badge-hot { background: rgba(74,222,128,0.15); color: #4ade80; }
+.badge-warm { background: rgba(147,168,212,0.15); color: #93A8D4; }
+.card-meta { font-size: 14px; color: #8a9ab8; margin-bottom: 5px; }
+.signal-txt { font-size: 13px; color: #f59e0b; margin-bottom: 10px; }
+.icp-bar { display: flex; align-items: center; gap: 10px; }
+.icp-label { font-size: 14px; color: #8a9ab8; white-space: nowrap; font-weight: 600; }
+.icp-track { flex: 1; height: 6px; background: #2a3550; border-radius: 3px; overflow: hidden; }
+.icp-fill { height: 100%; border-radius: 3px; background: #4ade80; width: 0%; transition: width 1.2s cubic-bezier(0.4,0,0.2,1); }
+.icp-fill-warm { height: 100%; border-radius: 3px; background: #93A8D4; width: 0%; transition: width 1.2s cubic-bezier(0.4,0,0.2,1); }
+.icp-score { font-size: 14px; font-weight: 800; color: #4ade80; opacity: 0; transition: opacity 0.4s; white-space: nowrap; }
+.card-cta { margin-top: 10px; font-size: 13px; color: #4ade80; font-weight: 700; display: none; }
+.card.selected .card-cta { display: block; }
+/* Feed */
+.feed-panel { background: #1a2235; border: 1px solid #2a3550; border-radius: 16px; padding: 18px 20px; }
+.feed-title { font-size: 14px; letter-spacing: 2px; color: #8a9ab8; text-transform: uppercase; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; font-weight: 700; }
+.feed-dot { width: 7px; height: 7px; border-radius: 50%; background: #4ade80; animation: blink 1.2s infinite; }
+.feed-item { padding: 10px 8px; border-bottom: 1px solid #1e2d45; opacity: 0; transform: translateY(-10px); border-radius: 8px; cursor: pointer; transition: background 0.2s; }
+.feed-item:last-child { border-bottom: none; }
+.feed-item:hover { background: rgba(147,168,212,0.07); }
+.feed-item.selected { background: rgba(74,222,128,0.08); }
+.feed-item-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.feed-role { font-size: 14px; font-weight: 700; color: #fff; }
+.feed-score { font-size: 13px; font-weight: 700; color: #4ade80; }
+.feed-signal { font-size: 13px; color: #f59e0b; margin-bottom: 3px; }
+.feed-time { font-size: 13px; color: #6B7A99; }
+.feed-activate { font-size: 12px; color: #4ade80; font-weight: 700; margin-top: 4px; display: none; }
+.feed-item.selected .feed-activate { display: block; }
+/* Side panel */
+.side-panel { background: #1a2235; border: 1px solid #2a3550; border-radius: 16px; padding: 18px 20px; }
+.side-title { font-size: 14px; letter-spacing: 2px; color: #8a9ab8; text-transform: uppercase; margin-bottom: 16px; font-weight: 700; }
+.side-row { display: flex; align-items: center; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid #1e2d45; opacity: 0; }
+.side-row:last-child { border-bottom: none; }
+.side-label { font-size: 13px; font-weight: 700; color: #fff; }
+.side-val { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px; }
+.val-green { background: rgba(74,222,128,0.15); color: #4ade80; }
+.val-blue { background: rgba(147,168,212,0.15); color: #93A8D4; }
+/* Morning block */
+.morning-block { background: #1a2235; border: 1px solid #4ade80; border-radius: 16px; padding: 20px 26px; opacity: 0; transform: translateY(20px); }
+.morning-header { font-size: 13px; letter-spacing: 2px; color: #4ade80; text-transform: uppercase; font-weight: 700; margin-bottom: 4px; }
+.morning-date { font-size: 13px; color: #6B7A99; margin-bottom: 14px; }
+.morning-row { display: flex; align-items: flex-start; gap: 14px; padding: 10px 0; border-bottom: 1px solid #2a3550; opacity: 0; transform: translateY(10px); }
+.morning-row:last-child { border-bottom: none; }
+.morning-num { font-size: 20px; font-weight: 800; color: #fff; min-width: 32px; }
+.morning-co { font-size: 14px; font-weight: 700; color: #fff; }
+.morning-why { font-size: 13px; color: #6B7A99; margin-top: 2px; }
+.morning-score { font-size: 13px; font-weight: 800; color: #4ade80; margin-left: auto; white-space: nowrap; }
+/* Final */
+.final-logo { width: 180px; opacity: 0; margin-bottom: 28px; border-radius: 8px; }
+.final-hl { font-size: 52px; font-weight: 800; color: #fff; line-height: 1.1; margin-bottom: 18px; letter-spacing: -2px; opacity: 0; text-align: center; }
+.final-sub { font-size: 20px; color: #a0b0cc; margin-bottom: 24px; line-height: 1.6; max-width: 640px; opacity: 0; text-align: center; }
+.final-url { font-size: 21px; color: #93A8D4; letter-spacing: 1px; opacity: 0; text-align: center; cursor: pointer; transition: color 0.2s; }
+.final-url:hover { color: #fff; }
+/* Nav */
+.nav { position: fixed; bottom: 32px; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; padding: 0 80px; }
+.dots { display: flex; gap: 8px; }
+.dot { width: 36px; height: 4px; border-radius: 2px; background: #2a3550; cursor: pointer; transition: background 0.3s; }
+.dot.active { background: #93A8D4; } .dot.done { background: #4ade80; }
+.btn { background: #1a2b5e; border: 1px solid #93A8D4; color: #fff; font-size: 14px; font-weight: 700; padding: 10px 26px; border-radius: 10px; cursor: pointer; font-family: inherit; transition: all 0.2s; }
+.btn:hover { background: #2a3d6e; }
+.step-info { font-size: 14px; color: #8a9ab8; letter-spacing: 1px; }
+@keyframes fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+@keyframes fadeIn { from{opacity:0} to{opacity:1} }
+@keyframes slideLeft { from{opacity:0;transform:translateX(-16px)} to{opacity:1;transform:translateX(0)} }
+@keyframes feedDrop { from{opacity:0;transform:translateY(-14px)} to{opacity:1;transform:translateY(0)} }
+@keyframes lineGrow { from{width:0px} to{width:120px} }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+</style></head><body>
+
+<!-- SLIDE 0: INTRO -->
+<div class="slide active" id="s0">
+  <img class="intro-logo" id="i-logo" src="data:image/jpeg;base64,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" alt="Corridor">
+  <div class="intro-line" id="i-line"></div>
+  <div class="intro-title" id="i-title">Signal Intelligence</div>
+  <div class="intro-sub" id="i-sub">Read the market before you reach out.</div>
+</div>
+
+<!-- SLIDE 1: PROBLEM -->
+<div class="slide" id="s1">
+  <div class="eyebrow" id="s1-ey">Corridor · GTM System</div>
+  <div class="headline" id="s1-hl">You are reaching out<br>without context.</div>
+  <div class="sub" id="s1-sub">No signal. No timing. No reason for them to reply.</div>
+  <div class="signal-types">
+    <div class="signal-pill active-pill" id="sp0"><div class="signal-icon">💸</div><div><div class="signal-label">Funding rounds</div><div class="signal-desc">Budget just unlocked</div></div></div>
+    <div class="signal-pill" id="sp1"><div class="signal-icon">🚀</div><div><div class="signal-label">Hiring sprees</div><div class="signal-desc">Expansion in motion</div></div></div>
+    <div class="signal-pill" id="sp2"><div class="signal-icon">🌍</div><div><div class="signal-label">Market moves</div><div class="signal-desc">New geography opening</div></div></div>
+    <div class="signal-pill" id="sp3"><div class="signal-icon">👤</div><div><div class="signal-label">Leadership changes</div><div class="signal-desc">New mandate, new budget</div></div></div>
+    <div class="signal-pill" id="sp4"><div class="signal-icon">📣</div><div><div class="signal-label">Product launches</div><div class="signal-desc">Scale-up moment</div></div></div>
+    <div class="signal-pill" id="sp5"><div class="signal-icon">📈</div><div><div class="signal-label">Revenue milestones</div><div class="signal-desc">Next stage incoming</div></div></div>
+  </div>
+  <div class="sub" id="s1-sub2" style="margin-bottom:0;font-size:18px;opacity:0;">Every one of these is a buying signal. Corridor reads them before your competitors do.</div>
+</div>
+
+<!-- SLIDE 2: MORNING SCAN -->
+<div class="slide slide-lr" id="s2">
+  <div class="slide-left">
+    <div class="eyebrow" id="s2-ey">Signal Intelligence</div>
+    <div class="headline" id="s2-hl">Corridor reads<br>the market daily.</div>
+    <div class="sub" id="s2-sub">Every morning. Every signal. Scored and ranked.</div>
+    <div class="scan-block" id="scan-block">
+      <div class="scan-header"><span class="scan-title">Morning Scan · 11 July 2026</span><span class="scan-live"><span class="scan-dot"></span>LIVE</span></div>
+      <div class="scan-row" id="sr0"><div><div class="scan-co">CEO · B2B SaaS · London</div><div class="scan-signal">Series B closed · EMEA expansion announced</div></div><div class="scan-score">9.4</div></div>
+      <div class="scan-row" id="sr1"><div><div class="scan-co">Co-Founder · AI Platform · Amsterdam</div><div class="scan-signal">New CRO hired · Multi-market push</div></div><div class="scan-score">9.1</div></div>
+      <div class="scan-row" id="sr2"><div><div class="scan-co">CEO · Retail Tech · Brussels</div><div class="scan-signal">Opening Benelux operations · Country lead search</div></div><div class="scan-score">8.7</div></div>
+      <div class="scan-row" id="sr3"><div><div class="scan-co">VP Sales · HealthTech · Paris</div><div class="scan-signal">Sales team doubled · New markets opening</div></div><div class="scan-score">8.3</div></div>
+    </div>
+  </div>
+  <div class="slide-right" id="s2-right">
+    <div class="side-panel">
+      <div class="side-title">Markets monitored</div>
+      <div class="side-row" id="cr0"><span class="side-label">🇬🇧 UK</span><span class="side-val val-green">ACTIVE</span></div>
+      <div class="side-row" id="cr1"><span class="side-label">🇫🇷 France</span><span class="side-val val-green">ACTIVE</span></div>
+      <div class="side-row" id="cr2"><span class="side-label">🇧🇪 Belgium</span><span class="side-val val-green">ACTIVE</span></div>
+      <div class="side-row" id="cr3"><span class="side-label">🇳🇱 Netherlands</span><span class="side-val val-green">ACTIVE</span></div>
+      <div class="side-row" id="cr4"><span class="side-label">🇩🇪 Germany</span><span class="side-val val-blue">SCANNING</span></div>
+      <div class="side-row" id="cr5"><span class="side-label">🇮🇱 Israel</span><span class="side-val val-blue">SCANNING</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- SLIDE 3: ICP SCORING -->
+<div class="slide slide-lr" id="s3">
+  <div class="slide-left">
+    <div class="eyebrow" id="s3-ey">ICP Scoring</div>
+    <div class="headline" id="s3-hl">Not a list.<br>A ranked queue.</div>
+    <div class="sub" id="s3-sub">The right prospect at the top. Every time.</div>
+    <div class="card" id="card0" onclick="this.classList.toggle('selected')">
+      <div class="card-header"><span class="card-name">CEO · B2B SaaS · London</span><span class="badge badge-hot">HOT · ICP 9.4</span></div>
+      <div class="card-meta">Series B · 120 employees · EMEA expansion in motion</div>
+      <div class="signal-txt">Signal: Series B closed · EMEA expansion · 12 open roles</div>
+      <div class="icp-bar"><span class="icp-label">ICP Score</span><div class="icp-track"><div class="icp-fill" id="bar0"></div></div><span class="icp-score" id="sc0">9.4 / 10</span></div>
+      <div class="card-cta">→ Activate outreach sequence</div>
+    </div>
+    <div class="card" id="card1" onclick="this.classList.toggle('selected')">
+      <div class="card-header"><span class="card-name">Co-Founder · AI Platform · Amsterdam</span><span class="badge badge-warm">WARM · ICP 9.1</span></div>
+      <div class="card-meta">Series A · 60 employees · Multi-market push confirmed</div>
+      <div class="signal-txt">Signal: New CRO hired · Expansion play likely</div>
+      <div class="icp-bar"><span class="icp-label">ICP Score</span><div class="icp-track"><div class="icp-fill icp-fill-warm" id="bar1"></div></div><span class="icp-score" id="sc1" style="color:#93A8D4">9.1 / 10</span></div>
+      <div class="card-cta">→ Activate outreach sequence</div>
+    </div>
+  </div>
+  <div class="slide-right" id="s3-right">
+    <div class="side-panel">
+      <div class="side-title">ICP criteria active</div>
+      <div class="side-row" id="ic0"><span class="side-label">Company size</span><span class="side-val val-green">10-200</span></div>
+      <div class="side-row" id="ic1"><span class="side-label">Stage</span><span class="side-val val-green">Series A-C</span></div>
+      <div class="side-row" id="ic2"><span class="side-label">Geography</span><span class="side-val val-green">EU · IL</span></div>
+      <div class="side-row" id="ic3"><span class="side-label">Signal recency</span><span class="side-val val-green">30 days</span></div>
+      <div class="side-row" id="ic4"><span class="side-label">Min ICP score</span><span class="side-val val-blue">7.0</span></div>
+      <div class="side-row" id="ic5"><span class="side-label">Contacts enriched</span><span class="side-val val-blue">Auto</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- SLIDE 4: YOUR QUEUE -->
+<div class="slide" id="s4">
+  <div class="eyebrow" id="s4-ey">Why It Matters</div>
+  <div class="headline" id="s4-hl">You reach out<br>when it matters.</div>
+  <div class="sub" id="s4-sub">Signal intelligence turns outreach into a relevant conversation, on any market.</div>
+  <div class="morning-block" id="morning-block">
+    <div class="morning-header">Your queue this morning</div>
+    <div class="morning-date">Friday 11 July · 2,900+ prospects tracked</div>
+    <div class="morning-row" id="mr0"><div class="morning-num">01</div><div><div class="morning-co">CEO · B2B SaaS · London</div><div class="morning-why">Series B just closed. EMEA window is open now, not in 3 months.</div></div><div class="morning-score">ICP 9.4</div></div>
+    <div class="morning-row" id="mr1"><div class="morning-num">02</div><div><div class="morning-co">Co-Founder · AI Platform · Amsterdam</div><div class="morning-why">New CRO hired from a US scale-up. Expansion play likely.</div></div><div class="morning-score">ICP 9.1</div></div>
+    <div class="morning-row" id="mr2"><div class="morning-num">03</div><div><div class="morning-co">CEO · Retail Tech · Brussels</div><div class="morning-why">Opening Benelux operations. Country lead search started.</div></div><div class="morning-score">ICP 8.3</div></div>
+  </div>
+</div>
+
+<!-- SLIDE 5: FINAL -->
+<div class="slide" style="flex-direction:column;align-items:center;justify-content:center;text-align:center;" id="s5">
+  <img class="final-logo" id="f-logo" src="data:image/jpeg;base64,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" alt="Corridor">
+  <div class="final-hl" id="f-hl">The commercial engine<br>your business is missing.</div>
+  <div class="final-sub" id="f-sub">Daily signal scan · ICP scoring · Ready to activate</div>
+  <div class="final-url" id="f-url" onclick="window.open('https://corridor.systems','_blank')">corridor.systems</div>
+</div>
+
+<div class="nav">
+  <span class="step-info" id="step-info">Intro</span>
+  <div class="dots">
+    <div class="dot active" onclick="goTo(0)"></div>
+    <div class="dot" onclick="goTo(1)"></div>
+    <div class="dot" onclick="goTo(2)"></div>
+    <div class="dot" onclick="goTo(3)"></div>
+    <div class="dot" onclick="goTo(4)"></div>
+    <div class="dot" onclick="goTo(5)"></div>
+  </div>
+  <button class="btn" id="next-btn" onclick="nextSlide()">Next →</button>
+</div>
+
+<script>
+const labels=['Intro','1/5 · The problem','2/5 · Morning scan','3/5 · ICP scoring','4/5 · Your queue','5/5 · Corridor'];
+const ids=['s0','s1','s2','s3','s4','s5'];
+let cur=0,timers=[];
+function clearT(){timers.forEach(t=>clearTimeout(t));timers=[];}
+function later(d,fn){const t=setTimeout(fn,d);timers.push(t);}
+function animate(el,delay,kf,dur){if(!el)return;later(delay,()=>{el.style.animation=kf+' '+dur+'s ease forwards';});}
+function countTo(id,target,suffix,delay,dur){later(delay,()=>{const el=document.getElementById(id);if(!el)return;const steps=40;const step=target/steps;let c=0;const iv=setInterval(()=>{c=Math.min(c+step,target);el.textContent=Math.floor(c)+suffix;if(c>=target)clearInterval(iv);},dur/steps);});}
+function resetAll(){
+  ['i-logo','i-title','i-sub'].forEach(i=>{const e=document.getElementById(i);if(e){e.style.animation='';e.style.opacity='0';}});
+  const il=document.getElementById('i-line');if(il){il.style.animation='';il.style.width='0px';}
+  ['s1-ey','s1-hl','s1-sub','s1-sub2'].forEach(i=>{const e=document.getElementById(i);if(e){e.style.animation='';e.style.opacity='0';}});
+  ['sp0','sp1','sp2','sp3','sp4','sp5'].forEach(i=>{const e=document.getElementById(i);if(e){e.style.animation='';e.style.opacity='0';e.style.transform='translateY(14px)';}});
+  ['s2-ey','s2-hl','s2-sub'].forEach(i=>{const e=document.getElementById(i);if(e){e.style.animation='';e.style.opacity='0';}});
+  const sb=document.getElementById('scan-block');if(sb){sb.style.animation='';sb.style.opacity='0';sb.style.transform='translateY(20px)';}
+  ['sr0','sr1','sr2','sr3'].forEach(i=>{const e=document.getElementById(i);if(e){e.style.animation='';e.style.opacity='0';e.style.transform='translateX(-16px)';}});
+  const r2=document.getElementById('s2-right');if(r2){r2.style.animation='';r2.style.opacity='0';}
+  ['cr0','cr1','cr2','cr3','cr4','cr5'].forEach(i=>{const e=document.getElementById(i);if(e){e.style.animation='';e.style.opacity='0';}});
+  ['s3-ey','s3-hl','s3-sub'].forEach(i=>{const e=document.getElementById(i);if(e){e.style.animation='';e.style.opacity='0';}});
+  ['card0','card1'].forEach(i=>{const e=document.getElementById(i);if(e){e.style.animation='';e.style.opacity='0';e.style.transform='translateY(20px)';e.classList.remove('selected');}});
+  ['bar0','bar1'].forEach(i=>{const e=document.getElementById(i);if(e){e.style.transition='none';e.style.width='0%';}});
+  ['sc0','sc1'].forEach(i=>{const e=document.getElementById(i);if(e)e.style.opacity='0';});
+  const r3=document.getElementById('s3-right');if(r3){r3.style.animation='';r3.style.opacity='0';}
+  ['ic0','ic1','ic2','ic3','ic4','ic5'].forEach(i=>{const e=document.getElementById(i);if(e){e.style.animation='';e.style.opacity='0';}});
+  ['s4-ey','s4-hl','s4-sub'].forEach(i=>{const e=document.getElementById(i);if(e){e.style.animation='';e.style.opacity='0';}});
+  const mb=document.getElementById('morning-block');if(mb){mb.style.animation='';mb.style.opacity='0';mb.style.transform='translateY(20px)';}
+  ['mr0','mr1','mr2'].forEach(i=>{const e=document.getElementById(i);if(e){e.style.animation='';e.style.opacity='0';e.style.transform='translateY(10px)';}});
+  ['f-logo','f-hl','f-sub','f-url'].forEach(i=>{const e=document.getElementById(i);if(e){e.style.animation='';e.style.opacity='0';}});
+}
+function run0(){
+  animate(document.getElementById('i-logo'),100,'fadeUp',0.7);
+  later(600,()=>{const l=document.getElementById('i-line');if(l)l.style.animation='lineGrow 0.8s ease forwards';});
+  animate(document.getElementById('i-title'),900,'fadeUp',0.7);
+  animate(document.getElementById('i-sub'),1200,'fadeUp',0.6);
+}
+function run1(){
+  animate(document.getElementById('s1-ey'),100,'fadeIn',0.5);
+  animate(document.getElementById('s1-hl'),300,'fadeUp',0.6);
+  animate(document.getElementById('s1-sub'),550,'fadeUp',0.6);
+  ['sp0','sp1','sp2','sp3','sp4','sp5'].forEach((id,i)=>animate(document.getElementById(id),800+i*150,'fadeUp',0.5));
+  animate(document.getElementById('s1-sub2'),1900,'fadeUp',0.6);
+}
+function run2(){
+  animate(document.getElementById('s2-ey'),100,'fadeIn',0.5);
+  animate(document.getElementById('s2-hl'),300,'fadeUp',0.6);
+  animate(document.getElementById('s2-sub'),550,'fadeUp',0.6);
+  animate(document.getElementById('scan-block'),800,'fadeUp',0.6);
+  ['sr0','sr1','sr2','sr3'].forEach((id,i)=>animate(document.getElementById(id),1000+i*200,'slideLeft',0.5));
+  later(600,()=>{const r=document.getElementById('s2-right');if(r)r.style.animation='fadeUp 0.7s ease forwards';});
+  ['cr0','cr1','cr2','cr3','cr4','cr5'].forEach((id,i)=>animate(document.getElementById(id),900+i*180,'fadeIn',0.5));
+}
+function run3(){
+  animate(document.getElementById('s3-ey'),100,'fadeIn',0.5);
+  animate(document.getElementById('s3-hl'),300,'fadeUp',0.6);
+  animate(document.getElementById('s3-sub'),550,'fadeUp',0.6);
+  animate(document.getElementById('card0'),800,'fadeUp',0.6);
+  later(1400,()=>{const b=document.getElementById('bar0');if(b){b.style.transition='width 1.2s cubic-bezier(0.4,0,0.2,1)';b.style.width='94%';}const s=document.getElementById('sc0');if(s)s.style.opacity='1';});
+  animate(document.getElementById('card1'),1600,'fadeUp',0.6);
+  later(2200,()=>{const b=document.getElementById('bar1');if(b){b.style.transition='width 1.2s cubic-bezier(0.4,0,0.2,1)';b.style.width='91%';}const s=document.getElementById('sc1');if(s)s.style.opacity='1';});
+  later(600,()=>{const r=document.getElementById('s3-right');if(r)r.style.animation='fadeUp 0.7s ease forwards';});
+  ['ic0','ic1','ic2','ic3','ic4','ic5'].forEach((id,i)=>animate(document.getElementById(id),900+i*160,'fadeIn',0.5));
+}
+function run4(){
+  animate(document.getElementById('s4-ey'),100,'fadeIn',0.5);
+  animate(document.getElementById('s4-hl'),300,'fadeUp',0.6);
+  animate(document.getElementById('s4-sub'),550,'fadeUp',0.6);
+  animate(document.getElementById('morning-block'),800,'fadeUp',0.6);
+  ['mr0','mr1','mr2'].forEach((id,i)=>animate(document.getElementById(id),1100+i*280,'fadeUp',0.5));
+}
+function run5(){['f-logo','f-hl','f-sub','f-url'].forEach((id,i)=>animate(document.getElementById(id),200+i*300,'fadeUp',0.7));}
+const runners=[run0,run1,run2,run3,run4,run5];
+function goTo(n){clearT();document.getElementById(ids[cur]).classList.remove('active');resetAll();cur=n;document.getElementById(ids[cur]).classList.add('active');document.querySelectorAll('.dot').forEach((d,i)=>{d.classList.remove('active','done');if(i<cur)d.classList.add('done');if(i===cur)d.classList.add('active');});document.getElementById('step-info').textContent=labels[cur];document.getElementById('next-btn').textContent=cur===ids.length-1?'Restart':'Next →';runners[cur]();}
+function nextSlide(){if(cur===ids.length-1){goTo(0);return;}goTo(cur+1);}
+document.addEventListener('keydown',e=>{if(e.key==='ArrowRight'||e.key===' ')nextSlide();if(e.key==='ArrowLeft'&&cur>0)goTo(cur-1);});
+setTimeout(()=>run0(),100);
+</script></body></html>

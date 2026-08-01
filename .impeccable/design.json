@@ -1,0 +1,218 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-28T00:00:00Z",
+  "title": "Design System: Corridor",
+  "extensions": {
+    "colorMeta": {
+      "navy": {
+        "role": "primary",
+        "displayName": "System Blue",
+        "canonical": "#1a2b5e",
+        "tonalRamp": ["#0a1228", "#111d42", "#1a2b5e", "#243875", "#2d4a9e", "#6b82be", "#93A8D4", "#eef1fa"]
+      },
+      "navy-mid": {
+        "role": "primary-hover",
+        "displayName": "System Blue Mid",
+        "canonical": "#243875",
+        "tonalRamp": ["#111d42", "#1a2b5e", "#243875", "#2d4a9e", "#4a6aae", "#7890c8", "#aebfd9", "#eef1fa"]
+      },
+      "navy-light": {
+        "role": "primary-tint",
+        "displayName": "System Blue Light",
+        "canonical": "#eef1fa",
+        "tonalRamp": ["#1a2b5e", "#2d4a9e", "#6b82be", "#93A8D4", "#c8d5ea", "#dde5f2", "#eef1fa", "#f7f9fd"]
+      },
+      "signal-sky": {
+        "role": "secondary",
+        "displayName": "Signal Sky",
+        "canonical": "#93A8D4",
+        "tonalRamp": ["#2d4a7a", "#4a6a9e", "#6b84b8", "#7d96c8", "#93A8D4", "#aebfd9", "#c8d5ea", "#eef1fa"]
+      },
+      "signal-sky-light": {
+        "role": "secondary-tint",
+        "displayName": "Signal Sky Light",
+        "canonical": "#c8d5ea",
+        "tonalRamp": ["#4a6a9e", "#6b84b8", "#93A8D4", "#aebfd9", "#c8d5ea", "#dde8f3", "#eef1fa", "#f7f9fd"]
+      },
+      "bg": {
+        "role": "neutral-bg",
+        "displayName": "Cool Parchment",
+        "canonical": "#f8f9fb",
+        "tonalRamp": ["#1a2030", "#2e3545", "#606880", "#8896b3", "#c0c8d8", "#dde2ed", "#eef1fa", "#f8f9fb"]
+      },
+      "surface": {
+        "role": "neutral-surface",
+        "displayName": "Surface White",
+        "canonical": "#ffffff",
+        "tonalRamp": ["#1e2a45", "#3a4a70", "#6b7a99", "#8896b3", "#c8d0e0", "#e2e8f0", "#f8f9fb", "#ffffff"]
+      },
+      "border": {
+        "role": "neutral-border",
+        "displayName": "Border Hairline",
+        "canonical": "#e2e8f0",
+        "tonalRamp": ["#243875", "#4a5f99", "#8896b3", "#b0bcd0", "#c8d0e0", "#d8e0ec", "#e2e8f0", "#f0f4f8"]
+      },
+      "text": {
+        "role": "neutral-text",
+        "displayName": "Ink",
+        "canonical": "#1e2a45",
+        "tonalRamp": ["#0d1322", "#1e2a45", "#2e3f6e", "#3d548e", "#6b7a99", "#8896b3", "#b0bcd0", "#e2e8f0"]
+      },
+      "muted": {
+        "role": "neutral-text-secondary",
+        "displayName": "Muted",
+        "canonical": "#6b7a99",
+        "tonalRamp": ["#1e2a45", "#3a4a70", "#4e5e88", "#6b7a99", "#8896b3", "#a8b5cc", "#c8d0e0", "#eef1fa"]
+      },
+      "signal-green": {
+        "role": "tertiary",
+        "displayName": "Signal Green",
+        "canonical": "#15803d",
+        "tonalRamp": ["#052e16", "#14532d", "#15803d", "#16a34a", "#22c55e", "#4ade80", "#86efac", "#f0fdf4"]
+      },
+      "signal-amber": {
+        "role": "tertiary-warning",
+        "displayName": "Signal Amber",
+        "canonical": "#b45309",
+        "tonalRamp": ["#431a04", "#78350f", "#92400e", "#b45309", "#d97706", "#f59e0b", "#fcd34d", "#fffbeb"]
+      },
+      "signal-red": {
+        "role": "tertiary-error",
+        "displayName": "Signal Red",
+        "canonical": "#dc2626",
+        "tonalRamp": ["#450a0a", "#7f1d1d", "#991b1b", "#b91c1c", "#dc2626", "#ef4444", "#fca5a5", "#fef2f2"]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display / Section Title", "purpose": "Module-opening section titles (e.g. 'Detect who's ready to buy, right now.'). One per screen region." },
+      "kpi": { "displayName": "KPI Value", "purpose": "ICP scores, pipeline counts, stage KPIs. The numbers the operator reads at a glance. Never used for non-numeric content." },
+      "body": { "displayName": "Body", "purpose": "AI output text, prospect notes, descriptions, drawer content. Minimum weight 400 for decision-critical text." },
+      "ui": { "displayName": "UI / Card Title", "purpose": "Card titles, button labels, tab labels, input values. The workhorse of the interface." },
+      "label": { "displayName": "Label / Eyebrow", "purpose": "Section eyebrows, badge text, kanban column headers, score-kpi-label. Uppercase. Max 3-word phrases." }
+    },
+    "shadows": [
+      { "name": "hover-lift", "value": "0 2px 8px rgba(26,43,94,0.08)", "purpose": "k-cards and interactive rows on hover. Always paired with translateY(-1px)." },
+      { "name": "cta-lift", "value": "0 4px 12px rgba(26,43,94,0.2)", "purpose": "Primary button hover. The strongest interactive shadow." },
+      { "name": "drawer", "value": "-8px 0 30px rgba(26,43,94,0.18)", "purpose": "Right-side slide panel. Communicates this layer floats above the kanban." },
+      { "name": "modal", "value": "0 20px 60px rgba(0,0,0,0.3)", "purpose": "Full overlays (call prep, add prospect). The one case where near-black shadow is used — modal scale requires structural contrast." },
+      { "name": "toast", "value": "0 8px 24px rgba(26,43,94,0.25)", "purpose": "Bottom-center notification bubble." }
+    ],
+    "motion": [
+      { "name": "ease-standard", "value": "cubic-bezier(0.4, 0, 0.2, 1)", "purpose": "Default easing for all state transitions: drawer open/close, tab switch, hover lift." },
+      { "name": "duration-fast", "value": "150ms", "purpose": "Color-only transitions: button hover background, border-color on focus." },
+      { "name": "duration-standard", "value": "200ms", "purpose": "Most interactive element transitions (hover lift, opacity, background)." },
+      { "name": "duration-panel", "value": "300ms", "purpose": "Drawer and modal entry/exit." },
+      { "name": "score-bar-reveal", "value": "1.2s cubic-bezier(0.4,0,0.2,1)", "purpose": "ICP score bar fill animation on results load." }
+    ],
+    "breakpoints": [
+      { "name": "mobile", "value": "480px" },
+      { "name": "mobile-mid", "value": "560px" },
+      { "name": "tablet", "value": "900px" },
+      { "name": "desktop-mid", "value": "1100px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Main CTA and module action button. Navy fill, white text, hover lifts and deepens.",
+      "html": "<button class=\"ds-btn-primary\">Scan signals</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; gap: 8px; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.3px; color: #ffffff; background: #1a2b5e; border: none; padding: 10px 22px; border-radius: 8px; cursor: pointer; transition: background 0.15s, transform 0.2s, box-shadow 0.2s; white-space: nowrap; } .ds-btn-primary:hover { background: #243875; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(26,43,94,0.2); } .ds-btn-primary:active { transform: translateY(0); box-shadow: none; } .ds-btn-primary:focus-visible { outline: 2px solid #93A8D4; outline-offset: 2px; } .ds-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Supporting action. Navy-light fill with Signal Sky border. Used alongside primary CTAs.",
+      "html": "<button class=\"ds-btn-secondary\">+ Add</button>",
+      "css": ".ds-btn-secondary { display: inline-flex; align-items: center; gap: 8px; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 12px; font-weight: 600; color: #1a2b5e; background: #eef1fa; border: 1.5px solid #93A8D4; padding: 10px 22px; border-radius: 8px; cursor: pointer; transition: background 0.15s; white-space: nowrap; } .ds-btn-secondary:hover { background: #c8d5ea; } .ds-btn-secondary:focus-visible { outline: 2px solid #93A8D4; outline-offset: 2px; }"
+    },
+    {
+      "name": "Content Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "The standard module sub-panel. Header row separates from body via border.",
+      "html": "<div class=\"ds-card\"><div class=\"ds-card-header\"><span class=\"ds-card-title\">Company Intelligence</span><span class=\"ds-card-badge ds-badge-ai\">CLAUDE</span></div><div class=\"ds-card-body\">Card content appears here.</div></div>",
+      "css": ".ds-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; } .ds-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px solid #e2e8f0; } .ds-card-title { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 13px; font-weight: 700; color: #1a2b5e; letter-spacing: 0.2px; } .ds-card-body { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 13px; line-height: 1.7; color: #6b7a99; } .ds-card-badge { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 3px 10px; border-radius: 20px; } .ds-badge-ai { background: #f0fdf4; color: #15803d; border: 1px solid #86efac; }"
+    },
+    {
+      "name": "Input Field",
+      "kind": "input",
+      "refersTo": "input-field",
+      "description": "Standard text input. Border shifts to navy on focus — no glow.",
+      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"Company name\" />",
+      "css": ".ds-input { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 13px; font-weight: 500; color: #1e2a45; background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; outline: none; transition: border-color 0.2s; width: 100%; box-sizing: border-box; } .ds-input::placeholder { color: #6b7a99; } .ds-input:focus { border-color: #1a2b5e; } .ds-input:focus-visible { border-color: #1a2b5e; outline: none; }"
+    },
+    {
+      "name": "Status Badge",
+      "kind": "chip",
+      "refersTo": "chip-nav-badge",
+      "description": "Pill-shaped status indicator. Three semantic variants: AUTO (informational), AI/positive, LIVE/amber.",
+      "html": "<span class=\"ds-badge ds-badge-auto\">AUTO-DETECTED</span><span class=\"ds-badge ds-badge-positive\">CLAUDE</span><span class=\"ds-badge ds-badge-live\">LIVE</span>",
+      "css": ".ds-badge { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 3px 10px; border-radius: 20px; display: inline-flex; align-items: center; } .ds-badge-auto { background: #eef1fa; color: #1a2b5e; border: 1px solid #93A8D4; } .ds-badge-positive { background: #f0fdf4; color: #15803d; border: 1px solid #86efac; } .ds-badge-live { background: #fffbeb; color: #92400e; border: 1px solid #fcd34d; animation: ds-pulse 2s infinite; } @keyframes ds-pulse { 0%,100% { opacity:1 } 50% { opacity:0.7 } }"
+    },
+    {
+      "name": "Signal Tag",
+      "kind": "chip",
+      "refersTo": "chip-signal-positive",
+      "description": "Buying signal indicator with colored dot. Amber = detected/active signal, green = positive intent, navy = informational.",
+      "html": "<span class=\"ds-signal-tag ds-signal-amber\">Hiring Sales team</span><span class=\"ds-signal-tag ds-signal-green\">Series A confirmed</span>",
+      "css": ".ds-signal-tag { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; padding: 5px 12px; border-radius: 20px; } .ds-signal-tag::before { content: ''; width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; } .ds-signal-amber { background: #fffbeb; color: #92400e; border: 1px solid #fcd34d; } .ds-signal-amber::before { background: #f59e0b; box-shadow: 0 0 4px #f59e0b; } .ds-signal-green { background: #f0fdf4; color: #15803d; border: 1px solid #86efac; } .ds-signal-green::before { background: #22c55e; box-shadow: 0 0 4px #22c55e; }"
+    },
+    {
+      "name": "KPI Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Score / metric display. Fraunces for the number; Plus Jakarta Sans uppercase label below.",
+      "html": "<div class=\"ds-kpi-card\"><span class=\"ds-kpi-val\">87</span><span class=\"ds-kpi-label\">ICP Score</span></div>",
+      "css": ".ds-kpi-card { background: #f8f9fb; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; text-align: center; } .ds-kpi-val { font-family: 'Fraunces', Georgia, serif; font-size: 32px; font-weight: 700; color: #1a2b5e; display: block; letter-spacing: -1px; } .ds-kpi-val.green { color: #15803d; } .ds-kpi-val.amber { color: #b45309; } .ds-kpi-label { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 10px; font-weight: 600; color: #8896b3; letter-spacing: 1px; text-transform: uppercase; margin-top: 4px; display: block; }"
+    },
+    {
+      "name": "Kanban Card",
+      "kind": "custom",
+      "refersTo": "card",
+      "description": "Pipeline prospect card. Cool Parchment fill elevated one step above the white column. Draggable. Amber hot-state for urgent prospects.",
+      "html": "<div class=\"ds-k-card\"><div class=\"ds-momentum-dot ds-momentum-hot\"></div><div class=\"ds-k-card-name\">Sophie Martin</div><div class=\"ds-k-card-company\">Payfit · Series C</div><div class=\"ds-k-card-icp\">ICP 9.1 · EMEA</div></div>",
+      "css": ".ds-k-card { position: relative; background: #f8f9fb; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px 10px 28px; margin-bottom: 8px; cursor: grab; transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s; } .ds-k-card:hover { border-color: #1a2b5e; box-shadow: 0 2px 8px rgba(26,43,94,0.08); transform: translateY(-1px); } .ds-k-card:active { cursor: grabbing; } .ds-k-card.hot { border-color: #fcd34d; background: #fffbeb; } .ds-k-card-name { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 13px; font-weight: 700; color: #1a2b5e; line-height: 1.3; } .ds-k-card-company { font-size: 11px; color: #6b7a99; margin-top: 2px; } .ds-k-card-icp { font-size: 11px; font-weight: 700; color: #93A8D4; margin-top: 6px; } .ds-momentum-dot { position: absolute; top: 8px; right: 8px; width: 8px; height: 8px; border-radius: 50%; } .ds-momentum-hot { background: #00c9a7; } .ds-momentum-warm { background: #f59e0b; } .ds-momentum-neutral { background: #94a3b8; } .ds-momentum-cold { background: #ef4444; opacity: 0.7; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Signal Room",
+    "overview": "Corridor's visual world is a command center for commercial intelligence. The interface receives signals in real-time, sorts them by urgency, and routes the operator toward action. Every module is a workstation — Scanner, Pipeline, Send Queue, CMO IA — and the visual system communicates that each one has a job to do. The tone is operational: dense but not cluttered, authoritative but not cold.\n\nThe palette runs on a single systemic logic: System Blue (#1a2b5e) holds authority, Signal Sky (#93A8D4) marks connection and interface scaffolding, and the semantic signal colors (green, amber, red) carry real operational meaning. They appear only when a prospect is moving, an alert fires, or a deadline is overdue — never decoratively.\n\nThe dual landing / app typography split is intentional. The public-facing landing (Geist) speaks as a product platform. The private app (Fraunces + Plus Jakarta Sans) speaks as an instrument. These worlds do not mix.",
+    "keyCharacteristics": [
+      "Signal-driven hierarchy: color carries urgency, not decoration",
+      "Fraunces reserved strictly for KPIs and section titles",
+      "Navy-tinted shadows throughout — no pure black anywhere",
+      "Operational density: 6-column kanban, tabbed modules, compact cards",
+      "Semantic color vocabulary with named states (signal-green, signal-amber, signal-red)"
+    ],
+    "rules": [
+      { "name": "The No Pure Black Rule", "body": "No #000000, no rgba(0,0,0,...) anywhere. Shadows, overlays, and dark text all use navy-tinted values: rgba(26,43,94,...) for shadows, #1e2a45 for text.", "section": "colors" },
+      { "name": "The Signal Color Contract", "body": "Green, amber, and red appear only when they carry the meaning their name implies. Using any of the three decoratively breaks the semantic contract and trains users to ignore real alerts.", "section": "colors" },
+      { "name": "The Fraunces Gate", "body": "Fraunces appears only in KPI values and section titles. Any heading that is a label, card title, button, badge, or nav item uses Plus Jakarta Sans.", "section": "typography" },
+      { "name": "The Weight 300 Warning", "body": "font-weight:300 at 13px or smaller is fragile on non-Retina screens. Limit it to decorative sub-copy. AI output and any decision-critical text must be weight 400 or heavier.", "section": "typography" },
+      { "name": "The Flat-by-Default Rule", "body": "Every surface starts flat. A shadow is a response to state (hover, open, active), not a design choice.", "section": "elevation" },
+      { "name": "The Nav Glass Rule", "body": "The navigation bar is the only element with backdrop-filter: blur(). Do not apply it elsewhere.", "section": "elevation" },
+      { "name": "The Pill Boundary", "body": "Border-radius 20px (pill) is exclusively for status chips: badges, signal tags, count bubbles. Buttons, cards, and inputs are never pill-shaped.", "section": "shapes" },
+      { "name": "The Uniform Radius Warning", "body": "Avoid giving every component the same radius. The graduated vocabulary — 2/6/8/10/12/14/20 — communicates surface hierarchy.", "section": "shapes" }
+    ],
+    "dos": [
+      "Do tint every shadow with the navy channel: rgba(26,43,94,...). Even modal overlays should prefer navy-tinted shadows over pure black.",
+      "Do use Fraunces exclusively for KPI values and module-opening section titles.",
+      "Do use transform: translateY(-1px) and shadow together on interactive elements — always as a pair.",
+      "Do use font-weight 400 or higher for any text the user reads to make a decision.",
+      "Do use cubic-bezier(0.4, 0, 0.2, 1) at 0.2–0.3s for all panel transitions.",
+      "Do add font-variant-numeric: tabular-nums on any numeric column that updates dynamically."
+    ],
+    "donts": [
+      "Don't use signal colors (green, amber, red) decoratively — semantic use only.",
+      "Don't apply border-radius: 20px to buttons, cards, or input fields.",
+      "Don't use font-weight: 300 for AI output body text or decision-critical content.",
+      "Don't add a shadow to a card at rest — borders define cards, shadows respond to state.",
+      "Don't apply backdrop-filter: blur() outside the fixed nav bar.",
+      "Don't introduce a third font family into the app (Fraunces + Plus Jakarta Sans only).",
+      "Don't use pure #000000 or rgba(0,0,0,1) as text color — use Ink (#1e2a45)."
+    ]
+  }
+}
