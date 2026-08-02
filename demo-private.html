@@ -40,7 +40,9 @@
 * { margin:0; padding:0; box-sizing:border-box; }
 *:focus-visible { outline: 2px solid var(--blue) !important; outline-offset: 2px !important; }
 [contenteditable]:focus-visible { outline: none !important; }
-html { scroll-behavior:smooth; }
+html { scrollbar-gutter: stable; }
+
+
 
 body {
   background: var(--bg);
@@ -99,7 +101,7 @@ nav {
 
 /* ── ACTIVE COMPANY BANNER (cockpit, Option C) ── */
 #active-company-bar {
-  position:sticky; top:120px; z-index:95;
+  position:sticky; z-index:95;
   background:#1a2b5e; border-bottom:2px solid #2d4a9e;
   padding:12px 32px; display:flex; align-items:center; justify-content:center; gap:16px; flex-wrap:wrap;
 }
@@ -130,6 +132,35 @@ nav {
   padding:4px 12px; white-space:nowrap;
 }
 @media(max-width:560px){ #active-company-bar { padding:10px 16px; gap:10px; } #global-company { width:100%; } }
+.mandate-bar {
+  position: sticky;
+  top: 0;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 24px;
+  background: #f0f2fa;
+  border-bottom: 1px solid #e0e4f0;
+}
+.mandate-bar-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+}
+#mandate-select {
+  background: white;
+  border: 1.5px solid #d0d5e0;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  cursor: pointer;
+  outline: none;
+}
 .tab-nav-btn {
   font-size:12px; font-weight:600; letter-spacing:0.3px;
   padding:10px 18px; border-radius:8px 8px 0 0; border:none;
@@ -792,7 +823,7 @@ h1, h2, .section-title, .k-card-name, .k-card-company { overflow-wrap:break-word
   nav { height:108px; }
   body { padding-top: 108px; }
   .tabs-nav { top:108px; }
-  #active-company-bar { top:156px; }
+  /* #active-company-bar top is set dynamically by _fixAcbTop() */
   .user-avatar { width:28px; height:28px; font-size:12px; position:absolute; left:50%; top:18px; transform:translateX(-50%); }
   .user-info { display:none; }
   /* badge ACTIVE descendu au bas du header (sous la rangée logo/avatar). height:auto override l'inline height:100%. */
@@ -892,6 +923,14 @@ h1, h2, .section-title, .k-card-name, .k-card-company { overflow-wrap:break-word
   <button class="tab-nav-btn" onclick="switchTab('send', true)"><span class="tab-nav-icon">📤</span><span data-en="Send" data-fr="Envoi">Send</span></button>
   <button class="tab-nav-btn" onclick="switchTab('stats', true)"><span class="tab-nav-icon">📈</span><span data-en="Stats" data-fr="Stats">Stats</span></button>
   <button class="tab-nav-btn" onclick="switchTab('system', true)"><span class="tab-nav-icon">⚡</span><span data-en="System" data-fr="Système">System</span></button>
+</div>
+
+<!-- MANDATE SELECTOR BAR -->
+<div class="mandate-bar" id="mandate-bar" style="display:none;">
+  <span class="mandate-bar-label">📁 MANDATE</span>
+  <select class="input-select" id="mandate-select" onchange="_onMandateChange()">
+    <option value="">Consolidated view (all)</option>
+  </select>
 </div>
 
 <!-- Access notice -->
@@ -1664,6 +1703,70 @@ function _mandateContext() {
   return parts.join('\n');
 }
 
+async function _loadMandateOptions() {
+  try {
+    const { data, error } = await sbClient
+      .from('mandates')
+      .select('id, segment, name')
+      .eq('client_id', CLIENT_ID)
+      .eq('status', 'active')
+      .order('segment')
+      .order('name');
+    if (error) throw error;
+    if (!data || data.length === 0) return; // pas de mandats, barre reste cachée
+
+    const sel = document.getElementById('mandate-select');
+    const bar = document.getElementById('mandate-bar');
+    if (!sel || !bar) return;
+
+    const firstOption = sel.querySelector('option');
+    sel.innerHTML = '';
+    if (firstOption) sel.appendChild(firstOption);
+
+    const bySegment = {};
+    data.forEach(m => {
+      if (!bySegment[m.segment]) bySegment[m.segment] = [];
+      bySegment[m.segment].push(m);
+    });
+
+    Object.keys(bySegment).sort().forEach(seg => {
+      const group = document.createElement('optgroup');
+      group.label = seg;
+      bySegment[seg].forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m.id;
+        opt.textContent = m.name;
+        group.appendChild(opt);
+      });
+      sel.appendChild(group);
+    });
+
+    const newOpt = document.createElement('option');
+    newOpt.value = '__new__';
+    newOpt.textContent = '+ New mandate...';
+    sel.appendChild(newOpt);
+
+    sel.value = activeMandateId || '';
+    bar.style.display = 'flex';
+    _fixAcbTop();
+  } catch (e) {
+    console.error('[_loadMandateOptions] failed:', e);
+  }
+}
+
+function _onMandateChange() {
+  const sel = document.getElementById('mandate-select');
+  const val = sel ? sel.value : '';
+  if (val === '__new__') {
+    openAddMandate();
+    return;
+  }
+  const url = new URL(window.location.href);
+  if (val) url.searchParams.set('mandate', val);
+  else url.searchParams.delete('mandate');
+  window.location.href = url.toString();
+}
+
 const SMARTLEAD_CAMPAIGN_ID = '3708966'; // per-client deployment: update this value
 // PWA : pas de restauration auto du scroll au chargement
 if ('scrollRestoration' in history) { history.scrollRestoration = 'manual'; }
@@ -1681,7 +1784,6 @@ let _blockedKind = null;     // 'expired' | 'not_found' quand l'accès est bloqu
 let _demoStarted = false;    // init unique post-login (scroll top + onglet Scanner)
 
 async function showDemo(){
-  document.getElementById('auth-gate').style.display = 'none';
   const ab = document.getElementById('access-blocked'); if (ab) ab.style.display = 'none';
   _blockedKind = null;
   const so = document.getElementById('signout-btn'); if (so) so.style.display = 'inline-flex';
@@ -1696,6 +1798,8 @@ async function showDemo(){
       activeMandateId = null;
     }
   }
+  await _loadMandateOptions();
+  document.getElementById('auth-gate').style.display = 'none';
 
   if (!_kanbanLoaded) loadKanban();
   _initHpFilters();
@@ -1850,11 +1954,11 @@ function setLang(lang) {
 
 // ── TAB SWITCHING ──
 function switchTab(name, fromClick = false) {
+  window.scrollTo({ top: 0, behavior: 'instant' });
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.tab-nav-btn').forEach(b => b.classList.remove('active'));
   const panel = document.getElementById('tab-' + name);
   if (panel) panel.classList.add('active');
-  window.scrollTo({ top: 0, behavior: 'instant' });
   // event.currentTarget (clic) > recherche du bouton par son onclick (appel programmatique)
   const btn = (typeof event !== 'undefined' && event && event.currentTarget)
     || document.querySelector('.tab-nav-btn[onclick*="\'' + name + '\'"]');
@@ -1872,12 +1976,28 @@ function switchTab(name, fromClick = false) {
       const nav = document.querySelector('nav');
       const tabsNav = document.querySelector('.tabs-nav');
       const activeBar = document.getElementById('active-company-bar');
+      const mBar = document.getElementById('mandate-bar');
+      const mBarH = (mBar && mBar.style.display !== 'none' && mBar.offsetHeight > 0)
+        ? mBar.offsetHeight : 0;
       let offset = 0;
       if (nav) offset += nav.getBoundingClientRect().height;
       if (tabsNav) offset += tabsNav.getBoundingClientRect().height;
       if (activeBar) offset += activeBar.getBoundingClientRect().height;
-      offset += 32;
+      offset += mBarH;
+      const mainEl = document.querySelector('main');
+      const mainPaddingTop = mainEl ? parseFloat(window.getComputedStyle(mainEl).paddingTop) || 0 : 32;
+      offset += mainPaddingTop;
       const top = panel.getBoundingClientRect().top + window.scrollY - offset;
+      console.log('[SWITCHTAB DEBUG]', name, {
+        navH: nav ? nav.getBoundingClientRect().height : null,
+        tabsNavH: tabsNav ? tabsNav.getBoundingClientRect().height : null,
+        activeBarH: activeBar ? activeBar.getBoundingClientRect().height : null,
+        mBarH,
+        offset,
+        panelTopBeforeScroll: panel.getBoundingClientRect().top,
+        scrollYBefore: window.scrollY,
+        computedTarget: top
+      });
       window.scrollTo({ top, behavior: 'smooth' });
     }, 50);
   }
@@ -1897,12 +2017,25 @@ function switchTab(name, fromClick = false) {
 // Recalcule le top de #active-company-bar a partir des hauteurs reelles de nav + tabs-nav.
 // Remplace le top:156px code en dur qui ne tient pas compte de la hauteur exacte de tabs-nav.
 function _fixAcbTop() {
-  if (!window.matchMedia('(max-width:480px)').matches) return;
   const acb = document.getElementById('active-company-bar');
+  const mBar = document.getElementById('mandate-bar');
+  const accessNote = document.querySelector('.access-note');
+  const nav = document.querySelector('nav');
+  const tabsNav = document.querySelector('.tabs-nav');
+
+  let top = (nav ? nav.offsetHeight : 0) + (tabsNav ? tabsNav.offsetHeight : 0);
+
+  if (accessNote && getComputedStyle(accessNote).display !== 'none') {
+    top += accessNote.offsetHeight;
+  }
+
+  if (mBar && mBar.style.display !== 'none' && mBar.offsetHeight > 0) {
+    mBar.style.top = top + 'px';
+    top += mBar.offsetHeight;
+  }
+
   if (!acb || acb.style.position === 'relative') return;
-  const navH = (document.querySelector('nav') || {}).offsetHeight || 108;
-  const tabsH = (document.querySelector('.tabs-nav') || {}).offsetHeight || 48;
-  acb.style.top = (navH + tabsH) + 'px';
+  acb.style.top = top + 'px';
 }
 window.addEventListener('resize', _fixAcbTop);
 
@@ -5775,6 +5908,70 @@ function closeAddProspect(){
   if (m){ m.style.opacity = '0'; m.style.pointerEvents = 'none'; m.style.transform = 'translate(-50%,-48%)'; }
 }
 
+function openAddMandate() {
+  document.getElementById('addm-overlay').style.opacity = '1';
+  document.getElementById('addm-overlay').style.pointerEvents = 'auto';
+  document.getElementById('addm-modal').style.opacity = '1';
+  document.getElementById('addm-modal').style.pointerEvents = 'auto';
+  document.getElementById('addm-modal').style.transform = 'translate(-50%,-50%)';
+}
+
+function closeAddMandate() {
+  document.getElementById('addm-overlay').style.opacity = '0';
+  document.getElementById('addm-overlay').style.pointerEvents = 'none';
+  document.getElementById('addm-modal').style.opacity = '0';
+  document.getElementById('addm-modal').style.pointerEvents = 'none';
+  document.getElementById('addm-modal').style.transform = 'translate(-50%,-48%)';
+  const sel = document.getElementById('mandate-select');
+  if (sel) sel.value = activeMandateId || '';
+}
+
+async function saveMandateForm() {
+  const name = document.getElementById('addm-name').value.trim();
+  const segment = document.getElementById('addm-segment').value.trim();
+  const errEl = document.getElementById('addm-error');
+  errEl.style.display = 'none';
+
+  if (!name || !segment) {
+    errEl.textContent = 'Segment and mandate name are required.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const btn = document.getElementById('addm-save-btn');
+  btn.disabled = true;
+  try {
+    const { data, error } = await sbClient.from('mandates').insert({
+      client_id: CLIENT_ID,
+      segment,
+      name,
+      status: 'active',
+      icp_criteria: document.getElementById('addm-icp').value.trim() || null,
+      sectors: document.getElementById('addm-sectors').value.trim() || null,
+      geography: document.getElementById('addm-geography').value.trim() || null,
+      signals: document.getElementById('addm-signals').value.trim() || null,
+      exclusions: document.getElementById('addm-exclusions').value.trim() || null,
+    }).select().single();
+    if (error) throw error;
+
+    closeAddMandate();
+    ['addm-segment','addm-name','addm-icp','addm-sectors','addm-geography',
+     'addm-signals','addm-exclusions'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+
+    const url = new URL(window.location.href);
+    url.searchParams.set('mandate', data.id);
+    window.location.href = url.toString();
+  } catch (e) {
+    errEl.textContent = e.message || 'Failed to create mandate.';
+    errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 function _stageKey(s){
   const v = (s || '').toLowerCase().trim();
   if (!v) return 'Identified';
@@ -6746,6 +6943,48 @@ Format output clearly with each section labeled. Be direct.`;
       <button id="ap-save-btn" class="btn-primary" style="flex:1;justify-content:center" onclick="addProspect()"><span data-en="Add prospect" data-fr="Ajouter">Add prospect</span></button>
       <button class="btn-secondary" style="justify-content:center" onclick="closeAddProspect()"><span data-en="Cancel" data-fr="Annuler">Cancel</span></button>
     </div>
+  </div>
+</div>
+
+<!-- ADD MANDATE MODAL (Phase 3b) -->
+<div id="addm-overlay" onclick="if(event.target===this) closeAddMandate()" style="position:fixed;inset:0;background:rgba(26,43,94,0.35);z-index:9700;opacity:0;pointer-events:none;transition:opacity .25s;"></div>
+<div id="addm-modal" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-48%);width:480px;max-width:92vw;max-height:88vh;overflow-y:auto;z-index:9800;opacity:0;pointer-events:none;transition:opacity .25s, transform .25s;background:#fff;border-radius:14px;box-shadow:0 20px 60px rgba(26,43,94,0.25);padding:28px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+    <h3 style="font-size:16px;font-weight:800;color:var(--navy);margin:0;">New mandate</h3>
+    <button onclick="closeAddMandate()" style="background:none;border:none;font-size:20px;color:var(--muted);cursor:pointer;line-height:1;" aria-label="Close">✕</button>
+  </div>
+  <div style="margin-bottom:14px;">
+    <label style="display:block;font-size:10px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:5px;">Segment *</label>
+    <input type="text" id="addm-segment" class="dp-inp" placeholder="e.g. Cession, Acquisition, Corridor...">
+  </div>
+  <div style="margin-bottom:14px;">
+    <label style="display:block;font-size:10px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:5px;">Mandate name *</label>
+    <input type="text" id="addm-name" class="dp-inp" placeholder="e.g. Oil Servicing - Oman">
+  </div>
+  <div style="margin-bottom:14px;">
+    <label style="display:block;font-size:10px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:5px;">ICP criteria</label>
+    <textarea id="addm-icp" class="dp-inp" style="min-height:60px;resize:vertical;" placeholder="Decision makers, company type, size..."></textarea>
+  </div>
+  <div style="margin-bottom:14px;">
+    <label style="display:block;font-size:10px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:5px;">Sectors</label>
+    <input type="text" id="addm-sectors" class="dp-inp">
+  </div>
+  <div style="margin-bottom:14px;">
+    <label style="display:block;font-size:10px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:5px;">Geography</label>
+    <input type="text" id="addm-geography" class="dp-inp">
+  </div>
+  <div style="margin-bottom:14px;">
+    <label style="display:block;font-size:10px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:5px;">Signals</label>
+    <input type="text" id="addm-signals" class="dp-inp">
+  </div>
+  <div style="margin-bottom:18px;">
+    <label style="display:block;font-size:10px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:5px;">Exclusions</label>
+    <input type="text" id="addm-exclusions" class="dp-inp">
+  </div>
+  <div id="addm-error" style="display:none;color:#dc2626;font-size:12px;margin-bottom:12px;"></div>
+  <div style="display:flex;gap:8px;justify-content:flex-end;">
+    <button class="btn-secondary" style="justify-content:center;" onclick="closeAddMandate()">Cancel</button>
+    <button id="addm-save-btn" class="btn-primary" style="justify-content:center;" onclick="saveMandateForm()">Create mandate</button>
   </div>
 </div>
 
