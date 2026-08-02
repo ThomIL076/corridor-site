@@ -1622,6 +1622,48 @@ h1, h2, .section-title, .k-card-name, .k-card-company { overflow-wrap:break-word
 <script>
 const API_URL = '/api/generate';
 const CLIENT_ID = 'thomas'; // identifiant d'instance — changer ici lors du fork client
+let activeMandateId = null; // null = vue consolidée (tous mandats), sinon uuid du mandat actif
+
+async function _resolveMandate(mandateId) {
+  if (!mandateId) return null;
+  try {
+    const { data, error } = await sbClient
+      .from('mandates')
+      .select('*')
+      .eq('id', mandateId)
+      .single();
+    if (error) throw error;
+    return data || null;
+  } catch (e) {
+    console.error('[_resolveMandate] failed:', e);
+    return null;
+  }
+}
+
+let _activeMandate = null; // objet mandat résolu, mis en cache après _resolveMandate
+
+function _mandateContext() {
+  if (!_activeMandate) {
+    // Aucun mandat actif = comportement legacy, fallback sur
+    // THOMAS_CONTEXT existant (mode "vue consolidée" ou client
+    // sans système de mandats, comme Thomas lui-même aujourd'hui)
+    return THOMAS_CONTEXT;
+  }
+  const m = _activeMandate;
+  const parts = [
+    `Operating context for every answer (this is the real business, not a hypothetical):`,
+    `Client: ${CLIENT_ID}. Mandate: ${m.name} (segment: ${m.segment}).`,
+    m.icp_criteria   ? `ICP: ${m.icp_criteria}`                       : null,
+    m.decision_makers ? `Decision makers: ${m.decision_makers}`        : null,
+    m.sectors        ? `Sectors: ${m.sectors}`                         : null,
+    m.geography      ? `Geography: ${m.geography}`                     : null,
+    m.signals        ? `Buying signals that matter: ${m.signals}`      : null,
+    m.exclusions     ? `Exclude: ${m.exclusions}`                      : null,
+    `Stay strictly within this context. Do not invent fictional companies, scores, or metrics.`
+  ].filter(Boolean);
+  return parts.join('\n');
+}
+
 const SMARTLEAD_CAMPAIGN_ID = '3708966'; // per-client deployment: update this value
 // PWA : pas de restauration auto du scroll au chargement
 if ('scrollRestoration' in history) { history.scrollRestoration = 'manual'; }
@@ -1638,11 +1680,23 @@ let _trialDays = null;       // jours restants si statut trial, sinon null
 let _blockedKind = null;     // 'expired' | 'not_found' quand l'accès est bloqué
 let _demoStarted = false;    // init unique post-login (scroll top + onglet Scanner)
 
-function showDemo(){
+async function showDemo(){
   document.getElementById('auth-gate').style.display = 'none';
   const ab = document.getElementById('access-blocked'); if (ab) ab.style.display = 'none';
   _blockedKind = null;
   const so = document.getElementById('signout-btn'); if (so) so.style.display = 'inline-flex';
+
+  // Résolution du mandat actif (lecture depuis l'URL, à défaut null = vue consolidée)
+  const _urlParams = new URLSearchParams(window.location.search);
+  activeMandateId = _urlParams.get('mandate') || null;
+  if (activeMandateId) {
+    _activeMandate = await _resolveMandate(activeMandateId);
+    if (!_activeMandate) {
+      console.warn('[init] mandate_id invalide ou introuvable, retour vue consolidée:', activeMandateId);
+      activeMandateId = null;
+    }
+  }
+
   if (!_kanbanLoaded) loadKanban();
   _initHpFilters();
   // Init unique post-login : onglet Scanner par défaut + scroll en haut (PWA démarre proprement)
@@ -3110,7 +3164,7 @@ async function sendAgent(agentName) {
       body: JSON.stringify({
         model: 'claude-sonnet-5',
         max_tokens: 600,
-        system: THOMAS_CONTEXT + '\n\n' + agentSystemPrompts[agentName] + ' Rules: Never use em-dashes (—) or horizontal rules (---) in your response. Language instruction: Write your entire response in ' + (currentLang === 'fr' ? 'French' : 'English') + '. All section headers, bullet points, and analysis must be in that language.' + memBlock,
+        system: _mandateContext() + '\n\n' + agentSystemPrompts[agentName] + ' Rules: Never use em-dashes (—) or horizontal rules (---) in your response. Language instruction: Write your entire response in ' + (currentLang === 'fr' ? 'French' : 'English') + '. All section headers, bullet points, and analysis must be in that language.' + memBlock,
         messages: agentHistories[agentName]
       })
     });
@@ -3281,10 +3335,12 @@ async function _runPipelineReview() {
 
     let _prAll = [], _prFrom = 0;
     while (true) {
-      const { data: chunk, error } = await _supabase
+      let _prQuery = _supabase
         .from('prospects')
         .select('id,name,company,sector,country,stage,last_contact,reminder_date,deal_value,linkedin_tag,created_at')
-        .eq('client_id', resolvedClientId)
+        .eq('client_id', resolvedClientId);
+      if (activeMandateId) _prQuery = _prQuery.eq('mandate_id', activeMandateId);
+      const { data: chunk, error } = await _prQuery
         .eq('archived', false)
         .order('last_contact', { ascending: false, nullsFirst: false })
         .range(_prFrom, _prFrom + 999);
@@ -3448,7 +3504,7 @@ async function runMorningScan() {
       : '\n  LIVE CONTEXT: none found';
     return parts.join(' · ') + _ctx;
   }).join('\n\n');
-  const prompt = `${_companyLine()}${THOMAS_CONTEXT}
+  const prompt = `${_companyLine()}${_mandateContext()}
 
 You are Corridor's GTM operating system generating the daily morning scan for a GTM advisor working Europe and beyond.
 
@@ -3520,10 +3576,12 @@ async function runLiveAlert() {
 
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
   try {
-    const { data: signalProspects, error } = await sbClient
+    let _msQuery = sbClient
       .from('prospects')
       .select('id, name, company, sector, country, region, stage, icp_score, signal, signal_type, updated_at')
-      .eq('client_id', CLIENT_ID)
+      .eq('client_id', CLIENT_ID);
+    if (activeMandateId) _msQuery = _msQuery.eq('mandate_id', activeMandateId);
+    const { data: signalProspects, error } = await _msQuery
       .not('signal', 'is', null)
       .not('signal_type', 'is', null)
       .gte('updated_at', sevenDaysAgo)
@@ -3587,10 +3645,12 @@ async function loadSendView() {
   try {
     let _spAll = [], _spFrom = 0;
     while (true) {
-      const { data: chunk, error: pErr } = await sbClient
+      let _spQuery = sbClient
         .from('prospects')
         .select('id, name, company, title, sector, region, country, stage, linkedin, last_contact, reminder_date, linkedin_tag, icp_score, client_id, origin, created_at, signal, signal_type')
-        .eq('client_id', CLIENT_ID)
+        .eq('client_id', CLIENT_ID);
+      if (activeMandateId) _spQuery = _spQuery.eq('mandate_id', activeMandateId);
+      const { data: chunk, error: pErr } = await _spQuery
         .eq('archived', false)
         .order('created_at', { ascending: false })
         .range(_spFrom, _spFrom + 999);
@@ -3601,11 +3661,12 @@ async function loadSendView() {
     }
     _sendProspects = _spAll;
 
-    const { data: seqs, error: sErr } = await sbClient
+    let _seqQuery = sbClient
       .from('sequences')
       .select('id, prospect_id, touch, body, status, sent_at')
-      .eq('client_id', CLIENT_ID)
-      .in('status', ['draft','ready']);
+      .eq('client_id', CLIENT_ID);
+    if (activeMandateId) _seqQuery = _seqQuery.eq('mandate_id', activeMandateId);
+    const { data: seqs, error: sErr } = await _seqQuery.in('status', ['draft','ready']);
     if (sErr) throw sErr;
 
     _sendSequences = {};
@@ -4200,7 +4261,7 @@ async function _saveSequenceDraft(pid, touch, bodyOverride) {
     if (_sdErr) { console.error('[_saveSequenceDraft] update failed:', _sdErr); showToast('Error saving draft'); return; }
   } else {
     const { data, error: _sdInsErr } = await sbClient.from('sequences')
-      .insert({ prospect_id:pid, client_id: CLIENT_ID, touch, body, status:'draft' })
+      .insert({ prospect_id:pid, client_id: CLIENT_ID, mandate_id: activeMandateId, touch, body, status:'draft' })
       .select('id').single();
     if (_sdInsErr) { console.error('[_saveSequenceDraft] insert failed:', _sdInsErr); showToast('Error saving draft'); return; }
     if (data?.id) {
@@ -4234,7 +4295,7 @@ async function _sendViaLinkedIn(pid, touch) {
   if (body.includes('{') || body.includes('}')) {
     showToast('Blocked: message contains literal braces {}. Fix template before sending.');
     const { error: _seErr1 } = await sbClient.from('interactions').insert({
-      prospect_id: pid, client_id: CLIENT_ID, type: 'send_error',
+      prospect_id: pid, client_id: CLIENT_ID, mandate_id: activeMandateId, type: 'send_error',
       note: 'blocked: message contains literal braces {}'
     });
     if (_seErr1) console.error('[_sendViaLinkedIn] send_error insert failed:', _seErr1);
@@ -4245,7 +4306,7 @@ async function _sendViaLinkedIn(pid, touch) {
   if (touch !== 'invite' && p.linkedin_tag !== 'connection-accepted') {
     showToast('Blocked: not yet connected with this prospect');
     const { error: _seErr2 } = await sbClient.from('interactions').insert({
-      prospect_id: pid, client_id: CLIENT_ID, type: 'send_error',
+      prospect_id: pid, client_id: CLIENT_ID, mandate_id: activeMandateId, type: 'send_error',
       note: 'blocked: not connected'
     });
     if (_seErr2) console.error('[_sendViaLinkedIn] send_error insert failed:', _seErr2);
@@ -4302,7 +4363,7 @@ async function _markSent(pid, touch, auto = false, msgText = '') {
     : `${touch} sent${auto ? ' via HeyReach' : ' (manual)'}${msgText ? ' | ' + msgText.slice(0, 300) : ''}`;
   const _validTouch = ['invite', 'j0', 'j5', 'j12'];
   const { error: _msIntErr } = await sbClient.from('interactions').insert({
-    prospect_id: pid, client_id: CLIENT_ID, type: 'linkedin',
+    prospect_id: pid, client_id: CLIENT_ID, mandate_id: activeMandateId, type: 'linkedin',
     note: _sentNote,
     touch: _validTouch.includes(touch) ? touch : null,
   });
@@ -4467,7 +4528,7 @@ async function importCSV(e) {
         : 'nc:' + name.toLowerCase().replace(/\s+/g, '') + '|' + company.toLowerCase().replace(/\s+/g, '');
 
       rows.push({
-        client_id: CLIENT_ID, external_id,
+        client_id: CLIENT_ID, mandate_id: activeMandateId, external_id,
         name, company, sector,
         country: country || null, region: region || null,
         linkedin: linkedin || null, email: email || null,
@@ -4533,21 +4594,24 @@ async function runWeeklyReport(){
         if (cl && cl.client_id) _wrClientId = cl.client_id;
       }
     } catch(e) {}
-    const { data: ints, error } = await sbClient
+    let _wrIntQuery = sbClient
       .from('interactions')
       .select('prospect_id, type, note, created_at')
-      .eq('client_id', _wrClientId)
+      .eq('client_id', _wrClientId);
+    if (activeMandateId) _wrIntQuery = _wrIntQuery.eq('mandate_id', activeMandateId);
+    const { data: ints, error } = await _wrIntQuery
       .in('type', ['linkedin', 'email', 'call', 'meeting'])
       .gte('created_at', weekStart)
       .order('created_at', { ascending: false })
       .limit(500);
     if (!error && ints && ints.length > 0) {
       const uniqueIds = [...new Set(ints.map(i => i.prospect_id).filter(Boolean))];
-      const { data: freshProspects } = await sbClient
+      let _wrPQuery = sbClient
         .from('prospects')
         .select('id, name, company')
-        .eq('client_id', _wrClientId)
-        .in('id', uniqueIds);
+        .eq('client_id', _wrClientId);
+      if (activeMandateId) _wrPQuery = _wrPQuery.eq('mandate_id', activeMandateId);
+      const { data: freshProspects } = await _wrPQuery.in('id', uniqueIds);
       const pById = {};
       (freshProspects || []).forEach(p => { pById[p.id] = p; });
       interactionLines = ints.map(i => {
@@ -4564,7 +4628,7 @@ async function runWeeklyReport(){
     return;
   }
 
-  const prompt = `${_companyLine()}${THOMAS_CONTEXT}
+  const prompt = `${_companyLine()}${_mandateContext()}
 
 You are Corridor's GTM operating system generating the end-of-week report.
 
@@ -5477,7 +5541,7 @@ async function _saveEmail(pid, email, source) {
   const { error: _emailSaveErr } = await sbClient.from('prospects').update({ email }).eq('id', pid).eq('client_id', CLIENT_ID);
   if (_emailSaveErr) { console.error('[_saveEmail] prospects update failed:', _emailSaveErr); showToast('Error saving email'); return; }
   const { error: _emailIntErr } = await sbClient.from('interactions').insert({
-    prospect_id: pid, client_id: CLIENT_ID, type: 'system',
+    prospect_id: pid, client_id: CLIENT_ID, mandate_id: activeMandateId, type: 'system',
     note: 'Email verified: ' + email
   });
   if (_emailIntErr) console.error('[_saveEmail] interactions insert failed:', _emailIntErr);
@@ -5684,7 +5748,7 @@ async function addProspect(){
   const stageSel = document.getElementById('ap-stage')?.value || 'Identified';
   const p = { name, company, email: g('ap-email'), linkedin: g('ap-linkedin') };
   const row = {
-    client_id: CLIENT_ID, external_id: identityKey(p),
+    client_id: CLIENT_ID, mandate_id: activeMandateId, external_id: identityKey(p),
     name, company, title: g('ap-title') || null, email: g('ap-email') || null, linkedin: g('ap-linkedin') || null,
     sector: g('ap-sector') || null, country: g('ap-country') || null, region: document.getElementById('ap-region')?.value || 'EMEA',
     stage: STAGE_DB[stageSel] || stageSel, archived: false, updated_at: new Date().toISOString()
@@ -6292,7 +6356,7 @@ async function _startEmailSeq(id) {
     const data = await r.json();
     if (r.ok && !data.error) {
       const { error: _seqInsErr } = await sbClient.from('interactions').insert({
-        prospect_id: p.id, client_id: p.client_id || CLIENT_ID,
+        prospect_id: p.id, client_id: p.client_id || CLIENT_ID, mandate_id: activeMandateId,
         type: 'email_j5', note: 'Email sequence started via Smartlead'
       });
       if (_seqInsErr) {
@@ -6371,10 +6435,12 @@ async function loadKanban(force){
   try {
     let _kAll = [], _kFrom = 0;
     while (true) {
-      const { data: chunk, error } = await sbClient
+      let _kQuery = sbClient
         .from('prospects')
         .select('id, name, company, title, sector, region, country, stage, linkedin, email, deal_value, notes, last_contact, reminder_date, icp_score, archived, client_id, linkedin_tag, origin, signal, signal_type, created_at, draft_invite_note')
-        .eq('client_id', CLIENT_ID)
+        .eq('client_id', CLIENT_ID);
+      if (activeMandateId) _kQuery = _kQuery.eq('mandate_id', activeMandateId);
+      const { data: chunk, error } = await _kQuery
         .order('created_at', { ascending: false })
         .range(_kFrom, _kFrom + 999);
       if (error) throw error;
