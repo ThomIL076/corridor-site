@@ -3291,13 +3291,19 @@ async function sendAgent(agentName) {
         memBlock = '\n\nMemory from previous sessions:\n' + memData.memories.join('\n');
       }
     } catch(e) { /* fail-open */ }
+    const AGENTS_WITH_LIVE_SEARCH = ['prospect', 'competitive', 'seo'];
+    let liveContextBlock = '';
+    if (AGENTS_WITH_LIVE_SEARCH.includes(agentName)) {
+      const liveCtx = await _perplexitySearch(msg, 500);
+      if (liveCtx) liveContextBlock = '\n\nLIVE CONTEXT (from web search, use this as ground truth for facts, do not invent beyond this):\n' + liveCtx;
+    }
     const res = await fetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'claude-sonnet-5',
-        max_tokens: 600,
-        system: _mandateContext() + '\n\n' + agentSystemPrompts[agentName] + ' Rules: Never use em-dashes (—) or horizontal rules (---) in your response. Language instruction: Write your entire response in ' + (currentLang === 'fr' ? 'French' : 'English') + '. All section headers, bullet points, and analysis must be in that language.' + memBlock,
+        max_tokens: 8000,
+        system: _mandateContext() + '\n\n' + agentSystemPrompts[agentName] + ' Rules: Never use em-dashes (—) or horizontal rules (---) in your response. Language instruction: Write your entire response in ' + (currentLang === 'fr' ? 'French' : 'English') + '. All section headers, bullet points, and analysis must be in that language.' + memBlock + liveContextBlock,
         messages: agentHistories[agentName]
       })
     });
@@ -6855,7 +6861,7 @@ Format output clearly with each section labeled. Be direct.`;
     const res = await fetch('/api/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages: [{ role: 'user', content: prompt }], max_tokens: 600 })
+      body: JSON.stringify({ messages: [{ role: 'user', content: prompt }], max_tokens: 8000 })
     });
     const data = await res.json();
     const text = (Array.isArray(data.content) ? data.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim() : '') || 'Erreur';

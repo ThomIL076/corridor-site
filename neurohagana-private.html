@@ -639,7 +639,7 @@ async function generate(agent) {
       body: JSON.stringify({
         system: systemPrompt,
         messages: [{ role: 'user', content: userText }],
-        max_tokens: 600
+        max_tokens: 8000
       })
     });
 
