@@ -1680,6 +1680,7 @@ async function _resolveMandate(mandateId) {
 }
 
 let _activeMandate = null; // objet mandat résolu, mis en cache après _resolveMandate
+let _clientMandateIds = []; // liste des mandate_id actifs du client courant, pour la vue "Tous mes mandats"
 
 function _mandateContext() {
   if (!_activeMandate) {
@@ -1713,7 +1714,7 @@ async function _loadMandateOptions() {
       .order('segment')
       .order('name');
     if (error) throw error;
-    if (!data || data.length === 0) return; // pas de mandats, barre reste cachée
+    _clientMandateIds = (data || []).map(m => m.id);
 
     const sel = document.getElementById('mandate-select');
     const bar = document.getElementById('mandate-bar');
@@ -1723,8 +1724,13 @@ async function _loadMandateOptions() {
     sel.innerHTML = '';
     if (firstOption) sel.appendChild(firstOption);
 
+    const allOpt = document.createElement('option');
+    allOpt.value = '__ALL__';
+    allOpt.textContent = (typeof currentLang !== 'undefined' && currentLang === 'fr') ? 'Tous mes mandats' : 'All my mandates';
+    sel.appendChild(allOpt);
+
     const bySegment = {};
-    data.forEach(m => {
+    (data || []).forEach(m => {
       if (!bySegment[m.segment]) bySegment[m.segment] = [];
       bySegment[m.segment].push(m);
     });
@@ -1752,6 +1758,16 @@ async function _loadMandateOptions() {
   } catch (e) {
     console.error('[_loadMandateOptions] failed:', e);
   }
+}
+
+function _applyMandateFilter(query) {
+  if (activeMandateId === '__ALL__') {
+    return _clientMandateIds.length > 0
+      ? query.in('mandate_id', _clientMandateIds)
+      : query.is('mandate_id', null); // fallback si aucun mandat actif
+  }
+  if (activeMandateId) return query.eq('mandate_id', activeMandateId);
+  return query.is('mandate_id', null); // vue consolidée = IS NULL explicite
 }
 
 function _onMandateChange() {
@@ -1791,7 +1807,7 @@ async function showDemo(){
   // Résolution du mandat actif (lecture depuis l'URL, à défaut null = vue consolidée)
   const _urlParams = new URLSearchParams(window.location.search);
   activeMandateId = _urlParams.get('mandate') || null;
-  if (activeMandateId) {
+  if (activeMandateId && activeMandateId !== '__ALL__') {
     _activeMandate = await _resolveMandate(activeMandateId);
     if (!_activeMandate) {
       console.warn('[init] mandate_id invalide ou introuvable, retour vue consolidée:', activeMandateId);
@@ -3478,7 +3494,7 @@ async function _runPipelineReview() {
         .from('prospects')
         .select('id,name,company,sector,country,stage,last_contact,reminder_date,deal_value,linkedin_tag,created_at')
         .eq('client_id', resolvedClientId);
-      if (activeMandateId) _prQuery = _prQuery.eq('mandate_id', activeMandateId);
+      _prQuery = _applyMandateFilter(_prQuery);
       const { data: chunk, error } = await _prQuery
         .eq('archived', false)
         .order('last_contact', { ascending: false, nullsFirst: false })
@@ -3616,64 +3632,129 @@ function _prOpenProspect(prospectId) {
 }
 
 async function runMorningScan() {
-  document.getElementById('morning-btn').disabled = true;
-  await loadKanban(true);
-  const topProspects = (_allProspects || [])
-    .filter(p => p.icp_score >= 7 && !['Closed','Identified'].includes(p.stage))
-    .sort((a,b) => (b.icp_score||0) - (a.icp_score||0))
-    .slice(0,5);
-  const _scanCtxList = await Promise.all(
-    topProspects.map(p =>
-      p.company
-        ? _perplexitySearch(`${p.company} recent news funding hire expansion signal`, 300)
-        : Promise.resolve('')
-    )
-  );
-  const prospectLines = topProspects.map((p, i) => {
-    const parts = [
-      (p.name || `${p.first_name||''} ${p.last_name||''}`.trim()) || 'Unknown',
-      p.company || null,
-      p.country || p.region || null,
-      p.sector || null,
-      `Stage: ${p.stage || 'unknown'}`,
-      `ICP: ${p.icp_score || 'N/A'}`
-    ].filter(Boolean);
-    const _ctx = _scanCtxList[i]
-      ? `\n  LIVE CONTEXT: ${_scanCtxList[i]}`
-      : '\n  LIVE CONTEXT: none found';
-    return parts.join(' · ') + _ctx;
-  }).join('\n\n');
-  const prompt = `${_companyLine()}${_mandateContext()}
+  const btn = document.getElementById('morning-btn');
+  const morningOut = document.getElementById('morning-output');
+  const spinner = document.getElementById('morning-spinner');
+  if (btn) btn.disabled = true;
+  if (spinner) spinner.classList.add('active');
+  morningOut.textContent = '';
+  morningOut.classList.remove('loaded');
 
-You are Corridor's GTM operating system generating the daily morning scan for a GTM advisor working Europe and beyond.
+  try {
+    await loadKanban(true);
 
-Here are the top-scored live prospects from the active pipeline:
-${prospectLines || 'No high-score prospects yet.'}
+    // 1. Score pipeline: ICP fit + timing signal bonus, top 20
+    const scored = (_allProspects || [])
+      .filter(p => !p.archived)
+      .map(p => {
+        const icp = p.icp_score || 0;
+        const hasSignal = !!(p.signal && p.signal.length > 0);
+        return { ...p, combinedScore: icp + (hasSignal ? 2 : 0), hasSignal };
+      })
+      .sort((a, b) => b.combinedScore - a.combinedScore || (b.icp_score || 0) - (a.icp_score || 0))
+      .slice(0, 20);
 
-Each prospect above includes LIVE CONTEXT already retrieved from the web. Use only these provided facts to identify signals. If LIVE CONTEXT says 'none found' for a prospect, do not invent a signal for them — note the absence instead.
+    const pipelineBlock = scored.length
+      ? scored.map((p, i) => {
+          const sig = p.signal_type ? `[${p.signal_type.toUpperCase()}] ` : '';
+          const sigLine = p.signal ? ` | Signal: ${sig}${p.signal}` : '';
+          return `${i + 1}. ${p.name || 'Unknown'} · ${p.company || '—'} · ${p.sector || '—'} · ${p.country || p.region || '—'} · Stage: ${p.stage || 'Identified'} · ICP: ${p.icp_score || 0} · Score: ${p.combinedScore}${sigLine}`;
+        }).join('\n')
+      : 'No active prospects in pipeline.';
 
-STRICT RULE: if location, sector, or any other field is missing from a prospect's data above, do NOT infer, guess, or fill it in. Omit the field entirely. Never substitute "EMEA" or any region when no location is provided.
+    // 2. Market signals via Perplexity (single broad call, last 24-48h)
+    let marketSignals = 'No market signals retrieved.';
+    try {
+      const mktRes = await fetch('/api/perplexity', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'sonar',
+          max_tokens: 800,
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a real-time B2B market intelligence assistant. Return only factual, dated signals. No opinions or forecasts.'
+            },
+            {
+              role: 'user',
+              content: 'Find the most important B2B sales signals from the last 24-48 hours in these sectors: AdTech, Fintech, B2B SaaS, Gaming. Focus on:\n- Fundraising rounds, M&A, and expansion announcements\n- Senior GTM/sales leadership hires\n- Competitive moves from: YourSales, Gyroscope, JD Consulting, CloudTask, Clay, Apollo, Lemlist, Instantly, La Growth Machine\n- SDR/BDR team postings or outsourcing signals in EMEA\nReturn a concise bullet list of max 10 signals, each with: company name, signal type, and date if available.'
+            }
+          ]
+        })
+      });
+      if (mktRes.ok) {
+        const mktData = await mktRes.json();
+        marketSignals = mktData.choices?.[0]?.message?.content?.trim() || marketSignals;
+      }
+    } catch (e) {
+      console.warn('[runMorningScan] Perplexity failed:', e.message);
+    }
 
-STRICT RULE on signals: Only include in "Signals Detected" signals explicitly present in the LIVE CONTEXT provided above. If LIVE CONTEXT is 'none found' for a company, omit that company from this section entirely — do NOT fabricate, extrapolate, or infer signals from company name, sector, or general industry knowledge. If no signals are found for any company, write "No signals found today." and nothing else in that section. Freshness constraint: a signal only counts if it dates from the last 30–60 days — do NOT report events older than 2 months even if factually true. Source constraint: every claim must be directly attributable to a fact explicitly stated in the LIVE CONTEXT — do NOT infer or assemble signals from adjacent results such as generic job listings, industry reports that do not name the company, or geographic signals not tied to a confirmed company announcement.
+    // 3. Build Claude prompt — system + user separated
+    const systemPrompt = `You are Corridor's GTM operating system generating the daily morning scan for a GTM advisor working Europe and beyond.
 
-Format as a direct, actionable internal briefing with exactly these three sections:
+RANKING RULE: Always rank and prioritize by combined score = ICP fit + timing signal. A prospect with ICP 7 and an active signal ranks above an ICP 9 with no signal. Never rank by ICP alone.
 
-## Top Prospects Today
-[Up to 3 prospects from the list above, one line each: Name, Company, location (if known), ICP score, and — ONLY if a real signal was confirmed in the LIVE CONTEXT — one factual reason. If no signal was found for a prospect, list them without a reason. Never invent funding rounds, hires, or expansions.]
-
-## Signals Detected
-[Up to 3 short bullets based on real signals from the LIVE CONTEXT provided, each tagged: S1 fundraise, S3 senior hire/role, S7 network connection, or S9 expansion move]
-
-## Recommended Actions Today
-[2 to 3 concrete next actions tied to specific people or companies above]
-
-Keep it tight and operational. Max 230 words.
+STAKEHOLDERS RULE: The "Stakeholders to Watch" section must contain ONLY names sourced from the market signals section — never names from the internal pipeline. Internal pipeline contacts are already being worked; they must never appear as external stakeholders to monitor.
 
 ${_noDash}
 ${_langLine()}`;
-  const morningOut = document.getElementById('morning-output');
-  await callAI(prompt, morningOut, 'morning-spinner', false, 8000);
-  document.getElementById('morning-btn').disabled = false;
+
+    const userPrompt = `${_companyLine()}${_mandateContext()}
+
+## INTERNAL PIPELINE (ranked by combined score = ICP + signal, top 20)
+${pipelineBlock}
+
+## MARKET SIGNALS (last 24-48h, sourced from Perplexity)
+${marketSignals}
+
+---
+
+Generate today's morning scan with exactly these four sections:
+
+## Top Prospects Today
+[Up to 5 prospects from the pipeline above, ranked by combined score. One line each: Name · Company · ICP · combined score · stage · signal if any. Never rank by ICP alone.]
+
+## Signals Detected
+[Up to 5 bullets from the MARKET SIGNALS section above. Each tagged: S1 fundraise, S3 senior hire, S7 network move, or S9 expansion. Only include signals explicitly present in the market data — never invent.]
+
+## Stakeholders to Watch
+[Up to 3 names from the MARKET SIGNALS section only — never from the internal pipeline. Include their company, role, and why they matter now.]
+
+## Recommended Actions Today
+[2 to 3 concrete next actions tied to specific people or companies from the pipeline or market signals above.]
+
+Max 300 words. Keep it tight and operational.`;
+
+    // 4. Call Claude — no web_search, Perplexity already sourced the market data
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-5',
+        max_tokens: 8000,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userPrompt }]
+      })
+    });
+    if (!res.ok) throw new Error('API error ' + res.status);
+    const data = await res.json();
+    if (data.type === 'error') {
+      morningOut.textContent = 'API error: ' + (data.error?.message || 'please retry');
+      return;
+    }
+    const text = Array.isArray(data.content)
+      ? data.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim() || 'No response.'
+      : 'No response.';
+    morningOut.innerHTML = renderMarkdown(text);
+    morningOut.classList.add('loaded');
+  } catch (e) {
+    morningOut.textContent = 'Error: ' + e.message;
+  } finally {
+    if (spinner) spinner.classList.remove('active');
+    if (btn) btn.disabled = false;
+  }
 }
 
 async function runPipelineIntel() {
@@ -3719,7 +3800,7 @@ async function runLiveAlert() {
       .from('prospects')
       .select('id, name, company, sector, country, region, stage, icp_score, signal, signal_type, updated_at')
       .eq('client_id', CLIENT_ID);
-    if (activeMandateId) _msQuery = _msQuery.eq('mandate_id', activeMandateId);
+    _msQuery = _applyMandateFilter(_msQuery);
     const { data: signalProspects, error } = await _msQuery
       .not('signal', 'is', null)
       .not('signal_type', 'is', null)
@@ -3788,7 +3869,7 @@ async function loadSendView() {
         .from('prospects')
         .select('id, name, company, title, sector, region, country, stage, linkedin, last_contact, reminder_date, linkedin_tag, icp_score, client_id, origin, created_at, signal, signal_type')
         .eq('client_id', CLIENT_ID);
-      if (activeMandateId) _spQuery = _spQuery.eq('mandate_id', activeMandateId);
+      _spQuery = _applyMandateFilter(_spQuery);
       const { data: chunk, error: pErr } = await _spQuery
         .eq('archived', false)
         .order('created_at', { ascending: false })
@@ -3804,7 +3885,7 @@ async function loadSendView() {
       .from('sequences')
       .select('id, prospect_id, touch, body, status, sent_at')
       .eq('client_id', CLIENT_ID);
-    if (activeMandateId) _seqQuery = _seqQuery.eq('mandate_id', activeMandateId);
+    _seqQuery = _applyMandateFilter(_seqQuery);
     const { data: seqs, error: sErr } = await _seqQuery.in('status', ['draft','ready']);
     if (sErr) throw sErr;
 
@@ -4400,7 +4481,7 @@ async function _saveSequenceDraft(pid, touch, bodyOverride) {
     if (_sdErr) { console.error('[_saveSequenceDraft] update failed:', _sdErr); showToast('Error saving draft'); return; }
   } else {
     const { data, error: _sdInsErr } = await sbClient.from('sequences')
-      .insert({ prospect_id:pid, client_id: CLIENT_ID, mandate_id: activeMandateId, touch, body, status:'draft' })
+      .insert({ prospect_id:pid, client_id: CLIENT_ID, mandate_id: (activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null, touch, body, status:'draft' })
       .select('id').single();
     if (_sdInsErr) { console.error('[_saveSequenceDraft] insert failed:', _sdInsErr); showToast('Error saving draft'); return; }
     if (data?.id) {
@@ -4434,7 +4515,7 @@ async function _sendViaLinkedIn(pid, touch) {
   if (body.includes('{') || body.includes('}')) {
     showToast('Blocked: message contains literal braces {}. Fix template before sending.');
     const { error: _seErr1 } = await sbClient.from('interactions').insert({
-      prospect_id: pid, client_id: CLIENT_ID, mandate_id: activeMandateId, type: 'send_error',
+      prospect_id: pid, client_id: CLIENT_ID, mandate_id: (activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null, type: 'send_error',
       note: 'blocked: message contains literal braces {}'
     });
     if (_seErr1) console.error('[_sendViaLinkedIn] send_error insert failed:', _seErr1);
@@ -4445,7 +4526,7 @@ async function _sendViaLinkedIn(pid, touch) {
   if (touch !== 'invite' && p.linkedin_tag !== 'connection-accepted') {
     showToast('Blocked: not yet connected with this prospect');
     const { error: _seErr2 } = await sbClient.from('interactions').insert({
-      prospect_id: pid, client_id: CLIENT_ID, mandate_id: activeMandateId, type: 'send_error',
+      prospect_id: pid, client_id: CLIENT_ID, mandate_id: (activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null, type: 'send_error',
       note: 'blocked: not connected'
     });
     if (_seErr2) console.error('[_sendViaLinkedIn] send_error insert failed:', _seErr2);
@@ -4502,7 +4583,7 @@ async function _markSent(pid, touch, auto = false, msgText = '') {
     : `${touch} sent${auto ? ' via HeyReach' : ' (manual)'}${msgText ? ' | ' + msgText.slice(0, 300) : ''}`;
   const _validTouch = ['invite', 'j0', 'j5', 'j12'];
   const { error: _msIntErr } = await sbClient.from('interactions').insert({
-    prospect_id: pid, client_id: CLIENT_ID, mandate_id: activeMandateId, type: 'linkedin',
+    prospect_id: pid, client_id: CLIENT_ID, mandate_id: (activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null, type: 'linkedin',
     note: _sentNote,
     touch: _validTouch.includes(touch) ? touch : null,
   });
@@ -4520,7 +4601,12 @@ async function _markSent(pid, touch, auto = false, msgText = '') {
   const _newRank = _stageRank[newStage] ?? -1;
   let eStage = null;
   if (p && newStage && _newRank > _curRank) {
-    ({ error: eStage } = await sbClient.from('prospects').update({ stage: newStage }).eq('id', pid).eq('client_id', CLIENT_ID));
+    const advancedStages = ['1st Contact','Engaged','Replied','Proposal','Closed'];
+    const stageUpdates = { stage: newStage };
+    if (advancedStages.includes(newStage) && p.linkedin_tag === 'invite-sent') {
+      stageUpdates.linkedin_tag = 'connection-accepted';
+    }
+    ({ error: eStage } = await sbClient.from('prospects').update(stageUpdates).eq('id', pid).eq('client_id', CLIENT_ID));
     if (eStage) console.error('_markSent stage:', eStage);
   }
   let eLinkedinTag = null;
@@ -4667,7 +4753,7 @@ async function importCSV(e) {
         : 'nc:' + name.toLowerCase().replace(/\s+/g, '') + '|' + company.toLowerCase().replace(/\s+/g, '');
 
       rows.push({
-        client_id: CLIENT_ID, mandate_id: activeMandateId, external_id,
+        client_id: CLIENT_ID, mandate_id: (activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null, external_id,
         name, company, sector,
         country: country || null, region: region || null,
         linkedin: linkedin || null, email: email || null,
@@ -4737,7 +4823,7 @@ async function runWeeklyReport(){
       .from('interactions')
       .select('prospect_id, type, note, created_at')
       .eq('client_id', _wrClientId);
-    if (activeMandateId) _wrIntQuery = _wrIntQuery.eq('mandate_id', activeMandateId);
+    _wrIntQuery = _applyMandateFilter(_wrIntQuery);
     const { data: ints, error } = await _wrIntQuery
       .in('type', ['linkedin', 'email', 'call', 'meeting'])
       .gte('created_at', weekStart)
@@ -4749,7 +4835,7 @@ async function runWeeklyReport(){
         .from('prospects')
         .select('id, name, company')
         .eq('client_id', _wrClientId);
-      if (activeMandateId) _wrPQuery = _wrPQuery.eq('mandate_id', activeMandateId);
+      _wrPQuery = _applyMandateFilter(_wrPQuery);
       const { data: freshProspects } = await _wrPQuery.in('id', uniqueIds);
       const pById = {};
       (freshProspects || []).forEach(p => { pById[p.id] = p; });
@@ -5577,7 +5663,13 @@ const STAGE_DB = { 'Identified':'Identified', '1st Contact':'1st Contact', 'Enga
 async function persistStage(id, stage){
   if (!id) return;
   try {
-    const { error } = await sbClient.from('prospects').update({ stage }).eq('client_id', CLIENT_ID).eq('id', id);
+    const p = _prospectsById[id] || {};
+    const advancedStages = ['1st Contact','Engaged','Replied','Proposal','Closed'];
+    const updates = { stage };
+    if (advancedStages.includes(stage) && p.linkedin_tag === 'invite-sent') {
+      updates.linkedin_tag = 'connection-accepted';
+    }
+    const { error } = await sbClient.from('prospects').update(updates).eq('client_id', CLIENT_ID).eq('id', id);
     if (error) throw error;
     showToast(currentLang === 'fr' ? 'Étape mise à jour' : 'Stage updated');
   } catch(e){
@@ -5680,7 +5772,7 @@ async function _saveEmail(pid, email, source) {
   const { error: _emailSaveErr } = await sbClient.from('prospects').update({ email }).eq('id', pid).eq('client_id', CLIENT_ID);
   if (_emailSaveErr) { console.error('[_saveEmail] prospects update failed:', _emailSaveErr); showToast('Error saving email'); return; }
   const { error: _emailIntErr } = await sbClient.from('interactions').insert({
-    prospect_id: pid, client_id: CLIENT_ID, mandate_id: activeMandateId, type: 'system',
+    prospect_id: pid, client_id: CLIENT_ID, mandate_id: (activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null, type: 'system',
     note: 'Email verified: ' + email
   });
   if (_emailIntErr) console.error('[_saveEmail] interactions insert failed:', _emailIntErr);
@@ -5843,15 +5935,21 @@ async function saveProspectEdit(id){
   if (!id) return;
   const g = x => (document.getElementById(x)?.value || '').trim();
   const stageSel = document.getElementById('ed-stage')?.value || 'Identified';
+  const newStage = STAGE_DB[stageSel] || stageSel;
+  const p = _prospectsById[id] || {};
+  const advancedStages = ['1st Contact','Engaged','Replied','Proposal','Closed'];
   const row = {
     name: g('ed-name') || null, company: g('ed-company') || null, title: g('ed-title') || null,
     email: g('ed-email') || null, linkedin: g('ed-linkedin') || null, sector: g('ed-sector') || null,
     country: g('ed-country') || null, region: document.getElementById('ed-region')?.value || null,
-    stage: STAGE_DB[stageSel] || stageSel, notes: g('ed-notes') || null,
+    stage: newStage, notes: g('ed-notes') || null,
     signal: document.getElementById('drawer-signal')?.value?.trim() || null,
     signal_type: document.getElementById('drawer-signal-type')?.value || null,
     updated_at: new Date().toISOString()
   };
+  if (advancedStages.includes(newStage) && p.linkedin_tag === 'invite-sent') {
+    row.linkedin_tag = 'connection-accepted';
+  }
   try {
     const { error } = await sbClient.from('prospects').update(row).eq('client_id', CLIENT_ID).eq('id', id);
     if (error) throw error;
@@ -5887,7 +5985,7 @@ async function addProspect(){
   const stageSel = document.getElementById('ap-stage')?.value || 'Identified';
   const p = { name, company, email: g('ap-email'), linkedin: g('ap-linkedin') };
   const row = {
-    client_id: CLIENT_ID, mandate_id: activeMandateId, external_id: identityKey(p),
+    client_id: CLIENT_ID, mandate_id: (activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null, external_id: identityKey(p),
     name, company, title: g('ap-title') || null, email: g('ap-email') || null, linkedin: g('ap-linkedin') || null,
     sector: g('ap-sector') || null, country: g('ap-country') || null, region: document.getElementById('ap-region')?.value || 'EMEA',
     stage: STAGE_DB[stageSel] || stageSel, archived: false, updated_at: new Date().toISOString()
@@ -6111,6 +6209,13 @@ async function _bulkChangeStage() {
   const { error } = await sbClient.from('prospects')
     .update({ stage }).in('id', pids).eq('client_id', CLIENT_ID);
   if (error) { showToast('Error: ' + error.message); return; }
+  const advancedStages = ['1st Contact','Engaged','Replied','Proposal','Closed'];
+  if (advancedStages.includes(stage)) {
+    const toUpgrade = pids.filter(id => (_prospectsById[id] || {}).linkedin_tag === 'invite-sent');
+    if (toUpgrade.length > 0) {
+      await sbClient.from('prospects').update({ linkedin_tag: 'connection-accepted' }).in('id', toUpgrade).eq('client_id', CLIENT_ID);
+    }
+  }
   showToast(pids.length + ' prospects moved to ' + stage);
   _bulkClear();
   await loadKanban();
@@ -6559,7 +6664,7 @@ async function _startEmailSeq(id) {
     const data = await r.json();
     if (r.ok && !data.error) {
       const { error: _seqInsErr } = await sbClient.from('interactions').insert({
-        prospect_id: p.id, client_id: p.client_id || CLIENT_ID, mandate_id: activeMandateId,
+        prospect_id: p.id, client_id: p.client_id || CLIENT_ID, mandate_id: (activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null,
         type: 'email_j5', note: 'Email sequence started via Smartlead'
       });
       if (_seqInsErr) {
@@ -6642,7 +6747,7 @@ async function loadKanban(force){
         .from('prospects')
         .select('id, name, company, title, sector, region, country, stage, linkedin, email, deal_value, notes, last_contact, reminder_date, icp_score, archived, client_id, linkedin_tag, origin, signal, signal_type, created_at, draft_invite_note')
         .eq('client_id', CLIENT_ID);
-      if (activeMandateId) _kQuery = _kQuery.eq('mandate_id', activeMandateId);
+      _kQuery = _applyMandateFilter(_kQuery);
       const { data: chunk, error } = await _kQuery
         .order('created_at', { ascending: false })
         .range(_kFrom, _kFrom + 999);
@@ -6961,11 +7066,11 @@ Format output clearly with each section labeled. Be direct.`;
   </div>
   <div style="margin-bottom:14px;">
     <label style="display:block;font-size:10px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:5px;">Segment *</label>
-    <input type="text" id="addm-segment" class="dp-inp" placeholder="e.g. Cession, Acquisition, Corridor...">
+    <input type="text" id="addm-segment" class="dp-inp" placeholder="e.g. Cession, Acquisition, Fundraising...">
   </div>
   <div style="margin-bottom:14px;">
     <label style="display:block;font-size:10px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:5px;">Mandate name *</label>
-    <input type="text" id="addm-name" class="dp-inp" placeholder="e.g. Oil Servicing - Oman">
+    <input type="text" id="addm-name" class="dp-inp" placeholder="e.g. Manufacturing - DACH">
   </div>
   <div style="margin-bottom:14px;">
     <label style="display:block;font-size:10px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:5px;">ICP criteria</label>
