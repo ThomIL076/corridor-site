@@ -2000,6 +2000,8 @@ function switchTab(name, fromClick = false) {
       if (tabsNav) offset += tabsNav.getBoundingClientRect().height;
       if (activeBar) offset += activeBar.getBoundingClientRect().height;
       offset += mBarH;
+      const accessNote = document.querySelector('.access-note');
+      if (accessNote && getComputedStyle(accessNote).display !== 'none') offset += accessNote.offsetHeight;
       const mainEl = document.querySelector('main');
       const mainPaddingTop = mainEl ? parseFloat(window.getComputedStyle(mainEl).paddingTop) || 0 : 32;
       offset += mainPaddingTop;
@@ -2565,6 +2567,7 @@ ICP: CEO or Founder, AdTech, Fintech, B2B SaaS, 20 to 150 employees. Ticket: 1,5
 Product: Corridor, a done-for-you GTM system.
 Buying signals that matter: S1 recent fundraise, S3 new senior hire or role posted, S7 warm network connection.
 Stay strictly within this context. Do not invent fictional companies, scores, or metrics.`;
+const _senderName = () => (CLIENT_ID === 'kaizenology') ? 'Stéphane' : 'Thomas';
 const agentSystemPrompts = {
   cmo: `You are the CMO of a fast-growing B2B company. You coordinate GTM strategy across content, positioning, distribution, outreach, and pipeline. You think at the level of a chief marketing officer: weekly priorities, channel mix, brand coherence, and commercial outcomes. Be direct and strategic. Max 200 words per response. No em-dashes.
 
@@ -3829,7 +3832,7 @@ async function runLiveAlert() {
     const sigType = (p.signal_type || 'SIGNAL').toUpperCase();
     const todayStr = new Date().toISOString().slice(0, 10);
     const co = p.company || '';
-    const text = `Subject: New ${sigType} signal${co ? ' - ' + co : ''}\nFrom: Corridor Signal Monitor\nTo: Thomas\nPriority: High\n\n${p.signal}\n\nContact: ${p.name || 'Unknown'}${co ? ' at ' + co : ''} (${p.country || p.region || p.sector || 'EMEA'}) - ICP score ${p.icp_score || 'N/A'}.\n\nRecommended action: Open their drawer and run Contact Intelligence before reaching out today (${todayStr}).`;
+    const text = `Subject: New ${sigType} signal${co ? ' - ' + co : ''}\nFrom: ${CLIENT_ID === 'kaizenology' ? 'Kaizenology' : 'Corridor'} Signal Monitor\nTo: ${_senderName()}\nPriority: High\n\n${p.signal}\n\nContact: ${p.name || 'Unknown'}${co ? ' at ' + co : ''} (${p.country || p.region || p.sector || 'EMEA'}) - ICP score ${p.icp_score || 'N/A'}.\n\nRecommended action: Open their drawer and run Contact Intelligence before reaching out today (${todayStr}).`;
     if (out) out.textContent = text;
   } catch(e) {
     if (out) out.textContent = 'Error loading signals.';
@@ -6949,6 +6952,34 @@ function closeProfileModal() {
   document.getElementById('profile-overlay').classList.remove('open');
 }
 
+async function _changePassword() {
+  const pw      = (document.getElementById('pf-new-password').value || '').trim();
+  const confirm = (document.getElementById('pf-confirm-password').value || '').trim();
+  const errEl   = document.getElementById('pf-pw-error');
+  errEl.style.display = 'none';
+  errEl.textContent   = '';
+  if (pw.length < 8) {
+    errEl.textContent = 'Password must be at least 8 characters.';
+    errEl.style.display = 'block';
+    return;
+  }
+  if (pw !== confirm) {
+    errEl.textContent = 'Passwords do not match.';
+    errEl.style.display = 'block';
+    return;
+  }
+  const { error } = await sbClient.auth.updateUser({ password: pw });
+  if (error) {
+    errEl.textContent = 'Update failed. Please try again.';
+    errEl.style.display = 'block';
+    return;
+  }
+  document.getElementById('pf-new-password').value   = '';
+  document.getElementById('pf-confirm-password').value = '';
+  closeProfileModal();
+  showToast('Password updated.');
+}
+
 function overlayClick(e) {
   if (e.target === document.getElementById('profile-overlay')) closeProfileModal();
 }
@@ -7134,6 +7165,18 @@ Format output clearly with each section labeled. Be direct.`;
     <div class="pf-actions">
       <button class="btn-pf-cancel" onclick="closeProfileModal()">Cancel</button>
       <button class="btn-pf-save" onclick="saveProfile()">Save changes</button>
+    </div>
+    <div style="border-top:1px solid #eef0f6;margin-top:20px;padding-top:16px;">
+      <div class="pf-field">
+        <label>New password</label>
+        <input type="password" id="pf-new-password" placeholder="Min. 8 characters" autocomplete="new-password">
+      </div>
+      <div class="pf-field">
+        <label>Confirm password</label>
+        <input type="password" id="pf-confirm-password" placeholder="Repeat new password" autocomplete="new-password">
+      </div>
+      <div id="pf-pw-error" style="display:none;font-size:12px;color:#dc2626;margin-bottom:10px;"></div>
+      <button onclick="_changePassword()" style="width:100%;background:var(--navy);color:#fff;border:none;border-radius:7px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">Update password</button>
     </div>
     <div style="text-align:center;margin-top:16px;">
       <button onclick="signOut()" style="background:none;border:none;font-size:12px;color:var(--dim);cursor:pointer;text-decoration:underline;">Sign out</button>
