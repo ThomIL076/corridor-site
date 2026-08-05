@@ -899,7 +899,7 @@ h1, h2, .section-title, .k-card-name, .k-card-company { overflow-wrap:break-word
     </div>
   </a>
   <div id="nav-badge-wrap" style="position:absolute;left:50%;transform:translateX(-50%);display:flex;align-items:center;height:100%;">
-    <div class="nav-badge" id="nav-trial-badge">LIVE DEMO</div>
+    <div class="nav-badge" id="nav-status-badge"></div>
   </div>
 
   <div style="display:flex;align-items:center;gap:14px;margin-left:auto;padding-right:8px;">
@@ -1795,11 +1795,17 @@ const sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
 });
 const _supabase = sbClient;  // alias utilisé par le bloc PROFILE SYSTEM
 const OWNER_EMAIL = 'thomas@corridor.systems'; // accès complet permanent (compte propriétaire)
-let _trialDays = null;       // jours restants si statut trial, sinon null
 let _blockedKind = null;     // 'expired' | 'not_found' quand l'accès est bloqué
 let _demoStarted = false;    // init unique post-login (scroll top + onglet Scanner)
 
 async function showDemo(){
+  const badge = document.getElementById('nav-status-badge');
+  if (badge) {
+    badge.textContent = 'Active';
+    badge.style.background = 'var(--green-bg)';
+    badge.style.color = 'var(--green)';
+    badge.style.borderColor = '';
+  }
   const ab = document.getElementById('access-blocked'); if (ab) ab.style.display = 'none';
   _blockedKind = null;
   const so = document.getElementById('signout-btn'); if (so) so.style.display = 'inline-flex';
@@ -1833,7 +1839,6 @@ function showLogin(){
   const ab = document.getElementById('access-blocked'); if (ab) ab.style.display = 'none';
   _blockedKind = null;
   const so = document.getElementById('signout-btn'); if (so) so.style.display = 'none';
-  hideTrialBadge();
 }
 function showBlocked(kind){
   _blockedKind = kind;
@@ -1841,7 +1846,6 @@ function showBlocked(kind){
   paintBlocked();
   document.getElementById('access-blocked').style.display = 'flex';
   const so = document.getElementById('signout-btn'); if (so) so.style.display = 'inline-flex';
-  hideTrialBadge();
 }
 function paintBlocked(){
   if (!_blockedKind) return;
@@ -1859,40 +1863,20 @@ function paintBlocked(){
   cta.textContent = fr ? 'Contacter Thomas' : 'Contact Thomas';
   const so = document.getElementById('blocked-signout'); if (so) so.textContent = fr ? 'Se déconnecter' : 'Sign out';
 }
-function hideTrialBadge(){ _trialDays = null; const b = document.getElementById('trial-badge'); if (b) b.style.display = 'none'; }
-function paintTrialBadge(){
-  const b = document.getElementById('trial-badge'); if (!b) return;
-  if (_trialDays == null){ b.style.display = 'none'; return; }
-  const fr = (typeof currentLang !== 'undefined' && currentLang === 'fr');
-  b.textContent = fr ? ('Essai · ' + _trialDays + ' j restants') : ('Trial · ' + _trialDays + ' days left');
-  b.style.display = 'inline-flex';
-}
-async function loadTrialBadge(uid){
-  try {
-    const { data, error } = await sbClient.from('clients').select('trial_expires_at').eq('auth_user_id', uid).single();
-    if (error || !data || !data.trial_expires_at){ hideTrialBadge(); return; }
-    const ms = new Date(data.trial_expires_at).getTime() - Date.now();
-    _trialDays = Math.max(0, Math.ceil(ms / 86400000));
-    paintTrialBadge();
-  } catch(e){ hideTrialBadge(); }
-}
 async function checkAccess(session){
   if (!session){ showLogin(); return; }
-  // Compte propriétaire : accès complet, jamais de badge ni de blocage.
-  if (session.user && session.user.email === OWNER_EMAIL){ await loadClientProfile(); showDemo(); hideTrialBadge(); return; }
+  if (session.user && session.user.email === OWNER_EMAIL){ await loadClientProfile(); showDemo(); return; }
   try {
     const { data: status, error } = await sbClient.rpc('check_client_access', { user_id: session.user.id });
     if (error){
-      // Système trial pas encore déployé (fonction absente) → on n'enferme personne : on montre la démo.
       console.warn('check_client_access unavailable, allowing access:', error.message);
-      await loadClientProfile(); showDemo(); hideTrialBadge(); return;
+      await loadClientProfile(); showDemo(); return;
     }
     await loadClientProfile();
-    if (status === 'active'){ showDemo(); hideTrialBadge(); }
-    else if (status === 'trial'){ showDemo(); loadTrialBadge(session.user.id); }
+    if (status === 'active'){ showDemo(); }
     else if (status === 'not_found'){ showBlocked('not_found'); }
-    else { showBlocked('expired'); } // 'expired' ou 'cancelled'
-  } catch(e){ console.warn(e); showDemo(); hideTrialBadge(); }
+    else { showBlocked('expired'); }
+  } catch(e){ console.warn(e); showDemo(); }
 }
 async function doLogin(e){
   e.preventDefault();
@@ -1961,7 +1945,6 @@ function setLang(lang) {
   document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.textContent.trim().toLowerCase() === lang));
   applyLang();
   renderWelcome();
-  paintTrialBadge();   // badge essai suit la langue
   paintBlocked();      // écran "essai terminé" / "accès refusé" suit la langue
   // Sync le sélecteur d'outreach (le message sortant reste dans la langue du prospect)
   const outLang = document.getElementById('out-lang');
@@ -6918,23 +6901,6 @@ async function loadClientProfile() {
     document.getElementById('nav-company').textContent = data.company_name;
     document.getElementById('nav-avatar').innerHTML = _navAvatarHTML(data.avatar_url, name);
     document.getElementById('user-profile-btn').style.display = 'flex';
-    // Mise à jour badge trial
-    try {
-      const { data: trialData } = await _supabase.rpc('get_trial_info', { user_id: user.id });
-      const badge = document.getElementById('nav-trial-badge');
-      if (badge && trialData) {
-        if (trialData.status === 'trial' && trialData.days_left > 0) {
-          badge.textContent = `Trial · ${trialData.days_left}d left`;
-          badge.style.background = '#fef3c7';
-          badge.style.color = '#92400e';
-          badge.style.borderColor = '#fcd34d';
-        } else if (trialData.status === 'active') {
-          badge.textContent = 'Active';
-          badge.style.background = 'var(--green-bg)';
-          badge.style.color = 'var(--green)';
-        }
-      }
-    } catch(e) {}
   } catch(e) { console.warn('loadClientProfile:', e); }
 }
 
