@@ -932,7 +932,7 @@ document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
   var valEl = document.getElementById('hero-prospects-val');
   var statEl = document.getElementById('hero-prospects-stat');
   if (!valEl) return;
-  fetch('/api/prospects-count')
+  fetch('/api/public-stats')
     .then(function(res) { return res.ok ? res.json() : Promise.reject(res.status); })
     .then(function(data) {
       if (typeof data.count === 'number') {

@@ -7,11 +7,29 @@ const supabase = createClient(
 
 export const config = { runtime: 'nodejs' };
 
+async function resolveClientId(req) {
+  const auth = req.headers['authorization'] || '';
+  const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
+  if (!token) return null;
+  const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
+  if (authErr || !user) return null;
+  const { data, error: clErr } = await supabase
+    .from('clients')
+    .select('client_id')
+    .eq('auth_user_id', user.id)
+    .single();
+  if (clErr || !data?.client_id) return null;
+  return data.client_id;
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') return res.status(200).end();
+
+  const resolvedClientId = await resolveClientId(req);
+  if (!resolvedClientId) return res.status(401).json({ error: 'Unauthorized' });
 
   const action = req.query.action || (req.body && req.body.action);
 
@@ -22,6 +40,7 @@ export default async function handler(req, res) {
         .from('prospect_memories')
         .select('content')
         .eq('prospect_id', prospect_id)
+        .eq('client_id', resolvedClientId)
         .order('created_at', { ascending: false })
         .limit(10);
       if (error) throw error;
@@ -33,7 +52,7 @@ export default async function handler(req, res) {
       const { prospect_id, content } = body;
       const { error } = await supabase
         .from('prospect_memories')
-        .insert({ prospect_id, content, client_id: 'thomas' });
+        .insert({ prospect_id, content, client_id: resolvedClientId });
       if (error) throw error;
       return res.json({ success: true });
     }
@@ -43,7 +62,8 @@ export default async function handler(req, res) {
       const { error } = await supabase
         .from('prospect_memories')
         .delete()
-        .eq('prospect_id', prospect_id);
+        .eq('prospect_id', prospect_id)
+        .eq('client_id', resolvedClientId);
       if (error) throw error;
       return res.json({ success: true });
     }

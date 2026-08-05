@@ -1660,7 +1660,7 @@ h1, h2, .section-title, .k-card-name, .k-card-company { overflow-wrap:break-word
 
 <script>
 const API_URL = '/api/generate';
-const CLIENT_ID = 'thomas'; // identifiant d'instance — changer ici lors du fork client
+let CLIENT_ID = 'thomas'; // identifiant d'instance — résolu dynamiquement dans loadClientProfile()
 let activeMandateId = null; // null = vue consolidée (tous mandats), sinon uuid du mandat actif
 
 async function _resolveMandate(mandateId) {
@@ -1879,13 +1879,13 @@ async function loadTrialBadge(uid){
 async function checkAccess(session){
   if (!session){ showLogin(); return; }
   // Compte propriétaire : accès complet, jamais de badge ni de blocage.
-  if (session.user && session.user.email === OWNER_EMAIL){ showDemo(); hideTrialBadge(); await loadClientProfile(); return; }
+  if (session.user && session.user.email === OWNER_EMAIL){ await loadClientProfile(); showDemo(); hideTrialBadge(); return; }
   try {
     const { data: status, error } = await sbClient.rpc('check_client_access', { user_id: session.user.id });
     if (error){
       // Système trial pas encore déployé (fonction absente) → on n'enferme personne : on montre la démo.
       console.warn('check_client_access unavailable, allowing access:', error.message);
-      showDemo(); hideTrialBadge(); return;
+      await loadClientProfile(); showDemo(); hideTrialBadge(); return;
     }
     await loadClientProfile();
     if (status === 'active'){ showDemo(); hideTrialBadge(); }
@@ -2151,6 +2151,16 @@ async function callAI(prompt, outputEl, spinnerId, useWebSearch, maxTokens = 100
   } finally {
     if (spinner) spinner.classList.remove('active');
   }
+}
+
+// ── AUTH HEADER HELPER (pour les appels fetch vers /api/*) ──
+async function _getAuthHeaders() {
+  try {
+    const { data: { session } } = await sbClient.auth.getSession();
+    return session?.access_token
+      ? { 'Authorization': 'Bearer ' + session.access_token }
+      : {};
+  } catch(e) { return {}; }
 }
 
 // ── PERPLEXITY SEARCH HELPER ──
@@ -3301,7 +3311,7 @@ async function sendAgent(agentName) {
     // GET mémoire (par agent, fail-open)
     let memBlock = '';
     try {
-      const memRes = await fetch('/api/memory?action=get&prospect_id=' + encodeURIComponent('agent-' + agentName));
+      const memRes = await fetch('/api/memory?action=get&prospect_id=' + encodeURIComponent('agent-' + agentName), { headers: await _getAuthHeaders() });
       const memData = await memRes.json();
       if (memData.memories?.length) {
         memBlock = '\n\nMemory from previous sessions:\n' + memData.memories.join('\n');
@@ -3328,11 +3338,11 @@ async function sendAgent(agentName) {
     agentHistories[agentName].push({ role: 'assistant', content: reply });
     // ADD mémoire (fire-and-forget, par agent, fail-open)
     try {
-      fetch('/api/memory', {
+      _getAuthHeaders().then(authH => fetch('/api/memory', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authH },
         body: JSON.stringify({ action: 'add', prospect_id: 'agent-' + agentName, content: msg.slice(0, 200) })
-      });
+      })).catch(() => {});
     } catch(e) { /* fail-open */ }
 
     const thinkEl = document.getElementById(thinkId);
@@ -4177,7 +4187,7 @@ function _renderManualSection() {
 async function _fetchProspectMemory(pid) {
   if (!pid) return '';
   try {
-    const res = await fetch('/api/memory?action=get&prospect_id=' + encodeURIComponent(pid));
+    const res = await fetch('/api/memory?action=get&prospect_id=' + encodeURIComponent(pid), { headers: await _getAuthHeaders() });
     if (!res.ok) return '';
     const data = await res.json();
     if (data.memories?.length) {
@@ -6793,10 +6803,16 @@ async function loadClientProfile() {
     if (!user) return;
     const { data, error } = await _supabase
       .from('clients')
-      .select('contact_name, company_name, display_name, avatar_url')
+      .select('client_id, contact_name, company_name, display_name, avatar_url')
       .eq('auth_user_id', user.id)
       .single();
     if (error || !data) return;
+    if (!data.client_id) {
+      console.error('loadClientProfile: client_id manquant pour', user.id);
+      showBlocked('no_client_id');
+      return;
+    }
+    CLIENT_ID = data.client_id;
     _clientProfile = data;
     const name = data.display_name || data.contact_name.split(' ')[0];
     document.getElementById('nav-display-name').textContent = name;
