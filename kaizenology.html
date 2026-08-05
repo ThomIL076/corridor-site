@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Corridor — Partner Demo</title>
+<title>Corridor — Kaizenology</title>
 <link rel="icon" type="image/svg+xml" href="/corridor-favicon.svg">
 <link rel="manifest" href="/manifest-private.json">
 <meta name="mobile-web-app-capable" content="yes">
@@ -2493,7 +2493,7 @@ async function runOutreach() {
     ? `\nLIVE CONTEXT about ${name} (from web search, today):\n${_j0Ctx}\n`
     : '';
 
-  const invitePrompt = _inviteBlock + `You are Corridor's outreach system. Write a LinkedIn connection request (Invite) for this prospect.
+  const invitePrompt = _inviteBlock + `You are ${_systemRole()}. Write a LinkedIn connection request (Invite) for this prospect.
 
 ${ctx}
 
@@ -2512,7 +2512,7 @@ Rules:
 - Never generalize about the prospect's peer group in any form ("Most founders", "Most people in your seat/role/position", "Most companies like yours", etc.) -- always address this specific person, never their category.
 - Return ONLY the message text. No header, no label, no explanation.`;
 
-  const j0Prompt = _j0Block + `You are Corridor's outreach system. Write a J+0 first message to send after the LinkedIn connection is accepted.
+  const j0Prompt = _j0Block + `You are ${_systemRole()}. Write a J+0 first message to send after the LinkedIn connection is accepted.
 
 ${ctx}
 
@@ -2524,7 +2524,7 @@ Rules:
 - Under 60 words maximum (excluding the signature line). Conversational, no hard pitch.
 - CRITICAL: open from a DIFFERENT angle than the invite. The invite referenced a company-level signal. This message must focus on ${name} personally: their background, career path, a challenge specific to their role, or something they said publicly. Do NOT repeat or reference the same company signal used in the connection request.
 - NEVER mention geography, expansion, markets, countries, or international topics. Focus on the person and their current role challenges only.
-- Open via question, observation, or curiosity. Never start with what you offer or what Corridor does.
+- Open via question, observation, or curiosity. Never start with what you offer or what ${CLIENT_ID === 'kaizenology' ? 'Kaizenology' : 'Corridor'} does.
 - Close with one specific question that: (a) ${name} can answer in a few words, (b) is not trivial, (c) proves you know their specific role or context at ${company} rather than the sector in general.
 - Do not use the phrase "Curious about" or "Curious how" anywhere in the message, whether at the start or mid-sentence.
 - FORBIDDEN closing formula: never use "What's been the toughest part of...?" as the closing question. It is generic and could apply to any prospect.
@@ -2560,6 +2560,9 @@ const _senderSig = () => (CLIENT_ID === 'kaizenology')
   ? 'Stéphane Rogovsky, CAIA | linkedin.com/company/kaizenology-official'
   : 'Thomas | linkedin.com/company/corridor-gtm-system';
 const _senderName = () => (CLIENT_ID === 'kaizenology') ? 'Stéphane' : 'Thomas';
+const _systemRole = () => (CLIENT_ID === 'kaizenology')
+  ? "Kaizenology's outreach system"
+  : "Corridor's outreach system";
 const agentSystemPrompts = {
   cmo: `You are the CMO of a fast-growing B2B company. You coordinate GTM strategy across content, positioning, distribution, outreach, and pipeline. You think at the level of a chief marketing officer: weekly priorities, channel mix, brand coherence, and commercial outcomes. Be direct and strategic. Max 200 words per response. No em-dashes.
 
