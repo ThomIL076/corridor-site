@@ -52,7 +52,8 @@ export default async function handler(req, res) {
         || (contact.most_probable_work_email && contact.most_probable_work_email.email)
         || null;
       const email = (best && best.email) || mpe || null;
-      return res.status(200).json({ status: 'done', email });
+      const phone = contact.most_probable_phone || null;
+      return res.status(200).json({ status: 'done', email, phone });
     } catch (e) {
       return res.status(500).json({ error: e.message });
     }
@@ -68,7 +69,7 @@ export default async function handler(req, res) {
   const firstname = nameParts[0] || '';
   const lastname = nameParts.slice(1).join(' ') || '';
 
-  const contact = { enrich_fields: ['contact.work_emails'] };
+  const contact = { enrich_fields: ['contact.work_emails', 'contact.phones'] };
   if (firstname) contact.firstname = firstname;
   if (lastname) contact.lastname = lastname;
   if (company) contact.company_name = company;

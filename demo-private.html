@@ -5700,11 +5700,13 @@ async function _findEmailDrawer(pid) {
   const p = _prospectsById[pid];
   if (!p) return;
   const btn = document.getElementById('find-email-' + pid);
+  const siblingBtn = document.getElementById('find-phone-' + pid);
   const status = document.getElementById('email-status-' + pid);
   if (btn) btn.disabled = true;
+  if (siblingBtn) siblingBtn.disabled = true;
   if (status) status.textContent = 'Searching...';
+  const reenable = () => { if (btn) btn.disabled = false; if (siblingBtn) siblingBtn.disabled = false; };
 
-  // Stop any in-progress poll from a previous prospect
   if (_drawerPollInterval) { clearInterval(_drawerPollInterval); _drawerPollInterval = null; }
 
   const rawDomain = (p.website_url || '').trim();
@@ -5723,32 +5725,29 @@ async function _findEmailDrawer(pid) {
     enrichment_id = d.enrichment_id;
   } catch(e) {
     if (status) status.textContent = 'Error — check connection';
-    if (btn) btn.disabled = false;
+    reenable();
     return;
   }
 
   if (!enrichment_id) {
     if (status) status.textContent = 'Not found';
-    if (btn) btn.disabled = false;
+    reenable();
     return;
   }
 
-  // Poll every 4s, timeout after 90s
   const pollStart = Date.now();
-  const pollPid = pid; // capture to detect drawer change
+  const pollPid = pid;
   let done = false;
 
   _drawerPollInterval = setInterval(async () => {
-    // Abort if drawer switched to another prospect
     if (_drawerProspect && _drawerProspect.id !== pollPid) {
       clearInterval(_drawerPollInterval); _drawerPollInterval = null;
       return;
     }
-    // Timeout guard
     if (Date.now() - pollStart > 180000) {
       clearInterval(_drawerPollInterval); _drawerPollInterval = null;
       if (status) status.textContent = 'Still searching — check back in a moment';
-      if (btn) btn.disabled = false;
+      reenable();
       return;
     }
     try {
@@ -5762,12 +5761,89 @@ async function _findEmailDrawer(pid) {
           await _saveEmail(pollPid, pd.email, 'fullenrich');
           if (status) status.textContent = '✓ Email verified';
           if (btn) { btn.style.background = '#166534'; btn.textContent = '✓ Found'; }
+          if (siblingBtn) siblingBtn.disabled = false;
         } else {
           if (status) status.textContent = 'Not found';
-          if (btn) btn.disabled = false;
+          reenable();
+        }
+        if (pd.phone) { await _savePhone(pollPid, pd.phone, 'fullenrich'); }
+      }
+    } catch(e) {
+      // network hiccup — keep polling until timeout
+    }
+  }, 4000);
+}
+async function _findPhoneDrawer(pid) {
+  const p = _prospectsById[pid];
+  if (!p) return;
+  const btn = document.getElementById('find-phone-' + pid);
+  const siblingBtn = document.getElementById('find-email-' + pid);
+  const status = document.getElementById('phone-status-' + pid);
+  if (btn) btn.disabled = true;
+  if (siblingBtn) siblingBtn.disabled = true;
+  if (status) status.textContent = 'Searching...';
+  const reenable = () => { if (btn) btn.disabled = false; if (siblingBtn) siblingBtn.disabled = false; };
+
+  if (_drawerPollInterval) { clearInterval(_drawerPollInterval); _drawerPollInterval = null; }
+
+  const rawDomain = (p.website_url || '').trim();
+  let domain = rawDomain ? rawDomain.replace(/^https?:\/\//i, '').replace(/^www\./i, '').split('/')[0] : null;
+  if (domain && domain.includes('linkedin.com')) domain = null;
+  const fePayload = { linkedin: p.linkedin, name: p.name, company: p.company };
+  if (domain) fePayload.domain = domain;
+
+  let enrichment_id;
+  try {
+    const r = await fetch('/api/fullenrich', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(fePayload)
+    });
+    const d = await r.json();
+    enrichment_id = d.enrichment_id;
+  } catch(e) {
+    if (status) status.textContent = 'Error — check connection';
+    reenable();
+    return;
+  }
+
+  if (!enrichment_id) {
+    if (status) status.textContent = 'Not found';
+    reenable();
+    return;
+  }
+
+  const pollStart = Date.now();
+  const pollPid = pid;
+  let done = false;
+
+  _drawerPollInterval = setInterval(async () => {
+    if (_drawerProspect && _drawerProspect.id !== pollPid) {
+      clearInterval(_drawerPollInterval); _drawerPollInterval = null;
+      return;
+    }
+    if (Date.now() - pollStart > 180000) {
+      clearInterval(_drawerPollInterval); _drawerPollInterval = null;
+      if (status) status.textContent = 'Still searching — check back in a moment';
+      reenable();
+      return;
+    }
+    try {
+      const pr = await fetch('/api/fullenrich?enrichment_id=' + encodeURIComponent(enrichment_id));
+      const pd = await pr.json();
+      if (pd.status === 'done') {
+        if (done) return;
+        done = true;
+        clearInterval(_drawerPollInterval); _drawerPollInterval = null;
+        if (pd.phone) {
+          await _savePhone(pollPid, pd.phone, 'fullenrich');
+          if (status) status.textContent = '✓ Found';
+          if (btn) { btn.style.background = '#166534'; btn.textContent = '✓ Found'; }
+          if (siblingBtn) siblingBtn.disabled = false;
+        } else {
+          if (status) status.textContent = 'Not found';
+          reenable();
         }
       }
-      // if 'in_progress', keep polling silently
     } catch(e) {
       // network hiccup — keep polling until timeout
     }
@@ -5786,6 +5862,20 @@ async function _saveEmail(pid, email, source) {
     note: 'Email verified: ' + email
   });
   if (_emailIntErr) console.error('[_saveEmail] interactions insert failed:', _emailIntErr);
+}
+async function _savePhone(pid, phone, source) {
+  const p = _prospectsById[pid];
+  if (!p) return;
+  p.phone = phone;
+  const phoneInput = document.getElementById('ed-phone');
+  if (phoneInput) phoneInput.value = phone;
+  const { error: _phoneSaveErr } = await sbClient.from('prospects').update({ phone, phone_source: source, phone_status: source }).eq('id', pid).eq('client_id', CLIENT_ID);
+  if (_phoneSaveErr) { console.error('[_savePhone] prospects update failed:', _phoneSaveErr); showToast('Error saving phone'); return; }
+  const { error: _phoneIntErr } = await sbClient.from('interactions').insert({
+    prospect_id: pid, client_id: CLIENT_ID, mandate_id: (activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null, type: 'system',
+    note: 'Phone found: ' + phone
+  });
+  if (_phoneIntErr) console.error('[_savePhone] interactions insert failed:', _phoneIntErr);
 }
 function _scheduleCall(pid) {
   const p = _prospectsById[pid];
@@ -5873,12 +5963,18 @@ function _drawerEditHTML(id, p, colStage, fb){
       <input id="ed-company" class="dp-inp" value="${v(p.company || fb.company)}" placeholder="Company">
       <input id="ed-title" class="dp-inp" value="${v(p.title)}" placeholder="Title">
       <input id="ed-email" class="dp-inp" value="${v(p.email)}" placeholder="Email">
-      <div style="margin-top:6px;">
+      <input id="ed-phone" class="dp-inp" value="${v(p.phone)}" placeholder="Phone">
+      <div style="margin-top:6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
         <button id="find-email-${id}" onclick="_findEmailDrawer('${id}')"
           style="font-size:12px;padding:6px 12px;background:#1a2b5e;color:#fff;border:none;border-radius:6px;cursor:pointer;">
           Find Email
         </button>
-        <span id="email-status-${id}" style="font-size:11px;color:#6b7a99;margin-left:8px;"></span>
+        <span id="email-status-${id}" style="font-size:11px;color:#6b7a99;"></span>
+        <button id="find-phone-${id}" onclick="_findPhoneDrawer('${id}')"
+          style="font-size:12px;padding:6px 12px;background:#1a2b5e;color:#fff;border:none;border-radius:6px;cursor:pointer;">
+          Find Phone
+        </button>
+        <span id="phone-status-${id}" style="font-size:11px;color:#6b7a99;"></span>
       </div>
       <div style="margin-top:6px;">
         <button id="start-seq-${id}" onclick="_startEmailSeq('${id}')"
@@ -5950,7 +6046,7 @@ async function saveProspectEdit(id){
   const advancedStages = ['1st Contact','Engaged','Replied','Proposal','Closed'];
   const row = {
     name: g('ed-name') || null, company: g('ed-company') || null, title: g('ed-title') || null,
-    email: g('ed-email') || null, linkedin: g('ed-linkedin') || null, sector: g('ed-sector') || null,
+    email: g('ed-email') || null, phone: g('ed-phone') || null, linkedin: g('ed-linkedin') || null, sector: g('ed-sector') || null,
     country: g('ed-country') || null, region: document.getElementById('ed-region')?.value || null,
     stage: newStage, notes: g('ed-notes') || null,
     signal: document.getElementById('drawer-signal')?.value?.trim() || null,
@@ -6755,7 +6851,7 @@ async function loadKanban(force){
     while (true) {
       let _kQuery = sbClient
         .from('prospects')
-        .select('id, name, company, title, sector, region, country, stage, linkedin, email, deal_value, notes, last_contact, reminder_date, icp_score, archived, client_id, linkedin_tag, origin, signal, signal_type, created_at, draft_invite_note')
+        .select('id, name, company, title, sector, region, country, stage, linkedin, email, phone, deal_value, notes, last_contact, reminder_date, icp_score, archived, client_id, linkedin_tag, origin, signal, signal_type, created_at, draft_invite_note')
         .eq('client_id', CLIENT_ID);
       _kQuery = _applyMandateFilter(_kQuery);
       const { data: chunk, error } = await _kQuery
