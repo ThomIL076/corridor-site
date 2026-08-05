@@ -4244,7 +4244,7 @@ async function _generateSequenceMessage(pid, touch, forceGenerate = false) {
   if (btn) btn.disabled = true;
   if (spin) spin.classList.add('active');
   const touchDescriptions = {
-    invite: `a LinkedIn connection request. MANDATORY STRUCTURE: 1 sentence of observation (max 15 words, factual, based on signal) + 1 short question (max 10 words) + sign-off "Thomas" on its own line. Total: under 200 chars. No greeting. No pitch. No Corridor. No URL. No closing line. Nothing else.`,
+    invite: `a LinkedIn connection request. MANDATORY STRUCTURE: 1 sentence of observation (max 15 words, factual, based on signal) + 1 short question (max 10 words) + sign-off "${CLIENT_ID === 'kaizenology' ? 'Stéphane' : 'Thomas'}" on its own line. Total: under 200 chars. No greeting. No pitch. No ${CLIENT_ID === 'kaizenology' ? 'Kaizenology' : 'Corridor'}. No URL. No closing line. Nothing else.`,
     j0:     'a first LinkedIn message after connection accepted (open conversation, no pitch, under 75 words)',
     j5:     'a LinkedIn follow-up message (one new angle, soft CTA, under 75 words)',
   };
