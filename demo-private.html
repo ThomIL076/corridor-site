@@ -5405,7 +5405,7 @@ let _granolaPickerState = null;
 async function _openPostCallDebrief() {
   const pid = _drawerPid();
   if (!pid) { showToast('No prospect selected'); return; }
-  const p = _drawerProspect || _prospectsById[pid] || {};
+  const p = _prospectsById[pid] || _drawerProspect || {};
   const btn = document.getElementById('btn-postcall-debrief');
   const selectBox = document.getElementById('granola-meeting-select');
   const pcBox = document.getElementById('post-call-output');
@@ -5447,12 +5447,14 @@ async function _openPostCallDebrief() {
   console.log('[POST-CALL DEBUG] prospect email:', p.email);
   console.log('[POST-CALL DEBUG] meetings bruts:', JSON.stringify(meetings, null, 2));
 
-  // Matching : email en priorité, puis nom/société dans le titre
+  // Matching : email en priorité, puis tokens nom/prénom dans le titre
   const pEmail = (p.email || '').toLowerCase().trim();
   const pName = (p.name || '').toLowerCase().trim();
+  const pNameTokens = pName.split(/\s+/).filter(t => t.length > 2);
   const pCompany = (p.company || '').toLowerCase().trim();
 
   let candidates = [];
+  // branche email : inactive avec l'API REST Granola actuelle (pas de known_participants), conservée pour compatibilité future si l'API évolue.
   if (pEmail) {
     candidates = meetings.filter(m =>
       (m.known_participants || []).some(kp => (kp.email || '').toLowerCase() === pEmail)
@@ -5461,7 +5463,7 @@ async function _openPostCallDebrief() {
   if (candidates.length === 0) {
     candidates = meetings.filter(m => {
       const title = (m.title || '').toLowerCase();
-      return (pName && title.includes(pName)) || (pCompany && title.includes(pCompany));
+      return pNameTokens.some(t => title.includes(t)) || (pCompany && title.includes(pCompany));
     });
   }
 
