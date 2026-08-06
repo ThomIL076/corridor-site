@@ -967,18 +967,19 @@ h1, h2, .section-title, .k-card-name, .k-card-company { overflow-wrap:break-word
         data-en-ph="First name Last name (optional)"
         data-fr-ph="Prénom Nom (optionnel)" />
       <select class="input-select" id="scanner-sector">
-        <option value="B2B SaaS">B2B SaaS</option>
-        <option value="AdTech">AdTech</option>
-        <option value="Fintech/Payments">Fintech / Payments</option>
-        <option value="Gaming & Game Tech">Gaming & Game Tech</option>
-        <option value="Retail Tech">Retail Tech</option>
+        <option value="Healthcare & Medical Services">Healthcare &amp; Medical Services</option>
+        <option value="Industrial & Technical Services">Industrial &amp; Technical Services</option>
+        <option value="Environmental & Recycling">Environmental &amp; Recycling</option>
+        <option value="Logistics & Supply Chain">Logistics &amp; Supply Chain</option>
+        <option value="Food & Beverage Production">Food &amp; Beverage Production</option>
+        <option value="Other">Other</option>
       </select>
       <select class="input-select" id="scanner-stage">
-        <option value="Series A">Series A</option>
-        <option value="Series B">Series B</option>
-        <option value="Series C">Series C</option>
-        <option value="Pre-Series A">Pre-Series A</option>
-        <option value="unknown stage">Stage unknown</option>
+        <option value="Family-owned / Founder-led">Family-owned / Founder-led</option>
+        <option value="PE-backed">PE-backed</option>
+        <option value="VC-backed">VC-backed</option>
+        <option value="Listed">Listed</option>
+        <option value="Unknown">Unknown</option>
       </select>
       <input class="input-field" id="scanner-funding" placeholder="Funding (optional, e.g. €8M)" data-en-ph="Funding (optional, e.g. €8M)" data-fr-ph="Levée (optionnel, ex. 8M€)" style="max-width:160px" />
       <input class="input-field" id="scanner-url" placeholder="Website (optional, e.g. risecodes.com)" data-en-ph="Website (optional, e.g. risecodes.com)" data-fr-ph="Site web (optionnel, ex. risecodes.com)" style="max-width:190px" />
@@ -2323,15 +2324,15 @@ async function runScanner() {
   const sigList = document.getElementById('scanner-signals-list');
   if (sigList) sigList.innerHTML = '';
 
-  const prompt = `You are Corridor's signal intelligence engine analysing a real prospect.
+  const prompt = `You are ${CLIENT_ID === 'kaizenology' ? "Kaizenology's" : "Corridor's"} signal intelligence engine analysing a real prospect.
 
 Company: ${company}
 Sector: ${sector}
-Stage: ${stage}
+Ownership: ${stage}
 ${fundingStr}${urlStr}${contextStr}
 
 STEP 1 — Use web search to find recent, verifiable facts about ${company}: funding rounds, expansion moves, key hires, leadership, recent news. Search the web before analysing.
-STEP 2 — Write a sharp 3-paragraph intelligence brief based ONLY on verified facts from your search and the context provided above. Do NOT invent figures, names, dates, or events. If web search returns nothing reliable about this specific company, say so explicitly at the very top — "⚠️ No verifiable public information found for ${company} — the brief below is generic, based only on sector and stage." — rather than fabricating details.
+STEP 2 — Write a sharp 3-paragraph intelligence brief based ONLY on verified facts from your search and the context provided above. Do NOT invent figures, names, dates, or events. If web search returns nothing reliable about this specific company, say so explicitly at the very top — "⚠️ No verifiable public information found for ${company} — the brief below is generic, based only on sector and ownership." — rather than fabricating details.
 
 Structure your response with exactly these three ## section headers:
 
