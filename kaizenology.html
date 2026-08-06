@@ -4030,10 +4030,10 @@ function _renderSendSection(title, prospects, touchType) {
               (p.signal_type||'').toUpperCase()==='S3'?'signal-s3':
               (p.signal_type||'').toUpperCase()==='S4'?'signal-s4':'signal-generic'
             }">${
-              (p.signal_type||'').toUpperCase()==='S1'?'💰 Funding':
-              (p.signal_type||'').toUpperCase()==='S2'?'🔴 Hiring':
-              (p.signal_type||'').toUpperCase()==='S3'?'🔴 New exec':
-              (p.signal_type||'').toUpperCase()==='S4'?'⚡ Expansion':'📡 Signal'
+              (p.signal_type||'').toUpperCase()==='S1'?'🔄 Transition':
+              (p.signal_type||'').toUpperCase()==='S2'?'👤 New Leader':
+              (p.signal_type||'').toUpperCase()==='S3'?'🎯 Buyer Signal':
+              (p.signal_type||'').toUpperCase()==='S4'?'⚡ Strategic Move':'📡 Signal'
             }</span></div>` : ''}
           </div>
           <span class="send-touch ${TOUCH_LABELS[touchType]?.class||'touch-j0'}">${TOUCH_LABELS[touchType]?.label||touchType}</span>
@@ -6054,10 +6054,10 @@ function _drawerEditHTML(id, p, colStage, fb){
         <div style="margin-top:4px;display:flex;gap:6px;align-items:center;">
           <select id="drawer-signal-type" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);">
             <option value="">-- Signal type --</option>
-            <option value="S1"${p.signal_type==='S1'?' selected':''}>S1 -- Recent funding (Series A-C)</option>
-            <option value="S2"${p.signal_type==='S2'?' selected':''}>S2 -- Commercial hire posted</option>
-            <option value="S3"${p.signal_type==='S3'?' selected':''}>S3 -- New revenue exec appointed</option>
-            <option value="S4"${p.signal_type==='S4'?' selected':''}>S4 -- Expansion announcement</option>
+            <option value="S1"${p.signal_type==='S1'?' selected':''}>S1 -- Ownership transition (succession, new Chairman)</option>
+            <option value="S2"${p.signal_type==='S2'?' selected':''}>S2 -- Leadership hire (CFO, external CEO)</option>
+            <option value="S3"${p.signal_type==='S3'?' selected':''}>S3 -- Active buyer signal (fund, M&A search)</option>
+            <option value="S4"${p.signal_type==='S4'?' selected':''}>S4 -- Strategic move (Gulf expansion, platform acquisition)</option>
           </select>
         </div>
       </div>
@@ -6488,8 +6488,8 @@ function buildCard(p){
     + (p.signal ? (() => {
         const t = (p.signal_type||'').toUpperCase();
         const cls = t==='S1'?'signal-s1':t==='S2'?'signal-s2':t==='S3'?'signal-s3':t==='S4'?'signal-s4':'signal-generic';
-        const icon = t==='S1'?'💰':t==='S2'?'🔴':t==='S3'?'🔴':t==='S4'?'⚡':'📡';
-        const label = t==='S1'?'Funding':t==='S2'?'Hiring':t==='S3'?'New exec':t==='S4'?'Expansion':'Signal';
+        const icon = t==='S1'?'🔄':t==='S2'?'👤':t==='S3'?'🎯':t==='S4'?'⚡':'📡';
+        const label = t==='S1'?'Transition':t==='S2'?'New Leader':t==='S3'?'Buyer Signal':t==='S4'?'Strategic Move':'Signal';
         return `<div class="k-card-signal"><span class="signal-badge ${cls}">${icon} ${label}</span></div>`;
       })() : '')
     + `<div class="k-card-icp">ICP ${_esc(score)}</div>`
