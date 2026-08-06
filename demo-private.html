@@ -5444,6 +5444,9 @@ async function _openPostCallDebrief() {
     return;
   }
 
+  console.log('[POST-CALL DEBUG] prospect email:', p.email);
+  console.log('[POST-CALL DEBUG] meetings bruts:', JSON.stringify(meetings, null, 2));
+
   // Matching : email en priorité, puis nom/société dans le titre
   const pEmail = (p.email || '').toLowerCase().trim();
   const pName = (p.name || '').toLowerCase().trim();
