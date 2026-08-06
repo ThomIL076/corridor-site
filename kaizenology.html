@@ -2150,15 +2150,17 @@ async function _getAuthHeaders() {
 }
 
 // ── PERPLEXITY SEARCH HELPER ──
-async function _perplexitySearch(query, maxTokens = 500) {
+async function _perplexitySearch(query, maxTokens = 500, domain = '') {
   const ctrl = new AbortController();
   const tid = setTimeout(() => ctrl.abort(new Error('timeout 20s')), 20000);
   try {
+    const _pbody = { max_tokens: maxTokens, messages: [{ role: 'user', content: query }] };
+    if (domain) _pbody.search_domain_filter = [domain];
     const r = await fetch('/api/perplexity-search', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       signal: ctrl.signal,
-      body: JSON.stringify({ max_tokens: maxTokens, messages: [{ role: 'user', content: query }] })
+      body: JSON.stringify(_pbody)
     });
     if (!r.ok) return '';
     const d = await r.json();
@@ -2176,7 +2178,7 @@ async function _prefetchWebContext(company, sector, siteUrl) {
   if (!company) return '';
   const _dom = siteUrl ? siteUrl.replace(/^https?:\/\//, '').split('/')[0] : '';
   const q = (company + (_dom ? ' ' + _dom : '') + ' ' + (sector || '') + ' recent news expansion').trim();
-  const ctx = await _perplexitySearch(q, 500);
+  const ctx = await _perplexitySearch(q, 500, _dom);
   return ctx
     ? '\nLIVE CONTEXT about ' + company + ' (from web search, today):\n' + ctx + '\nUse this to make the analysis accurate and specific. Never suggest expansion into a market the company is already clearly established in based on the web search.\n'
     : '';
