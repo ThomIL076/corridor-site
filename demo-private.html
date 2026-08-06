@@ -5062,6 +5062,15 @@ async function openDrawer(card) {
           </div>
         </div>
       </div>
+      <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--border)">
+        <div class="drawer-section-title" style="margin-bottom:10px">Post-call debrief</div>
+        <button class="btn-primary" id="btn-postcall-debrief" onclick="_openPostCallDebrief()"
+          style="width:100%;justify-content:center;margin-bottom:10px">
+          🎙 Generate post-call debrief
+        </button>
+        <div id="granola-meeting-select" style="display:none;margin-bottom:10px"></div>
+        <div id="post-call-output" style="display:none"></div>
+      </div>
     </div>
     <div class="dtab-panel" id="dpanel-email">
       <button class="btn-secondary" id="btn-subject-lines" style="width:100%;justify-content:center;margin-bottom:12px" onclick="_genSubjectLines()">
@@ -5168,11 +5177,6 @@ async function _saveInteraction() {
     document.getElementById('drawer-int-note').value = '';
   showToast('Interaction saved');
   if (btn) btn.disabled = false;
-  if (type === 'call' || type === 'meeting') {
-    const aiTabEl = document.querySelector('.dtab[onclick*="\'ai\'"]');
-    _switchDTab('ai', aiTabEl);
-    _runPostCallWorkflow(pid, note);
-  }
 }
 
 async function _saveReminder() {
@@ -5274,6 +5278,8 @@ async function _runPostCallWorkflow(pid, note) {
   const p = _prospectsById[pid] || _drawerProspect || {};
   const pcBox = document.getElementById('post-call-output');
   if (!pcBox) return;
+  const _gsBox = document.getElementById('granola-meeting-select');
+  if (_gsBox) _gsBox.style.display = 'none';
   pcBox.style.display = 'block';
   pcBox.innerHTML = '<div class="post-call-box" style="color:var(--muted);font-style:italic;font-size:12px;">Analyzing call notes...</div>';
 
@@ -5380,6 +5386,149 @@ Rules: no em-dashes, no markdown headers, factual only, base everything on the n
     <pre style="font-size:12px;line-height:1.6;white-space:pre-wrap;margin:0 0 10px;font-family:inherit;">${_esc(formatted)}</pre>
     ${emailBody ? `<a href="${gmailHref}" target="_blank" rel="noopener" style="display:inline-block;font-size:12px;padding:6px 14px;background:#1a2b5e;color:#fff;border-radius:6px;text-decoration:none;font-weight:600;">Open Gmail compose</a>` : ''}
   </div>`;
+
+  // Persist debrief to interactions table
+  try {
+    const { data: intData } = await sbClient.from('interactions')
+      .insert({ prospect_id: pid, client_id: _drawerClientId(), type: 'call', note: responseText.slice(0, 2000) })
+      .select('id,type,note,created_at').single();
+    if (intData) {
+      _drawerInteractions = [intData, ..._drawerInteractions];
+      const listEl = document.getElementById('drawer-int-list');
+      if (listEl) listEl.innerHTML = _renderIntList(_drawerInteractions);
+    }
+  } catch(e) { console.warn('[post-call] persist failed:', e.message); }
+}
+
+let _granolaPickerState = null;
+
+async function _openPostCallDebrief() {
+  const pid = _drawerPid();
+  if (!pid) { showToast('No prospect selected'); return; }
+  const p = _drawerProspect || _prospectsById[pid] || {};
+  const btn = document.getElementById('btn-postcall-debrief');
+  const selectBox = document.getElementById('granola-meeting-select');
+  const pcBox = document.getElementById('post-call-output');
+
+  if (btn) btn.disabled = true;
+  if (selectBox) { selectBox.style.display = 'none'; selectBox.innerHTML = ''; }
+  if (pcBox) { pcBox.style.display = 'block'; pcBox.innerHTML = '<div class="post-call-box" style="color:var(--muted);font-style:italic;font-size:12px;">Searching Granola for recent meetings...</div>'; }
+
+  const { data: { session } } = await sbClient.auth.getSession();
+  const token = session?.access_token;
+  if (!token) {
+    await _runPostCallWorkflow(pid, null);
+    if (btn) btn.disabled = false;
+    return;
+  }
+
+  let meetings = [];
+  try {
+    const r = await fetch('/api/granola', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: 'list_meetings' })
+    });
+    const data = await r.json();
+    if (data.error) {
+      if (pcBox) pcBox.innerHTML = '<div class="post-call-box" style="color:var(--muted);font-style:italic;font-size:12px;">Granola not connected. Generating debrief from interaction history...</div>';
+      await _runPostCallWorkflow(pid, null);
+      if (btn) btn.disabled = false;
+      return;
+    }
+    meetings = data.meetings || [];
+  } catch(e) {
+    if (pcBox) pcBox.innerHTML = '<div class="post-call-box" style="color:var(--muted);font-style:italic;font-size:12px;">Could not reach Granola. Generating debrief from interaction history...</div>';
+    await _runPostCallWorkflow(pid, null);
+    if (btn) btn.disabled = false;
+    return;
+  }
+
+  // Matching : email en priorité, puis nom/société dans le titre
+  const pEmail = (p.email || '').toLowerCase().trim();
+  const pName = (p.name || '').toLowerCase().trim();
+  const pCompany = (p.company || '').toLowerCase().trim();
+
+  let candidates = [];
+  if (pEmail) {
+    candidates = meetings.filter(m =>
+      (m.known_participants || []).some(kp => (kp.email || '').toLowerCase() === pEmail)
+    );
+  }
+  if (candidates.length === 0) {
+    candidates = meetings.filter(m => {
+      const title = (m.title || '').toLowerCase();
+      return (pName && title.includes(pName)) || (pCompany && title.includes(pCompany));
+    });
+  }
+
+  if (candidates.length === 1) {
+    await _fetchAndRunDebrief(candidates[0], pid, token, btn);
+    return;
+  }
+
+  _showGranolaPicker(candidates.length > 1 ? candidates : meetings, pid, token, btn, candidates.length > 1);
+}
+
+function _showGranolaPicker(meetings, pid, token, btn, hasMatches) {
+  _granolaPickerState = { meetings, pid, token };
+  const selectBox = document.getElementById('granola-meeting-select');
+  const pcBox = document.getElementById('post-call-output');
+  if (!selectBox) return;
+  if (pcBox) { pcBox.style.display = 'none'; pcBox.innerHTML = ''; }
+  const label = hasMatches
+    ? 'Multiple matching meetings — select one:'
+    : 'No meeting matched automatically — select from recent Granola meetings:';
+  selectBox.style.display = 'block';
+  selectBox.innerHTML = `
+    <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">${label}</div>
+    <div style="display:flex;flex-direction:column;gap:4px;max-height:200px;overflow-y:auto;margin-bottom:8px;">
+      ${meetings.slice(0, 10).map((m, i) => `<button class="btn-secondary" style="text-align:left;font-size:12px;padding:6px 10px;display:flex;justify-content:space-between;gap:8px;" onclick="_selectGranolaMeeting(${i})"><span>${_esc(m.title || m.id || 'Untitled')}</span><span style="color:var(--muted);font-size:11px;white-space:nowrap;">${_esc(m.date || '')}</span></button>`).join('')}
+    </div>
+    <button class="btn-secondary" style="width:100%;justify-content:center;font-size:12px;" onclick="_runPostCallWorkflow(${JSON.stringify(pid)}, null)">Skip — use interaction history only</button>
+  `;
+  if (btn) btn.disabled = false;
+}
+
+async function _selectGranolaMeeting(idx) {
+  if (!_granolaPickerState) return;
+  const { meetings, pid, token } = _granolaPickerState;
+  const meeting = meetings[idx];
+  if (!meeting) return;
+  const btn = document.getElementById('btn-postcall-debrief');
+  if (btn) btn.disabled = true;
+  const selectBox = document.getElementById('granola-meeting-select');
+  if (selectBox) selectBox.style.display = 'none';
+  await _fetchAndRunDebrief(meeting, pid, token, btn);
+}
+
+async function _fetchAndRunDebrief(meeting, pid, token, btn) {
+  const pcBox = document.getElementById('post-call-output');
+  if (pcBox) { pcBox.style.display = 'block'; pcBox.innerHTML = '<div class="post-call-box" style="color:var(--muted);font-style:italic;font-size:12px;">Fetching transcript from Granola...</div>'; }
+
+  let noteText = null;
+  try {
+    const r = await fetch('/api/granola', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: 'get_transcript', id: meeting.id })
+    });
+    const data = await r.json();
+    if (data.error === 'not_yet_available') {
+      if (pcBox) pcBox.innerHTML = '<div class="post-call-box" style="color:#b45309;font-size:12px;">Transcript not yet ready in Granola (still processing). Try again shortly.</div>';
+      if (btn) btn.disabled = false;
+      return;
+    }
+    if (data.note) {
+      const parts = [];
+      if (data.note.summary) parts.push('SUMMARY:\n' + data.note.summary);
+      if (data.note.transcript) parts.push('TRANSCRIPT:\n' + (typeof data.note.transcript === 'string' ? data.note.transcript : JSON.stringify(data.note.transcript)));
+      noteText = parts.join('\n\n') || null;
+    }
+  } catch(e) { console.warn('[granola] get_transcript failed:', e.message); }
+
+  await _runPostCallWorkflow(pid, noteText);
+  if (btn) btn.disabled = false;
 }
 
 function _generatePostCallMsg() {
