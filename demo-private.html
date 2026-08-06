@@ -2093,6 +2093,7 @@ function renderMarkdown(text) {
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
     .replace(/^- (.+)$/gm, '<div style="display:flex;gap:8px;margin:4px 0"><span style="color:var(--blue);flex-shrink:0">•</span><span>$1</span></div>')
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
     .replace(/Thomas \| ((?:https?:\/\/)?linkedin\.com[^\s\n<]*)/g, '<span style="white-space:nowrap">Thomas&nbsp;|&nbsp;$1</span>')
     .replace(/\n\n/g, '</p><p style="margin-top:10px">')
     .replace(/\n/g, ' ');
@@ -2172,12 +2173,38 @@ async function _perplexitySearch(query, maxTokens = 500, domain = '') {
   }
 }
 
+// ── ANTHROPIC NATIVE WEB SEARCH — TEXT RESULT HELPER ──
+async function _fetchAIText(prompt, opts = {}) {
+  try {
+    const payload = { model: 'claude-sonnet-5', max_tokens: opts.maxTokens || 600, messages: [{ role: 'user', content: prompt }] };
+    if (opts.useNativeWebSearch) payload.useNativeWebSearch = true;
+    if (opts.domain) payload.domain = opts.domain;
+    const r = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    if (!r.ok) return '';
+    const d = await r.json();
+    if (d.type === 'error') return '';
+    return Array.isArray(d.content) ? d.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim() : '';
+  } catch (e) { console.error('[_fetchAIText] failed:', e); return ''; }
+}
+
 // ── SHARED WEB SEARCH PRE-FETCH (Scanner, Intelligence, DrawerAI, Pipeline Coach) ──
+const _PX_FAIL_HINTS = ['no verifiable', 'ambiguous', 'not confirmed', 'could not find'];
 async function _prefetchWebContext(company, sector, siteUrl) {
   if (!company) return '';
   const _dom = siteUrl ? siteUrl.replace(/^https?:\/\//, '').split('/')[0] : '';
   const q = (company + (_dom ? ' ' + _dom : '') + ' ' + (sector || '') + ' recent news expansion').trim();
-  const ctx = await _perplexitySearch(q, 500, _dom);
+  let ctx = await _perplexitySearch(q, 500, _dom);
+  // Fallback: Perplexity weak + domain available → try Anthropic native web_search
+  const _pxWeak = !ctx || ctx.length < 100 || _PX_FAIL_HINTS.some(h => ctx.toLowerCase().includes(h));
+  if (_pxWeak && _dom) {
+    console.log(`[prefetch] Perplexity weak for "${company}" — native web_search fallback on ${_dom}`);
+    const _fb = await _fetchAIText(
+      `Find recent, verifiable information about the company at ${_dom}. Who they are, what they do, recent news or activity. Facts only.`,
+      { useNativeWebSearch: true, domain: _dom, maxTokens: 600 }
+    );
+    if (_fb && _fb.length > 80) { ctx = _fb; console.log(`[prefetch] fallback succeeded for "${company}"`); }
+    else { console.log(`[prefetch] fallback also insufficient for "${company}"`); }
+  }
   return ctx
     ? '\nLIVE CONTEXT about ' + company + ' (from web search, today):\n' + ctx + '\nUse this to make the analysis accurate and specific. Never suggest expansion into a market the company is already clearly established in based on the web search.\n'
     : '';
@@ -4066,11 +4093,7 @@ function _suggestTouch(p) {
   const tag = p.linkedin_tag || '';
   if (!tag) return 'invite';
   if (tag === 'invite-sent') return 'j0';
-  if (tag === 'connection-accepted') {
-    if (!p.last_contact) return 'j5';
-    const days = (Date.now() - new Date(p.last_contact).getTime()) / 86400000;
-    return 'j5';
-  }
+  if (tag === 'connection-accepted') return 'j5';
   return 'j5';
 }
 
