@@ -5087,6 +5087,7 @@ async function openDrawer(card) {
   document.getElementById('drawer-overlay').classList.add('open');
   document.body.classList.add('drawer-open');
   if (document.getElementById('dv-team')) _restoreDealValue();
+  _renderSignalLink((_prospectsById[prospectId] || {}).signal);
 
   if (prospectId) {
     const { data, error } = await sbClient
@@ -5946,6 +5947,14 @@ async function _setOrigin(pid, origin) {
   if (_originErr) { console.error('[_setOrigin] update failed:', _originErr); showToast('Error updating origin'); return; }
   showToast(origin === 'network' ? 'Marked as known contact' : 'Marked as new prospect');
 }
+function _renderSignalLink(signalText) {
+  const wrap = document.getElementById('signal-link-wrap');
+  if (!wrap) return;
+  const match = (signalText || '').match(/\((https?:\/\/[^\s)]+)\)/);
+  wrap.innerHTML = match
+    ? `<a href="${_esc(match[1])}" target="_blank" rel="noopener noreferrer">🔗 Open post</a>`
+    : '';
+}
 function _drawerEditHTML(id, p, colStage, fb){
   if (!id) return '';
   fb = fb || {};
@@ -6015,6 +6024,7 @@ function _drawerEditHTML(id, p, colStage, fb){
       <div class="drawer-field-group" id="signal-field-group" style="margin-top:10px;">
         <label class="drawer-label" style="display:block;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;">Signal / Context <span style="font-size:10px;font-weight:400;">(auto-filled by Morning Scan)</span></label>
         <textarea id="drawer-signal" class="dp-inp" rows="3" placeholder="e.g. New CRO hired from Pavilion Data -- scaled $4M to $28M ARR mid-market NA" style="font-size:12px;min-height:60px;resize:vertical;">${v(p.signal)}</textarea>
+        <div id="signal-link-wrap" style="margin-top:4px;font-size:11px;"></div>
         <div style="margin-top:4px;display:flex;gap:6px;align-items:center;">
           <select id="drawer-signal-type" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);">
             <option value="">-- Signal type --</option>
