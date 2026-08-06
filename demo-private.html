@@ -2173,38 +2173,12 @@ async function _perplexitySearch(query, maxTokens = 500, domain = '') {
   }
 }
 
-// ── ANTHROPIC NATIVE WEB SEARCH — TEXT RESULT HELPER ──
-async function _fetchAIText(prompt, opts = {}) {
-  try {
-    const payload = { model: 'claude-sonnet-5', max_tokens: opts.maxTokens || 600, messages: [{ role: 'user', content: prompt }] };
-    if (opts.useNativeWebSearch) payload.useNativeWebSearch = true;
-    if (opts.domain) payload.domain = opts.domain;
-    const r = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-    if (!r.ok) return '';
-    const d = await r.json();
-    if (d.type === 'error') return '';
-    return Array.isArray(d.content) ? d.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim() : '';
-  } catch (e) { console.error('[_fetchAIText] failed:', e); return ''; }
-}
-
 // ── SHARED WEB SEARCH PRE-FETCH (Scanner, Intelligence, DrawerAI, Pipeline Coach) ──
-const _PX_FAIL_HINTS = ['no verifiable', 'ambiguous', 'not confirmed', 'could not find'];
 async function _prefetchWebContext(company, sector, siteUrl) {
   if (!company) return '';
   const _dom = siteUrl ? siteUrl.replace(/^https?:\/\//, '').split('/')[0] : '';
   const q = (company + (_dom ? ' ' + _dom : '') + ' ' + (sector || '') + ' recent news expansion').trim();
-  let ctx = await _perplexitySearch(q, 500, _dom);
-  // Fallback: Perplexity weak + domain available → try Anthropic native web_search
-  const _pxWeak = !ctx || ctx.length < 100 || _PX_FAIL_HINTS.some(h => ctx.toLowerCase().includes(h));
-  if (_pxWeak && _dom) {
-    console.log(`[prefetch] Perplexity weak for "${company}" — native web_search fallback on ${_dom}`);
-    const _fb = await _fetchAIText(
-      `Find recent, verifiable information about the company at ${_dom}. Who they are, what they do, recent news or activity. Facts only.`,
-      { useNativeWebSearch: true, domain: _dom, maxTokens: 600 }
-    );
-    if (_fb && _fb.length > 80) { ctx = _fb; console.log(`[prefetch] fallback succeeded for "${company}"`); }
-    else { console.log(`[prefetch] fallback also insufficient for "${company}"`); }
-  }
+  const ctx = await _perplexitySearch(q, 500, _dom);
   return ctx
     ? '\nLIVE CONTEXT about ' + company + ' (from web search, today):\n' + ctx + '\nUse this to make the analysis accurate and specific. Never suggest expansion into a market the company is already clearly established in based on the web search.\n'
     : '';
@@ -3803,12 +3777,17 @@ async function runPipelineIntel() {
   }
 
   const lines = recent.map(p => {
-    const sig = p.signal_type ? '[' + p.signal_type.toUpperCase() + '] ' : '';
-    const sigLine = p.signal ? '\nSignal: ' + sig + p.signal : '';
-    return `${p.name || 'Unknown'} - ${p.company || ''}\n${p.sector || ''} - ${p.country || p.region || 'EMEA'} - Stage: ${p.stage || 'Identified'}\nICP Score: ${p.icp_score || 0}/10${sigLine}\nAdded: ${(p.created_at || '').slice(0, 10)}`;
-  }).join('\n\n');
+    const name    = _esc(p.name    || 'Unknown');
+    const company = _esc(p.company || '');
+    const sector  = _esc(p.sector  || '');
+    const country = _esc(p.country || p.region || 'EMEA');
+    const stage   = _esc(p.stage   || 'Identified');
+    const sig     = p.signal_type ? '[' + _esc(p.signal_type.toUpperCase()) + '] ' : '';
+    const sigLine = p.signal ? '<br>Signal: ' + sig + _sanitizeSignal(p.signal) : '';
+    return `${name} - ${company}<br>${sector} - ${country} - Stage: ${stage}<br>ICP Score: ${p.icp_score || 0}/10${sigLine}<br>Added: ${(p.created_at || '').slice(0, 10)}`;
+  }).join('<br><br>');
 
-  if (out) out.textContent = lines;
+  if (out) out.innerHTML = lines;
   if (spin) spin.classList.remove('active');
   document.getElementById('pipeintel-btn').disabled = false;
 }
@@ -3864,6 +3843,11 @@ function showToast(msg){
   _toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
 }
 function _esc(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function _sanitizeSignal(str) {
+  if (!str) return '';
+  const SAFE_A = /(<a\s+href=["']https?:\/\/[^"'<>]+["'](?:\s+(?:target|rel|style|class)=["'][^"'<>]*["'])*\s*>[^<]*<\/a>)/gi;
+  return str.split(SAFE_A).map((chunk, i) => i % 2 === 0 ? _esc(chunk) : chunk).join('');
+}
 
 // ── SEND QUEUE ──
 // ── PHASE 3 — VUE SEND LIVE SUPABASE ────────────────────────────────────────
