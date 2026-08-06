@@ -6044,7 +6044,7 @@ async function saveProspectEdit(id){
     email: g('ed-email') || null, phone: g('ed-phone') || null, linkedin: g('ed-linkedin') || null, sector: g('ed-sector') || null,
     country: g('ed-country') || null, region: document.getElementById('ed-region')?.value || null,
     stage: newStage, notes: g('ed-notes') || null,
-    signal: document.getElementById('drawer-signal')?.value?.trim() || null,
+    signal: (document.getElementById('drawer-signal')?.value || '').replace(/<[^>]*>/g, '').trim() || null,
     signal_type: document.getElementById('drawer-signal-type')?.value || null,
     updated_at: new Date().toISOString()
   };
