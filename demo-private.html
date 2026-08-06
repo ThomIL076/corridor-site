@@ -5394,7 +5394,7 @@ Rules: no em-dashes, no markdown headers, factual only, base everything on the n
   // Persist debrief to interactions table
   try {
     const { data: intData } = await sbClient.from('interactions')
-      .insert({ prospect_id: pid, client_id: _drawerClientId(), type: 'call', note: responseText.slice(0, 2000) })
+      .insert({ prospect_id: pid, client_id: _drawerClientId(), type: 'call', note: responseText })
       .select('id,type,note,created_at').single();
     if (intData) {
       _drawerInteractions = [intData, ..._drawerInteractions];
