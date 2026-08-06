@@ -110,6 +110,9 @@ export default async function handler(req, res) {
     trace.update({ output: data.content });
 
     await langfuse.flushAsync();
+    if (data.type === 'error') {
+      return res.status(502).json({ error: data.error?.message || 'Anthropic API error' });
+    }
     res.status(200).json(data);
   } catch (e) {
     generation.end({ level: 'ERROR', statusMessage: e.message });

@@ -5325,6 +5325,10 @@ Rules: no em-dashes, no markdown headers, factual only, base everything on the n
     pcBox.innerHTML = '<div class="post-call-box" style="color:#dc2626;font-size:12px;">Error generating post-call debrief.</div>';
     return;
   }
+  if (!responseText) {
+    pcBox.innerHTML = '<div class="post-call-box" style="color:#dc2626;font-size:12px;">Empty response from AI — try again.</div>';
+    return;
+  }
 
   // Parse VERDICT
   const verdictMatch = responseText.match(/VERDICT:\s*(positive|neutral|negative)/i);
