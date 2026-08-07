@@ -5179,6 +5179,17 @@ async function openDrawer(card) {
         </button>
         <div id="granola-meeting-select" style="display:none;margin-bottom:10px"></div>
         <div id="post-call-output" style="display:none"></div>
+        <div style="text-align:center;margin-top:6px">
+          <a href="#" style="font-size:11px;color:var(--muted);text-decoration:underline;text-underline-offset:2px"
+            onclick="event.preventDefault();_toggleManualDebrief()">Or paste call notes manually</a>
+        </div>
+        <div id="manual-debrief-panel" style="display:none;margin-top:10px">
+          <textarea id="manual-debrief-notes" rows="6"
+            placeholder="Paste your call notes, transcript, or summary here..."
+            style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;resize:vertical;background:var(--bg);color:var(--text);line-height:1.5"></textarea>
+          <button class="btn-primary" onclick="_generateFromManualNotes()"
+            style="width:100%;justify-content:center;margin-top:8px">Generate from notes</button>
+        </div>
       </div>
     </div>
     <div class="dtab-panel" id="dpanel-email">
@@ -5514,6 +5525,21 @@ Rules: no em-dashes, no markdown headers, factual only, base everything on the n
 }
 
 let _granolaPickerState = null;
+
+function _toggleManualDebrief() {
+  const panel = document.getElementById('manual-debrief-panel');
+  if (!panel) return;
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+
+function _generateFromManualNotes() {
+  const pid = _drawerPid();
+  if (!pid) { showToast('No prospect selected'); return; }
+  const ta = document.getElementById('manual-debrief-notes');
+  const notes = (ta ? ta.value : '').trim();
+  if (!notes) { showToast('Please paste some notes first'); return; }
+  _runPostCallWorkflow(pid, notes);
+}
 
 async function _openPostCallDebrief() {
   const pid = _drawerPid();
