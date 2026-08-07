@@ -3863,6 +3863,7 @@ const TOUCH_NEXT_STAGE = { invite:'1st Contact', j0:'Engaged', j5:'Engaged' };
 
 let _sendProspects = [];
 let _sendSequences = {};
+let _sendJ5Sent = {};
 let _manualPid = null;
 let _manualTouch = null;
 
@@ -3876,7 +3877,7 @@ async function loadSendView() {
     while (true) {
       let _spQuery = sbClient
         .from('prospects')
-        .select('id, name, company, title, sector, region, country, stage, linkedin, last_contact, reminder_date, linkedin_tag, icp_score, client_id, origin, created_at, signal, signal_type')
+        .select('id, name, company, title, sector, region, country, stage, linkedin, last_contact, reminder_date, linkedin_tag, icp_score, client_id, origin, created_at, signal, signal_type, email')
         .eq('client_id', CLIENT_ID);
       _spQuery = _applyMandateFilter(_spQuery);
       const { data: chunk, error: pErr } = await _spQuery
@@ -3903,6 +3904,14 @@ async function loadSendView() {
       if (!_sendSequences[s.prospect_id]) _sendSequences[s.prospect_id] = [];
       _sendSequences[s.prospect_id].push(s);
     });
+
+    let _j5iQuery = sbClient.from('interactions').select('prospect_id, created_at').eq('client_id', CLIENT_ID).eq('type', 'email_j5');
+    _j5iQuery = _applyMandateFilter(_j5iQuery);
+    const { data: j5ints } = await _j5iQuery;
+    _sendJ5Sent = {};
+    (j5ints || []).forEach(i => { _sendJ5Sent[i.prospect_id] = i; });
+
+    _sendProspects.forEach(p => { if (!_prospectsById[p.id]) _prospectsById[p.id] = p; });
 
     _applySendFilters();
 
@@ -3974,7 +3983,27 @@ function _applySendFilters() {
   });
   readyJ0 = _sortEMEAFirst(readyJ0);
 
-  const totalDue = totalInvite + readyJ0.length;
+  // File 3 — Follow-up J+5
+  const fiveDaysAgo = new Date(Date.now() - 5 * 86400000).toISOString();
+  let readyJ5High = _sendProspects.filter(p => {
+    if (p.stage !== '1st Contact') return false;
+    if (!p.last_contact || p.last_contact > fiveDaysAgo) return false;
+    if (_sendJ5Sent[p.id]) return false;
+    if ((_sendSequences[p.id]||[]).some(s => s.touch === 'j5')) return false;
+    if (parseFloat(p.icp_score || _calcICP(p)) < 8) return false;
+    return passesFilters(p);
+  });
+  readyJ5High = _sortEMEAFirst(readyJ5High);
+
+  let readyJ5Low = _sendProspects.filter(p => {
+    if (p.stage !== '1st Contact') return false;
+    if (!p.last_contact || p.last_contact > fiveDaysAgo) return false;
+    if (parseFloat(p.icp_score || _calcICP(p)) >= 8) return false;
+    return passesFilters(p);
+  });
+  readyJ5Low = _sortEMEAFirst(readyJ5Low);
+
+  const totalDue = totalInvite + readyJ0.length + readyJ5High.length;
   const countEl = document.getElementById('send-count');
   if (countEl) countEl.textContent = totalDue;
 
@@ -3983,8 +4012,9 @@ function _applySendFilters() {
     html += _renderSendSection('Invitations à envoyer', readyInvite, 'invite');
     if (totalInvite > 25) html += `<div style="text-align:center;font-size:12px;color:var(--muted);padding:8px 0 16px">${totalInvite - 25} more invitation${totalInvite - 25 > 1 ? 's' : ''} not shown -- raise ICP filter or mark some as sent to see the next batch.</div>`;
   }
-  if (readyJ0.length)        html += _renderSendSection('Connexions acceptées — J+0', readyJ0, 'j0');
-  if (!totalDue) {
+  if (readyJ0.length) html += _renderSendSection('Connexions acceptées — J+0', readyJ0, 'j0');
+  if (readyJ5High.length || readyJ5Low.length) html += _renderJ5Section(readyJ5High, readyJ5Low);
+  if (!totalDue && !readyJ5Low.length) {
     html = '<div style="padding:32px 0;text-align:center;color:var(--muted);font-size:13px">Nothing due. Adjust filters or check back tomorrow.</div>';
   }
 
@@ -4050,6 +4080,45 @@ function _renderSendSection(title, prospects, touchType) {
     <div style="margin-bottom:24px">
       <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);margin-bottom:12px">${_esc(title)}</div>
       ${items}
+    </div>`;
+}
+
+function _renderJ5Section(highICP, lowICP) {
+  const highCards = highICP.map(p => `
+    <div class="card send-card" id="sc-j5-${p.id}">
+      <div class="send-row">
+        <div class="send-avatar" style="background:${_sendAvatarColor(p.name)}">${_esc(_sendInitials(p.name))}</div>
+        <div class="send-id">
+          <div class="send-name">${_esc(p.name)}</div>
+          <div class="send-company">${_esc(p.company)}${p.region ? ' · ' + _esc(p.region) : ''}</div>
+        </div>
+        <span class="send-touch touch-j5">J+5</span>
+      </div>
+      <div class="send-actions">
+        <button class="btn-primary" id="start-seq-${p.id}" onclick="_startEmailSeq('${p.id}')" style="width:100%;background:#0f766e;">Send follow-up</button>
+      </div>
+    </div>`).join('');
+
+  const lowCards = lowICP.map(p => {
+    const sent = _sendJ5Sent[p.id];
+    const statusLabel = sent ? '✓ Sent ' + (_relDate(sent.created_at) || '') : 'Scheduled';
+    return `
+    <div class="card send-card" id="sc-j5-${p.id}" style="opacity:0.65;">
+      <div class="send-row">
+        <div class="send-avatar" style="background:${_sendAvatarColor(p.name)}">${_esc(_sendInitials(p.name))}</div>
+        <div class="send-id">
+          <div class="send-name">${_esc(p.name)}</div>
+          <div class="send-company">${_esc(p.company)}${p.region ? ' · ' + _esc(p.region) : ''}</div>
+        </div>
+        <span style="font-size:11px;color:var(--muted);white-space:nowrap;flex-shrink:0;">${_esc(statusLabel)}</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  return `
+    <div style="margin-bottom:24px">
+      <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);margin-bottom:12px">Follow-up (J+5)</div>
+      ${highCards}${lowCards}
     </div>`;
 }
 
@@ -4915,16 +4984,56 @@ function _fmtReminder(iso) {
   if (days === 1) return { label:'Tomorrow', overdue:false };
   return { label:'In ' + days + ' days — ' + d.toLocaleDateString('en-GB',{day:'numeric',month:'short'}), overdue:false };
 }
+const _VERDICT_COLORS = {
+  positive: { bg: '#F0FDF4', border: '#86EFAC', text: '#15803D' },
+  neutral:  { bg: '#FFFBEB', border: '#FCD34D', text: '#B45309' },
+  negative: { bg: '#FEF2F2', border: '#FECACA', text: '#DC2626' },
+};
+function _parseDebrief(note) {
+  if (!note) return null;
+  const m = note.match(/^VERDICT:\s*(positive|neutral|negative)/i);
+  if (!m) return null;
+  return { verdict: m[1].toLowerCase(), fullText: note };
+}
+function _toggleDebrief(uid) {
+  const body = document.getElementById('debrief-body-' + uid);
+  const chevron = document.getElementById('debrief-chevron-' + uid);
+  if (!body) return;
+  const opening = body.style.display === 'none' || body.style.display === '';
+  body.style.display = opening ? 'block' : 'none';
+  if (chevron) chevron.textContent = opening ? '▲' : '▼';
+}
 function _renderIntList(ints) {
   if (!ints.length) return '<div class="int-empty">No interactions logged yet.</div>';
-  return ints.map(i => `<div class="int-item">
+  return ints.map((i, idx) => {
+    const uid = i.id || idx;
+    if (i.type === 'call') {
+      const debrief = _parseDebrief(i.note);
+      if (debrief) {
+        const c = _VERDICT_COLORS[debrief.verdict] || _VERDICT_COLORS.neutral;
+        return `<div class="int-item" style="cursor:pointer;user-select:none;" onclick="_toggleDebrief('${uid}')">
+    <div class="int-icon">📞</div>
+    <div class="int-body" style="flex:1;min-width:0;">
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+        <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--blue);">Post-call debrief</span>
+        <span style="background:${c.bg};border:1px solid ${c.border};color:${c.text};border-radius:10px;font-size:10px;font-weight:700;padding:1px 7px;text-transform:uppercase;">${debrief.verdict}</span>
+        <span style="margin-left:auto;font-size:11px;color:var(--muted);">${_relDate(i.created_at)||''}</span>
+        <span id="debrief-chevron-${uid}" style="font-size:11px;color:var(--muted);">▼</span>
+      </div>
+      <pre id="debrief-body-${uid}" style="display:none;font-size:12px;line-height:1.6;white-space:pre-wrap;margin:8px 0 0;font-family:inherit;color:var(--text);">${_esc(debrief.fullText)}</pre>
+    </div>
+  </div>`;
+      }
+    }
+    return `<div class="int-item">
     <div class="int-icon">${_INT_ICONS[i.type]||'📝'}</div>
     <div class="int-body">
       <div class="int-type">${_esc(i.type)}</div>
       ${i.note ? `<div class="int-note">${_esc(i.note)}</div>` : ''}
       <div class="int-date">${_relDate(i.created_at)||''}</div>
     </div>
-  </div>`).join('');
+  </div>`;
+  }).join('');
 }
 function _renderReminder(reminderDate) {
   const r = reminderDate ? _fmtReminder(reminderDate) : null;
@@ -6573,7 +6682,7 @@ async function _bulkStartEmailSeq() {
       });
       const d = await r.json();
       if (r.ok && !d.error) {
-        successRows.push({ prospect_id: p.id, client_id: p.client_id || CLIENT_ID, type: 'email_j5', note: 'Email sequence started via Smartlead' });
+        successRows.push({ prospect_id: p.id, client_id: p.client_id || CLIENT_ID, type: 'email_j5', note: 'Follow-up email sent' });
       } else { failed++; }
     } catch(e) { failed++; }
     if (i < toSend.length - 1) await new Promise(res => setTimeout(res, 700));
@@ -6934,7 +7043,7 @@ async function _startEmailSeq(id) {
     if (r.ok && !data.error) {
       const { error: _seqInsErr } = await sbClient.from('interactions').insert({
         prospect_id: p.id, client_id: p.client_id || CLIENT_ID, mandate_id: (activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null,
-        type: 'email_j5', note: 'Email sequence started via Smartlead'
+        type: 'email_j5', note: 'Follow-up email sent'
       });
       if (_seqInsErr) {
         console.error('[_startEmailSeq] Supabase insert failed:', _seqInsErr);
