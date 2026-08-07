@@ -4941,16 +4941,56 @@ function _fmtReminder(iso) {
   if (days === 1) return { label:'Tomorrow', overdue:false };
   return { label:'In ' + days + ' days — ' + d.toLocaleDateString('en-GB',{day:'numeric',month:'short'}), overdue:false };
 }
+const _VERDICT_COLORS = {
+  positive: { bg: '#F0FDF4', border: '#86EFAC', text: '#15803D' },
+  neutral:  { bg: '#FFFBEB', border: '#FCD34D', text: '#B45309' },
+  negative: { bg: '#FEF2F2', border: '#FECACA', text: '#DC2626' },
+};
+function _parseDebrief(note) {
+  if (!note) return null;
+  const m = note.match(/^VERDICT:\s*(positive|neutral|negative)/i);
+  if (!m) return null;
+  return { verdict: m[1].toLowerCase(), fullText: note };
+}
+function _toggleDebrief(uid) {
+  const body = document.getElementById('debrief-body-' + uid);
+  const chevron = document.getElementById('debrief-chevron-' + uid);
+  if (!body) return;
+  const opening = body.style.display === 'none' || body.style.display === '';
+  body.style.display = opening ? 'block' : 'none';
+  if (chevron) chevron.textContent = opening ? '▲' : '▼';
+}
 function _renderIntList(ints) {
   if (!ints.length) return '<div class="int-empty">No interactions logged yet.</div>';
-  return ints.map(i => `<div class="int-item">
+  return ints.map((i, idx) => {
+    const uid = i.id || idx;
+    if (i.type === 'call') {
+      const debrief = _parseDebrief(i.note);
+      if (debrief) {
+        const c = _VERDICT_COLORS[debrief.verdict] || _VERDICT_COLORS.neutral;
+        return `<div class="int-item" style="cursor:pointer;user-select:none;" onclick="_toggleDebrief('${uid}')">
+    <div class="int-icon">📞</div>
+    <div class="int-body" style="flex:1;min-width:0;">
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+        <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--blue);">Post-call debrief</span>
+        <span style="background:${c.bg};border:1px solid ${c.border};color:${c.text};border-radius:10px;font-size:10px;font-weight:700;padding:1px 7px;text-transform:uppercase;">${debrief.verdict}</span>
+        <span style="margin-left:auto;font-size:11px;color:var(--muted);">${_relDate(i.created_at)||''}</span>
+        <span id="debrief-chevron-${uid}" style="font-size:11px;color:var(--muted);">▼</span>
+      </div>
+      <pre id="debrief-body-${uid}" style="display:none;font-size:12px;line-height:1.6;white-space:pre-wrap;margin:8px 0 0;font-family:inherit;color:var(--text);">${_esc(debrief.fullText)}</pre>
+    </div>
+  </div>`;
+      }
+    }
+    return `<div class="int-item">
     <div class="int-icon">${_INT_ICONS[i.type]||'📝'}</div>
     <div class="int-body">
       <div class="int-type">${_esc(i.type)}</div>
       ${i.note ? `<div class="int-note">${_esc(i.note)}</div>` : ''}
       <div class="int-date">${_relDate(i.created_at)||''}</div>
     </div>
-  </div>`).join('');
+  </div>`;
+  }).join('');
 }
 function _renderReminder(reminderDate) {
   const r = reminderDate ? _fmtReminder(reminderDate) : null;
@@ -5086,6 +5126,26 @@ async function openDrawer(card) {
             <button class="btn-primary" onclick="_sendPostCallLinkedIn()">Send via LinkedIn</button>
             <button class="btn-secondary" onclick="_markPostCallSent()">Mark as sent</button>
           </div>
+        </div>
+      </div>
+      <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--border)">
+        <div class="drawer-section-title" style="margin-bottom:10px">Post-call debrief</div>
+        <button class="btn-primary" id="btn-postcall-debrief" onclick="_openPostCallDebrief()"
+          style="width:100%;justify-content:center;margin-bottom:10px">
+          🎙 Generate post-call debrief
+        </button>
+        <div id="granola-meeting-select" style="display:none;margin-bottom:10px"></div>
+        <div id="post-call-output" style="display:none"></div>
+        <div style="text-align:center;margin-top:6px">
+          <a href="#" style="font-size:11px;color:var(--muted);text-decoration:underline;text-underline-offset:2px"
+            onclick="event.preventDefault();_toggleManualDebrief()">Or paste call notes manually</a>
+        </div>
+        <div id="manual-debrief-panel" style="display:none;margin-top:10px">
+          <textarea id="manual-debrief-notes" rows="6"
+            placeholder="Paste your call notes, transcript, or summary here..."
+            style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;resize:vertical;background:var(--bg);color:var(--text);line-height:1.5"></textarea>
+          <button class="btn-primary" onclick="_generateFromManualNotes()"
+            style="width:100%;justify-content:center;margin-top:8px">Generate from notes</button>
         </div>
       </div>
     </div>
@@ -5300,6 +5360,8 @@ async function _runPostCallWorkflow(pid, note) {
   const p = _prospectsById[pid] || _drawerProspect || {};
   const pcBox = document.getElementById('post-call-output');
   if (!pcBox) return;
+  const _gsBox = document.getElementById('granola-meeting-select');
+  if (_gsBox) _gsBox.style.display = 'none';
   pcBox.style.display = 'block';
   pcBox.innerHTML = '<div class="post-call-box" style="color:var(--muted);font-style:italic;font-size:12px;">Analyzing call notes...</div>';
 
@@ -5331,7 +5393,7 @@ Rules: no em-dashes, no markdown headers, factual only, base everything on the n
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'claude-sonnet-5',
-        max_tokens: 800,
+        max_tokens: 4000,
         system: systemPrompt,
         messages: [{ role: 'user', content: userMsg }]
       })
@@ -5343,6 +5405,10 @@ Rules: no em-dashes, no markdown headers, factual only, base everything on the n
       : '';
   } catch(e) {
     pcBox.innerHTML = '<div class="post-call-box" style="color:#dc2626;font-size:12px;">Error generating post-call debrief.</div>';
+    return;
+  }
+  if (!responseText) {
+    pcBox.innerHTML = '<div class="post-call-box" style="color:#dc2626;font-size:12px;">Empty response from AI — try again.</div>';
     return;
   }
 
@@ -5371,7 +5437,7 @@ Rules: no em-dashes, no markdown headers, factual only, base everything on the n
     const remLabel = rem.toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short' });
     const updates = { reminder_date: remIso, updated_at: new Date().toISOString() };
     if (shouldAdvance) updates.stage = 'Proposal';
-    const { error: _pcErr } = await sbClient.from('prospects').update(updates).eq('id', pid).eq('client_id', CLIENT_ID);
+    const { error: _pcErr } = await sbClient.from('prospects').update(updates).eq('id', pid).eq('client_id', _drawerClientId());
     if (_pcErr) console.warn('post-call update failed:', _pcErr);
     if (!_pcErr) {
       if (_drawerProspect) { _drawerProspect.reminder_date = remIso; if (shouldAdvance) _drawerProspect.stage = 'Proposal'; }
@@ -5406,6 +5472,166 @@ Rules: no em-dashes, no markdown headers, factual only, base everything on the n
     <pre style="font-size:12px;line-height:1.6;white-space:pre-wrap;margin:0 0 10px;font-family:inherit;">${_esc(formatted)}</pre>
     ${emailBody ? `<a href="${gmailHref}" target="_blank" rel="noopener" style="display:inline-block;font-size:12px;padding:6px 14px;background:#1a2b5e;color:#fff;border-radius:6px;text-decoration:none;font-weight:600;">Open Gmail compose</a>` : ''}
   </div>`;
+
+  // Persist debrief to interactions table
+  try {
+    const { data: intData } = await sbClient.from('interactions')
+      .insert({ prospect_id: pid, client_id: _drawerClientId(), type: 'call', note: responseText })
+      .select('id,type,note,created_at').single();
+    if (intData) {
+      _drawerInteractions = [intData, ..._drawerInteractions];
+      const listEl = document.getElementById('drawer-int-list');
+      if (listEl) listEl.innerHTML = _renderIntList(_drawerInteractions);
+    }
+  } catch(e) { console.warn('[post-call] persist failed:', e.message); }
+}
+
+let _granolaPickerState = null;
+
+function _toggleManualDebrief() {
+  const panel = document.getElementById('manual-debrief-panel');
+  if (!panel) return;
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+
+function _generateFromManualNotes() {
+  const pid = _drawerPid();
+  if (!pid) { showToast('No prospect selected'); return; }
+  const ta = document.getElementById('manual-debrief-notes');
+  const notes = (ta ? ta.value : '').trim();
+  if (!notes) { showToast('Please paste some notes first'); return; }
+  _runPostCallWorkflow(pid, notes);
+}
+
+async function _openPostCallDebrief() {
+  const pid = _drawerPid();
+  if (!pid) { showToast('No prospect selected'); return; }
+  const p = _prospectsById[pid] || _drawerProspect || {};
+  const btn = document.getElementById('btn-postcall-debrief');
+  const selectBox = document.getElementById('granola-meeting-select');
+  const pcBox = document.getElementById('post-call-output');
+
+  if (btn) btn.disabled = true;
+  if (selectBox) { selectBox.style.display = 'none'; selectBox.innerHTML = ''; }
+  if (pcBox) { pcBox.style.display = 'block'; pcBox.innerHTML = '<div class="post-call-box" style="color:var(--muted);font-style:italic;font-size:12px;">Searching Granola for recent meetings...</div>'; }
+
+  const { data: { session } } = await sbClient.auth.getSession();
+  const token = session?.access_token;
+  if (!token) {
+    await _runPostCallWorkflow(pid, null);
+    if (btn) btn.disabled = false;
+    return;
+  }
+
+  let meetings = [];
+  try {
+    const r = await fetch('/api/granola', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: 'list_meetings' })
+    });
+    const data = await r.json();
+    if (data.error) {
+      if (pcBox) pcBox.innerHTML = '<div class="post-call-box" style="color:var(--muted);font-style:italic;font-size:12px;">Granola not connected. Generating debrief from interaction history...</div>';
+      await _runPostCallWorkflow(pid, null);
+      if (btn) btn.disabled = false;
+      return;
+    }
+    meetings = data.meetings || [];
+  } catch(e) {
+    if (pcBox) pcBox.innerHTML = '<div class="post-call-box" style="color:var(--muted);font-style:italic;font-size:12px;">Could not reach Granola. Generating debrief from interaction history...</div>';
+    await _runPostCallWorkflow(pid, null);
+    if (btn) btn.disabled = false;
+    return;
+  }
+
+  // Matching : email en priorite, puis tokens nom/prenom dans le titre
+  const pEmail = (p.email || '').toLowerCase().trim();
+  const pName = (p.name || '').toLowerCase().trim();
+  const pNameTokens = pName.split(/\s+/).filter(t => t.length > 2);
+  const pCompany = (p.company || '').toLowerCase().trim();
+
+  let candidates = [];
+  // branche email : inactive avec l'API REST Granola actuelle (pas de known_participants), conservee pour compatibilite future.
+  if (pEmail) {
+    candidates = meetings.filter(m =>
+      (m.known_participants || []).some(kp => (kp.email || '').toLowerCase() === pEmail)
+    );
+  }
+  if (candidates.length === 0) {
+    candidates = meetings.filter(m => {
+      const title = (m.title || '').toLowerCase();
+      return pNameTokens.some(t => title.includes(t)) || (pCompany && title.includes(pCompany));
+    });
+  }
+
+  if (candidates.length === 1) {
+    await _fetchAndRunDebrief(candidates[0], pid, token, btn);
+    return;
+  }
+
+  _showGranolaPicker(candidates.length > 1 ? candidates : meetings, pid, token, btn, candidates.length > 1);
+}
+
+function _showGranolaPicker(meetings, pid, token, btn, hasMatches) {
+  _granolaPickerState = { meetings, pid, token };
+  const selectBox = document.getElementById('granola-meeting-select');
+  const pcBox = document.getElementById('post-call-output');
+  if (!selectBox) return;
+  if (pcBox) { pcBox.style.display = 'none'; pcBox.innerHTML = ''; }
+  const label = hasMatches
+    ? 'Multiple matching meetings — select one:'
+    : 'No meeting matched automatically — select from recent Granola meetings:';
+  selectBox.style.display = 'block';
+  selectBox.innerHTML = `
+    <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">${label}</div>
+    <div style="display:flex;flex-direction:column;gap:4px;max-height:200px;overflow-y:auto;margin-bottom:8px;">
+      ${meetings.slice(0, 10).map((m, i) => `<button class="btn-secondary" style="text-align:left;font-size:12px;padding:6px 10px;display:flex;justify-content:space-between;gap:8px;" onclick="_selectGranolaMeeting(${i})"><span>${_esc(m.title || m.id || 'Untitled')}</span><span style="color:var(--muted);font-size:11px;white-space:nowrap;">${_esc(m.date || '')}</span></button>`).join('')}
+    </div>
+    <button class="btn-secondary" style="width:100%;justify-content:center;font-size:12px;" onclick="_runPostCallWorkflow(${JSON.stringify(pid)}, null)">Skip — use interaction history only</button>
+  `;
+  if (btn) btn.disabled = false;
+}
+
+async function _selectGranolaMeeting(idx) {
+  if (!_granolaPickerState) return;
+  const { meetings, pid, token } = _granolaPickerState;
+  const meeting = meetings[idx];
+  if (!meeting) return;
+  const btn = document.getElementById('btn-postcall-debrief');
+  if (btn) btn.disabled = true;
+  const selectBox = document.getElementById('granola-meeting-select');
+  if (selectBox) selectBox.style.display = 'none';
+  await _fetchAndRunDebrief(meeting, pid, token, btn);
+}
+
+async function _fetchAndRunDebrief(meeting, pid, token, btn) {
+  const pcBox = document.getElementById('post-call-output');
+  if (pcBox) { pcBox.style.display = 'block'; pcBox.innerHTML = '<div class="post-call-box" style="color:var(--muted);font-style:italic;font-size:12px;">Fetching transcript from Granola...</div>'; }
+
+  let noteText = null;
+  try {
+    const r = await fetch('/api/granola', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: 'get_transcript', id: meeting.id })
+    });
+    const data = await r.json();
+    if (data.error === 'not_yet_available') {
+      if (pcBox) pcBox.innerHTML = '<div class="post-call-box" style="color:#b45309;font-size:12px;">Transcript not yet ready in Granola (still processing). Try again shortly.</div>';
+      if (btn) btn.disabled = false;
+      return;
+    }
+    if (data.note) {
+      const parts = [];
+      if (data.note.summary) parts.push('SUMMARY:\n' + data.note.summary);
+      if (data.note.transcript) parts.push('TRANSCRIPT:\n' + (typeof data.note.transcript === 'string' ? data.note.transcript : JSON.stringify(data.note.transcript)));
+      noteText = parts.join('\n\n') || null;
+    }
+  } catch(e) { console.warn('[granola] get_transcript failed:', e.message); }
+
+  await _runPostCallWorkflow(pid, noteText);
+  if (btn) btn.disabled = false;
 }
 
 function _generatePostCallMsg() {
