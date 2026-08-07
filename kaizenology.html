@@ -565,6 +565,14 @@ footer a { color:var(--navy); text-decoration:none; font-weight:600; }
 .signal-s4 { background:#EDE9FE; color:#5B21B6; border-color:#C4B5FD; }
 .signal-generic { background:#F1F5F9; color:#475569; border-color:#CBD5E1; }
 .k-card-signal { margin-top:4px; }
+.sig-attr-row { padding:10px 0; border-bottom:1px solid var(--border); }
+.sig-attr-row:last-child { border-bottom:none; }
+.sig-attr-head { display:flex; align-items:center; gap:10px; margin-bottom:6px; }
+.sig-attr-meta { font-size:11px; color:var(--muted); }
+.sig-attr-rev-row { display:flex; align-items:center; gap:10px; }
+.sig-attr-track { flex:1; height:6px; background:var(--border); border-radius:3px; overflow:hidden; }
+.sig-attr-fill { height:100%; background:var(--blue); border-radius:3px; transition:width .3s; }
+.sig-attr-amt { font-size:13px; font-weight:700; color:var(--text); min-width:52px; text-align:right; }
 
 /* ── STATS (Module) ── */
 .stats-section { margin-bottom:16px; }
@@ -1561,6 +1569,12 @@ h1, h2, .section-title, .k-card-name, .k-card-company { overflow-wrap:break-word
     <div class="card stats-section">
       <div class="card-header"><span class="card-title">Revenue — Closed Deals</span><span class="card-badge badge-auto">LIVE</span></div>
       <div id="stats-revenue"></div>
+    </div>
+
+    <!-- Section E: Signal Attribution -->
+    <div class="card stats-section">
+      <div class="card-header"><span class="card-title">Signal Attribution</span><span class="card-badge badge-auto">LIVE</span></div>
+      <div id="stats-signal-attr"></div>
     </div>
   </div>
 
@@ -4045,17 +4059,7 @@ function _renderSendSection(title, prospects, touchType) {
           <div class="send-id">
             <div class="send-name">${_esc(p.name)}</div>
             <div class="send-company">${_esc(p.company)}${p.region ? ' · ' + _esc(p.region) : ''}</div>
-            ${p.signal ? `<div style="margin-top:3px;"><span class="signal-badge ${
-              (p.signal_type||'').toUpperCase()==='S1'?'signal-s1':
-              (p.signal_type||'').toUpperCase()==='S2'?'signal-s2':
-              (p.signal_type||'').toUpperCase()==='S3'?'signal-s3':
-              (p.signal_type||'').toUpperCase()==='S4'?'signal-s4':'signal-generic'
-            }">${
-              (p.signal_type||'').toUpperCase()==='S1'?'🔄 Transition':
-              (p.signal_type||'').toUpperCase()==='S2'?'👤 New Leader':
-              (p.signal_type||'').toUpperCase()==='S3'?'🎯 Buyer Signal':
-              (p.signal_type||'').toUpperCase()==='S4'?'⚡ Strategic Move':'📡 Signal'
-            }</span></div>` : ''}
+            ${p.signal ? `<div style="margin-top:3px;">${_sigBadge(p.signal_type)}</div>` : ''}
           </div>
           <span class="send-touch ${TOUCH_LABELS[touchType]?.class||'touch-j0'}">${TOUCH_LABELS[touchType]?.label||touchType}</span>
         </div>
@@ -6297,10 +6301,10 @@ function _drawerEditHTML(id, p, colStage, fb){
         <div style="margin-top:4px;display:flex;gap:6px;align-items:center;">
           <select id="drawer-signal-type" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);">
             <option value="">-- Signal type --</option>
-            <option value="S1"${p.signal_type==='S1'?' selected':''}>S1 -- Ownership transition (succession, new Chairman)</option>
-            <option value="S2"${p.signal_type==='S2'?' selected':''}>S2 -- Leadership hire (CFO, external CEO)</option>
-            <option value="S3"${p.signal_type==='S3'?' selected':''}>S3 -- Active buyer signal (fund, M&A search)</option>
-            <option value="S4"${p.signal_type==='S4'?' selected':''}>S4 -- Strategic move (Gulf expansion, platform acquisition)</option>
+            ${(_signalTaxonomy && Object.keys(_signalTaxonomy).length
+              ? Object.values(_signalTaxonomy)
+              : [{code:'S1',label:'S1'},{code:'S2',label:'S2'},{code:'S3',label:'S3'},{code:'S4',label:'S4'}]
+            ).map(t => `<option value="${_esc(t.code)}"${p.signal_type===t.code?' selected':''}>${_esc(t.icon||'')} ${_esc(t.code)} — ${_esc(t.label||t.code)}</option>`).join('')}
           </select>
         </div>
       </div>
@@ -6728,13 +6732,7 @@ function buildCard(p){
     + `<div class="k-card-dot momentum-${momentum}" style="position:absolute;top:10px;right:10px;width:8px;height:8px;border-radius:50%;"></div>`
     + `<div class="k-card-name">${_esc(p.name || '—')}</div>`
     + `<div class="k-card-company">${_esc(p.company || '')} · ${_esc(place)}</div>`
-    + (p.signal ? (() => {
-        const t = (p.signal_type||'').toUpperCase();
-        const cls = t==='S1'?'signal-s1':t==='S2'?'signal-s2':t==='S3'?'signal-s3':t==='S4'?'signal-s4':'signal-generic';
-        const icon = t==='S1'?'🔄':t==='S2'?'👤':t==='S3'?'🎯':t==='S4'?'⚡':'📡';
-        const label = t==='S1'?'Transition':t==='S2'?'New Leader':t==='S3'?'Buyer Signal':t==='S4'?'Strategic Move':'Signal';
-        return `<div class="k-card-signal"><span class="signal-badge ${cls}">${icon} ${label}</span></div>`;
-      })() : '')
+    + (p.signal ? `<div class="k-card-signal">${_sigBadge(p.signal_type)}</div>` : '')
     + `<div class="k-card-icp">ICP ${_esc(score)}</div>`
     + `<div class="k-card-badges">`
     +   (regionTag ? `<span class="k-badge">${_esc(regionTag)}</span>` : '')
@@ -6840,6 +6838,93 @@ function renderStats(){
   const naEmeaEl = document.getElementById('score-kpi-naemea');
   if (naEmeaEl) naEmeaEl.innerHTML = na + '<span class="numsplit"> / </span>' + emea;
   renderStatsRevenue();
+  renderStatsSignal();
+}
+let _signalTaxonomy = null;
+let _signalTaxonomyPromise = null;
+async function _loadSignalTaxonomy() {
+  if (_signalTaxonomy !== null) return _signalTaxonomy;
+  if (_signalTaxonomyPromise) return _signalTaxonomyPromise;
+  _signalTaxonomyPromise = _supabase
+    .from('signal_taxonomy')
+    .select('code, label, icon')
+    .eq('client_id', CLIENT_ID)
+    .order('code')
+    .then(({ data }) => {
+      _signalTaxonomy = {};
+      (data || []).forEach(t => { _signalTaxonomy[(t.code || '').toUpperCase()] = t; });
+      return _signalTaxonomy;
+    })
+    .catch(() => { _signalTaxonomy = {}; return {}; });
+  return _signalTaxonomyPromise;
+}
+function _sigLabel(code) {
+  const t = (code || '').toUpperCase();
+  const e = _signalTaxonomy && _signalTaxonomy[t];
+  return e ? (e.label || t) : (t || 'Signal');
+}
+function _sigIcon(code) {
+  const t = (code || '').toUpperCase();
+  const e = _signalTaxonomy && _signalTaxonomy[t];
+  return e ? (e.icon || '📡') : '📡';
+}
+function _sigBadge(code) {
+  const t = (code || '').toUpperCase();
+  const known = ['S1','S2','S3','S4'];
+  const cls = (known.includes(t) || (_signalTaxonomy && _signalTaxonomy[t])) ? `signal-${t.toLowerCase()}` : 'signal-generic';
+  return `<span class="signal-badge ${cls}">${_esc(_sigIcon(t))} ${_esc(_sigLabel(t))}</span>`;
+}
+async function renderStatsSignal() {
+  const el = document.getElementById('stats-signal-attr');
+  if (!el) return;
+  el.innerHTML = '<span style="color:var(--muted);font-size:12px">Loading...</span>';
+  const taxonomy = await _loadSignalTaxonomy();
+  const codes = Object.keys(taxonomy);
+  if (!codes.length) {
+    el.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:8px 0">No signal taxonomy configured for this account.</div>';
+    return;
+  }
+  const active = (_allProspects || []).filter(p => !p.archived);
+  const prospectCounts = {};
+  active.forEach(p => {
+    const k = (p.signal_type || '').toUpperCase();
+    if (k) prospectCounts[k] = (prospectCounts[k] || 0) + 1;
+  });
+  const { data: attrData } = await _supabase
+    .from('attribution_log')
+    .select('signal_type, amount')
+    .eq('client_id', CLIENT_ID);
+  const attrByCode = {};
+  (attrData || []).forEach(r => {
+    const k = (r.signal_type || '').toUpperCase();
+    if (!k) return;
+    if (!attrByCode[k]) attrByCode[k] = { count: 0, revenue: 0 };
+    attrByCode[k].count++;
+    attrByCode[k].revenue += parseFloat(r.amount) || 0;
+  });
+  const fmt = v => v >= 1000 ? '€' + (v / 1000).toFixed(1).replace(/\.0$/, '') + 'k' : '€' + Math.round(v);
+  const rows = codes.map(code => {
+    const t = taxonomy[code];
+    const pCount = prospectCounts[code] || 0;
+    const attr = attrByCode[code] || { count: 0, revenue: 0 };
+    const convRate = pCount > 0 ? Math.round(attr.count / pCount * 100) : 0;
+    return { code, pCount, attrCount: attr.count, revenue: attr.revenue, convRate };
+  }).sort((a, b) => b.revenue - a.revenue);
+  if (!rows.some(r => r.pCount > 0 || r.revenue > 0)) {
+    el.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:8px 0">No signal data yet.</div>';
+    return;
+  }
+  const maxRev = Math.max(1, ...rows.map(r => r.revenue));
+  let html = '<div>';
+  rows.forEach(r => {
+    const bar = r.revenue > 0 ? Math.max(4, Math.round(r.revenue / maxRev * 100)) : 0;
+    html += `<div class="sig-attr-row">
+      <div class="sig-attr-head">${_sigBadge(r.code)}<span class="sig-attr-meta">${r.pCount} prospect${r.pCount !== 1 ? 's' : ''} · ${r.attrCount} won · ${r.convRate}%</span></div>
+      <div class="sig-attr-rev-row"><div class="sig-attr-track"><div class="sig-attr-fill" style="width:${bar}%"></div></div><span class="sig-attr-amt">${fmt(r.revenue)}</span></div>
+    </div>`;
+  });
+  html += '</div>';
+  el.innerHTML = html;
 }
 async function renderStatsRevenue(){
   const el = document.getElementById('stats-revenue');
