@@ -4316,7 +4316,7 @@ function _staticFollowUp(touch, firstName, company, lang, note) {
 function _interpretSignal(raw) {
   if (!raw || raw.trim().length === 0) return null;
   if (raw.startsWith('Strategic Window: Just hired')) {
-    return "The prospect THEMSELVES recently moved into this role / started this position (within ~90 days) -- this is about their OWN career move, not a hire they made or a team addition. Never imply they recruited someone, grew their team, or made hires.";
+    return "The prospect currently holds this role at this company -- do NOT claim or imply this is a recent change, a new appointment, or that they 'just' started. The exact timing is unverified and may be inaccurate. Reference their role/company neutrally without any claim about when they started.";
   }
   if (raw.startsWith('Lookalike match') || raw.startsWith('Top 5% most active')) {
     return null; // heuristique de scoring interne, pas un evenement reel verifiable
@@ -4732,7 +4732,7 @@ async function _markSent(pid, touch, auto = false, msgText = '') {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ linkedinUrl: p.linkedin, client_id: CLIENT_ID })
-    }).catch(() => {});
+    }).catch(err => console.error('[_markSent] heyreach-remove failed:', err));
   }
   const daysNext = TOUCH_NEXT_REMINDER[touch];
   let eReminder = null;
@@ -4748,11 +4748,11 @@ async function _markSent(pid, touch, auto = false, msgText = '') {
     const countEl = document.getElementById('send-count');
     if (countEl) countEl.textContent = remaining;
   }, 600);
-  if (!auto) showToast(
-    (eLastContact || eStage || eLinkedinTag || eReminder)
-      ? '⚠ Sent but not fully tracked'
-      : 'Marked as sent ✓'
-  );
+  if (eLastContact || eStage || eLinkedinTag || eReminder) {
+    showToast('⚠ Sent but not fully tracked');
+  } else if (!auto) {
+    showToast('Marked as sent ✓');
+  }
   _sentTodayCount++;
   _updateSentCounter();
 }
