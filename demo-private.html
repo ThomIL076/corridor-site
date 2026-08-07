@@ -4313,6 +4313,17 @@ function _staticFollowUp(touch, firstName, company, lang, note) {
   }
 }
 
+function _interpretSignal(raw) {
+  if (!raw || raw.trim().length === 0) return null;
+  if (raw.startsWith('Strategic Window: Just hired')) {
+    return "The prospect THEMSELVES recently moved into this role / started this position (within ~90 days) -- this is about their OWN career move, not a hire they made or a team addition. Never imply they recruited someone, grew their team, or made hires.";
+  }
+  if (raw.startsWith('Lookalike match') || raw.startsWith('Top 5% most active')) {
+    return null; // heuristique de scoring interne, pas un evenement reel verifiable
+  }
+  return raw; // vrai signal Trigify -- inchange
+}
+
 async function _generateSequenceMessage(pid, touch, forceGenerate = false) {
   const p = _sendProspects.find(x => x.id === pid);
   if (!p) return;
@@ -4538,9 +4549,10 @@ ${langRule}
 
   const redirectPrompt = isRedirect ? `You are writing a LinkedIn message on behalf of Thomas Dratler, founder of Corridor (corridor.systems).\n\nThe prospect ${p.name} at ${p.company} replied that they are not the right person or that this is not relevant for them.\n\nWrite a short, graceful message that:\n- Opens by thanking them briefly for taking the time to reply\n- Acknowledges their response without repeating or referencing the original pitch\n- Asks naturally if they know someone in their network who might be facing international expansion challenges\n- Frames it as a genuine question, not a sales move\n- Closes with an open, no-pressure sign-off\n- Signs: Thomas\n\nRules:\n- Under 60 words total\n- No em-dashes (replace any -- with a period)\n- No exclamation marks\n- No mention of Corridor by name\n- No re-pitch of any kind\n- Tone: warm, peer-to-peer, zero pressure\n- Write only the message body, nothing else` : null;
 
-  const signalBlock = p.signal ? (
-    (touch === 'j0' || touch === 'invite') ? `\nLIVE SIGNAL -- THIS IS THE CORE OF YOUR MESSAGE:\n"${p.signal}"\nSignal type: ${p.signal_type || 'unclassified'}\n\nCRITICAL RULES when a signal is present:\n- Do NOT open with a generic GTM or pipeline statement\n- Build the ENTIRE message around this specific signal\n- Reference what you know precisely (the hire, the funding, the expansion)\n- Show that you detected this TODAY -- the timing is the hook\n- Max 2 sentences. Be surgical.\n- NO closing line, NO signature, NO Corridor mention, NO URL.\n` :
-    touch === 'j5' ? `\nORIGINAL SIGNAL CONTEXT (do NOT repeat this angle -- build a new one):\nSignal: "${p.signal}"\nJ+0 was sent based on this signal. J+5 must introduce a completely different angle.\nUse what you know about the company/person to find a second hook that is equally specific.\nNever use: "following up", "checking in", "touching base", "just wanted to".\n` : ''
+  const _sig = _interpretSignal(p.signal);
+  const signalBlock = _sig ? (
+    (touch === 'j0' || touch === 'invite') ? `\nLIVE SIGNAL -- THIS IS THE CORE OF YOUR MESSAGE:\n"${_sig}"\nSignal type: ${p.signal_type || 'unclassified'}\n\nCRITICAL RULES when a signal is present:\n- Do NOT open with a generic GTM or pipeline statement\n- Build the ENTIRE message around this specific signal\n- Reference what you know precisely (the hire, the funding, the expansion)\n- Show that you detected this TODAY -- the timing is the hook\n- Max 2 sentences. Be surgical.\n- NO closing line, NO signature, NO Corridor mention, NO URL.\n` :
+    touch === 'j5' ? `\nORIGINAL SIGNAL CONTEXT (do NOT repeat this angle -- build a new one):\nSignal: "${_sig}"\nJ+0 was sent based on this signal. J+5 must introduce a completely different angle.\nUse what you know about the company/person to find a second hook that is equally specific.\nNever use: "following up", "checking in", "touching base", "just wanted to".\n` : ''
   ) : '';
   const prompt = ambassadorPrompt || redirectPrompt || (isInvestor && investorPrompts[touch]
     ? investorPrompts[touch]
