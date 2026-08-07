@@ -579,6 +579,21 @@ footer a { color:var(--navy); text-decoration:none; font-weight:600; }
 .dist-meta .dist-pct { color:var(--muted); font-weight:600; }
 .dist-track { height:8px; background:var(--border); border-radius:4px; overflow:hidden; }
 .dist-fill { height:100%; border-radius:4px; background:var(--navy); }
+.rev-kpi-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:20px; }
+.rev-kpi { border:1px solid var(--border); border-radius:10px; padding:14px 16px; }
+.rev-kpi-val { font-size:22px; font-weight:800; color:var(--navy); display:block; }
+.rev-kpi-label { font-size:11px; font-weight:600; color:var(--muted); margin-top:3px; display:block; }
+.col-chart { display:flex; align-items:flex-end; gap:6px; height:132px; margin-bottom:16px; }
+.col-wrap { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; gap:4px; height:100%; min-width:0; }
+.col-bar { width:100%; border-radius:4px 4px 0 0; background:linear-gradient(180deg,var(--blue),var(--navy)); transition:height 0.8s cubic-bezier(0.4,0,0.2,1); }
+.col-lbl { font-size:10px; color:var(--muted); font-weight:600; white-space:nowrap; }
+.deal-row { display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--border); gap:12px; }
+.deal-row:last-child { border-bottom:none; }
+.deal-name { font-size:13px; font-weight:600; color:var(--text); }
+.deal-co { font-size:12px; color:var(--muted); }
+.deal-right { text-align:right; flex-shrink:0; }
+.deal-amt { font-size:13px; font-weight:700; color:var(--navy); }
+.deal-date { font-size:11px; color:var(--muted); }
 
 /* ── SEND QUEUE (Module) ── */
 .send-card { display:flex; flex-direction:column; gap:10px; }
@@ -1540,6 +1555,12 @@ h1, h2, .section-title, .k-card-name, .k-card-company { overflow-wrap:break-word
       <div class="score-kpi"><span class="score-kpi-val" id="score-kpi-inconv">2</span><span class="score-kpi-label" data-en="In conversation" data-fr="En conversation">In conversation</span></div>
       <div class="score-kpi"><span class="score-kpi-val" id="score-kpi-naemea">18 / 7</span><span class="score-kpi-label" data-en="North America / EMEA" data-fr="Amérique du Nord / EMEA">North America / EMEA</span></div>
       <div class="score-kpi"><span class="score-kpi-val green" style="font-size:17px">Building</span><span class="score-kpi-label" data-en="Corridor pipeline" data-fr="Pipeline Corridor">Corridor pipeline</span></div>
+    </div>
+
+    <!-- Section D: Revenue — Closed Deals -->
+    <div class="card stats-section">
+      <div class="card-header"><span class="card-title">Revenue — Closed Deals</span><span class="card-badge badge-auto">LIVE</span></div>
+      <div id="stats-revenue"></div>
     </div>
   </div>
 
@@ -4565,14 +4586,10 @@ async function _sendViaLinkedIn(pid, touch) {
   }
   const btn = document.getElementById('sli-' + pid);
   if (btn) btn.disabled = true;
-  // Routing campagne HeyReach selon le touch : invitation (demande de connexion) vs message direct
-  const HEYREACH_CAMPAIGN_CONNECTIONS = '523265'; // invite -> connection requests
-  const HEYREACH_CAMPAIGN_MESSAGES = '529179';    // j0/j5/j12 -> messages directs (Messages_V8)
-  const campaignId = (touch === 'invite') ? HEYREACH_CAMPAIGN_CONNECTIONS : HEYREACH_CAMPAIGN_MESSAGES;
   try {
     const res = await fetch('/api/heyreach-send', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ linkedinUrl: p.linkedin, message: body, prospectName: p.name, campaignId, touch, linkedinTag: p.linkedin_tag })
+      body: JSON.stringify({ linkedinUrl: p.linkedin, message: body, prospectName: p.name, client_id: _drawerClientId(), touch, linkedinTag: p.linkedin_tag })
     });
     const data = await res.json();
     if (data.success) {
@@ -4649,7 +4666,7 @@ async function _markSent(pid, touch, auto = false, msgText = '') {
     fetch('/api/heyreach-remove', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ linkedinUrl: p.linkedin, campaignId: '523265' })
+      body: JSON.stringify({ linkedinUrl: p.linkedin, client_id: _drawerClientId() })
     }).catch(() => {});
   }
   const daysNext = TOUCH_NEXT_REMINDER[touch];
@@ -6822,6 +6839,57 @@ function renderStats(){
   setT('score-kpi-inconv', active.filter(p => inConvStages.includes(p.stage)).length);
   const naEmeaEl = document.getElementById('score-kpi-naemea');
   if (naEmeaEl) naEmeaEl.innerHTML = na + '<span class="numsplit"> / </span>' + emea;
+  renderStatsRevenue();
+}
+async function renderStatsRevenue(){
+  const el = document.getElementById('stats-revenue');
+  if (!el) return;
+  el.innerHTML = '<span style="color:var(--muted);font-size:12px">Loading...</span>';
+  const { data, error } = await _supabase
+    .from('revenue_events')
+    .select('description,amount,occurred_at')
+    .eq('event_type','client_deal_closed')
+    .eq('client_id', CLIENT_ID)
+    .order('occurred_at', { ascending: false });
+  if (error || !data) { el.innerHTML = '<span style="color:var(--muted);font-size:12px">-</span>'; return; }
+  const now = new Date();
+  const som = new Date(now.getFullYear(), now.getMonth(), 1);
+  const soq = new Date(now.getFullYear(), Math.floor(now.getMonth()/3)*3, 1);
+  const sum = arr => arr.reduce((s,d) => s + (parseFloat(d.amount)||0), 0);
+  const monthTotal = sum(data.filter(d => new Date(d.occurred_at) >= som));
+  const qTotal    = sum(data.filter(d => new Date(d.occurred_at) >= soq));
+  const fmt = v => v >= 1000 ? '€' + (v/1000).toFixed(1).replace(/\.0$/,'') + 'k' : '€' + Math.round(v);
+  let html = `<div class="rev-kpi-grid">
+    <div class="rev-kpi"><span class="rev-kpi-val">${fmt(monthTotal)}</span><span class="rev-kpi-label">Total closed (this month)</span></div>
+    <div class="rev-kpi"><span class="rev-kpi-val">${fmt(qTotal)}</span><span class="rev-kpi-label">Total closed (this quarter)</span></div>
+    <div class="rev-kpi"><span class="rev-kpi-val">${data.length}</span><span class="rev-kpi-label">Deals closed (count)</span></div>
+  </div>`;
+  const months = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push({ lbl: d.toLocaleString('en-GB',{month:'short'}).toUpperCase(), yr: d.getFullYear(), mo: d.getMonth(), tot: 0 });
+  }
+  data.forEach(d => {
+    const dt = new Date(d.occurred_at);
+    const m = months.find(m => m.yr === dt.getFullYear() && m.mo === dt.getMonth());
+    if (m) m.tot += parseFloat(d.amount)||0;
+  });
+  const maxAmt = Math.max(1, ...months.map(m => m.tot));
+  const CHART_H = 108;
+  html += `<div class="col-chart">${months.map(m => {
+    const h = m.tot > 0 ? Math.max(3, Math.round(m.tot/maxAmt*CHART_H)) : 0;
+    return `<div class="col-wrap"><div class="col-bar" style="height:${h}px"></div><span class="col-lbl">${_esc(m.lbl)}</span></div>`;
+  }).join('')}</div>`;
+  if (!data.length) {
+    html += '<div style="color:var(--muted);font-size:12px;padding:8px 0">No closed deals yet.</div>';
+  } else {
+    html += '<div>' + data.map(d => {
+      const dt = new Date(d.occurred_at);
+      const ds = dt.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+      return `<div class="deal-row"><div><div class="deal-name">${_esc(d.description||'-')}</div></div><div class="deal-right"><div class="deal-amt">${fmt(parseFloat(d.amount)||0)}</div><div class="deal-date">${_esc(ds)}</div></div></div>`;
+    }).join('') + '</div>';
+  }
+  el.innerHTML = html;
 }
 // Tri par ICP des cartes (1er clic : décroissant ; 2e clic : croissant)
 let _sortICPDesc = false;
