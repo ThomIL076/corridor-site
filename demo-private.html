@@ -84,20 +84,6 @@ nav {
 }
 .nav-cta:hover { background:var(--navy-mid); }
 
-/* ── TABS NAV ── */
-.tabs-nav {
-  padding:0 48px; box-sizing:border-box;
-  display:flex; gap:4px; border-bottom:2px solid var(--border);
-  position:sticky; top:72px; background:var(--bg); z-index:150; padding-top:12px;
-  justify-content:space-between; overflow-x:visible; flex-wrap:nowrap;
-  -ms-overflow-style:none; scrollbar-width:none;
-}
-.tabs-nav::-webkit-scrollbar { display:none; }
-
-@media(min-width:901px) {
-  .tabs-nav { padding-top: 20px; }
-  .tab-nav-btn { padding: 16px 18px; }
-}
 
 /* ── ACTIVE COMPANY BANNER (cockpit, Option C) ── */
 #active-company-bar {
@@ -161,16 +147,6 @@ nav {
   cursor: pointer;
   outline: none;
 }
-.tab-nav-btn {
-  font-size:12px; font-weight:600; letter-spacing:0.3px;
-  padding:10px 18px; border-radius:8px 8px 0 0; border:none;
-  background:transparent; color:var(--muted); cursor:pointer;
-  transition:all 0.2s; border-bottom:2px solid transparent; margin-bottom:-2px;
-  white-space:nowrap; flex:1; text-align:center;
-}
-.tab-nav-btn:hover { color:var(--navy); background:var(--navy-light); }
-.tab-nav-btn.active { color:var(--navy); background:var(--white); border-bottom:2px solid var(--navy); font-weight:700; }
-.tab-nav-icon { margin-right:6px; }
 .lang-btn { font-size:11px; font-weight:600; letter-spacing:0.5px; padding:5px 10px; border-radius:6px; border:1px solid var(--border); background:transparent; color:var(--muted); cursor:pointer; transition:all 0.2s; }
 .lang-btn:hover { color:var(--navy); border-color:var(--blue); }
 .lang-btn.active { background:var(--navy); color:#fff; border-color:var(--navy); }
@@ -461,7 +437,6 @@ footer a { color:var(--navy); text-decoration:none; font-weight:600; }
 /* ── RESPONSIVE ── */
 @media(max-width:900px) {
   nav { padding:0 20px; }
-  .tabs-nav { padding:0 20px; overflow-x:auto; }
   .main { padding:24px 20px 60px; }
   .two-col,.three-col { grid-template-columns:1fr; }
   .score-grid,.kpi-row { grid-template-columns:1fr 1fr; }
@@ -723,9 +698,7 @@ h1, h2, .section-title, .k-card-name, .k-card-company { overflow-wrap:break-word
 /* footer attribution masquée en mode PWA standalone */
 @media (display-mode: standalone) { .footer-built-by { display:none; } .access-note { display:none !important; } }
 @media (max-width:480px) {
-  /* 1. labels onglets réduits */
-  .tab-nav-btn { font-size:11px; padding-left:8px; padding-right:8px; }
-  /* 2. champs de saisie plus grands — 16px empêche le zoom auto iOS/Chrome */
+  /* 1. champs de saisie plus grands — 16px empêche le zoom auto iOS/Chrome */
   textarea { min-height:120px; font-size:16px; }
   input[type=text], input:not([type]), #global-company { min-height:48px; font-size:16px; }
   #global-company { width:100%; max-width:none; }
@@ -739,9 +712,7 @@ h1, h2, .section-title, .k-card-name, .k-card-company { overflow-wrap:break-word
   .kanban-swipe-hint { display:block; text-align:center; font-size:11px; color:var(--dim); margin-top:8px; transition:opacity .5s ease; }
   .kpi-row { grid-template-columns:repeat(2,1fr); }
   .kpi-row .kpi-card:last-child { grid-column:1 / -1; }
-  /* 4. nav onglets scrollable horizontalement */
-  .tabs-nav { overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
-  /* 5. header compact */
+  /* 4. header compact */
   .user-company { display:none; }
   .logo-mark { width:20px; }
   .logo-tagline { display:none; }
@@ -766,10 +737,7 @@ h1, h2, .section-title, .k-card-name, .k-card-company { overflow-wrap:break-word
 @media (max-width:480px) {
   /* 1. badge ACTIVE réduit (ne chevauche plus l'avatar) */
   .nav-badge { font-size:9px; padding:2px 6px; }
-  /* 3. barre d'onglets : scroll horizontal uniquement (nav fixed h:72px → onglets restent à top:72px) */
-  .tabs-nav { overflow-x:auto; overflow-y:hidden; touch-action:pan-x; justify-content:flex-start; -webkit-overflow-scrolling:touch; }
-  .tab-nav-btn { flex-shrink:0; }
-  /* 4 + 5. titres de section non coupés */
+  /* 3. titres de section non coupés */
   .section-title { font-size:clamp(24px, 6.5vw, 36px); }
   /* 6. Toolbar Pipeline : 4 boutons en grille 2x2, pleine largeur (= bouton Analyze) */
   .csv-actions { display:grid !important; grid-template-columns:repeat(2,1fr); gap:8px; width:calc(100% - 32px); margin:0 auto; }
@@ -835,7 +803,6 @@ h1, h2, .section-title, .k-card-name, .k-card-company { overflow-wrap:break-word
 @media (max-width:480px) {
   nav { height:108px; }
   body { padding-top: 108px; }
-  .tabs-nav { top:108px; }
   /* #active-company-bar top is set dynamically by _fixAcbTop() */
   .user-avatar { width:28px; height:28px; font-size:12px; position:absolute; left:50%; top:18px; transform:translateX(-50%); }
   .user-info { display:none; }
@@ -846,7 +813,7 @@ h1, h2, .section-title, .k-card-name, .k-card-company { overflow-wrap:break-word
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
 
-/* ═══ NEW SIDEBAR nav — visible only when body.new-nav (?newnav=1) ═══ */
+/* ═══ SIDEBAR nav ═══ */
 .new-sidebar {
   position: fixed;
   left: 0; top: 0; bottom: 0;
@@ -1111,16 +1078,6 @@ body.new-nav nav { left: 220px; }
     <button id="signout-btn" class="nav-signout" style="display:none" onclick="signOut()" aria-label="Sign out">Sign out</button>
   </div>
 </nav>
-
-<!-- TABS NAV -->
-<div class="tabs-nav" role="navigation" aria-label="Module navigation">
-  <button class="tab-nav-btn active" onclick="switchTab('scanner', true)"><span class="tab-nav-icon">🔍</span><span data-en="Scanner" data-fr="Scanner">Scanner</span></button>
-  <button class="tab-nav-btn" onclick="switchTab('agents', true)"><span class="tab-nav-icon">🤖</span><span data-en="CMO IA" data-fr="CMO IA">CMO IA</span></button>
-  <button class="tab-nav-btn" onclick="switchTab('pipeline', true)"><span class="tab-nav-icon">📊</span><span data-en="Pipeline" data-fr="Pipeline">Pipeline</span></button>
-  <button class="tab-nav-btn" onclick="switchTab('send', true)"><span class="tab-nav-icon">📤</span><span data-en="Send" data-fr="Envoi">Send</span></button>
-  <button class="tab-nav-btn" onclick="switchTab('stats', true)"><span class="tab-nav-icon">📈</span><span data-en="Stats" data-fr="Stats">Stats</span></button>
-  <button class="tab-nav-btn" onclick="switchTab('system', true)"><span class="tab-nav-icon">⚡</span><span data-en="System" data-fr="Système">System</span></button>
-</div>
 
 <!-- MANDATE SELECTOR BAR -->
 <div class="mandate-bar" id="mandate-bar" style="display:none;">
@@ -1826,12 +1783,10 @@ body.new-nav nav { left: 220px; }
 </footer>
 
 <script>
-// ─── NEW SIDEBAR (SHOW_NEW_NAV — ?newnav=1) ─────────────────────────────────
-const SHOW_NEW_NAV = new URLSearchParams(location.search).get('newnav') === '1';
+// ─── SIDEBAR nav ─────────────────────────────────────────────────────────────
 let _sysNavHint = null; // signals | pipeintel | weekly
 
 function _newNavActive(key) {
-  if (!SHOW_NEW_NAV) return;
   document.querySelectorAll('.snav-item').forEach(el => el.classList.remove('active'));
   const el = document.querySelector('.snav-item[data-nav="' + key + '"]');
   if (el) el.classList.add('active');
@@ -1863,13 +1818,11 @@ function _closeSnav() {
   document.body.classList.remove('snav-open');
 }
 
-if (SHOW_NEW_NAV) {
-  document.addEventListener('DOMContentLoaded', function() {
-    document.body.classList.add('new-nav');
-    switchTab('pipeline');
-    _newNavActive('pipeline');
-  });
-}
+document.addEventListener('DOMContentLoaded', function() {
+  document.body.classList.add('new-nav');
+  switchTab('pipeline');
+  _newNavActive('pipeline');
+});
 // ─────────────────────────────────────────────────────────────────────────────
 
 const API_URL = '/api/generate';
