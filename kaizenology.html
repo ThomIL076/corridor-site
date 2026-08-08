@@ -120,7 +120,7 @@ nav {
 @media(max-width:560px){ #active-company-bar { padding:10px 16px; gap:10px; } #global-company { width:100%; } }
 .mandate-bar {
   position: sticky;
-  top: 0;
+  top: var(--nav-height, 72px);
   z-index: 90;
   display: flex;
   align-items: center;
@@ -1817,6 +1817,13 @@ document.addEventListener('DOMContentLoaded', function() {
   switchTab('pipeline');
   _newNavActive('pipeline');
 });
+
+function _syncNavHeight() {
+  const nav = document.querySelector('nav');
+  if (nav) document.documentElement.style.setProperty('--nav-height', nav.offsetHeight + 'px');
+}
+window.addEventListener('load', _syncNavHeight);
+window.addEventListener('resize', _syncNavHeight);
 // ─────────────────────────────────────────────────────────────────────────────
 
 const API_URL = '/api/generate';
