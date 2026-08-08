@@ -35,6 +35,15 @@
   --amber-border: #fcd34d;
   --red: #dc2626;
   --red-bg: #fef2f2;
+  --fill-accent: #2568B5;
+  --on-accent: #ffffff;
+  --text-secondary: #6b7a99;
+  --surface-1: #f8f9fb;
+  --bg-warning: #fffbeb;
+  --bg-accent: #dbeafe;
+  --text-accent: #3B8BD4;
+  --bg-success: #d1fae5;
+  --text-success: #1D9E75;
 }
 
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -198,6 +207,15 @@ nav {
   padding:10px 22px; border-radius:8px; cursor:pointer; transition:all 0.2s; white-space:nowrap;
 }
 .btn-secondary:hover { background:var(--blue-light); }
+.btn-accent {
+  display:inline-flex; align-items:center; gap:8px;
+  font-family:'Plus Jakarta Sans', sans-serif; font-size:12px; font-weight:700;
+  letter-spacing:0.3px; color:var(--on-accent); background:var(--fill-accent);
+  border:none; padding:10px 22px; border-radius:8px; cursor:pointer;
+  transition:all 0.2s; white-space:nowrap;
+}
+.btn-accent:hover { background:#1d55a0; transform:translateY(-1px); box-shadow:0 4px 12px rgba(37,104,181,0.25); }
+.btn-accent:disabled { opacity:0.5; cursor:not-allowed; transform:none; box-shadow:none; }
 
 /* ── CARDS & PANELS ── */
 .card {
@@ -608,7 +626,8 @@ body.drawer-open { overflow:hidden; }
 .drawer-close { background:transparent; border:none; font-size:20px; color:var(--muted); cursor:pointer; line-height:1; padding:0 4px; }
 .drawer-close:hover { color:var(--navy); }
 .drawer-body { padding:20px 22px; }
-.drawer-section-title { font-size:10px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:var(--dim); margin-bottom:12px; }
+.drawer-section-title { font-size:11px; font-weight:600; letter-spacing:0.02em; color:var(--muted); margin-bottom:8px; }
+.classification-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
 .tl-list { position:relative; margin-bottom:22px; }
 .tl-item { display:flex; gap:12px; padding-bottom:16px; position:relative; }
 .tl-item:not(:last-child)::before { content:''; position:absolute; left:13px; top:28px; bottom:0; width:2px; background:var(--border); }
@@ -619,15 +638,16 @@ body.drawer-open { overflow:hidden; }
 .tl-status { font-weight:700; }
 
 /* ── PHASE 2 DRAWER ── */
-.drawer-tabs{display:flex;border-bottom:1px solid var(--border);padding:0 22px;gap:0;margin-top:4px;}
-.dtab{padding:10px 14px;font-size:11px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:var(--dim);cursor:pointer;border-bottom:2px solid transparent;transition:color 0.15s,border-color 0.15s;user-select:none;}
-.dtab:hover{color:var(--navy);}
-.dtab.active{color:var(--navy);border-bottom-color:var(--navy);}
+.drawer-tabs{display:flex;border-bottom:1px solid var(--border);padding:0 22px;gap:18px;margin-top:4px;}
+.dtab{padding:10px 4px;font-size:11px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:var(--text-secondary);cursor:pointer;border-bottom:2px solid transparent;transition:color 0.15s,border-color 0.15s;user-select:none;}
+.dtab:hover{color:#2568B5;}
+.dtab.active{color:#2568B5;border-bottom-color:#3B8BD4;}
 .dtab-panel{display:none;padding:20px 22px;}
 .dtab-panel.active{display:block;}
 .int-log{display:flex;flex-direction:column;gap:0;margin-bottom:18px;max-height:240px;overflow-y:auto;}
 .int-item{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);}
 .int-item:last-child{border-bottom:none;}
+.int-icon-circle{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;font-weight:700;}
 .int-icon{width:28px;height:28px;border-radius:7px;background:var(--navy-light);border:1px solid var(--blue);display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;}
 .int-body{flex:1;min-width:0;}
 .int-type{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--blue);}
@@ -5033,6 +5053,16 @@ let _drawerInteractions = [];
 let _drawerPollInterval = null;
 
 const _INT_ICONS = { linkedin:'💼', email:'📧', call:'📞', meeting:'🤝', note:'📝' };
+const _INT_META  = {
+  linkedin: { bg:'#dbeafe', fg:'#3B8BD4', icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>' },
+  email:    { bg:'#d1fae5', fg:'#1D9E75', icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>' },
+  call:     { bg:'#f3f4f6', fg:'#888780', icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.38 2 2 0 0 1 3.6 1h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 8.6a16 16 0 0 0 6.29 6.29l.91-.91a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>' },
+  meeting:  { bg:'#f3f4f6', fg:'#888780', icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>' },
+  note:     { bg:'#f3f4f6', fg:'#888780', icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>' },
+  system:      { bg:'#f3f4f6', fg:'#888780', icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>' },
+  phone_found: { bg:'#f3f4f6', fg:'#888780', icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.38 2 2 0 0 1 3.6 1h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 8.6a16 16 0 0 0 6.29 6.29l.91-.91a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>' },
+  email_found: { bg:'#f3f4f6', fg:'#888780', icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>' },
+};
 
 function _relDate(iso) {
   if (!iso) return null;
@@ -5080,8 +5110,9 @@ function _renderIntList(ints) {
       const debrief = _parseDebrief(i.note);
       if (debrief) {
         const c = _VERDICT_COLORS[debrief.verdict] || _VERDICT_COLORS.neutral;
+        const callMeta = _INT_META.call;
         return `<div class="int-item" style="cursor:pointer;user-select:none;" onclick="_toggleDebrief('${uid}')">
-    <div class="int-icon">📞</div>
+    <div class="int-icon-circle" style="background:${callMeta.bg};color:${callMeta.fg}">${callMeta.icon}</div>
     <div class="int-body" style="flex:1;min-width:0;">
       <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
         <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--blue);">Post-call debrief</span>
@@ -5094,8 +5125,9 @@ function _renderIntList(ints) {
   </div>`;
       }
     }
+    const im = _INT_META[i.type] || { bg:'#f3f4f6', fg:'#888780', icon:'•' };
     return `<div class="int-item">
-    <div class="int-icon">${_INT_ICONS[i.type]||'📝'}</div>
+    <div class="int-icon-circle" style="background:${im.bg};color:${im.fg}">${im.icon}</div>
     <div class="int-body">
       <div class="int-type">${_esc(i.type)}</div>
       ${i.note ? `<div class="int-note">${_esc(i.note)}</div>` : ''}
@@ -5121,14 +5153,18 @@ function _renderReminder(reminderDate) {
 function _reminderBannerHTML(reminderDate) {
   const r = reminderDate ? _fmtReminder(reminderDate) : null;
   const isoShort = reminderDate ? new Date(reminderDate).toISOString().split('T')[0] : '';
-  const label = r ? (r.overdue ? '⚠ ' + r.label : '🔔 ' + r.label) : 'No reminder set';
-  return `<div id="reminder-banner">
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 16px;background:${r?(r.overdue?'#fff1f2':'#f0fdf4'):'#f8f9fb'};border-bottom:1px solid ${r?(r.overdue?'#fca5a5':'#86efac'):'var(--border)'};font-size:12px;">
-      <span style="color:${r?(r.overdue?'#dc2626':'#15803d'):'var(--dim)'}">${label}</span>
-      <a href="#" style="font-size:11px;color:var(--navy);text-decoration:underline;text-underline-offset:2px"
+  const bg = r ? (r.overdue ? 'var(--red-bg)' : 'var(--bg-warning)') : '#f8f9fb';
+  const bdr = r ? (r.overdue ? 'var(--red)' : 'var(--amber-border)') : 'var(--border)';
+  const tc = r ? (r.overdue ? 'var(--red)' : 'var(--amber)') : 'var(--muted)';
+  const label = r ? r.label : 'No reminder set';
+  const clockSvg = `<svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" style="flex-shrink:0"><circle cx="8" cy="8" r="7"/><path d="M8 4.5V8l2.5 1.5" stroke-linecap="round"/></svg>`;
+  return `<div id="reminder-banner" style="margin:12px 16px 0;border-radius:8px;overflow:hidden;border:1px solid ${bdr}">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:${bg};font-size:12px;color:${tc}">
+      <span style="display:flex;align-items:center;gap:6px">${clockSvg}${_esc(label)}</span>
+      <a href="#" style="font-size:11px;color:var(--navy);text-decoration:underline;text-underline-offset:2px;white-space:nowrap;margin-left:8px"
         onclick="event.preventDefault();var row=document.getElementById('reminder-edit-row');row.style.display=row.style.display==='flex'?'none':'flex'">${r?'Edit':'Set'}</a>
     </div>
-    <div id="reminder-edit-row" style="display:none;align-items:center;gap:8px;padding:8px 16px;background:#f8f9fb;border-bottom:1px solid var(--border);">
+    <div id="reminder-edit-row" style="display:none;align-items:center;gap:8px;padding:8px 12px;background:#f8f9fb;border-top:1px solid ${bdr}">
       <input type="date" class="reminder-date-input" id="drawer-reminder-input"
         value="${isoShort}" min="${new Date().toISOString().split('T')[0]}" style="flex:1">
       <button class="reminder-set-btn" onclick="_saveReminder()">Set</button>
@@ -5143,6 +5179,11 @@ async function openDrawer(card) {
   const company      = (card.querySelector('.k-card-company')?.textContent || '').trim();
   const _p           = _prospectsById[prospectId] || {};
   const score        = 'ICP ' + _calcICP(_p);
+  const icpVal       = parseFloat(_calcICP(_p));
+  const icpColor     = icpVal >= 8 ? '#3B8BD4' : icpVal >= 5 ? '#EF9F27' : '#888780';
+  const icpC         = +(2 * Math.PI * 22).toFixed(2);
+  const icpDash      = +((icpVal / 10) * icpC).toFixed(2);
+  const icpDial      = `<svg width="54" height="54" viewBox="0 0 52 52" style="flex-shrink:0"><circle cx="26" cy="26" r="22" fill="none" stroke="var(--border)" stroke-width="4.5"/><circle cx="26" cy="26" r="22" fill="none" stroke="${icpColor}" stroke-width="4.5" stroke-dasharray="${icpDash} ${icpC}" stroke-linecap="round" transform="rotate(-90 26 26)"/><text x="26" y="30" text-anchor="middle" font-family="'Plus Jakarta Sans',sans-serif" font-size="12" font-weight="700" fill="${icpColor}">${icpVal.toFixed(1)}</text></svg>`;
   const sector       = (_p.sector && _p.sector.trim()) ? _p.sector.trim() : 'B2B';
   const head         = card.closest('.kanban-col')?.querySelector('.kanban-col-head span');
   const stage        = head ? (head.dataset.en || head.textContent.trim()) : 'Identified';
@@ -5153,15 +5194,16 @@ async function openDrawer(card) {
   _drawerProspect = { id:prospectId, name, company, score, sector, stage,
                       last_contact:lastContact, reminder_date:reminderDate, client_id:clientId };
 
+  await _loadSignalTaxonomy();
   const lcStr = lastContact ? _relDate(lastContact) : null;
   document.getElementById('drawer').innerHTML = `
     <div class="drawer-head">
-      <div>
+      <div style="flex:1;min-width:0">
         <div class="drawer-name">${_esc(name)}</div>
         <div class="drawer-company">${_esc(company)}</div>
-        <div class="drawer-score">${_esc(score)}</div>
         <div class="drawer-last-contact">${lcStr ? 'Last contact: '+_esc(lcStr) : 'No contact logged yet'}</div>
       </div>
+      ${icpDial}
       <button class="drawer-close" onclick="closeDrawer()" aria-label="Close prospect drawer">✕</button>
     </div>
     <div class="drawer-tabs">
@@ -5194,23 +5236,23 @@ async function openDrawer(card) {
       ${_drawerProfileHTML(prospectId, _prospectsById[prospectId] || {}, stage, { name, company, sector })}
     </div>
     <div class="dtab-panel" id="dpanel-deal">
-      <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:16px;">
-        <button onclick="_scheduleCall('${prospectId}')"
-          style="font-size:12px;padding:6px 12px;background:#f0fdf4;color:#15803d;border:1px solid #86efac;border-radius:6px;cursor:pointer;">
-          Schedule Call
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">
+        <div style="display:flex;gap:10px">
+          <button onclick="_scheduleCall('${prospectId}')" style="flex:1;font-size:12.5px;padding:9px;display:flex;align-items:center;justify-content:center;gap:6px;background:var(--white);color:var(--text);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-family:inherit">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            Schedule call
+          </button>
+          <button onclick="_requestBriefing('${prospectId}')" id="briefing-btn-${prospectId}" style="flex:1;font-size:12.5px;padding:9px;display:flex;align-items:center;justify-content:center;gap:6px;background:var(--white);color:var(--text);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-family:inherit">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 2h6a1 1 0 0 1 1 1v2H8V3a1 1 0 0 1 1-1z"/><rect x="5" y="4" width="14" height="18" rx="2"/></svg>
+            Call briefing
+          </button>
+        </div>
+        <button id="start-seq-${prospectId}" onclick="_startEmailSeq('${prospectId}')" style="width:100%;background:#1D9E75;color:#FFFFFF;border:none;border-radius:6px;font-size:12.5px;font-weight:500;display:flex;align-items:center;justify-content:center;gap:6px;padding:9px;cursor:pointer;font-family:inherit">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 6l-10 7L2 6"/></svg>
+          Start email sequence
         </button>
-        <button onclick="_requestBriefing('${prospectId}')" id="briefing-btn-${prospectId}"
-          style="font-size:12px;padding:6px 12px;background:#fffbeb;color:#b45309;border:1px solid #fcd34d;border-radius:6px;cursor:pointer;">
-          Call Briefing
-        </button>
-        <span id="briefing-status-${prospectId}" style="font-size:11px;color:#6b7a99;"></span>
-      </div>
-      <div style="margin-bottom:16px;">
-        <button id="start-seq-${prospectId}" onclick="_startEmailSeq('${prospectId}')"
-          style="font-size:12px;padding:6px 14px;background:#0f766e;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;">
-          Start Email Sequence
-        </button>
-        <span id="seq-status-${prospectId}" style="font-size:11px;color:#6b7a99;margin-left:8px;"></span>
+        <span id="briefing-status-${prospectId}" style="font-size:11px;color:#6b7a99"></span>
+        <span id="seq-status-${prospectId}" style="font-size:11px;color:#6b7a99"></span>
       </div>
       <div style="border-top:1px solid var(--border);padding-top:16px;">
         <div class="drawer-section-title" style="margin-bottom:12px" data-en="Deal Value" data-fr="Valeur du deal">Deal Value</div>
@@ -5231,14 +5273,17 @@ async function openDrawer(card) {
           <label><span data-en="Confidence" data-fr="Confiance">Confidence</span> <span id="dv-conf-val">50%</span></label>
           <input type="range" id="dv-conf" min="0" max="100" value="50" oninput="recalcDealValue()">
         </div>
-        <div id="dv-result" class="dv-result">Estimated deal value: €0</div>
+        <div style="background:var(--surface-1);border:0.5px solid var(--border);border-radius:12px;padding:14px;text-align:center;margin-top:12px;">
+          <div style="font-size:11px;color:var(--muted);letter-spacing:0.02em;margin-bottom:4px" data-en="Estimated deal value" data-fr="Valeur estimée du deal">Estimated deal value</div>
+          <div id="dv-result" class="dv-result" style="font-size:22px;font-weight:500;color:var(--navy)">€0</div>
+        </div>
       </div>
     </div>
     <div class="dtab-panel" id="dpanel-ai">
       <div class="drawer-section-title" style="margin-bottom:10px">Next action</div>
-      <button class="btn-primary" style="width:100%;justify-content:center;margin-bottom:12px"
+      <button class="btn-accent" style="width:100%;justify-content:center;margin-bottom:12px"
         onclick="_drawerAI()" id="drawer-next-btn">▶ Next recommended action</button>
-      <button class="btn-secondary" style="width:100%;justify-content:center;margin-bottom:12px;background:#1a1a2e;border:1px solid #ef4444;color:#ef4444" onclick="_escalateProspect()" id="drawer-escalate-btn">Escalation Handler</button>
+      <button class="btn-secondary" style="width:100%;justify-content:center;margin-bottom:12px" onclick="_escalateProspect()" id="drawer-escalate-btn">Escalation Handler</button>
       <div class="ai-box" id="escalate-box" style="display:none">
         <div class="ai-box-header">
           <span class="ai-box-label" style="color:#ef4444">Escalation Brief</span>
@@ -5273,13 +5318,13 @@ async function openDrawer(card) {
           </div>
           <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
             <button class="btn-secondary" onclick="_copyPostCall()">Copy</button>
-            <button class="btn-primary" onclick="_sendPostCallLinkedIn()">Send via LinkedIn</button>
+            <button class="btn-secondary" onclick="_sendPostCallLinkedIn()">Send via LinkedIn</button>
             <button class="btn-secondary" onclick="_markPostCallSent()">Mark as sent</button>
           </div>
         </div>
         <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
           <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">Post-call debrief</div>
-          <button class="btn-primary" id="btn-postcall-debrief" onclick="_openPostCallDebrief()"
+          <button class="btn-secondary" id="btn-postcall-debrief" onclick="_openPostCallDebrief()"
             style="width:100%;justify-content:center;margin-bottom:10px">
             🎙 Generate post-call debrief
           </button>
@@ -5293,7 +5338,7 @@ async function openDrawer(card) {
             <textarea id="manual-debrief-notes" rows="6"
               placeholder="Paste your call notes, transcript, or summary here..."
               style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;resize:vertical;background:var(--bg);color:var(--text);line-height:1.5"></textarea>
-            <button class="btn-primary" onclick="_generateFromManualNotes()"
+            <button class="btn-secondary" onclick="_generateFromManualNotes()"
               style="width:100%;justify-content:center;margin-top:8px">Generate from notes</button>
           </div>
         </div>
@@ -5966,7 +6011,7 @@ function recalcDealValue(){
   const cv = document.getElementById('dv-conf-val'); if (cv) cv.textContent = conf + '%';
   const mult = team === '51-200' ? 1.5 : team === '200+' ? 2 : 1;
   const val = Math.round(1500 * months * mult * (conf/100));
-  document.getElementById('dv-result').textContent = (currentLang==='fr' ? 'Valeur estimée du deal : ' : 'Estimated deal value: ') + _eur(val);
+  document.getElementById('dv-result').textContent = _eur(val);
   sessionStorage.setItem('deal_value_' + _pid(_drawerProspect.name), JSON.stringify({ team, months, conf, val }));
   applyDealBadges();
 }
@@ -6187,7 +6232,7 @@ async function _saveEmail(pid, email, source) {
   const { error: _emailSaveErr } = await sbClient.from('prospects').update({ email }).eq('id', pid).eq('client_id', CLIENT_ID);
   if (_emailSaveErr) { console.error('[_saveEmail] prospects update failed:', _emailSaveErr); showToast('Error saving email'); return; }
   const { error: _emailIntErr } = await sbClient.from('interactions').insert({
-    prospect_id: pid, client_id: CLIENT_ID, mandate_id: (activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null, type: 'system',
+    prospect_id: pid, client_id: CLIENT_ID, mandate_id: (activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null, type: 'email_found',
     note: 'Email verified: ' + email
   });
   if (_emailIntErr) console.error('[_saveEmail] interactions insert failed:', _emailIntErr);
@@ -6201,7 +6246,7 @@ async function _savePhone(pid, phone, source) {
   const { error: _phoneSaveErr } = await sbClient.from('prospects').update({ phone, phone_source: source, phone_status: source }).eq('id', pid).eq('client_id', CLIENT_ID);
   if (_phoneSaveErr) { console.error('[_savePhone] prospects update failed:', _phoneSaveErr); showToast('Error saving phone'); return; }
   const { error: _phoneIntErr } = await sbClient.from('interactions').insert({
-    prospect_id: pid, client_id: CLIENT_ID, mandate_id: (activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null, type: 'system',
+    prospect_id: pid, client_id: CLIENT_ID, mandate_id: (activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null, type: 'phone_found',
     note: 'Phone found: ' + phone
   });
   if (_phoneIntErr) console.error('[_savePhone] interactions insert failed:', _phoneIntErr);
@@ -6294,63 +6339,58 @@ function _drawerProfileHTML(id, p, colStage, fb){
   const v = s => _esc(s == null ? '' : String(s));
   const opts = KANBAN_STAGES.map(s => `<option value="${s}"${s === colStage ? ' selected' : ''}>${s}</option>`).join('');
   const rt = _regionTag(p.region);
+  const lbl = t => `<div style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.02em">${t}</div>`;
+  const card = c => `<div style="border:0.5px solid var(--border);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:8px">${c}</div>`;
   return `<div class="dp-edit">
-      <input id="ed-name" class="dp-inp" value="${v(p.name || fb.name)}" placeholder="Name">
-      <input id="ed-company" class="dp-inp" value="${v(p.company || fb.company)}" placeholder="Company">
-      <input id="ed-title" class="dp-inp" value="${v(p.title)}" placeholder="Title">
-      <input id="ed-email" class="dp-inp" value="${v(p.email)}" placeholder="Email">
-      <input id="ed-phone" class="dp-inp" value="${v(p.phone)}" placeholder="Phone">
-      <div style="margin-top:6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-        <button id="find-email-${id}" onclick="_findEmailDrawer('${id}')"
-          style="font-size:12px;padding:6px 12px;background:#1a2b5e;color:#fff;border:none;border-radius:6px;cursor:pointer;">
-          Find Email
-        </button>
-        <span id="email-status-${id}" style="font-size:11px;color:#6b7a99;"></span>
-        <button id="find-phone-${id}" onclick="_findPhoneDrawer('${id}')"
-          style="font-size:12px;padding:6px 12px;background:#1a2b5e;color:#fff;border:none;border-radius:6px;cursor:pointer;">
-          Find Phone
-        </button>
-        <span id="phone-status-${id}" style="font-size:11px;color:#6b7a99;"></span>
-      </div>
-      <input id="ed-linkedin" class="dp-inp" value="${v(p.linkedin)}" placeholder="LinkedIn URL">
-      <input id="ed-sector" class="dp-inp" value="${v(p.sector || fb.sector)}" placeholder="Sector">
-      <input id="ed-country" class="dp-inp" value="${v(p.country)}" placeholder="Country">
-      <select id="ed-region" class="dp-inp"><option value="EMEA"${rt === 'EMEA' ? ' selected' : ''}>EMEA</option><option value="NA"${rt === 'NA' ? ' selected' : ''}>NA</option></select>
-      <select id="ed-stage" class="dp-inp">${opts}</select>
-      <div style="margin-top:10px;">
-        <p style="font-size:9px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin:0 0 4px;">Contact type</p>
-        <div style="display:flex;gap:8px;">
-          <button id="origin-network-${id}" onclick="_setOrigin('${id}','network')"
-            style="font-size:12px;padding:5px 12px;border-radius:6px;cursor:pointer;border:1px solid ${p.origin==='network'?'#1a2b5e':'var(--border)'};background:${p.origin==='network'?'#1a2b5e':'var(--white)'};color:${p.origin==='network'?'#fff':'var(--text)'};">
-            Known contact
-          </button>
-          <button id="origin-outbound-${id}" onclick="_setOrigin('${id}','outbound')"
-            style="font-size:12px;padding:5px 12px;border-radius:6px;cursor:pointer;border:1px solid ${p.origin!=='network'?'#1a2b5e':'var(--border)'};background:${p.origin!=='network'?'#1a2b5e':'var(--white)'};color:${p.origin!=='network'?'#fff':'var(--text)'};">
-            New prospect
-          </button>
-        </div>
-      </div>
-      <textarea id="ed-notes" class="dp-inp" placeholder="Notes" style="min-height:60px;resize:vertical;">${v(p.notes)}</textarea>
-      <div class="drawer-field-group" id="signal-field-group" style="margin-top:10px;">
-        <label class="drawer-label" style="display:block;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;">Signal / Context <span style="font-size:10px;font-weight:400;">(auto-filled by Morning Scan)</span></label>
-        <textarea id="drawer-signal" class="dp-inp" rows="3" placeholder="e.g. New CRO hired from Pavilion Data -- scaled $4M to $28M ARR mid-market NA" style="font-size:12px;min-height:60px;resize:vertical;">${v(p.signal)}</textarea>
-        <div id="signal-link-wrap" style="margin-top:4px;font-size:11px;"></div>
-        <div style="margin-top:4px;display:flex;gap:6px;align-items:center;">
-          <select id="drawer-signal-type" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);">
-            <option value="">-- Signal type --</option>
-            ${(_signalTaxonomy && Object.keys(_signalTaxonomy).length
-              ? Object.values(_signalTaxonomy)
-              : [{code:'S1',label:'S1'},{code:'S2',label:'S2'},{code:'S3',label:'S3'},{code:'S4',label:'S4'}]
-            ).map(t => `<option value="${_esc(t.code)}"${p.signal_type===t.code?' selected':''}>${_esc(t.icon||'')} ${_esc(t.code)} — ${_esc(t.label||t.code)}</option>`).join('')}
-          </select>
-        </div>
-      </div>
-      <button class="btn-primary" style="width:100%;justify-content:center;margin-top:10px;" onclick="saveProspectEdit('${v(id)}')"><span data-en="Save changes" data-fr="Enregistrer les modifications">Save changes</span></button>
-      <div style="display:flex;gap:8px;margin-top:8px;">
-        <button class="btn-secondary" style="flex:1;justify-content:center" onclick="archiveProspect('${v(id)}')"><span data-en="Archive" data-fr="Archiver">Archive</span></button>
-        <button class="btn-secondary" style="flex:1;justify-content:center;color:#dc2626;border-color:#fca5a5" onclick="deleteProspect('${v(id)}')"><span data-en="Delete" data-fr="Supprimer">Delete</span></button>
-      </div>
-    </div>`;
+    ${card(
+      lbl('Contact') +
+      `<input id="ed-name" class="dp-inp" value="${v(p.name || fb.name)}" placeholder="Name">` +
+      `<input id="ed-company" class="dp-inp" value="${v(p.company || fb.company)}" placeholder="Company">` +
+      `<input id="ed-title" class="dp-inp" value="${v(p.title)}" placeholder="Title">` +
+      `<div style="display:flex;gap:8px">` +
+        `<input id="ed-email" class="dp-inp" value="${v(p.email)}" placeholder="Email" style="flex:1;min-width:0">` +
+        `<button id="find-email-${id}" onclick="_findEmailDrawer('${id}')" style="font-size:12px;white-space:nowrap;padding:6px 12px;background:#1a2b5e;color:#fff;border:none;border-radius:6px;cursor:pointer">Find email</button>` +
+      `</div>` +
+      `<span id="email-status-${id}" style="font-size:11px;color:#6b7a99"></span>` +
+      `<div style="display:flex;gap:8px">` +
+        `<input id="ed-phone" class="dp-inp" value="${v(p.phone)}" placeholder="Phone" style="flex:1;min-width:0">` +
+        `<button id="find-phone-${id}" onclick="_findPhoneDrawer('${id}')" style="font-size:12px;white-space:nowrap;padding:6px 12px;background:#1a2b5e;color:#fff;border:none;border-radius:6px;cursor:pointer">Find phone</button>` +
+      `</div>` +
+      `<span id="phone-status-${id}" style="font-size:11px;color:#6b7a99"></span>` +
+      `<input id="ed-linkedin" class="dp-inp" value="${v(p.linkedin)}" placeholder="LinkedIn URL">`
+    )}
+    ${card(
+      lbl('Classification') +
+      `<div class="classification-grid">` +
+        `<input id="ed-sector" class="dp-inp" value="${v(p.sector || fb.sector)}" placeholder="Sector">` +
+        `<input id="ed-country" class="dp-inp" value="${v(p.country)}" placeholder="Country">` +
+        `<select id="ed-region" class="dp-inp"><option value="EMEA"${rt === 'EMEA' ? ' selected' : ''}>EMEA</option><option value="NA"${rt === 'NA' ? ' selected' : ''}>NA</option><option value="APAC"${rt === 'APAC' ? ' selected' : ''}>APAC</option><option value="LATAM"${rt === 'LATAM' ? ' selected' : ''}>LATAM</option></select>` +
+        `<select id="ed-stage" class="dp-inp">${opts}</select>` +
+      `</div>` +
+      `<div>` +
+        `<p style="font-size:11px;color:var(--muted);font-weight:600;letter-spacing:0.02em;margin:0 0 6px">Contact type</p>` +
+        `<div style="display:flex;gap:8px">` +
+          `<button id="origin-network-${id}" onclick="_setOrigin('${id}','network')" style="font-size:12px;padding:5px 12px;border-radius:6px;cursor:pointer;border:1px solid ${p.origin==='network'?'#1a2b5e':'var(--border)'};background:${p.origin==='network'?'#1a2b5e':'var(--white)'};color:${p.origin==='network'?'#fff':'var(--text)'}">Known contact</button>` +
+          `<button id="origin-outbound-${id}" onclick="_setOrigin('${id}','outbound')" style="font-size:12px;padding:5px 12px;border-radius:6px;cursor:pointer;border:1px solid ${p.origin!=='network'?'#1a2b5e':'var(--border)'};background:${p.origin!=='network'?'#1a2b5e':'var(--white)'};color:${p.origin!=='network'?'#fff':'var(--text)'}">New prospect</button>` +
+        `</div>` +
+      `</div>`
+    )}
+    ${card(
+      lbl('Signal / Context') +
+      `<textarea id="drawer-signal" class="dp-inp" rows="3" placeholder="e.g. New CRO hired from Pavilion Data -- scaled $4M to $28M ARR mid-market NA" style="font-size:12px;min-height:60px;resize:vertical">${v(p.signal)}</textarea>` +
+      `<div id="signal-link-wrap" style="font-size:11px"></div>` +
+      `<select id="drawer-signal-type" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text)">` +
+        `<option value="">-- Signal type --</option>` +
+        `${(_signalTaxonomy && Object.keys(_signalTaxonomy).length ? Object.values(_signalTaxonomy) : [{code:'S1',label:'S1'},{code:'S2',label:'S2'},{code:'S3',label:'S3'},{code:'S4',label:'S4'}]).map(t => `<option value="${_esc(t.code)}"${p.signal_type===t.code?' selected':''}>${_esc(t.icon||'')} ${_esc(t.code)} — ${_esc(t.label||t.code)}</option>`).join('')}` +
+      `</select>`
+    )}
+    <textarea id="ed-notes" class="dp-inp" placeholder="Notes" style="min-height:60px;resize:vertical">${v(p.notes)}</textarea>
+    <button class="btn-primary" style="width:100%;justify-content:center" onclick="saveProspectEdit('${v(id)}')"><span data-en="Save changes" data-fr="Enregistrer les modifications">Save changes</span></button>
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button class="btn-secondary" style="flex:1;justify-content:center" onclick="archiveProspect('${v(id)}')"><span data-en="Archive" data-fr="Archiver">Archive</span></button>
+      <button class="btn-secondary" style="flex:1;justify-content:center;color:#dc2626;border-color:#fca5a5" onclick="deleteProspect('${v(id)}')"><span data-en="Delete" data-fr="Supprimer">Delete</span></button>
+    </div>
+  </div>`;
 }
 async function saveProspectEdit(id){
   if (!id) return;
