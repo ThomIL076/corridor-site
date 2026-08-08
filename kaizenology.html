@@ -845,6 +845,111 @@ h1, h2, .section-title, .k-card-name, .k-card-company { overflow-wrap:break-word
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
+
+/* ═══ NEW SIDEBAR nav — visible only when body.new-nav (?newnav=1) ═══ */
+.new-sidebar {
+  position: fixed;
+  left: 0; top: 0; bottom: 0;
+  width: 220px;
+  background: #12213f;
+  z-index: 202;
+  display: none;
+  flex-direction: column;
+  overflow-y: auto;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  --sidebar-label-size: 13px;
+}
+body.new-nav .new-sidebar { display: flex; }
+body.new-nav { padding-left: 220px; }
+body.new-nav nav { left: 220px; }
+
+.snav-logo {
+  padding: 20px 18px 16px;
+  display: flex; align-items: center; gap: 9px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  flex-shrink: 0;
+}
+.snav-logo-mark {
+  display: grid; grid-template-columns: 8px 8px; grid-template-rows: 8px 8px; gap: 2px; flex-shrink: 0;
+}
+.snav-logo-mark span { border-radius: 2px; }
+.snav-logo-mark span:nth-child(1), .snav-logo-mark span:nth-child(4) { background: #fff; }
+.snav-logo-mark span:nth-child(2), .snav-logo-mark span:nth-child(3) { background: #5B9CF6; }
+.snav-logo-text { font-weight: 800; font-size: 13px; letter-spacing: 2.5px; color: #fff; }
+
+.snav-section { padding: 6px 10px 2px; flex-shrink: 0; }
+.snav-section + .snav-section { margin-top: 14px; }
+.snav-section-label {
+  display: block; font-size: var(--sidebar-label-size); font-weight: 500; letter-spacing: 0.03em;
+  color: #B7BFD6; padding: 14px 8px 4px;
+}
+.snav-item {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; text-align: left;
+  padding: 8px 10px; border-radius: 7px; border: none;
+  background: transparent; cursor: pointer;
+  font-size: 13px; font-weight: 500; color: #EDEFF6;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  transition: background-color 150ms ease;
+}
+.snav-item:hover { background-color: rgba(255,255,255,0.08); }
+.snav-item.active { background: rgba(255,255,255,0.08); color: #5B9CF6; font-weight: 600; }
+.snav-sub { padding-left: 26px; font-size: 12.5px; color: #EDEFF6; }
+.snav-sub.active { color: #5B9CF6; }
+.snav-group { width: 100%; }
+.snav-group-toggle { justify-content: space-between; }
+.snav-chevron {
+  font-size: 14px; flex-shrink: 0; margin-left: auto;
+  display: inline-block; transition: transform 200ms ease;
+  color: rgba(255,255,255,0.4);
+}
+.snav-group.open .snav-chevron { transform: rotate(90deg); }
+.snav-group-items {
+  max-height: 0; overflow: hidden;
+  transition: max-height 250ms ease;
+}
+.snav-group.open .snav-group-items { max-height: 300px; }
+.snav-icon { font-size: 13px; width: 16px; text-align: center; flex-shrink: 0; line-height: 1; }
+.snav-footer { padding: 4px 10px 8px; border-top: 1px solid rgba(255,255,255,0.08); flex-shrink: 0; margin-top: 14px; }
+.snav-scanner-zone {
+  padding: 4px 10px 14px; flex-shrink: 0;
+  border-top: 1px solid rgba(255,255,255,0.18);
+  margin-top: auto;
+}
+/* Hamburger trigger (mobile only) */
+.snav-hamburger {
+  display: none;
+  position: fixed; top: 17px; left: 12px; z-index: 203;
+  background: #12213f; border: none; border-radius: 7px;
+  width: 38px; height: 38px; cursor: pointer;
+  align-items: center; justify-content: center;
+  flex-direction: column; gap: 5px; padding: 0;
+}
+.snav-hamburger span {
+  display: block; width: 20px; height: 2px;
+  background: #fff; border-radius: 2px;
+}
+/* Backdrop overlay */
+.snav-backdrop {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.5); z-index: 201;
+}
+/* Mobile: sidebar becomes off-canvas overlay */
+@media (max-width: 768px) {
+  body.new-nav { padding-left: 0; }
+  body.new-nav nav { left: 0; padding-left: 60px; }
+  body.new-nav .snav-logo { padding-left: 54px; }
+  body.new-nav .new-sidebar {
+    transform: translateX(-220px);
+    transition: transform 250ms ease;
+  }
+  body.new-nav.snav-open .new-sidebar {
+    transform: translateX(0);
+    box-shadow: 6px 0 24px rgba(0,0,0,0.35);
+  }
+  body.new-nav .snav-hamburger { display: flex; }
+  body.new-nav.snav-open .snav-backdrop { display: block; }
+}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
@@ -901,6 +1006,85 @@ h1, h2, .section-title, .k-card-name, .k-card-company { overflow-wrap:break-word
     <div style="margin-top:18px;"><button id="blocked-signout" onclick="signOut()" style="background:transparent;border:none;color:#93A8D4;font-size:13px;cursor:pointer;text-decoration:underline;font-family:inherit;">Sign out</button></div>
   </div>
 </div>
+
+<!-- ═══ NEW SIDEBAR (visible only with ?newnav=1) ═══ -->
+<aside class="new-sidebar" id="new-sidebar" aria-label="Main navigation">
+  <div class="snav-logo">
+    <div class="snav-logo-mark"><span></span><span></span><span></span><span></span></div>
+    <span class="snav-logo-text">CORRIDOR</span>
+  </div>
+  <div class="snav-section">
+    <button class="snav-item" data-nav="pipeline" onclick="_switchNewNav('pipeline')">
+      <span class="snav-icon">📊</span> Pipeline
+    </button>
+    <button class="snav-item" data-nav="send" onclick="_switchNewNav('send')">
+      <span class="snav-icon">📤</span> Send
+    </button>
+  </div>
+  <div class="snav-section">
+    <span class="snav-section-label">Intelligence</span>
+    <button class="snav-item snav-sub" data-nav="system-signals" onclick="_switchNewNav('system','signals')">
+      <span class="snav-icon">🚨</span> Signals
+    </button>
+    <button class="snav-item snav-sub" data-nav="system-pipeintel" onclick="_switchNewNav('system','pipeintel')">
+      <span class="snav-icon">📈</span> Pipeline health
+    </button>
+    <button class="snav-item snav-sub" data-nav="system-weekly" onclick="_switchNewNav('system','weekly')">
+      <span class="snav-icon">📋</span> Reports
+    </button>
+  </div>
+  <div class="snav-section">
+    <span class="snav-section-label">Agents</span>
+    <button class="snav-item" data-nav="agent-cmo" onclick="_switchSidebarAgent('cmo')">
+      <span class="snav-icon">🎯</span> CMO Orchestrator
+    </button>
+    <div class="snav-group">
+      <button class="snav-item snav-group-toggle" onclick="_toggleSnavGroup(this)">
+        <span class="snav-icon">✍️</span> Content
+        <span class="snav-chevron">›</span>
+      </button>
+      <div class="snav-group-items">
+        <button class="snav-item snav-sub" data-nav="agent-positioning" onclick="_switchSidebarAgent('positioning')"><span class="snav-icon">🧭</span> Positioning Analyst</button>
+        <button class="snav-item snav-sub" data-nav="agent-content" onclick="_switchSidebarAgent('content')"><span class="snav-icon">✍️</span> Content Strategist</button>
+        <button class="snav-item snav-sub" data-nav="agent-copywriter" onclick="_switchSidebarAgent('copywriter')"><span class="snav-icon">✏️</span> Copywriter</button>
+        <button class="snav-item snav-sub" data-nav="agent-repurposing" onclick="_switchSidebarAgent('repurposing')"><span class="snav-icon">♻️</span> Repurposing Engine</button>
+        <button class="snav-item snav-sub" data-nav="agent-seo" onclick="_switchSidebarAgent('seo')"><span class="snav-icon">🔎</span> SEO &amp; AEO</button>
+        <button class="snav-item snav-sub" data-nav="agent-distribution" onclick="_switchSidebarAgent('distribution')"><span class="snav-icon">📡</span> Distribution Manager</button>
+        <button class="snav-item snav-sub" data-nav="agent-performance" onclick="_switchSidebarAgent('performance')"><span class="snav-icon">📊</span> Performance Analyst</button>
+      </div>
+    </div>
+    <div class="snav-group">
+      <button class="snav-item snav-group-toggle" onclick="_toggleSnavGroup(this)">
+        <span class="snav-icon">🚀</span> GTM
+        <span class="snav-chevron">›</span>
+      </button>
+      <div class="snav-group-items">
+        <button class="snav-item snav-sub" data-nav="agent-competitive" onclick="_switchSidebarAgent('competitive')"><span class="snav-icon">⚔️</span> Competitive Intel</button>
+        <button class="snav-item snav-sub" data-nav="agent-prospect" onclick="_switchSidebarAgent('prospect')"><span class="snav-icon">🔍</span> Prospect Agent</button>
+        <button class="snav-item snav-sub" data-nav="agent-objection" onclick="_switchSidebarAgent('objection')"><span class="snav-icon">🛡️</span> Objection Handler</button>
+      </div>
+    </div>
+  </div>
+  <div class="snav-footer">
+    <button class="snav-item" data-nav="clients" onclick="alert('Coming soon')">
+      <span class="snav-icon">🏢</span> Clients
+    </button>
+    <button class="snav-item" data-nav="stats" onclick="_switchNewNav('stats')">
+      <span class="snav-icon">📈</span> Stats
+    </button>
+  </div>
+  <div class="snav-scanner-zone">
+    <button class="snav-item" data-nav="scanner" onclick="_switchNewNav('scanner')">
+      <span class="snav-icon">🔍</span> Scanner
+    </button>
+  </div>
+</aside>
+
+<!-- Hamburger + backdrop (mobile, ?newnav=1) -->
+<button class="snav-hamburger" id="snav-hamburger" onclick="_toggleSnavMenu()" aria-label="Open navigation">
+  <span></span><span></span><span></span>
+</button>
+<div class="snav-backdrop" id="snav-backdrop" onclick="_toggleSnavMenu()"></div>
 
 <!-- NAV -->
 <nav aria-label="Primary navigation">
@@ -1636,6 +1820,52 @@ h1, h2, .section-title, .k-card-name, .k-card-company { overflow-wrap:break-word
 </footer>
 
 <script>
+// ─── NEW SIDEBAR (SHOW_NEW_NAV — ?newnav=1) ─────────────────────────────────
+const SHOW_NEW_NAV = new URLSearchParams(location.search).get('newnav') === '1';
+let _sysNavHint = null; // signals | pipeintel | weekly
+
+function _newNavActive(key) {
+  if (!SHOW_NEW_NAV) return;
+  document.querySelectorAll('.snav-item').forEach(el => el.classList.remove('active'));
+  const el = document.querySelector('.snav-item[data-nav="' + key + '"]');
+  if (el) el.classList.add('active');
+}
+
+function _switchNewNav(tab, sysHint) {
+  if (sysHint) _sysNavHint = sysHint;
+  switchTab(tab);
+  _newNavActive(sysHint ? tab + '-' + sysHint : tab);
+  _closeSnav();
+}
+
+function _switchSidebarAgent(name) {
+  switchTab('agents');
+  if (typeof switchAgent === 'function') switchAgent(name);
+  _newNavActive('agent-' + name);
+  _closeSnav();
+}
+
+function _toggleSnavGroup(btn) {
+  btn.closest('.snav-group').classList.toggle('open');
+}
+
+function _toggleSnavMenu() {
+  document.body.classList.toggle('snav-open');
+}
+
+function _closeSnav() {
+  document.body.classList.remove('snav-open');
+}
+
+if (SHOW_NEW_NAV) {
+  document.addEventListener('DOMContentLoaded', function() {
+    document.body.classList.add('new-nav');
+    switchTab('pipeline');
+    _newNavActive('pipeline');
+  });
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 const API_URL = '/api/generate';
 let CLIENT_ID = 'thomas'; // identifiant d'instance — résolu dynamiquement dans loadClientProfile()
 let activeMandateId = null; // null = vue consolidée (tous mandats), sinon uuid du mandat actif
