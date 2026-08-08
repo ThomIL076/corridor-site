@@ -462,6 +462,11 @@ footer a { color:var(--navy); text-decoration:none; font-weight:600; }
 }
 
 /* ── SYSTEM IN ACTION (Module 07) ── */
+.sys-tabs { display:flex; gap:2px; border-bottom:1px solid var(--border); margin:0 0 24px; }
+.sys-tab { padding:10px 18px; font-size:11px; font-weight:700; letter-spacing:0.8px; text-transform:uppercase; color:var(--text-secondary); background:none; border:none; border-bottom:2px solid transparent; cursor:pointer; font-family:inherit; transition:color 0.15s,border-color 0.15s; }
+.sys-tab:hover { color:#2568B5; }
+.sys-tab.active { color:#2568B5; border-bottom-color:#3B8BD4; }
+.sys-live-badge { display:inline-block; background:#d1fae5; color:#1D9E75; font-size:10px; font-weight:700; letter-spacing:0.8px; text-transform:uppercase; padding:2px 7px; border-radius:10px; vertical-align:middle; }
 .system-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; align-items:stretch; }
 @media(max-width:1100px){ .system-grid { grid-template-columns:repeat(2,1fr); } }
 @media(max-width:560px){ .system-grid { grid-template-columns:1fr; } }
@@ -1689,109 +1694,69 @@ body.new-nav { padding-left: 220px; }
 
   <!-- ══ TAB 6: SYSTEM IN ACTION ══ -->
   <div class="tab-panel" id="tab-system">
-    <div class="section-header">
-      <div class="section-eyebrow" data-en="Module 07 · System in Action" data-fr="Module 07 · Le système en action">Module 07 · System in Action</div>
-      <div class="section-title" data-en="The system, running live." data-fr="Le système, en marche.">The system, running live.</div>
-      <div class="section-sub" data-en="Three things Corridor does for you automatically, every day. Generated live, not screenshots." data-fr="Trois choses que Corridor fait pour vous automatiquement, chaque jour. Générées en direct, pas des captures d'écran.">Three things Corridor does for you automatically, every day. Generated live, not screenshots.</div>
+
+    <!-- Sub-nav -->
+    <div class="sys-tabs">
+      <button class="sys-tab active" data-sys="signals" onclick="_switchSysTab('signals')">Signals</button>
+      <button class="sys-tab" data-sys="pipeintel" onclick="_switchSysTab('pipeintel')">Pipeline health</button>
+      <button class="sys-tab" data-sys="reports" onclick="_switchSysTab('reports')">Reports</button>
     </div>
 
-    <div class="system-grid">
-
-      <!-- Sub-module 1: Morning Scan -->
-      <div class="card system-card">
-        <div class="card-header">
-          <span class="card-title" data-en="🌅 Morning Scan" data-fr="🌅 Briefing du matin">🌅 Morning Scan</span>
-          <span class="card-badge badge-auto" data-en="DAILY" data-fr="QUOTIDIEN">DAILY</span>
-        </div>
-        <div class="system-desc system-card-desc" data-en="Your daily briefing: hottest prospects, overnight signals, follow-ups due." data-fr="Votre briefing quotidien : prospects les plus chauds, signaux de la nuit, relances à faire.">Your daily briefing: hottest prospects, overnight signals, follow-ups due.</div>
-        <button class="btn-primary system-btn system-card-btn" onclick="runMorningScan()" id="morning-btn">
-          <span data-en="▶ Run Morning Scan" data-fr="▶ Lancer le briefing">▶ Run Morning Scan</span>
+    <!-- ── Signals ── -->
+    <div class="sys-panel" id="syspanel-signals">
+      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
+        <button class="btn-primary system-btn" onclick="runMorningScan()" id="morning-btn" style="flex:1;min-width:160px;margin-bottom:0;">
+          <span data-en="▶ Morning Scan" data-fr="▶ Briefing du matin">▶ Morning Scan</span>
         </button>
-        <div class="ai-box">
+        <div class="ai-spinner" id="morning-spinner"></div>
+        <button class="btn-primary system-btn system-btn-alert" onclick="runLiveAlert()" id="alert-btn" style="flex:1;min-width:160px;margin-bottom:0;">
+          <span data-en="▶ Live Alert" data-fr="▶ Alerte en direct">▶ Live Alert</span>
+        </button>
+        <div class="ai-spinner" id="alert-spinner"></div>
+      </div>
+      <div id="signals-feed"></div>
+    </div>
+
+    <!-- ── Pipeline health ── -->
+    <div class="sys-panel" id="syspanel-pipeintel" style="display:none;">
+      <button class="btn-primary system-btn system-card-btn" onclick="runPipelineIntel()" id="pipeintel-btn" style="margin-bottom:16px;">
+        <span data-en="▶ Scan New Prospects" data-fr="▶ Scanner les nouveaux prospects">▶ Scan New Prospects</span>
+      </button>
+      <div class="ai-box" style="margin-bottom:24px;">
+        <div class="ai-box-header">
+          <span class="ai-box-label" data-en="New This Week" data-fr="Nouveaux cette semaine">New This Week</span>
+          <div class="ai-spinner" id="pipeintel-spinner"></div>
+        </div>
+        <div class="ai-box-body" id="pipeintel-output" data-en="Prospects will appear here..." data-fr="Les prospects apparaîtront ici...">Prospects will appear here...</div>
+      </div>
+      <div class="card system-review-card">
+        <div class="card-header" style="min-height:60px;align-items:flex-start;">
+          <span class="card-title" data-en="📊 Pipeline Reviewer" data-fr="📊 Revue pipeline">📊 Pipeline Reviewer</span>
+          <span class="card-badge badge-review" data-en="ON DEMAND" data-fr="A LA DEMANDE">ON DEMAND</span>
+        </div>
+        <div class="system-desc" style="min-height:40px;margin-bottom:14px;" data-en="Full pipeline health check: every active prospect classified RED (action required), AMBER (watch), or GREEN (on track)." data-fr="Bilan pipeline complet : chaque prospect actif classé RED, AMBER ou GREEN.">Full pipeline health check: every active prospect classified RED (action required), AMBER (watch), or GREEN (on track).</div>
+        <button class="btn-primary system-btn system-card-btn" onclick="_runPipelineReview()" id="pr-run-btn" style="max-width:280px;">
+          <span data-en="▶ Run Pipeline Review" data-fr="▶ Lancer la revue pipeline">▶ Run Pipeline Review</span>
+        </button>
+        <div class="ai-box" style="margin-top:14px;">
           <div class="ai-box-header">
-            <span class="ai-box-label" data-en="Daily Briefing" data-fr="Briefing quotidien">Daily Briefing</span>
-            <div class="ai-spinner" id="morning-spinner"></div>
+            <span class="ai-box-label" data-en="Pipeline Status" data-fr="Statut pipeline">Pipeline Status</span>
+            <div class="ai-spinner" id="pr-spinner"></div>
           </div>
-          <div class="ai-box-body" id="morning-output" data-en="Briefing will appear here..." data-fr="Le briefing apparaîtra ici...">Briefing will appear here...</div>
+          <div class="ai-box-body" id="pr-output" data-en="Click to run the pipeline review..." data-fr="Cliquez pour lancer la revue pipeline...">Click to run the pipeline review...</div>
         </div>
       </div>
+    </div>
 
-      <!-- Sub-module 2: Pipeline Intelligence -->
-      <div class="card system-card">
-        <div class="card-header">
-          <span class="card-title" data-en="🧲 Pipeline Intelligence" data-fr="🧲 Intelligence pipeline">🧲 Pipeline Intelligence</span>
-          <span class="card-badge badge-auto" data-en="WEEKLY" data-fr="HEBDO">WEEKLY</span>
-        </div>
-        <div class="system-desc system-card-desc" data-en="New prospects detected this week, scored and ready to activate." data-fr="Nouveaux prospects détectés cette semaine, scorés et prêts à activer.">New prospects detected this week, scored and ready to activate.</div>
-        <button class="btn-primary system-btn system-card-btn" onclick="runPipelineIntel()" id="pipeintel-btn">
-          <span data-en="▶ Scan New Prospects" data-fr="▶ Scanner les nouveaux prospects">▶ Scan New Prospects</span>
-        </button>
-        <div class="ai-box">
-          <div class="ai-box-header">
-            <span class="ai-box-label" data-en="New This Week" data-fr="Nouveaux cette semaine">New This Week</span>
-            <div class="ai-spinner" id="pipeintel-spinner"></div>
-          </div>
-          <div class="ai-box-body" id="pipeintel-output" data-en="Prospects will appear here..." data-fr="Les prospects apparaîtront ici...">Prospects will appear here...</div>
-        </div>
-      </div>
-
-      <!-- Sub-module 3: Live Signal Alert -->
-      <div class="card system-card system-alert-card">
-        <div class="card-header">
-          <span class="card-title" data-en="🚨 Live Signal Alert" data-fr="🚨 Alerte signal en direct">🚨 Live Signal Alert</span>
-          <span class="card-badge badge-urgent" data-en="URGENT" data-fr="URGENT">URGENT</span>
-        </div>
-        <div class="system-desc system-card-desc" data-en="What lands in your inbox the moment a strong buying signal fires." data-fr="Ce qui arrive dans votre boîte mail à l'instant où un signal d'achat fort se déclenche.">What lands in your inbox the moment a strong buying signal fires.</div>
-        <button class="btn-primary system-btn system-btn-alert system-card-btn" onclick="runLiveAlert()" id="alert-btn">
-          <span data-en="▶ Trigger Alert" data-fr="▶ Déclencher l'alerte">▶ Trigger Alert</span>
-        </button>
-        <div class="ai-box system-alert-box">
-          <div class="ai-box-header system-alert-header">
-            <span class="ai-box-label" data-en="🚨 System Alert" data-fr="🚨 Alerte système">🚨 System Alert</span>
-            <div class="ai-spinner" id="alert-spinner"></div>
-          </div>
-          <div class="ai-box-body" id="alert-output" data-en="Alert will appear here..." data-fr="L'alerte apparaîtra ici...">Alert will appear here...</div>
-        </div>
-      </div>
-
-      <!-- Sub-module 4: Weekly Report -->
-      <div class="card system-card">
-        <div class="card-header">
-          <span class="card-title" data-en="📋 Weekly Report" data-fr="📋 Rapport hebdo">📋 Weekly Report</span>
-          <span class="card-badge badge-auto" data-en="AUTO" data-fr="AUTO">AUTO</span>
-        </div>
-        <div class="system-desc system-card-desc" data-en="Your automated end-of-week summary. Sent every Friday at 18h00." data-fr="Votre synthèse de fin de semaine automatisée. Envoyée chaque vendredi à 18h00.">Your automated end-of-week summary. Sent every Friday at 18h00.</div>
-        <button class="btn-primary system-btn system-card-btn" onclick="runWeeklyReport()" id="weekly-btn">
+    <!-- ── Reports ── -->
+    <div class="sys-panel" id="syspanel-reports" style="display:none;">
+      <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;">
+        <button class="btn-primary system-btn system-card-btn" onclick="runWeeklyReport()" id="weekly-btn" style="margin-bottom:0;">
           <span data-en="▶ Generate Report" data-fr="▶ Générer le rapport">▶ Generate Report</span>
         </button>
-        <div class="ai-box">
-          <div class="ai-box-header">
-            <span class="ai-box-label" data-en="Weekly Summary" data-fr="Synthèse hebdo">Weekly Summary</span>
-            <div class="ai-spinner" id="weekly-spinner"></div>
-          </div>
-          <div class="ai-box-body" id="weekly-output" data-en="Report will appear here..." data-fr="Le rapport apparaîtra ici...">Report will appear here...</div>
-        </div>
+        <div class="ai-spinner" id="weekly-spinner"></div>
       </div>
-
-    </div>
-
-    <!-- ── MODULE 07: PIPELINE REVIEWER ── -->
-    <div class="card system-review-card" style="margin-top:24px;">
-      <div class="card-header" style="min-height:60px; align-items:flex-start;">
-        <span class="card-title" data-en="&#x1F4CA; Pipeline Reviewer" data-fr="&#x1F4CA; Revue pipeline">&#x1F4CA; Pipeline Reviewer</span>
-        <span class="card-badge badge-review" data-en="ON DEMAND" data-fr="A LA DEMANDE">ON DEMAND</span>
-      </div>
-      <div class="system-desc" style="min-height:40px; margin-bottom:14px;" data-en="Full pipeline health check: every active prospect classified RED (action required), AMBER (watch), or GREEN (on track). Click any row to open the prospect." data-fr="Bilan pipeline complet : chaque prospect actif classe RED (action requise), AMBER (a surveiller) ou GREEN (en bonne voie). Cliquez sur une ligne pour ouvrir la fiche.">Full pipeline health check: every active prospect classified RED (action required), AMBER (watch), or GREEN (on track).</div>
-      <button class="btn-primary system-btn system-card-btn" onclick="_runPipelineReview()" id="pr-run-btn" style="max-width:280px;">
-        <span data-en="&#x25B6; Run Pipeline Review" data-fr="&#x25B6; Lancer la revue pipeline">&#x25B6; Run Pipeline Review</span>
-      </button>
-      <div class="ai-box" style="margin-top:14px;">
-        <div class="ai-box-header">
-          <span class="ai-box-label" data-en="Pipeline Status" data-fr="Statut pipeline">Pipeline Status</span>
-          <div class="ai-spinner" id="pr-spinner"></div>
-        </div>
-        <div class="ai-box-body" id="pr-output" data-en="Click to run the pipeline review..." data-fr="Cliquez pour lancer la revue pipeline...">Click to run the pipeline review...</div>
-      </div>
+      <div id="weekly-reports-list"></div>
     </div>
 
   </div>
@@ -1813,10 +1778,82 @@ function _newNavActive(key) {
   if (el) el.classList.add('active');
 }
 
+let _morningItems = [];
+let _liveAlertItems = [];
+
+function _renderSignalsFeed() {
+  const feed = document.getElementById('signals-feed');
+  if (!feed) return;
+  const items = [..._morningItems, ..._liveAlertItems]
+    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+  if (!items.length) {
+    feed.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;padding:16px 0;">Run Morning Scan or Live Alert to populate the feed.</div>';
+    return;
+  }
+  feed.innerHTML = items.map(item => {
+    const ts = new Date(item.timestamp);
+    const tsStr = isNaN(ts) ? '' : ts.toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+    const badge = item.type === 'live'
+      ? '<span class="sys-live-badge">Live</span>'
+      : '<span style="display:inline-block;background:#dbeafe;color:#3B8BD4;font-size:10px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;padding:2px 7px;border-radius:10px;vertical-align:middle;">Morning</span>';
+    const labelHtml = item.label
+      ? `<span style="font-weight:600;font-size:12px;color:var(--text-primary);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_esc(item.label)}</span>`
+      : '';
+    const header = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">${badge}${labelHtml}<span style="font-size:11px;color:var(--text-secondary);white-space:nowrap;margin-left:auto;">${tsStr}</span></div>`;
+    const bodyHtml = item.type === 'morning'
+      ? `<div>${renderMarkdown(item.content)}</div>`
+      : `<div style="font-size:13px;line-height:1.6;white-space:pre-wrap;color:var(--text-primary);">${_esc(item.content)}</div>`;
+    return `<div style="border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:12px;">${header}${bodyHtml}</div>`;
+  }).join('');
+}
+
+let _weeklyReport = null;
+
+function _renderWeeklyList() {
+  const list = document.getElementById('weekly-reports-list');
+  if (!list) return;
+  if (!_weeklyReport) {
+    list.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;padding:16px 0;">No report generated yet. Click Generate Report to run.</div>';
+    return;
+  }
+  const { date, summary, fullHtml } = _weeklyReport;
+  const d = new Date(date);
+  const mon = new Date(d);
+  const dow = mon.getDay();
+  mon.setDate(mon.getDate() - (dow === 0 ? 6 : dow - 1));
+  const weekLabel = 'Week of ' + mon.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+  const tsStr = d.toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  list.innerHTML = `<div style="border:1px solid var(--border);border-radius:10px;padding:14px 16px;">
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:0;">
+      <span style="font-size:11px;font-weight:700;color:var(--text-secondary);white-space:nowrap;">${_esc(weekLabel)}</span>
+      <span style="flex:1;font-size:13px;color:var(--text-primary);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${_esc(summary)}">${_esc(summary)}</span>
+      <span style="font-size:11px;color:var(--text-secondary);white-space:nowrap;">${tsStr}</span>
+      <button onclick="_toggleWeeklyView(this)" style="font-size:11px;font-weight:700;padding:4px 12px;background:var(--border);color:var(--text-primary);border:none;border-radius:6px;cursor:pointer;white-space:nowrap;flex-shrink:0;">View</button>
+    </div>
+    <div id="weekly-full-view" style="display:none;margin-top:14px;border-top:1px solid var(--border);padding-top:14px;font-size:13px;line-height:1.6;">${fullHtml}</div>
+  </div>`;
+}
+
+function _toggleWeeklyView(btn) {
+  const full = document.getElementById('weekly-full-view');
+  if (!full) return;
+  const open = full.style.display === 'none';
+  full.style.display = open ? '' : 'none';
+  if (btn) btn.textContent = open ? 'Close' : 'View';
+}
+
+function _switchSysTab(key) {
+  document.querySelectorAll('#tab-system .sys-tab').forEach(b => b.classList.toggle('active', b.dataset.sys === key));
+  document.querySelectorAll('#tab-system .sys-panel').forEach(p => { p.style.display = p.id === 'syspanel-' + key ? '' : 'none'; });
+  const sidebarKey = key === 'reports' ? 'weekly' : key;
+  _newNavActive('system-' + sidebarKey);
+}
+
 function _switchNewNav(tab, sysHint) {
   if (sysHint) _sysNavHint = sysHint;
   switchTab(tab);
   _newNavActive(sysHint ? tab + '-' + sysHint : tab);
+  if (tab === 'system' && sysHint) _switchSysTab(sysHint === 'weekly' ? 'reports' : sysHint);
   _closeSnav();
 }
 
@@ -2245,6 +2282,7 @@ function renderMarkdown(text) {
     .replace(/^---+$/gm, '')            // supprime les lignes --- (séparateurs markdown)
     .replace(/—/g, '')                  // supprime les em-dashes
     .replace(/\n{3,}/g, '\n\n')          // réduit 3+ sauts consécutifs à 2 max
+    .replace(/^#{1,6}\s*$/gm, '')        // supprime les ## orphelins sans contenu (section vide)
     .replace(/^### (.+)$/gm, '<h4 style="font-size:13px;font-weight:700;color:var(--navy);margin:14px 0 6px">$1</h4>')
     .replace(/^## (.+)$/gm, '<h3 style="font-size:14px;font-weight:700;color:var(--navy);margin:16px 0 8px">$1</h3>')
     .replace(/^# (.+)$/gm, '<h3 style="font-size:15px;font-weight:700;color:var(--navy);margin:16px 0 8px">$1</h3>')
@@ -3746,12 +3784,11 @@ function _prOpenProspect(prospectId) {
 
 async function runMorningScan() {
   const btn = document.getElementById('morning-btn');
-  const morningOut = document.getElementById('morning-output');
   const spinner = document.getElementById('morning-spinner');
   if (btn) btn.disabled = true;
   if (spinner) spinner.classList.add('active');
-  morningOut.textContent = '';
-  morningOut.classList.remove('loaded');
+  _morningItems = [];
+  _renderSignalsFeed();
 
   try {
     await loadKanban(true);
@@ -3854,16 +3891,31 @@ Max 300 words. Keep it tight and operational.`;
     if (!res.ok) throw new Error('API error ' + res.status);
     const data = await res.json();
     if (data.type === 'error') {
-      morningOut.textContent = 'API error: ' + (data.error?.message || 'please retry');
+      _morningItems = [{ timestamp: new Date().toISOString(), type: 'morning', label: 'Error', content: 'API error: ' + (data.error?.message || 'please retry') }];
+      _renderSignalsFeed();
       return;
     }
     const text = Array.isArray(data.content)
       ? data.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim() || 'No response.'
       : 'No response.';
-    morningOut.innerHTML = renderMarkdown(text);
-    morningOut.classList.add('loaded');
+    const runTs = new Date().toISOString();
+    // Parse Claude output into per-section items. Timestamp = run time (no per-item TS in generated text).
+    // Live alert items use prospect.updated_at, so a signal from 3 days ago ranks below today's morning scan — semantically correct.
+    const parts = ('\n' + text).split(/\n(?=## )/);
+    _morningItems = parts
+      .filter(s => s.startsWith('## '))
+      .map(s => {
+        const nl = s.indexOf('\n');
+        const label = nl > 0 ? s.slice(3, nl).trim() : s.slice(3).trim();
+        const content = nl > 0 ? s.slice(nl + 1).trim() : '';
+        return { timestamp: runTs, type: 'morning', label, content };
+      })
+      .filter(item => item.content);
+    if (!_morningItems.length) _morningItems = [{ timestamp: runTs, type: 'morning', label: 'Morning Scan', content: text.trim() }];
+    _renderSignalsFeed();
   } catch (e) {
-    morningOut.textContent = 'Error: ' + e.message;
+    _morningItems = [{ timestamp: new Date().toISOString(), type: 'morning', label: 'Error', content: e.message }];
+    _renderSignalsFeed();
   } finally {
     if (spinner) spinner.classList.remove('active');
     if (btn) btn.disabled = false;
@@ -3908,9 +3960,10 @@ async function runPipelineIntel() {
 
 async function runLiveAlert() {
   document.getElementById('alert-btn').disabled = true;
-  const out = document.getElementById('alert-output');
   const spin = document.getElementById('alert-spinner');
   if (spin) spin.classList.add('active');
+  _liveAlertItems = [];
+  _renderSignalsFeed();
 
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
   try {
@@ -3927,20 +3980,47 @@ async function runLiveAlert() {
       .limit(10);
 
     if (error || !signalProspects || !signalProspects.length) {
-      if (out) out.textContent = 'No new signals in the past 7 days.';
+      _liveAlertItems = [{ timestamp: new Date().toISOString(), type: 'live', label: 'No signals', content: 'No new signals in the past 7 days.' }];
+      _renderSignalsFeed();
       if (spin) spin.classList.remove('active');
       document.getElementById('alert-btn').disabled = false;
       return;
     }
 
-    const p = signalProspects[0];
-    const sigType = (p.signal_type || 'SIGNAL').toUpperCase();
-    const todayStr = new Date().toISOString().slice(0, 10);
-    const co = p.company || '';
-    const text = `Subject: New ${sigType} signal${co ? ' - ' + co : ''}\nFrom: ${CLIENT_ID === 'kaizenology' ? 'Kaizenology' : 'Corridor'} Signal Monitor\nTo: ${_senderName()}\nPriority: High\n\n${p.signal}\n\nContact: ${p.name || 'Unknown'}${co ? ' at ' + co : ''} (${p.country || p.region || p.sector || 'EMEA'}) - ICP score ${p.icp_score || 'N/A'}.\n\nRecommended action: Open their drawer and run Contact Intelligence before reaching out today (${todayStr}).`;
-    if (out) out.textContent = text;
+    // `name` IS read correctly — "Unknown" means name IS NULL in DB.
+    // Source: company-level signals from external workflow (Trigify/n8n) with no contact assigned.
+    // Not the same as the 04/08 fix (wrong field) — structurally no name to read.
+    // Filter client-side to keep excluded-count visibility; log if non-zero.
+    const _named = signalProspects.filter(p => p.name && p.name.trim());
+    const _excl = signalProspects.length - _named.length;
+    if (_excl > 0) console.warn(`[runLiveAlert] ${_excl} signal(s) excluded — name is null/empty in DB (company-level signals without assigned contact). Review in Supabase if count grows abnormally.`);
+    if (!_named.length) {
+      _liveAlertItems = [{ timestamp: new Date().toISOString(), type: 'live', label: 'No signals', content: 'No new signals with an assigned contact in the past 7 days.' }];
+      _renderSignalsFeed();
+      if (spin) spin.classList.remove('active');
+      document.getElementById('alert-btn').disabled = false;
+      return;
+    }
+
+    const runTs = new Date().toISOString();
+    _liveAlertItems = _named.map(p => {
+      const sigType = (p.signal_type || 'signal').toUpperCase();
+      const co = p.company || '';
+      const content = [
+        p.signal,
+        `ICP ${p.icp_score || 'N/A'} · ${p.country || p.region || p.sector || 'EMEA'} · Stage: ${p.stage || 'Identified'}`
+      ].filter(Boolean).join('\n');
+      return {
+        timestamp: p.updated_at || runTs,
+        type: 'live',
+        label: `${p.name}${co ? ' · ' + co : ''} [${sigType}]`,
+        content
+      };
+    });
+    _renderSignalsFeed();
   } catch(e) {
-    if (out) out.textContent = 'Error loading signals.';
+    _liveAlertItems = [{ timestamp: new Date().toISOString(), type: 'live', label: 'Error', content: 'Error loading signals.' }];
+    _renderSignalsFeed();
   }
   if (spin) spin.classList.remove('active');
   document.getElementById('alert-btn').disabled = false;
@@ -4996,6 +5076,7 @@ async function runWeeklyReport(){
   const weekStart = monday.toISOString();
 
   let interactionLines = '';
+  let _wrComputedSummary = '';
   try {
     let _wrClientId = CLIENT_ID;
     try {
@@ -5029,12 +5110,17 @@ async function runWeeklyReport(){
         const p = pById[i.prospect_id] || {};
         return `${p.name || 'Unknown'} - ${p.company || ''} - ${i.type || 'interaction'} - ${(i.created_at || '').slice(0, 10)}`;
       }).join('\n');
+      // Factual summary computed from raw data — no AI parsing needed
+      const _byType = {};
+      ints.forEach(i => { _byType[i.type] = (_byType[i.type] || 0) + 1; });
+      const _typeParts = Object.entries(_byType).sort((a, b) => b[1] - a[1]).map(([t, n]) => n + ' ' + t).join(' · ');
+      _wrComputedSummary = uniqueIds.length + ' prospect' + (uniqueIds.length !== 1 ? 's' : '') + ' contacted · ' + ints.length + ' touch' + (ints.length !== 1 ? 'es' : '') + (_typeParts ? ' (' + _typeParts + ')' : '');
     }
   } catch(e) { console.warn('weekly report fetch:', e); }
 
   if (!interactionLines) {
-    const el = document.getElementById('weekly-output');
-    if (el) el.textContent = 'No activity recorded this week.';
+    _weeklyReport = { date: new Date().toISOString(), summary: 'No activity recorded this week.', fullHtml: 'No activity recorded this week.' };
+    _renderWeeklyList();
     document.getElementById('weekly-btn').disabled = false;
     return;
   }
@@ -5065,7 +5151,13 @@ Do NOT invent names, companies, or events not listed above. Max 250 words.
 ${_noDash}
 ${_langLine()}`;
 
-  await callAI(prompt, document.getElementById('weekly-output'), 'weekly-spinner', false);
+  const _wrTempEl = document.createElement('div');
+  await callAI(prompt, _wrTempEl, 'weekly-spinner', false, 8000);
+
+  const _wrSummary = _wrComputedSummary || 'Report generated.';
+
+  _weeklyReport = { date: new Date().toISOString(), summary: _wrSummary, fullHtml: _wrTempEl.innerHTML };
+  _renderWeeklyList();
   document.getElementById('weekly-btn').disabled = false;
 }
 
