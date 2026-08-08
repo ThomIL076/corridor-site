@@ -60,12 +60,16 @@ body {
   font-size: 14px;
   line-height: 1.6;
   overflow-x: hidden;
-  padding-top: 72px;
 }
+
+/* ── TOP CHROME WRAPPER (fixed, stacks nav + bars) ── */
+.top-chrome-wrapper {
+  position: fixed; top:0; left:0; right:0; z-index:200;
+}
+body.new-nav .top-chrome-wrapper { left: 220px; }
 
 /* ── NAV ── */
 nav {
-  position: fixed; top:0; left:0; right:0; z-index:200;
   display:flex; align-items:center; justify-content:space-between; gap:12px;
   padding: 0 48px; height: 72px; box-sizing:border-box;
   background: rgba(255,255,255,0.97);
@@ -96,7 +100,6 @@ nav {
 
 /* ── ACTIVE COMPANY BANNER (cockpit, Option C) ── */
 #active-company-bar {
-  position:sticky; z-index:95;
   background:#1a2b5e; border-bottom:2px solid #2d4a9e;
   padding:12px 32px; display:flex; align-items:center; justify-content:center; gap:16px; flex-wrap:wrap;
 }
@@ -128,9 +131,6 @@ nav {
 }
 @media(max-width:560px){ #active-company-bar { padding:10px 16px; gap:10px; } #global-company { width:100%; } }
 .mandate-bar {
-  position: sticky;
-  top: var(--nav-height, 72px);
-  z-index: 90;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -822,8 +822,6 @@ h1, h2, .section-title, .k-card-name, .k-card-company { overflow-wrap:break-word
 /* ══ MOBILE FIXES — ROUND 3 : badge ACTIVE sous la rangée logo/avatar (≤480px) ══ */
 @media (max-width:480px) {
   nav { height:108px; }
-  body { padding-top: 108px; }
-  /* #active-company-bar top is set dynamically by _fixAcbTop() */
   .user-avatar { width:28px; height:28px; font-size:12px; position:absolute; left:50%; top:18px; transform:translateX(-50%); }
   .user-info { display:none; }
   /* badge ACTIVE descendu au bas du header (sous la rangée logo/avatar). height:auto override l'inline height:100%. */
@@ -848,7 +846,7 @@ h1, h2, .section-title, .k-card-name, .k-card-company { overflow-wrap:break-word
 }
 body.new-nav .new-sidebar { display: flex; }
 body.new-nav { padding-left: 220px; }
-body.new-nav nav { left: 220px; }
+@media (max-width: 768px) { body.new-nav .top-chrome-wrapper { left: 0; } }
 
 .snav-logo {
   padding: 20px 18px 16px;
@@ -1078,6 +1076,7 @@ body.new-nav nav { left: 220px; }
 <div class="snav-backdrop" id="snav-backdrop" onclick="_toggleSnavMenu()"></div>
 
 <!-- NAV -->
+<div class="top-chrome-wrapper">
 <nav aria-label="Primary navigation">
   <a href="index.html" class="logo">
     <div class="logo-mark"><span></span><span></span><span></span><span></span></div>
@@ -1102,6 +1101,9 @@ body.new-nav nav { left: 220px; }
   </div>
 </nav>
 
+<!-- Access notice -->
+<div class="access-note" style="display:none" data-en="Access granted for evaluation purposes only. Reproduction, reverse engineering, or commercial use of any system component is prohibited." data-fr="Accès accordé à des fins d'évaluation uniquement. Toute reproduction, rétro-ingénierie ou utilisation commerciale d'un composant du système est interdite.">Access granted for evaluation purposes only. Reproduction, reverse engineering, or commercial use of any system component is prohibited.</div>
+
 <!-- MANDATE SELECTOR BAR -->
 <div class="mandate-bar" id="mandate-bar" style="display:none;">
   <span class="mandate-bar-label">📁 MANDATE</span>
@@ -1110,9 +1112,6 @@ body.new-nav nav { left: 220px; }
   </select>
 </div>
 
-<!-- Access notice -->
-<div class="access-note" style="display:none" data-en="Access granted for evaluation purposes only. Reproduction, reverse engineering, or commercial use of any system component is prohibited." data-fr="Accès accordé à des fins d'évaluation uniquement. Toute reproduction, rétro-ingénierie ou utilisation commerciale d'un composant du système est interdite.">Access granted for evaluation purposes only. Reproduction, reverse engineering, or commercial use of any system component is prohibited.</div>
-
 <!-- ══ ACTIVE COMPANY BANNER (Option C: bring your own prospect) ══ -->
 <div id="active-company-bar">
   <span class="acb-label" data-en="🎯 Active company:" data-fr="🎯 Société analysée :">🎯 Active company:</span>
@@ -1120,6 +1119,7 @@ body.new-nav nav { left: 220px; }
   <button class="acb-btn" onclick="analyzeActiveCompany()"><span data-en="▶ Analyze" data-fr="▶ Analyser">▶ Analyze</span></button>
   <span id="active-company-badge" class="acb-badge" style="display:none"></span>
 </div>
+</div><!-- /.top-chrome-wrapper -->
 
 <!-- MAIN -->
 <main class="main" id="main-content" aria-label="Corridor GTM System">
@@ -2190,43 +2190,19 @@ function switchTab(name, fromClick = false) {
       window.scrollTo({ top, behavior: 'smooth' });
     }, 50);
   }
-  // Barre ACTIVE COMPANY : non sticky sur l'onglet Pipeline en mobile (scrolle avec le contenu). Desktop intact.
-  const acb = document.getElementById('active-company-bar');
-  if (acb) {
-    if (window.matchMedia('(max-width:480px)').matches && name === 'pipeline') {
-      acb.style.position = 'relative';
-      acb.style.top = 'auto';
-    } else {
-      acb.style.position = '';
-      requestAnimationFrame(_fixAcbTop);
-    }
-  }
 }
 
-// Recalcule le top de #active-company-bar a partir des hauteurs reelles de nav + tabs-nav.
-// Remplace le top:156px code en dur qui ne tient pas compte de la hauteur exacte de tabs-nav.
-function _fixAcbTop() {
-  const acb = document.getElementById('active-company-bar');
-  const mBar = document.getElementById('mandate-bar');
-  const accessNote = document.querySelector('.access-note');
-  const nav = document.querySelector('nav');
-  const tabsNav = document.querySelector('.tabs-nav');
+function _fixAcbTop() {} // replaced by ResizeObserver on .top-chrome-wrapper
 
-  let top = (nav ? nav.offsetHeight : 0) + (tabsNav ? tabsNav.offsetHeight : 0);
-
-  if (accessNote && getComputedStyle(accessNote).display !== 'none') {
-    top += accessNote.offsetHeight;
+(function() {
+  const wrapper = document.querySelector('.top-chrome-wrapper');
+  if (!wrapper) return;
+  function _syncBodyPadding() {
+    document.body.style.paddingTop = wrapper.offsetHeight + 'px';
   }
-
-  if (mBar && mBar.style.display !== 'none' && mBar.offsetHeight > 0) {
-    mBar.style.top = top + 'px';
-    top += mBar.offsetHeight;
-  }
-
-  if (!acb || acb.style.position === 'relative') return;
-  acb.style.top = top + 'px';
-}
-window.addEventListener('resize', _fixAcbTop);
+  new ResizeObserver(_syncBodyPadding).observe(wrapper);
+  _syncBodyPadding();
+})();
 
 // ── ACTIVE COMPANY (Option C: bring your own prospect) ──
 window.activeCompany = window.activeCompany || '';
@@ -7400,6 +7376,7 @@ async function loadKanban(force){
     _allProspects = _kAll;
     renderKanban(_kAll);
     initKanbanDnD();
+    requestAnimationFrame(_fixAcbTop);
     if (document.getElementById('tab-stats')?.classList.contains('active')) renderStats();
     _kanbanLoaded = true;
   } catch(e){
