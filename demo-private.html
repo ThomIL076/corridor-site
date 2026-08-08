@@ -558,7 +558,7 @@ footer a { color:var(--navy); text-decoration:none; font-weight:600; }
 .pr-group-label-green { color:var(--green); }
 .pr-summary { background:var(--navy-light); border:1px solid var(--blue-light); border-radius:8px; padding:12px 14px; margin-bottom:14px; font-size:13px; line-height:1.65; color:var(--text); }
 .pr-more { font-size:11px; color:var(--muted); text-align:center; padding:8px 0; font-style:italic; }
-.signal-badge { display:inline-flex; align-items:center; gap:4px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; padding:2px 7px; border-radius:10px; border:1px solid; white-space:nowrap; }
+.signal-badge { display:inline-flex; align-items:center; gap:4px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; padding:2px 7px; border-radius:10px; border:1px solid; white-space:nowrap; max-width:180px; overflow:hidden; text-overflow:ellipsis; }
 .signal-s1 { background:#FEF3C7; color:#92400E; border-color:#FCD34D; }
 .signal-s2 { background:#FEE2E2; color:#991B1B; border-color:#FCA5A5; }
 .signal-s3 { background:#FEE2E2; color:#991B1B; border-color:#FCA5A5; }
@@ -6932,7 +6932,8 @@ function _sigBadge(code) {
   const t = (code || '').toUpperCase();
   const known = ['S1','S2','S3','S4'];
   const cls = (known.includes(t) || (_signalTaxonomy && _signalTaxonomy[t])) ? `signal-${t.toLowerCase()}` : 'signal-generic';
-  return `<span class="signal-badge ${cls}">${_esc(_sigIcon(t))} ${_esc(_sigLabel(t))}</span>`;
+  const label = _sigLabel(t);
+  return `<span class="signal-badge ${cls}" title="${_esc(label)}">${_esc(_sigIcon(t))} ${_esc(label)}</span>`;
 }
 async function renderStatsSignal() {
   const el = document.getElementById('stats-signal-attr');
