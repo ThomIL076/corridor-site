@@ -929,6 +929,10 @@ body.new-nav nav { left: 220px; }
   .hp-btn.active { background:#1a2b5e;color:#fff;border-color:#1a2b5e; }
   .k-j5-badge { position:absolute;bottom:8px;right:8px;font-size:10px;font-weight:700;background:#f59e0b;color:#fff;border-radius:4px;padding:2px 6px;cursor:pointer;z-index:3;letter-spacing:.02em; }
   .k-j5-badge:hover { background:#d97706; }
+  .k-reply-intel { margin-top:8px;border-top:1px solid rgba(0,0,0,0.07);padding-top:7px; }
+  .k-ri-toggle { font-size:11px;color:#7c3aed;background:none;border:none;padding:0;cursor:pointer;font-family:inherit;font-weight:600; }
+  .k-ri-toggle:hover { color:#5b21b6; }
+  .k-reply-intel h1,.k-reply-intel h2,.k-reply-intel h3,.k-reply-intel h4,.k-reply-intel strong { color:#e8e8e8 !important; }
 </style>
 </head>
 <body>
@@ -5114,6 +5118,24 @@ function _renderReminder(reminderDate) {
     </div>
   </div>`;
 }
+function _reminderBannerHTML(reminderDate) {
+  const r = reminderDate ? _fmtReminder(reminderDate) : null;
+  const isoShort = reminderDate ? new Date(reminderDate).toISOString().split('T')[0] : '';
+  const label = r ? (r.overdue ? '⚠ ' + r.label : '🔔 ' + r.label) : 'No reminder set';
+  return `<div id="reminder-banner">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 16px;background:${r?(r.overdue?'#fff1f2':'#f0fdf4'):'#f8f9fb'};border-bottom:1px solid ${r?(r.overdue?'#fca5a5':'#86efac'):'var(--border)'};font-size:12px;">
+      <span style="color:${r?(r.overdue?'#dc2626':'#15803d'):'var(--dim)'}">${label}</span>
+      <a href="#" style="font-size:11px;color:var(--navy);text-decoration:underline;text-underline-offset:2px"
+        onclick="event.preventDefault();var row=document.getElementById('reminder-edit-row');row.style.display=row.style.display==='flex'?'none':'flex'">${r?'Edit':'Set'}</a>
+    </div>
+    <div id="reminder-edit-row" style="display:none;align-items:center;gap:8px;padding:8px 16px;background:#f8f9fb;border-bottom:1px solid var(--border);">
+      <input type="date" class="reminder-date-input" id="drawer-reminder-input"
+        value="${isoShort}" min="${new Date().toISOString().split('T')[0]}" style="flex:1">
+      <button class="reminder-set-btn" onclick="_saveReminder()">Set</button>
+      ${r?'<button class="reminder-clear-btn" onclick="_clearReminder()">Clear</button>':''}
+    </div>
+  </div>`;
+}
 
 async function openDrawer(card) {
   const prospectId   = card.dataset.id          || null;
@@ -5143,14 +5165,13 @@ async function openDrawer(card) {
       <button class="drawer-close" onclick="closeDrawer()" aria-label="Close prospect drawer">✕</button>
     </div>
     <div class="drawer-tabs">
-      <div class="dtab active" onclick="_switchDTab('interactions',this)">Interactions</div>
-      <div class="dtab" onclick="_switchDTab('reminder',this)">Reminder</div>
-      <div class="dtab" onclick="_switchDTab('edit',this)">Edit</div>
+      <div class="dtab active" onclick="_switchDTab('activity',this)">Activity</div>
+      <div class="dtab" onclick="_switchDTab('profile',this)">Profile</div>
+      <div class="dtab" onclick="_switchDTab('deal',this)">Deal</div>
       <div class="dtab" onclick="_switchDTab('ai',this)">AI</div>
-      <div class="dtab" id="tab-email" onclick="_switchDTab('email',this)" data-en="Email" data-fr="Email">Email</div>
-      <div class="dtab" id="tab-reply" onclick="_switchDTab('reply',this)">Reply</div>
     </div>
-    <div class="dtab-panel active" id="dpanel-interactions">
+    <div class="dtab-panel active" id="dpanel-activity">
+      ${_reminderBannerHTML(reminderDate)}
       <div class="int-log" id="drawer-int-list">
         <div class="int-empty" style="color:var(--dim);font-size:12px">Loading...</div>
       </div>
@@ -5169,32 +5190,52 @@ async function openDrawer(card) {
         </button>
       </div>
     </div>
-    <div class="dtab-panel" id="dpanel-reminder">
-      ${_renderReminder(reminderDate)}
+    <div class="dtab-panel" id="dpanel-profile">
+      ${_drawerProfileHTML(prospectId, _prospectsById[prospectId] || {}, stage, { name, company, sector })}
     </div>
-    <div class="dtab-panel" id="dpanel-edit">
-      ${_drawerEditHTML(prospectId, _prospectsById[prospectId] || {}, stage, { name, company, sector })}
-      <div class="drawer-section-title" style="margin-top:24px" data-en="Deal Value" data-fr="Valeur du deal">Deal Value</div>
-      <div class="dv-row">
-        <select id="dv-team" onchange="recalcDealValue()">
-          <option value="1-10">1-10</option>
-          <option value="11-50">11-50</option>
-          <option value="51-200">51-200</option>
-          <option value="200+">200+</option>
-        </select>
-        <select id="dv-length" onchange="recalcDealValue()">
-          <option value="3" data-en="3 months" data-fr="3 mois">3 months</option>
-          <option value="6" data-en="6 months" data-fr="6 mois" selected>6 months</option>
-          <option value="12" data-en="12 months" data-fr="12 mois">12 months</option>
-        </select>
+    <div class="dtab-panel" id="dpanel-deal">
+      <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:16px;">
+        <button onclick="_scheduleCall('${prospectId}')"
+          style="font-size:12px;padding:6px 12px;background:#f0fdf4;color:#15803d;border:1px solid #86efac;border-radius:6px;cursor:pointer;">
+          Schedule Call
+        </button>
+        <button onclick="_requestBriefing('${prospectId}')" id="briefing-btn-${prospectId}"
+          style="font-size:12px;padding:6px 12px;background:#fffbeb;color:#b45309;border:1px solid #fcd34d;border-radius:6px;cursor:pointer;">
+          Call Briefing
+        </button>
+        <span id="briefing-status-${prospectId}" style="font-size:11px;color:#6b7a99;"></span>
       </div>
-      <div class="dv-conf">
-        <label><span data-en="Confidence" data-fr="Confiance">Confidence</span> <span id="dv-conf-val">50%</span></label>
-        <input type="range" id="dv-conf" min="0" max="100" value="50" oninput="recalcDealValue()">
+      <div style="margin-bottom:16px;">
+        <button id="start-seq-${prospectId}" onclick="_startEmailSeq('${prospectId}')"
+          style="font-size:12px;padding:6px 14px;background:#0f766e;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;">
+          Start Email Sequence
+        </button>
+        <span id="seq-status-${prospectId}" style="font-size:11px;color:#6b7a99;margin-left:8px;"></span>
       </div>
-      <div id="dv-result" class="dv-result">Estimated deal value: €0</div>
+      <div style="border-top:1px solid var(--border);padding-top:16px;">
+        <div class="drawer-section-title" style="margin-bottom:12px" data-en="Deal Value" data-fr="Valeur du deal">Deal Value</div>
+        <div class="dv-row">
+          <select id="dv-team" onchange="recalcDealValue()">
+            <option value="1-10">1-10</option>
+            <option value="11-50">11-50</option>
+            <option value="51-200">51-200</option>
+            <option value="200+">200+</option>
+          </select>
+          <select id="dv-length" onchange="recalcDealValue()">
+            <option value="3" data-en="3 months" data-fr="3 mois">3 months</option>
+            <option value="6" data-en="6 months" data-fr="6 mois" selected>6 months</option>
+            <option value="12" data-en="12 months" data-fr="12 mois">12 months</option>
+          </select>
+        </div>
+        <div class="dv-conf">
+          <label><span data-en="Confidence" data-fr="Confiance">Confidence</span> <span id="dv-conf-val">50%</span></label>
+          <input type="range" id="dv-conf" min="0" max="100" value="50" oninput="recalcDealValue()">
+        </div>
+        <div id="dv-result" class="dv-result">Estimated deal value: €0</div>
+      </div>
     </div>
     <div class="dtab-panel" id="dpanel-ai">
+      <div class="drawer-section-title" style="margin-bottom:10px">Next action</div>
       <button class="btn-primary" style="width:100%;justify-content:center;margin-bottom:12px"
         onclick="_drawerAI()" id="drawer-next-btn">▶ Next recommended action</button>
       <button class="btn-secondary" style="width:100%;justify-content:center;margin-bottom:12px;background:#1a1a2e;border:1px solid #ef4444;color:#ef4444" onclick="_escalateProspect()" id="drawer-escalate-btn">Escalation Handler</button>
@@ -5213,7 +5254,8 @@ async function openDrawer(card) {
         <div class="ai-box-body" id="drawer-output">Click to generate the next step...</div>
       </div>
       <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--border)">
-        <div class="drawer-section-title" style="margin-bottom:10px">Post-call message</div>
+        <div class="drawer-section-title" style="margin-bottom:14px">Call prep and debrief</div>
+        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">Post-call message</div>
         <input id="postcall-note" type="text" class="dp-inp"
           placeholder="One key point from the call, e.g. your expansion into the Nordics"
           style="margin-bottom:8px" />
@@ -5235,42 +5277,26 @@ async function openDrawer(card) {
             <button class="btn-secondary" onclick="_markPostCallSent()">Mark as sent</button>
           </div>
         </div>
-      </div>
-      <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--border)">
-        <div class="drawer-section-title" style="margin-bottom:10px">Post-call debrief</div>
-        <button class="btn-primary" id="btn-postcall-debrief" onclick="_openPostCallDebrief()"
-          style="width:100%;justify-content:center;margin-bottom:10px">
-          🎙 Generate post-call debrief
-        </button>
-        <div id="granola-meeting-select" style="display:none;margin-bottom:10px"></div>
-        <div id="post-call-output" style="display:none"></div>
-        <div style="text-align:center;margin-top:6px">
-          <a href="#" style="font-size:11px;color:var(--muted);text-decoration:underline;text-underline-offset:2px"
-            onclick="event.preventDefault();_toggleManualDebrief()">Or paste call notes manually</a>
+        <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
+          <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">Post-call debrief</div>
+          <button class="btn-primary" id="btn-postcall-debrief" onclick="_openPostCallDebrief()"
+            style="width:100%;justify-content:center;margin-bottom:10px">
+            🎙 Generate post-call debrief
+          </button>
+          <div id="granola-meeting-select" style="display:none;margin-bottom:10px"></div>
+          <div id="post-call-output" style="display:none"></div>
+          <div style="text-align:center;margin-top:6px">
+            <a href="#" style="font-size:11px;color:var(--muted);text-decoration:underline;text-underline-offset:2px"
+              onclick="event.preventDefault();_toggleManualDebrief()">Or paste call notes manually</a>
+          </div>
+          <div id="manual-debrief-panel" style="display:none;margin-top:10px">
+            <textarea id="manual-debrief-notes" rows="6"
+              placeholder="Paste your call notes, transcript, or summary here..."
+              style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;resize:vertical;background:var(--bg);color:var(--text);line-height:1.5"></textarea>
+            <button class="btn-primary" onclick="_generateFromManualNotes()"
+              style="width:100%;justify-content:center;margin-top:8px">Generate from notes</button>
+          </div>
         </div>
-        <div id="manual-debrief-panel" style="display:none;margin-top:10px">
-          <textarea id="manual-debrief-notes" rows="6"
-            placeholder="Paste your call notes, transcript, or summary here..."
-            style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;resize:vertical;background:var(--bg);color:var(--text);line-height:1.5"></textarea>
-          <button class="btn-primary" onclick="_generateFromManualNotes()"
-            style="width:100%;justify-content:center;margin-top:8px">Generate from notes</button>
-        </div>
-      </div>
-    </div>
-    <div class="dtab-panel" id="dpanel-email">
-      <button class="btn-secondary" id="btn-subject-lines" style="width:100%;justify-content:center;margin-bottom:12px" onclick="_genSubjectLines()">
-        <span data-en="5 subject lines" data-fr="5 objets">5 subject lines</span>
-      </button>
-      <div id="subject-lines-output" style="display:none;margin-top:4px;flex-direction:column;gap:6px;"></div>
-    </div>
-    <div class="dtab-panel" id="dpanel-reply" style="padding:16px">
-      <div style="margin-bottom:12px">
-        <label style="font-size:11px;color:#aaa;text-transform:uppercase;letter-spacing:.06em">Texte de la réponse reçue</label>
-        <textarea id="reply-input" rows="5" placeholder="Colle ici la réponse LinkedIn ou email du prospect..." style="width:100%;margin-top:6px;background:#1a1a2e;border:1px solid #333;border-radius:6px;color:#e8e8e8;padding:10px;font-size:13px;resize:vertical"></textarea>
-      </div>
-      <button onclick="_triageReply()" style="background:#7c3aed;color:#fff;border:none;border-radius:6px;padding:8px 18px;font-size:13px;cursor:pointer;width:100%">Trier cette réponse</button>
-      <div id="reply-output" style="margin-top:16px;display:none">
-        <div id="reply-result" style="background:#1a1a2e;border:1px solid #444;border-radius:8px;padding:14px;font-size:13px;line-height:1.6;color:#e8e8e8 !important;white-space:pre-wrap;min-height:40px"></div>
       </div>
     </div>`;
 
@@ -5381,8 +5407,8 @@ async function _saveReminder() {
   if (_drawerProspect) _drawerProspect.reminder_date = iso;
   const card = document.querySelector(`.k-card[data-id="${pid}"]`);
   if (card) card.dataset.reminderDate = iso;
-  const panel = document.getElementById('dpanel-reminder');
-  if (panel) panel.innerHTML = _renderReminder(iso);
+  const bannerEl = document.getElementById('reminder-banner');
+  if (bannerEl) bannerEl.outerHTML = _reminderBannerHTML(iso);
   showToast('Reminder set');
 }
 
@@ -5395,8 +5421,8 @@ async function _clearReminder() {
   if (_drawerProspect) _drawerProspect.reminder_date = null;
   const card = document.querySelector(`.k-card[data-id="${pid}"]`);
   if (card) delete card.dataset.reminderDate;
-  const panel = document.getElementById('dpanel-reminder');
-  if (panel) panel.innerHTML = _renderReminder(null);
+  const bannerEl = document.getElementById('reminder-banner');
+  if (bannerEl) bannerEl.outerHTML = _reminderBannerHTML(null);
   showToast('Reminder cleared');
 }
 
@@ -5886,59 +5912,6 @@ async function _mapStakeholders() {
     if (spin) spin.classList.remove('active');
   }
 }
-async function _genSubjectLines() {
-  if (!_drawerProspect) return;
-  const p = (_drawerProspect.id != null && _prospectsById[_drawerProspect.id]) ? _prospectsById[_drawerProspect.id] : _drawerProspect;
-  const btn = document.getElementById('btn-subject-lines');
-  const out = document.getElementById('subject-lines-output');
-  if (btn) { btn.disabled = true; btn.querySelector('span').textContent = 'Generating...'; }
-  if (out) { out.style.display = 'none'; out.innerHTML = ''; }
-  const subjectPrompt = `Generate 5 email subject lines for an outreach email to ${p.name||'this prospect'} at ${p.company||'their company'} (${p.sector||'B2B'}, ${p.country||p.region||'EMEA'}).\n\nRules:\n- Each subject line must be under 4 words\n- No clickbait, no ALL CAPS, no emojis\n- No "Quick question" or "Following up"\n- Must feel like a peer wrote it, not a marketer\n- Each should take a different angle:\n  one on timing, one on their company signal,\n  one on a shared challenge, one curiosity-driven,\n  one direct\n- Return ONLY a numbered list 1 to 5, nothing else`;
-  try {
-    const res = await fetch(API_URL, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 200, messages: [{ role: 'user', content: subjectPrompt }] })
-    });
-    if (!res.ok) throw new Error('API error ' + res.status);
-    const data = await res.json();
-    const raw = Array.isArray(data.content)
-      ? data.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim()
-      : '';
-    const lines = raw.split('\n')
-      .map(l => l.replace(/^\d+[\.\)]\s*/, '').trim())
-      .filter(l => l.length > 0);
-    if (out && lines.length) {
-      out.style.display = 'flex';
-      out.style.flexDirection = 'column';
-      out.style.gap = '6px';
-      out.innerHTML = lines.map(l =>
-        `<button onclick="_copySubject(this,'${l.replace(/'/g,"&#39;")}')" style="text-align:left;padding:8px 12px;border:1px solid var(--border);border-radius:6px;background:#fff;font-size:12px;font-family:inherit;color:var(--text);cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background='#f8f9fb'" onmouseout="this.style.background='#fff'">${_esc(l)}</button>`
-      ).join('');
-    } else if (out) {
-      out.style.display = 'block';
-      out.textContent = 'No result.';
-    }
-  } catch(e) {
-    if (out) { out.style.display = 'block'; out.textContent = 'Error generating subject lines.'; }
-  } finally {
-    if (btn) { btn.disabled = false; btn.querySelector('span').setAttribute('data-en','5 subject lines'); btn.querySelector('span').textContent = '5 subject lines'; }
-  }
-}
-function _copySubject(btn, text) {
-  navigator.clipboard.writeText(text).then(() => {
-    const orig = btn.textContent;
-    btn.textContent = 'Copied!';
-    btn.style.background = '#f0fdf4';
-    btn.style.borderColor = '#86efac';
-    btn.style.color = '#15803d';
-    setTimeout(() => {
-      btn.textContent = orig;
-      btn.style.background = '#fff';
-      btn.style.borderColor = 'var(--border)';
-      btn.style.color = 'var(--text)';
-    }, 2000);
-  }).catch(() => showToast('Copy failed'));
-}
 // Call Prep overlay conservé (Phase 1) — l'overlay #cp-overlay existe encore dans le DOM.
 function closeCallPrep(){ const o = document.getElementById('cp-overlay'); if (o) o.classList.remove('open'); }
 function copyCallPrep(){
@@ -6315,14 +6288,13 @@ function _renderSignalLink(signalText) {
     ? `<a href="${_esc(match[1])}" target="_blank" rel="noopener noreferrer">🔗 Open post</a>`
     : '';
 }
-function _drawerEditHTML(id, p, colStage, fb){
+function _drawerProfileHTML(id, p, colStage, fb){
   if (!id) return '';
   fb = fb || {};
   const v = s => _esc(s == null ? '' : String(s));
   const opts = KANBAN_STAGES.map(s => `<option value="${s}"${s === colStage ? ' selected' : ''}>${s}</option>`).join('');
   const rt = _regionTag(p.region);
-  return `<div class="drawer-section-title" data-en="Edit prospect" data-fr="Modifier le prospect">Edit prospect</div>
-    <div class="dp-edit">
+  return `<div class="dp-edit">
       <input id="ed-name" class="dp-inp" value="${v(p.name || fb.name)}" placeholder="Name">
       <input id="ed-company" class="dp-inp" value="${v(p.company || fb.company)}" placeholder="Company">
       <input id="ed-title" class="dp-inp" value="${v(p.title)}" placeholder="Title">
@@ -6339,17 +6311,6 @@ function _drawerEditHTML(id, p, colStage, fb){
           Find Phone
         </button>
         <span id="phone-status-${id}" style="font-size:11px;color:#6b7a99;"></span>
-      </div>
-      <div style="margin-top:6px;">
-        <button id="start-seq-${id}" onclick="_startEmailSeq('${id}')"
-          style="font-size:12px;padding:6px 12px;background:#0f766e;color:#fff;border:none;border-radius:6px;cursor:pointer;">
-          Start Email Sequence
-        </button>
-        <span id="seq-status-${id}" style="font-size:11px;color:#6b7a99;margin-left:8px;"></span>
-      </div>
-      <div style="margin-top:10px;">
-        <p style="font-size:9px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin:0 0 4px;">Draft Invite Note (auto-generated)</p>
-        <div style="background:#12193a;border:1px solid #2a3a6e;border-radius:6px;padding:10px;font-size:12px;line-height:1.6;white-space:pre-wrap;min-height:38px;color:${p.draft_invite_note ? '#e8e8e8' : '#6b7a99'};">${p.draft_invite_note ? v(p.draft_invite_note) : 'No draft generated yet'}</div>
       </div>
       <input id="ed-linkedin" class="dp-inp" value="${v(p.linkedin)}" placeholder="LinkedIn URL">
       <input id="ed-sector" class="dp-inp" value="${v(p.sector || fb.sector)}" placeholder="Sector">
@@ -6370,17 +6331,6 @@ function _drawerEditHTML(id, p, colStage, fb){
         </div>
       </div>
       <textarea id="ed-notes" class="dp-inp" placeholder="Notes" style="min-height:60px;resize:vertical;">${v(p.notes)}</textarea>
-      <div style="margin-top:10px;display:flex;align-items:center;flex-wrap:wrap;gap:8px;">
-        <button onclick="_scheduleCall('${id}')"
-          style="font-size:12px;padding:6px 12px;background:#f0fdf4;color:#15803d;border:1px solid #86efac;border-radius:6px;cursor:pointer;">
-          Schedule Call
-        </button>
-        <button onclick="_requestBriefing('${id}')" id="briefing-btn-${id}"
-          style="font-size:12px;padding:6px 12px;background:#fffbeb;color:#b45309;border:1px solid #fcd34d;border-radius:6px;cursor:pointer;">
-          Call Briefing
-        </button>
-        <span id="briefing-status-${id}" style="font-size:11px;color:#6b7a99;"></span>
-      </div>
       <div class="drawer-field-group" id="signal-field-group" style="margin-top:10px;">
         <label class="drawer-label" style="display:block;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;">Signal / Context <span style="font-size:10px;font-weight:400;">(auto-filled by Morning Scan)</span></label>
         <textarea id="drawer-signal" class="dp-inp" rows="3" placeholder="e.g. New CRO hired from Pavilion Data -- scaled $4M to $28M ARR mid-market NA" style="font-size:12px;min-height:60px;resize:vertical;">${v(p.signal)}</textarea>
@@ -6827,7 +6777,56 @@ function buildCard(p){
     + (p.linkedin_tag === 'connection-accepted' && p.stage === 'Engaged' && parseFloat(p.icp_score) >= 8 && p.last_contact
         ? `<div class="k-j5-badge" onclick="_j5BadgeClick(event,'${_esc(id)}')">J+5</div>`
         : '')
+    + (_stageKey(p.stage) === 'Replied'
+        ? `<div class="k-reply-intel" onclick="event.stopPropagation()">`
+          + `<button id="ri-toggle-${_esc(id)}" class="k-ri-toggle" onclick="_toggleReplyIntel('${_esc(id)}')">💬 Triage reply</button>`
+          + `<div id="ri-panel-${_esc(id)}" style="display:none">`
+          + `<textarea id="ri-input-${_esc(id)}" rows="3" placeholder="Paste the reply here..." style="width:100%;box-sizing:border-box;margin-top:6px;padding:7px 9px;background:#1a1a2e;border:1px solid #333;border-radius:6px;color:#e8e8e8;font-size:12px;font-family:inherit;resize:vertical;line-height:1.5"></textarea>`
+          + `<div style="display:flex;gap:6px;margin-top:6px;align-items:center;">`
+          + `<button id="ri-btn-${_esc(id)}" onclick="_replyIntel('${_esc(id)}')" style="font-size:12px;padding:5px 12px;background:#7c3aed;color:#fff;border:none;border-radius:6px;cursor:pointer;">Analyze</button>`
+          + `<span id="ri-status-${_esc(id)}" style="font-size:11px;color:#6b7a99;"></span>`
+          + `</div>`
+          + `<div id="ri-result-${_esc(id)}" style="display:none;margin-top:8px;background:#1a1a2e;border:1px solid #444;border-radius:6px;padding:12px;font-size:12px;line-height:1.6;color:#e8e8e8;"></div>`
+          + `</div>`
+          + `</div>`
+        : '')
     + `</div>`;
+}
+function _toggleReplyIntel(id) {
+  const panel = document.getElementById('ri-panel-' + id);
+  const btn = document.getElementById('ri-toggle-' + id);
+  if (!panel) return;
+  const isOpen = panel.style.display !== 'none';
+  panel.style.display = isOpen ? 'none' : 'block';
+  if (btn) btn.textContent = isOpen ? '💬 Triage reply' : '✕ Close';
+}
+async function _replyIntel(id) {
+  const p = _prospectsById[id];
+  const inputEl = document.getElementById('ri-input-' + id);
+  const statusEl = document.getElementById('ri-status-' + id);
+  const resultEl = document.getElementById('ri-result-' + id);
+  const analyzeBtn = document.getElementById('ri-btn-' + id);
+  if (!p || !inputEl) return;
+  const replyText = inputEl.value.trim();
+  if (!replyText) { if (statusEl) statusEl.textContent = 'Paste a reply first'; return; }
+  if (analyzeBtn) { analyzeBtn.disabled = true; analyzeBtn.textContent = '...'; }
+  if (statusEl) statusEl.textContent = '';
+  if (resultEl) resultEl.style.display = 'none';
+  const prompt = `You are a B2B reply triage specialist. Triage this reply from ${p.name || 'the prospect'} at ${p.company || 'their company'}.\n\nReply received:\n"${replyText}"\n\nContext: outbound LinkedIn sequence (J+0/J+5), Corridor GTM system, B2B companies building predictable commercial pipeline.\n\nProduce:\n1) CATEGORY — one of: positive signal / timing objection / polite decline / bounce / OOO / unclear\n2) INTEREST LIKELIHOOD — % with one-sentence rationale\n3) RECOMMENDED NEXT ACTION — specific, not generic (what to do in the next 2 hours)\n4) DRAFT RESPONSE — under 100 words, direct, human, specific to their reply. No "following up", no "checking in", no em-dashes. End with a question if positive signal or unclear. Do not write a response if category is bounce or polite decline.\n\nFormat output clearly with each section labeled. Be direct.`;
+  try {
+    const res = await fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: [{ role: 'user', content: prompt }], max_tokens: 800 })
+    });
+    const data = await res.json();
+    const text = (Array.isArray(data.content) ? data.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim() : '') || (data.error ? 'Error: ' + data.error : 'No response');
+    if (resultEl) { resultEl.innerHTML = renderMarkdown(text); resultEl.style.display = 'block'; }
+  } catch(e) {
+    if (resultEl) { resultEl.textContent = 'Error — check connection and retry.'; resultEl.style.display = 'block'; }
+  } finally {
+    if (analyzeBtn) { analyzeBtn.disabled = false; analyzeBtn.textContent = 'Analyze'; }
+  }
 }
 // Légendes momentum par colonne (le dot est posé inline par buildCard, donc on n'appelle pas
 // applyMomentum() ici : elle écraserait le momentum réel par une valeur mock).
@@ -7558,47 +7557,7 @@ Be direct. No corporate language.`;
   }
 }
 
-async function _triageReply() {
-  const replyText = document.getElementById('reply-input').value.trim();
-  if (!replyText) { alert('Colle la réponse du prospect avant de trier.'); return; }
-  const p = _drawerProspect;
-  if (!p) return;
-  const btn = document.querySelector('#dpanel-reply button');
-  btn.textContent = 'Analyse en cours...';
-  btn.disabled = true;
-  document.getElementById('reply-output').style.display = 'none';
-  const prompt = `You are a B2B reply triage specialist. Triage this reply from ${p.name || 'the prospect'} at ${p.company || 'their company'}.
 
-Reply received: "${replyText}"
-
-Context: outbound LinkedIn sequence (J+0/J+5/J+12), Corridor GTM system, B2B SaaS/AdTech/Fintech companies building predictable commercial pipeline.
-
-Produce:
-1) CATEGORY — one of: positive signal / timing objection / polite decline / bounce / OOO / unclear
-2) INTEREST LIKELIHOOD — % with one-sentence rationale
-3) RECOMMENDED NEXT ACTION — specific, not generic (what to do in the next 2 hours)
-4) DRAFT RESPONSE — under 100 words, direct, human, specific to their reply. No "following up", no "checking in", no em-dashes. End with a question if positive signal or unclear. Do not write a response if category is bounce or polite decline.
-
-Format output clearly with each section labeled. Be direct.`;
-
-  try {
-    const res = await fetch('/api/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages: [{ role: 'user', content: prompt }], max_tokens: 8000 })
-    });
-    const data = await res.json();
-    const text = (Array.isArray(data.content) ? data.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim() : '') || 'Erreur';
-    document.getElementById('reply-result').innerHTML = '<div style="color:#e8e8e8;font-size:13px;line-height:1.6">' + renderMarkdown(text) + '</div>';
-    document.getElementById('reply-output').style.display = 'block';
-  } catch(e) {
-    document.getElementById('reply-result').textContent = 'Erreur lors de l\'analyse. Réessaie.';
-    document.getElementById('reply-output').style.display = 'block';
-  } finally {
-    btn.textContent = 'Trier cette réponse';
-    btn.disabled = false;
-  }
-}
 </script>
 <div class="cp-overlay" id="cp-overlay" onclick="if(event.target===this)closeCallPrep()">
   <div class="cp-modal">
