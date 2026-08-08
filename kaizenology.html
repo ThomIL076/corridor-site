@@ -2019,7 +2019,7 @@ async function showDemo(){
   // Init unique post-login : onglet Scanner par défaut + scroll en haut (PWA démarre proprement)
   if (!_demoStarted) {
     _demoStarted = true;
-    switchTab('scanner');
+    switchTab('pipeline');
     window.scrollTo({ top: 0, behavior: 'instant' });
     document.documentElement.scrollTop = 0;
     document.body.scrollTop = 0;
@@ -6349,12 +6349,12 @@ function _drawerProfileHTML(id, p, colStage, fb){
       `<input id="ed-title" class="dp-inp" value="${v(p.title)}" placeholder="Title">` +
       `<div style="display:flex;gap:8px">` +
         `<input id="ed-email" class="dp-inp" value="${v(p.email)}" placeholder="Email" style="flex:1;min-width:0">` +
-        `<button id="find-email-${id}" onclick="_findEmailDrawer('${id}')" style="font-size:12px;white-space:nowrap;padding:6px 12px;background:#1a2b5e;color:#fff;border:none;border-radius:6px;cursor:pointer">Find email</button>` +
+        `<button id="find-email-${id}" onclick="_findEmailDrawer('${id}')" style="font-size:12px;white-space:nowrap;min-width:95px;padding:6px 12px;background:#1a2b5e;color:#fff;border:none;border-radius:6px;cursor:pointer">Find email</button>` +
       `</div>` +
       `<span id="email-status-${id}" style="font-size:11px;color:#6b7a99"></span>` +
       `<div style="display:flex;gap:8px">` +
         `<input id="ed-phone" class="dp-inp" value="${v(p.phone)}" placeholder="Phone" style="flex:1;min-width:0">` +
-        `<button id="find-phone-${id}" onclick="_findPhoneDrawer('${id}')" style="font-size:12px;white-space:nowrap;padding:6px 12px;background:#1a2b5e;color:#fff;border:none;border-radius:6px;cursor:pointer">Find phone</button>` +
+        `<button id="find-phone-${id}" onclick="_findPhoneDrawer('${id}')" style="font-size:12px;white-space:nowrap;min-width:95px;padding:6px 12px;background:#1a2b5e;color:#fff;border:none;border-radius:6px;cursor:pointer">Find phone</button>` +
       `</div>` +
       `<span id="phone-status-${id}" style="font-size:11px;color:#6b7a99"></span>` +
       `<input id="ed-linkedin" class="dp-inp" value="${v(p.linkedin)}" placeholder="LinkedIn URL">`
