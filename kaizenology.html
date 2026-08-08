@@ -7157,7 +7157,7 @@ async function loadKanban(force){
     while (true) {
       let _kQuery = sbClient
         .from('prospects')
-        .select('id, name, company, title, sector, region, country, stage, linkedin, email, phone, deal_value, notes, last_contact, reminder_date, icp_score, archived, client_id, linkedin_tag, origin, signal, signal_type, created_at, draft_invite_note')
+        .select('id, name, company, title, sector, region, country, stage, linkedin, email, phone, deal_value, notes, last_contact, reminder_date, icp_score, archived, client_id, linkedin_tag, origin, signal, signal_type, created_at, draft_invite_note, company_size')
         .eq('client_id', CLIENT_ID);
       _kQuery = _applyMandateFilter(_kQuery);
       const { data: chunk, error } = await _kQuery
