@@ -448,16 +448,6 @@ nav {
 .kpi-val.amber { color:var(--amber); }
 .kpi-label { font-size:10px; font-weight:600; color:var(--dim); letter-spacing:1px; text-transform:uppercase; margin-top:4px; display:block; }
 
-/* ── OUTREACH TABS ── */
-.outreach-tabs { display:flex; gap:6px; margin-bottom:16px; }
-.outreach-tab {
-  font-size:11px; font-weight:600; padding:7px 16px; border-radius:8px;
-  border:1.5px solid var(--border); background:var(--white); color:var(--muted);
-  cursor:pointer; transition:all 0.2s;
-}
-.outreach-tab.active { background:var(--navy); border-color:var(--navy); color:#fff; }
-.outreach-pane { display:none; }
-.outreach-pane.active { display:block; }
 
 /* ── FOOTER ── */
 footer {
@@ -940,7 +930,6 @@ h1, h2, .section-title, .k-card-name, .k-card-company { overflow-wrap:break-word
 <!-- TABS NAV -->
 <div class="tabs-nav" role="navigation" aria-label="Module navigation">
   <button class="tab-nav-btn active" onclick="switchTab('scanner', true)"><span class="tab-nav-icon">🔍</span><span data-en="Scanner" data-fr="Scanner">Scanner</span></button>
-  <button class="tab-nav-btn" onclick="switchTab('outreach', true)"><span class="tab-nav-icon">✉️</span><span data-en="Outreach" data-fr="Outreach">Outreach</span></button>
   <button class="tab-nav-btn" onclick="switchTab('agents', true)"><span class="tab-nav-icon">🤖</span><span data-en="CMO IA" data-fr="CMO IA">CMO IA</span></button>
   <button class="tab-nav-btn" onclick="switchTab('pipeline', true)"><span class="tab-nav-icon">📊</span><span data-en="Pipeline" data-fr="Pipeline">Pipeline</span></button>
   <button class="tab-nav-btn" onclick="switchTab('send', true)"><span class="tab-nav-icon">📤</span><span data-en="Send" data-fr="Envoi">Send</span></button>
@@ -1081,54 +1070,6 @@ h1, h2, .section-title, .k-card-name, .k-card-company { overflow-wrap:break-word
   </div>
 
   <!-- ══ TAB 3: OUTREACH GENERATOR ══ -->
-  <div class="tab-panel" id="tab-outreach">
-    <div class="section-header">
-      <div class="section-eyebrow" data-en="Module 02 · Outreach Generator" data-fr="Module 02 · Générateur d'outreach">Module 02 · Outreach Generator</div>
-      <div class="section-title" data-en="Personalised sequences. Generated in seconds." data-fr="Des séquences personnalisées. Générées en quelques secondes.">Personalised sequences. Generated in seconds.</div>
-      <div class="section-sub" data-en="Corridor generates two messages: an Invite (short connection request, no signature) and a J+0 first message (post-acceptance, with closing line). English, French, or Dutch." data-fr="Corridor genere deux messages : une Invitation courte (sans signature) et un J+0 (post-acceptation, avec ligne de cloture). Anglais, francais ou neerlandais.">Corridor generates two messages: an Invite (short connection request, no signature) and a J+0 first message (post-acceptance, with closing line). English, French, or Dutch.</div>
-    </div>
-
-    <div class="input-row">
-      <input class="input-field" id="out-name" placeholder="Contact name" data-en-ph="Contact name" data-fr-ph="Nom du contact" />
-      <input class="input-field" id="out-company" placeholder="Company" data-en-ph="Company" data-fr-ph="Société" />
-      <input class="input-field" id="out-signal" placeholder="Trigger signal (e.g. raised €10M Series A)" data-en-ph="Trigger signal (e.g. raised €10M Series A)" data-fr-ph="Signal déclencheur (ex. levée de 10M€ en Série A)" />
-      <select class="input-select" id="out-lang">
-        <option value="English">English</option>
-        <option value="French">French</option>
-        <option value="Dutch">Dutch</option>
-      </select>
-      <button class="btn-primary" onclick="runOutreach()" id="out-btn">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m22 2-7 20-4-9-9-4 20-7z"/></svg>
-        <span data-en="Generate sequence" data-fr="Générer la séquence">Generate sequence</span>
-      </button>
-    </div>
-
-    <div id="out-results" style="display:none">
-      <div class="outreach-tabs">
-        <button class="outreach-tab active" onclick="switchOutreach('invite')" data-en="Invite" data-fr="Invitation">Invite</button>
-        <button class="outreach-tab" onclick="switchOutreach('j0')" data-en="J+0 · First message" data-fr="J+0 · Premier message">J+0 · First message</button>
-      </div>
-      <div class="outreach-pane active" id="out-invite-pane">
-        <div class="card">
-          <div class="card-header"><span class="card-title" data-en="Connection Request · Invite" data-fr="Demande de connexion · Invitation">Connection Request · Invite</span><span class="card-badge badge-auto" data-en="&lt;280 chars" data-fr="&lt;280 car.">&lt;280 chars</span></div>
-          <div class="ai-box">
-            <div class="ai-box-header"><span class="ai-box-label" data-en="Invite (no signature)" data-fr="Invitation (sans signature)">Invite (no signature)</span><div class="ai-spinner" id="out-spinner-invite"></div></div>
-            <div class="ai-box-body" id="out-invite-body" contenteditable="true" spellcheck="false" style="white-space:pre-wrap;outline:none;cursor:text" data-en="Message will appear here..." data-fr="Le message apparaitra ici...">Message will appear here...</div>
-          </div>
-        </div>
-      </div>
-      <div class="outreach-pane" id="out-j0-pane">
-        <div class="card">
-          <div class="card-header"><span class="card-title" data-en="First Message · J+0 (post-acceptance)" data-fr="Premier message · J+0 (post-acceptation)">First Message · J+0 (post-acceptance)</span></div>
-          <div class="ai-box">
-            <div class="ai-box-header"><span class="ai-box-label" data-en="J+0 message" data-fr="Message J+0">J+0 message</span><div class="ai-spinner" id="out-spinner-j0"></div></div>
-            <div class="ai-box-body" id="out-j0-body" contenteditable="true" spellcheck="false" style="white-space:pre-wrap;outline:none;cursor:text" data-en="Message will appear here..." data-fr="Le message apparaitra ici...">Message will appear here...</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <!-- ══ TAB 4: AI AGENTS ══ -->
   <div class="tab-panel" id="tab-agents">
     <div class="section-header">
@@ -1987,9 +1928,6 @@ function setLang(lang) {
   applyLang();
   renderWelcome();
   paintBlocked();      // écran "essai terminé" / "accès refusé" suit la langue
-  // Sync le sélecteur d'outreach (le message sortant reste dans la langue du prospect)
-  const outLang = document.getElementById('out-lang');
-  if (outLang) outLang.value = (lang === 'fr') ? 'French' : 'English';
 }
 
 // ── TAB SWITCHING ──
@@ -2099,19 +2037,10 @@ function analyzeActiveCompany() {
   // Propagation vers les champs société de chaque module
   const sc = document.getElementById('scanner-company'); if (sc) sc.value = val;
   const ic = document.getElementById('intel-company');   if (ic) ic.value = val;
-  const oc = document.getElementById('out-company');     if (oc) oc.value = val;
 
   // Bascule sur le Scanner et lance l'analyse temps réel (web search)
   switchTab('scanner');
   runScanner();
-}
-
-function switchOutreach(tab) {
-  document.querySelectorAll('.outreach-tab').forEach(b => b.classList.remove('active'));
-  document.querySelectorAll('.outreach-pane').forEach(p => p.classList.remove('active'));
-  if (event && event.target) event.target.classList.add('active');
-  const pane = document.getElementById(tab === 'j0' ? 'out-j0-pane' : 'out-invite-pane');
-  if (pane) pane.classList.add('active');
 }
 
 function switchAgent(name) {
@@ -2347,21 +2276,40 @@ async function runScanner() {
   document.getElementById('scanner-results').style.display = 'block';
   document.getElementById('scanner-btn').disabled = true;
 
-  // Animate scores (ICP mode only)
-  const scores = {
-    total: Math.floor(Math.random() * 15 + 78),
-    fit: Math.floor(Math.random() * 10 + 85),
-    timing: Math.floor(Math.random() * 20 + 70)
-  };
-  setTimeout(() => {
-    if (_scannerMode === 'free') return;
-    document.getElementById('sc-total').textContent = scores.total + '/100';
-    document.getElementById('sc-fit').textContent = scores.fit + '%';
-    document.getElementById('sc-timing').textContent = scores.timing + '%';
-    document.getElementById('sc-bar-pct').textContent = scores.fit + '%';
-    const bar = document.getElementById('sc-bar');
-    bar.style.width = scores.fit + '%';
-  }, 400);
+  // ICP score via AI (async, resolved in parallel with the brief)
+  let _scorePromise = Promise.resolve(null);
+  if (_scannerMode !== 'free') {
+    let _mandateCriteria = '';
+    if (activeMandateId && activeMandateId !== '__ALL__') {
+      try {
+        const { data: _md } = await sbClient.from('mandates')
+          .select('icp_criteria,decision_makers,sectors,geography,signals,exclusions')
+          .eq('id', activeMandateId).single();
+        if (_md) {
+          _mandateCriteria = '\nMANDATE CRITERIA (primary evaluation framework):\n'
+            + (_md.icp_criteria    ? 'ICP criteria: '       + _md.icp_criteria    + '\n' : '')
+            + (_md.decision_makers ? 'Target roles: '       + _md.decision_makers + '\n' : '')
+            + (_md.sectors         ? 'Target sectors: '     + _md.sectors         + '\n' : '')
+            + (_md.geography       ? 'Target geography: '   + _md.geography       + '\n' : '')
+            + (_md.signals         ? 'Key buying signals: ' + _md.signals         + '\n' : '')
+            + (_md.exclusions      ? 'Exclusions: '         + _md.exclusions      + '\n' : '');
+        }
+      } catch(e) { console.warn('[runScanner] mandate fetch failed:', e); }
+    }
+    const _scorePromptText = 'You are an ICP scoring engine for Corridor, a B2B GTM advisory firm. Score this prospect 0-10.\n\nCompany: ' + company + '\nSector: ' + sector + '\nStage: ' + stage + '\n' + fundingStr + urlStr + contextStr + _mandateCriteria + '\n' + (_mandateCriteria ? 'Score strictly against the mandate criteria above.' : 'Generic criteria: ideal is a scale-up (Series A-C), 11-200 employees, expanding internationally; strong signals: fundraise, new market entry, new CXO/VP hire; target roles: CEO, founder, CRO, CMO, VP Sales/Marketing — no hard sector filter.') + '\n\nReturn ONLY valid JSON, no other text:\n{"score":<0-10 one decimal>,"confidence":"<low|medium|high>","rationale":"<one sentence>"}';
+    _scorePromise = fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 120, messages: [{ role: 'user', content: _scorePromptText }] })
+    }).then(r => r.ok ? r.json() : null).then(d => {
+      if (!d || !Array.isArray(d.content)) return null;
+      const _t = d.content.filter(b => b.type === 'text').map(b => b.text).join('').trim();
+      const _m = _t.match(/\{[\s\S]*\}/);
+      try { return _m ? JSON.parse(_m[0]) : null; } catch(e) { return null; }
+    }).catch(e => { console.warn('[runScanner] score failed:', e); return null; });
+    ['sc-total','sc-fit','sc-timing','sc-bar-pct'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = '…'; });
+    const _initBar = document.getElementById('sc-bar'); if (_initBar) _initBar.style.width = '0%';
+  }
 
   // Signal badges populated from AI response after scan completes
   const sigList = document.getElementById('scanner-signals-list');
@@ -2400,7 +2348,16 @@ Language instruction: Write your entire response in ${currentLang === 'fr' ? 'Fr
   const _scanNoCtx = _scanLive ? '' : '\nNO LIVE CONTEXT AVAILABLE: Do not invent company-specific facts, figures, or events. If no verified data is found, state so explicitly.\n';
   const _sp1 = callAI(_scanLive + _scanNoCtx + prompt, _scanEl, 'scanner-spinner', false);
   const _sp2 = person ? _runContactIntelligence(company, person) : Promise.resolve();
-  await Promise.all([_sp1, _sp2]);
+  const [,, _scoreResult] = await Promise.all([_sp1, _sp2, _scorePromise]);
+  if (_scannerMode !== 'free' && _scoreResult) {
+    const _icpPct = Math.min(100, Math.max(0, Math.round(parseFloat(_scoreResult.score || 0) * 10)));
+    document.getElementById('sc-total').textContent = _icpPct + '/100';
+    document.getElementById('sc-fit').textContent = _icpPct + '%';
+    document.getElementById('sc-timing').textContent = _icpPct + '%';
+    document.getElementById('sc-bar-pct').textContent = _icpPct + '%';
+    const _scoreBar = document.getElementById('sc-bar');
+    if (_scoreBar) _scoreBar.style.width = _icpPct + '%';
+  }
   // Populate signal badges from what the AI actually found
   const _scanAiOut = document.getElementById('scanner-ai-output');
   if (sigList && _scanAiOut) {
@@ -2513,78 +2470,6 @@ Write all content in ${currentLang === 'fr' ? 'French' : 'English'} but keep the
 }
 
 // ── MODULE 3: OUTREACH GENERATOR ──
-async function runOutreach() {
-  const name = document.getElementById('out-name').value.trim() || 'Jason Dorfman';
-  let company = document.getElementById('out-company').value.trim();
-  if (!company && window.activeCompany) { company = window.activeCompany; const _ocf = document.getElementById('out-company'); if (_ocf) _ocf.value = company; }
-  if (!company) company = 'Keeyns';
-  const signal = document.getElementById('out-signal').value.trim() || 'raised E10M Series A';
-  const lang = document.getElementById('out-lang').value;
-
-  document.getElementById('out-results').style.display = 'block';
-  document.getElementById('out-btn').disabled = true;
-
-  const ctx = `Contact: ${name}\nCompany: ${company}\nSignal/trigger: ${signal}\nLanguage: ${lang}`;
-
-  const [_inviteCtx, _j0Ctx] = await Promise.all([
-    _perplexitySearch(`${company} ${signal} recent news`, 400),
-    _perplexitySearch(`${name} ${company} background career`, 400)
-  ]);
-  const _inviteBlock = _inviteCtx
-    ? `\nLIVE CONTEXT about ${company} (from web search, today):\n${_inviteCtx}\n`
-    : '';
-  const _j0Block = _j0Ctx
-    ? `\nLIVE CONTEXT about ${name} (from web search, today):\n${_j0Ctx}\n`
-    : '';
-
-  const invitePrompt = _inviteBlock + `You are Corridor's outreach system. Write a LinkedIn connection request (Invite) for this prospect.
-
-${ctx}
-
-If LIVE CONTEXT is available above, use the most relevant recent signal from it to open the invite. If no LIVE CONTEXT is available, use the Signal/trigger provided above.
-
-Rules:
-- Never mention "Alliance Grid" or "Corridor" by name
-- Write in ${lang}
-- Must be under 280 characters (LinkedIn limit)
-- Open with the factual signal as a short observation or a question tied to it. Not a generic compliment.
-- No signature, no closing line
-- No em-dashes. Replace with a period or comma.
-- Direct, human tone. No corporate jargon.
-- Do not use the phrase "Curious about" or "Curious how" anywhere in the message, whether at the start or mid-sentence.
-- FORBIDDEN closing formula: never use "What's been the toughest part of...?" as the closing question. It is generic and could apply to any prospect.
-- Never generalize about the prospect's peer group in any form ("Most founders", "Most people in your seat/role/position", "Most companies like yours", etc.) -- always address this specific person, never their category.
-- Return ONLY the message text. No header, no label, no explanation.`;
-
-  const j0Prompt = _j0Block + `You are Corridor's outreach system. Write a J+0 first message to send after the LinkedIn connection is accepted.
-
-${ctx}
-
-If LIVE CONTEXT about ${name} is available above, use it to personalise this message: their career background, previous roles, or any public statement about their work or challenges.
-
-Rules:
-- Never mention "Alliance Grid" or "Corridor" by name
-- Write in ${lang}
-- Under 60 words maximum (excluding the signature line). Conversational, no hard pitch.
-- CRITICAL: open from a DIFFERENT angle than the invite. The invite referenced a company-level signal. This message must focus on ${name} personally: their background, career path, a challenge specific to their role, or something they said publicly. Do NOT repeat or reference the same company signal used in the connection request.
-- NEVER mention geography, expansion, markets, countries, or international topics. Focus on the person and their current role challenges only.
-- Open via question, observation, or curiosity. Never start with what you offer or what Corridor does.
-- Close with one specific question that: (a) ${name} can answer in a few words, (b) is not trivial, (c) proves you know their specific role or context at ${company} rather than the sector in general.
-- Do not use the phrase "Curious about" or "Curious how" anywhere in the message, whether at the start or mid-sentence.
-- FORBIDDEN closing formula: never use "What's been the toughest part of...?" as the closing question. It is generic and could apply to any prospect.
-- VARY the syntactic structure of the closing question: it must be a direct observation turned into a question, a role-specific professional question, or a concrete reference to something specific known about ${name} or ${company}. Never default to a formula that could be reused on another message.
-- Never generalize about the prospect's peer group in any form ("Most founders", "Most people in your seat/role/position", "Most companies like yours", etc.) -- always address this specific person, never their category.
-- No em-dashes. Replace with a period or comma.
-- MANDATORY: end the message body, then add a blank line, then write exactly "Thomas | linkedin.com/company/corridor-gtm-system" on its own line, verbatim. No variations.
-- Return ONLY the message text. No header, no label, no explanation.`;
-
-  await Promise.all([
-    callAI(invitePrompt, document.getElementById('out-invite-body'), 'out-spinner-invite', false, 1000, true),
-    callAI(j0Prompt, document.getElementById('out-j0-body'), 'out-spinner-j0', false, 1000, true)
-  ]);
-  document.getElementById('out-btn').disabled = false;
-}
-
 // ── MODULE 4: AI AGENTS ──
 // Real operating context injected into every agent (replaces the fictional demo context)
 const THOMAS_CONTEXT = `Operating context for every answer (this is the real business, not a hypothetical):
@@ -6577,12 +6462,6 @@ function getMomentumClass(p){
 function _calcICP(p) {
   if (p.icp_score && Number(p.icp_score) > 0) return Number(p.icp_score).toFixed(1);
   let score = 5.0;
-  const sector = (p.sector || '').toLowerCase();
-  if (sector.includes('adtech') || sector.includes('programmatic')) score += 2.5;
-  else if (sector.includes('fintech') || sector.includes('payment'))  score += 2.0;
-  else if (sector.includes('saas') || sector.includes('software'))    score += 1.5;
-  else if (sector.includes('gaming'))                                  score += 1.5;
-  else                                                                 score += 0.5;
   const region = (p.region || p.country || '').toLowerCase();
   const _geoTier1 = ['france','belgium','netherlands','israel'];
   const _geoTier2 = ['united kingdom','ireland','germany','switzerland','austria','united states','canada'];
@@ -6594,9 +6473,13 @@ function _calcICP(p) {
   else if (_geoTier3.some(c => region.includes(c)) || region.includes('emea') || region.includes('europe')) score += 1.0;
   else if ([..._geoApac, ..._geoLatam].some(c => region.includes(c)))                        score += 0.5;
   const title = (p.title || '').toLowerCase();
-  if (['ceo','founder','co-founder','chief executive'].some(t => title.includes(t))) score += 1.0;
-  else if (['cro','cmo','coo','vp','vice president'].some(t => title.includes(t)))   score += 0.7;
-  else if (['director','head of'].some(t => title.includes(t)))                      score += 0.4;
+  if (['ceo','founder','co-founder','chief executive'].some(t => title.includes(t))) score += 2.0;
+  else if (['cro','cmo','coo','vp','vice president'].some(t => title.includes(t)))   score += 1.2;
+  else if (['director','head of'].some(t => title.includes(t)))                      score += 0.7;
+  if (p.company_size) {
+    const _csNum = parseInt(String(p.company_size)) || 0;
+    if (_csNum >= 11 && _csNum <= 200) score += 0.5;
+  }
   return Math.min(score, 10).toFixed(1);
 }
 // Closing probability par stage (vocabulaire canonique Supabase)
