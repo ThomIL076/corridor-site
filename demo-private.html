@@ -140,10 +140,6 @@ nav {
   font-size:10px; font-weight:600; letter-spacing:2px; text-transform:uppercase;
   color:var(--blue); margin-bottom:8px;
 }
-.section-title {
-  font-family:'Fraunces', serif; font-size:28px; font-weight:700;
-  color:var(--navy); letter-spacing:-0.5px; margin-bottom:8px;
-}
 .section-sub { font-size:13px; color:var(--muted); font-weight:300; max-width:560px; }
 
 /* ── INPUT ROW ── */
@@ -243,7 +239,7 @@ nav {
   padding:16px; text-align:center;
 }
 .score-kpi-val {
-  font-family:'Fraunces', serif; font-size:32px; font-weight:700; color:var(--navy);
+  font-family:'Plus Jakarta Sans', sans-serif; font-size:32px; font-weight:800; color:var(--navy);
   display:block; letter-spacing:-1px;
 }
 .score-kpi-val.green { color:var(--green); }
@@ -703,7 +699,7 @@ body.scanner-open { overflow:hidden; }
 
 /* ══ MOBILE-FIRST OPTIMISATION (≤480px) — rendu desktop préservé ══ */
 /* 1. phrases coupées (safe desktop) */
-h1, h2, .section-title, .k-card-name, .k-card-company { overflow-wrap:break-word; word-break:break-word; hyphens:auto; }
+h1, h2, .k-card-name, .k-card-company { overflow-wrap:break-word; word-break:break-word; hyphens:auto; }
 .kanban-swipe-hint { display:none; }
 /* footer attribution masquée en mode PWA standalone */
 @media (display-mode: standalone) { .footer-built-by { display:none; } .access-note { display:none !important; } }
@@ -743,7 +739,6 @@ h1, h2, .section-title, .k-card-name, .k-card-company { overflow-wrap:break-word
   /* 1. badge ACTIVE réduit (ne chevauche plus l'avatar) */
   .nav-badge { font-size:9px; padding:2px 6px; }
   /* 3. titres de section non coupés */
-  .section-title { font-size:clamp(24px, 6.5vw, 36px); }
   /* 6. Toolbar Pipeline : 4 boutons en grille 2x2, pleine largeur (= bouton Analyze) */
   .csv-actions { display:grid !important; grid-template-columns:repeat(2,1fr); gap:8px; width:calc(100% - 32px); margin:0 auto; }
   #kanban-search { grid-column:1 / -1; width:100%; box-sizing:border-box; font-size:16px; }
