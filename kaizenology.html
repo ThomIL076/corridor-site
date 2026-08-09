@@ -463,10 +463,10 @@ footer a { color:var(--navy); text-decoration:none; font-weight:600; }
 }
 
 /* ── SYSTEM IN ACTION (Module 07) ── */
-.sys-tabs { display:flex; gap:2px; border-bottom:1px solid var(--border); margin:0 0 24px; }
-.sys-tab { padding:10px 18px; font-size:11px; font-weight:700; letter-spacing:0.8px; text-transform:uppercase; color:var(--text-secondary); background:none; border:none; border-bottom:2px solid transparent; cursor:pointer; font-family:inherit; transition:color 0.15s,border-color 0.15s; }
-.sys-tab:hover { color:#2568B5; }
-.sys-tab.active { color:#2568B5; border-bottom-color:#3B8BD4; }
+.sys-tabs { display:flex; gap:3px; background:var(--navy-light); border-radius:9px; padding:4px; margin:0 0 24px; border:1px solid var(--border); }
+.sys-tab { padding:8px 16px; font-size:11px; font-weight:700; letter-spacing:0.5px; text-transform:uppercase; color:var(--muted); background:transparent; border:none; border-radius:6px; cursor:pointer; font-family:inherit; transition:background 0.15s,color 0.15s,box-shadow 0.15s; flex:1; text-align:center; }
+.sys-tab:hover { color:var(--navy); }
+.sys-tab.active { background:var(--white); color:var(--navy); box-shadow:0 1px 3px rgba(26,43,94,0.12); }
 .sys-live-badge { display:inline-block; background:#d1fae5; color:#1D9E75; font-size:10px; font-weight:700; letter-spacing:0.8px; text-transform:uppercase; padding:2px 7px; border-radius:10px; vertical-align:middle; }
 .system-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; align-items:stretch; }
 @media(max-width:1100px){ .system-grid { grid-template-columns:repeat(2,1fr); } }
@@ -511,8 +511,8 @@ footer a { color:var(--navy); text-decoration:none; font-weight:600; }
 .system-alert-box { border-color:#fca5a5; background:var(--red-bg); }
 .system-alert-header { background:#fee2e2; border-bottom-color:#fca5a5; }
 .system-alert-header .ai-box-label { color:var(--red); }
-.badge-review { background:#f0fdf4; color:#15803d; border:1px solid #86efac; }
-.system-review-card { border-color:#86efac; }
+.badge-review { background:var(--navy-light); color:var(--navy); border:1px solid var(--border); }
+.system-review-card { border-color:var(--border); }
 .pr-kpi-bar { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
 .pr-kpi { flex:1; min-width:72px; text-align:center; border-radius:8px; padding:8px 6px; border:1px solid; }
 .pr-kpi-num { font-size:22px; font-weight:800; line-height:1; }
@@ -1600,6 +1600,10 @@ body.new-nav { padding-left: 220px; }
   <!-- ══ TAB 6: SYSTEM IN ACTION ══ -->
   <div class="tab-panel" id="tab-system">
 
+    <!-- Intelligence header -->
+    <div style="margin-bottom:20px;">
+      <div style="font-size:18px;font-weight:800;color:var(--navy);font-family:'Plus Jakarta Sans',sans-serif;letter-spacing:-0.3px;line-height:1.2;">Signals & Pipeline</div>
+    </div>
     <!-- Sub-nav -->
     <div class="sys-tabs">
       <button class="sys-tab active" data-sys="signals" onclick="_switchSysTab('signals')">Signals</button>
@@ -1699,8 +1703,8 @@ function _renderSignalsFeed() {
     const ts = new Date(item.timestamp);
     const tsStr = isNaN(ts) ? '' : ts.toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
     const badge = item.type === 'live'
-      ? '<span class="sys-live-badge">Live</span>'
-      : '<span style="display:inline-block;background:#dbeafe;color:#3B8BD4;font-size:10px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;padding:2px 7px;border-radius:10px;vertical-align:middle;">Morning</span>';
+      ? '<span style="display:inline-flex;align-items:center;gap:5px;flex-shrink:0;"><span style="width:7px;height:7px;border-radius:50%;background:#1D9E75;flex-shrink:0;display:inline-block;"></span><span style="font-size:10px;font-weight:700;color:#1D9E75;letter-spacing:0.05em;text-transform:uppercase;">Live</span></span>'
+      : '<span style="display:inline-flex;align-items:center;gap:5px;flex-shrink:0;"><span style="width:7px;height:7px;border-radius:50%;background:#3B8BD4;flex-shrink:0;display:inline-block;"></span><span style="font-size:10px;font-weight:700;color:#3B8BD4;letter-spacing:0.05em;text-transform:uppercase;">Morning</span></span>';
     const labelHtml = item.label
       ? `<span style="font-weight:600;font-size:12px;color:var(--text-primary);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_esc(item.label)}</span>`
       : '';
@@ -1712,39 +1716,57 @@ function _renderSignalsFeed() {
   }).join('');
 }
 
-let _weeklyReport = null;
-
-function _renderWeeklyList() {
+function _renderWeeklyList(reports) {
   const list = document.getElementById('weekly-reports-list');
   if (!list) return;
-  if (!_weeklyReport) {
+  if (!reports || !reports.length) {
     list.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;padding:16px 0;">No report generated yet. Click Generate Report to run.</div>';
     return;
   }
-  const { date, summary, fullHtml } = _weeklyReport;
-  const d = new Date(date);
-  const mon = new Date(d);
-  const dow = mon.getDay();
-  mon.setDate(mon.getDate() - (dow === 0 ? 6 : dow - 1));
-  const weekLabel = 'Week of ' + mon.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
-  const tsStr = d.toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-  list.innerHTML = `<div style="border:1px solid var(--border);border-radius:10px;padding:14px 16px;">
-    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:0;">
-      <span style="font-size:11px;font-weight:700;color:var(--text-secondary);white-space:nowrap;">${_esc(weekLabel)}</span>
-      <span style="flex:1;font-size:13px;color:var(--text-primary);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${_esc(summary)}">${_esc(summary)}</span>
-      <span style="font-size:11px;color:var(--text-secondary);white-space:nowrap;">${tsStr}</span>
-      <button onclick="_toggleWeeklyView(this)" style="font-size:11px;font-weight:700;padding:4px 12px;background:var(--border);color:var(--text-primary);border:none;border-radius:6px;cursor:pointer;white-space:nowrap;flex-shrink:0;">View</button>
-    </div>
-    <div id="weekly-full-view" style="display:none;margin-top:14px;border-top:1px solid var(--border);padding-top:14px;font-size:13px;line-height:1.6;">${fullHtml}</div>
-  </div>`;
+  const _isAll = activeMandateId === '__ALL__';
+  list.innerHTML = reports.map((r, idx) => {
+    const d = new Date(r.week_start || r.created_at);
+    const mon = new Date(d);
+    mon.setDate(mon.getDate() - (mon.getDay() === 0 ? 6 : mon.getDay() - 1));
+    const weekLabel = 'Week of ' + mon.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+    const rowId = 'weekly-full-' + (r.id || idx);
+    const mandateLabel = (_isAll && r.mandates && r.mandates.name)
+      ? `<span style="font-size:10px;font-weight:700;color:var(--blue);background:var(--navy-light);padding:2px 7px;border-radius:10px;white-space:nowrap;flex-shrink:0;">${_esc(r.mandates.name)}</span>`
+      : '';
+    return `<div style="border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:10px;">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:0;">
+        <span style="font-size:11px;font-weight:700;color:var(--text-secondary);white-space:nowrap;">${_esc(weekLabel)}</span>
+        ${mandateLabel}
+        <span style="flex:1;font-size:13px;color:var(--text-primary);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${_esc(r.summary || '')}">${_esc(r.summary || '')}</span>
+        <button onclick="_toggleWeeklyView('${rowId}',this)" style="font-size:11px;font-weight:700;padding:4px 12px;background:var(--border);color:var(--text-primary);border:none;border-radius:6px;cursor:pointer;white-space:nowrap;flex-shrink:0;">View</button>
+      </div>
+      <div id="${rowId}" style="display:none;margin-top:14px;border-top:1px solid var(--border);padding-top:14px;font-size:13px;line-height:1.6;">${r.full_report || ''}</div>
+    </div>`;
+  }).join('');
 }
-
-function _toggleWeeklyView(btn) {
-  const full = document.getElementById('weekly-full-view');
+function _toggleWeeklyView(id, btn) {
+  const full = document.getElementById(id);
   if (!full) return;
   const open = full.style.display === 'none';
   full.style.display = open ? '' : 'none';
   if (btn) btn.textContent = open ? 'Close' : 'View';
+}
+async function _loadWeeklyReports() {
+  const list = document.getElementById('weekly-reports-list');
+  if (!list) return;
+  try {
+    let q = sbClient.from('weekly_reports')
+      .select('id, week_start, summary, full_report, mandate_id, created_at, mandates(name)')
+      .eq('client_id', CLIENT_ID)
+      .order('week_start', { ascending: false });
+    if (activeMandateId && activeMandateId !== '__ALL__') q = q.eq('mandate_id', activeMandateId);
+    const { data, error } = await q;
+    if (error) throw error;
+    _renderWeeklyList(data || []);
+  } catch(e) {
+    console.warn('[_loadWeeklyReports]', e);
+    list.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;padding:16px 0;">Could not load reports.</div>';
+  }
 }
 
 function _switchSysTab(key) {
@@ -1752,6 +1774,7 @@ function _switchSysTab(key) {
   document.querySelectorAll('#tab-system .sys-panel').forEach(p => { p.style.display = p.id === 'syspanel-' + key ? '' : 'none'; });
   const sidebarKey = key === 'reports' ? 'weekly' : key;
   _newNavActive('system-' + sidebarKey);
+  if (key === 'reports') _loadWeeklyReports();
 }
 
 function _switchNewNav(tab, sysHint) {
@@ -4949,13 +4972,11 @@ function _inferRegion(country) {
 async function runWeeklyReport(){
   document.getElementById('weekly-btn').disabled = true;
 
-  // Compute Monday 00:00 of current week
+  // Compute Monday 00:00 UTC of current week
   const now = new Date();
-  const dow = now.getDay();
+  const dow = now.getUTCDay();
   const daysBack = dow === 0 ? 6 : dow - 1;
-  const monday = new Date(now);
-  monday.setDate(now.getDate() - daysBack);
-  monday.setHours(0, 0, 0, 0);
+  const monday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - daysBack));
   const weekStart = monday.toISOString();
 
   let interactionLines = '';
@@ -5002,8 +5023,14 @@ async function runWeeklyReport(){
   } catch(e) { console.warn('weekly report fetch:', e); }
 
   if (!interactionLines) {
-    _weeklyReport = { date: new Date().toISOString(), summary: 'No activity recorded this week.', fullHtml: 'No activity recorded this week.' };
-    _renderWeeklyList();
+    try {
+      await sbClient.from('weekly_reports').insert({
+        client_id: CLIENT_ID,
+        mandate_id: (activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null,
+        week_start: weekStart, summary: 'No activity recorded this week.', full_report: 'No activity recorded this week.'
+      });
+    } catch(e) { console.warn('[runWeeklyReport] insert failed:', e); }
+    await _loadWeeklyReports();
     document.getElementById('weekly-btn').disabled = false;
     return;
   }
@@ -5039,8 +5066,14 @@ ${_langLine()}`;
 
   const _wrSummary = _wrComputedSummary || 'Report generated.';
 
-  _weeklyReport = { date: new Date().toISOString(), summary: _wrSummary, fullHtml: _wrTempEl.innerHTML };
-  _renderWeeklyList();
+  try {
+    await sbClient.from('weekly_reports').insert({
+      client_id: CLIENT_ID,
+      mandate_id: (activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null,
+      week_start: weekStart, summary: _wrSummary, full_report: _wrTempEl.innerHTML
+    });
+  } catch(e) { console.warn('[runWeeklyReport] insert failed:', e); }
+  await _loadWeeklyReports();
   document.getElementById('weekly-btn').disabled = false;
 }
 
