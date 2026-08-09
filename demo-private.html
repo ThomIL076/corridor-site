@@ -268,6 +268,7 @@ nav {
 
 /* ── SCORE DISPLAY ── */
 .score-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px; }
+#scanner-score-grid { grid-template-columns: repeat(2, 1fr); }
 .score-kpi {
   background:var(--bg); border:1px solid var(--border); border-radius:10px;
   padding:16px; text-align:center;
@@ -2410,42 +2411,9 @@ async function runScanner() {
   document.getElementById('scanner-results').style.display = 'block';
   document.getElementById('scanner-btn').disabled = true;
 
-  // ICP score via AI (async, resolved in parallel with the brief)
-  let _scorePromise = Promise.resolve(null);
-  if (_scannerMode !== 'free') {
-    let _mandateCriteria = '';
-    if (activeMandateId && activeMandateId !== '__ALL__') {
-      try {
-        const { data: _md } = await sbClient.from('mandates')
-          .select('icp_criteria,decision_makers,sectors,geography,signals,exclusions')
-          .eq('id', activeMandateId).single();
-        if (_md) {
-          _mandateCriteria = '\nMANDATE CRITERIA (primary evaluation framework):\n'
-            + (_md.icp_criteria    ? 'ICP criteria: '       + _md.icp_criteria    + '\n' : '')
-            + (_md.decision_makers ? 'Target roles: '       + _md.decision_makers + '\n' : '')
-            + (_md.sectors         ? 'Target sectors: '     + _md.sectors         + '\n' : '')
-            + (_md.geography       ? 'Target geography: '   + _md.geography       + '\n' : '')
-            + (_md.signals         ? 'Key buying signals: ' + _md.signals         + '\n' : '')
-            + (_md.exclusions      ? 'Exclusions: '         + _md.exclusions      + '\n' : '');
-        }
-      } catch(e) { console.warn('[runScanner] mandate fetch failed:', e); }
-    }
-    const _scorePromptText = 'You are an ICP scoring engine for Corridor, a B2B GTM advisory firm. Score this prospect 0-10.\n\nCompany: ' + company + '\nSector: ' + sector + '\nStage: ' + stage + '\n' + fundingStr + urlStr + contextStr + _mandateCriteria + '\n' + (_mandateCriteria ? 'Score strictly against the mandate criteria above.' : 'Generic criteria: ideal is a scale-up (Series A-C), 11-200 employees, expanding internationally; strong signals: fundraise, new market entry, new CXO/VP hire; target roles: CEO, founder, CRO, CMO, VP Sales/Marketing — no hard sector filter.') + '\n\nReturn ONLY valid JSON, no other text:\n{"score":<0-10 one decimal>,"confidence":"<low|medium|high>","rationale":"<one sentence>"}';
-    _scorePromise = fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 120, messages: [{ role: 'user', content: _scorePromptText }] })
-    }).then(r => r.ok ? r.json() : null).then(d => {
-      if (!d || !Array.isArray(d.content)) return null;
-      const _t = d.content.filter(b => b.type === 'text').map(b => b.text).join('').trim();
-      const _m = _t.match(/\{[\s\S]*\}/);
-      try { return _m ? JSON.parse(_m[0]) : null; } catch(e) { return null; }
-    }).catch(e => { console.warn('[runScanner] score failed:', e); return null; });
-    ['sc-total','sc-fit','sc-timing','sc-bar-pct'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = '…'; });
-    const _initBar = document.getElementById('sc-bar'); if (_initBar) _initBar.style.width = '0%';
-  }
-
-  // Signal badges populated from AI response after scan completes
+  // Score runs after brief completes, informed by detected signals
+  let _scoreResult = null;
+  const _scTotEl = document.getElementById('sc-total'); if (_scTotEl && _scannerMode !== 'free') _scTotEl.textContent = '…';
   const sigList = document.getElementById('scanner-signals-list');
   if (sigList) sigList.innerHTML = '';
 
@@ -2482,35 +2450,90 @@ Language instruction: Write your entire response in ${currentLang === 'fr' ? 'Fr
   const _scanNoCtx = _scanLive ? '' : '\nNO LIVE CONTEXT AVAILABLE: Do not invent company-specific facts, figures, or events. If no verified data is found, state so explicitly.\n';
   const _sp1 = callAI(_scanLive + _scanNoCtx + prompt, _scanEl, 'scanner-spinner', false);
   const _sp2 = person ? _runContactIntelligence(company, person) : Promise.resolve();
-  const [,, _scoreResult] = await Promise.all([_sp1, _sp2, _scorePromise]);
-  if (_scannerMode !== 'free' && _scoreResult) {
-    const _icpPct = Math.min(100, Math.max(0, Math.round(parseFloat(_scoreResult.score || 0) * 10)));
-    document.getElementById('sc-total').textContent = _icpPct + '/100';
-    document.getElementById('sc-fit').textContent = _icpPct + '%';
-    document.getElementById('sc-timing').textContent = _icpPct + '%';
-    document.getElementById('sc-bar-pct').textContent = _icpPct + '%';
-    const _scoreBar = document.getElementById('sc-bar');
-    if (_scoreBar) _scoreBar.style.width = _icpPct + '%';
-  }
-  // Populate signal badges from what the AI actually found
+  await Promise.all([_sp1, _sp2]);
+  // Extract buying signals from the completed brief
   const _scanAiOut = document.getElementById('scanner-ai-output');
-  if (sigList && _scanAiOut) {
-    const aiTxt = _scanAiOut.textContent || '';
-    const noInfo = /no verifiable|no public information|no information found|unable to find|cannot find/i.test(aiTxt);
-    if (!noInfo) {
-      const sigs = [];
-      if (/fund|raised|series [abc]|investm/i.test(aiTxt)) sigs.push({type:'s1', label:'Fundraise signal'});
-      if (/new.*(?:vp|cro|cmo|cto|svp|director|head of)|appointed|joined/i.test(aiTxt)) sigs.push({type:'s3', label:'Senior hire'});
-      if (/expan|new market|international|new country|new region|enter.*market/i.test(aiTxt)) sigs.push({type:'s4', label:'Expansion move'});
-      if (/partner|acqui|merger/i.test(aiTxt)) sigs.push({type:'s2', label:'Partnership'});
-      if (sigs.length > 0) {
-        sigList.innerHTML = '<div class="signal-list">' + sigs.map(s => `<span class="signal-tag signal-${s.type}">${s.label}</span>`).join('') + '</div>';
+  const aiTxt = _scanAiOut ? (_scanAiOut.textContent || '') : '';
+  const noInfo = /no verifiable|no public information|no information found|unable to find|cannot find/i.test(aiTxt);
+  const sigs = [];
+  if (!noInfo) {
+    if (/fund|raised|series [abc]|investm/i.test(aiTxt)) sigs.push({type:'s1', label:'Fundraise signal'});
+    if (/new.*(?:vp|cro|cmo|cto|svp|director|head of)|appointed|joined/i.test(aiTxt)) sigs.push({type:'s3', label:'Senior hire'});
+    if (/expan|new market|international|new country|new region|enter.*market/i.test(aiTxt)) sigs.push({type:'s4', label:'Expansion move'});
+    if (/partner|acqui|merger/i.test(aiTxt)) sigs.push({type:'s2', label:'Partnership'});
+    if (sigList && sigs.length > 0) {
+      sigList.innerHTML = '<div class="signal-list">' + sigs.map(s => `<span class="signal-tag signal-${s.type}">${s.label}</span>`).join('') + '</div>';
+    }
+  }
+  const scSig = document.getElementById('sc-signals');
+  if (scSig) scSig.textContent = sigs.length || 0;
+  // ICP scoring — sequential, informed by detected signals
+  if (_scannerMode !== 'free') {
+    let _mandateCriteria = '';
+    if (activeMandateId && activeMandateId !== '__ALL__') {
+      try {
+        const { data: _md } = await sbClient.from('mandates')
+          .select('icp_criteria,decision_makers,sectors,geography,signals,exclusions')
+          .eq('id', activeMandateId).single();
+        if (_md) {
+          _mandateCriteria = '\nMANDATE CRITERIA (primary evaluation framework):\n'
+            + (_md.icp_criteria    ? 'ICP criteria: '       + _md.icp_criteria    + '\n' : '')
+            + (_md.decision_makers ? 'Target roles: '       + _md.decision_makers + '\n' : '')
+            + (_md.sectors         ? 'Target sectors: '     + _md.sectors         + '\n' : '')
+            + (_md.geography       ? 'Target geography: '   + _md.geography       + '\n' : '')
+            + (_md.signals         ? 'Key buying signals: ' + _md.signals         + '\n' : '')
+            + (_md.exclusions      ? 'Exclusions: '         + _md.exclusions      + '\n' : '');
+        }
+      } catch(e) { console.warn('[runScanner] mandate fetch failed:', e); }
+    }
+    const _sigsLine = sigs.length > 0
+      ? '\nDetected buying signals for this company: ' + sigs.map(s => s.label).join(', ') + '. Factor these signals into your score.'
+      : '';
+    const _scorePromptText = 'You are an ICP scoring engine for Corridor, a B2B GTM advisory firm. Score this prospect 0-10.\n\nCompany: ' + company + '\nSector: ' + sector + '\nStage: ' + stage + '\n' + fundingStr + urlStr + contextStr + _mandateCriteria + _sigsLine + '\n' + (_mandateCriteria ? 'Score strictly against the mandate criteria above.' : 'Generic criteria: ideal is a scale-up (Series A-C), 11-200 employees, expanding internationally; strong signals: fundraise, new market entry, new CXO/VP hire; target roles: CEO, founder, CRO, CMO, VP Sales/Marketing — no hard sector filter.') + '\n\nReturn ONLY valid JSON, no other text:\n{"score":<0-10 one decimal>,"confidence":"<low|medium|high>","rationale":"<one sentence>"}';
+    try {
+      const _scoreResp = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 400, messages: [{ role: 'user', content: _scorePromptText }] })
+      });
+      const _scoreData = _scoreResp.ok ? await _scoreResp.json() : null;
+      if (_scoreData && Array.isArray(_scoreData.content)) {
+        const _t = _scoreData.content.filter(b => b.type === 'text').map(b => b.text).join('').trim();
+        const _m = _t.match(/\{[\s\S]*\}/);
+        try { _scoreResult = _m ? JSON.parse(_m[0]) : null; } catch(e) {}
       }
-      const scSig = document.getElementById('sc-signals');
-      if (scSig) scSig.textContent = sigs.length || 0;
+    } catch(e) { console.warn('[runScanner] score failed:', e); }
+    if (_scoreResult && _scoreResult.score != null) {
+      const _icpPct = Math.min(100, Math.max(0, Math.round(parseFloat(_scoreResult.score) * 10)));
+      document.getElementById('sc-total').textContent = _icpPct + '/100';
+    } else {
+      document.getElementById('sc-total').textContent = '—';
     }
   }
   document.getElementById('scanner-btn').disabled = false;
+  // Pipeline check: Add to pipeline / View in pipeline
+  const _prevAct = document.getElementById('scanner-pipeline-action'); if (_prevAct) _prevAct.remove();
+  const _scanCo = (document.getElementById('scanner-company')?.value || '').trim();
+  if (_scanCo) {
+    try {
+      const _scanPer = (document.getElementById('scanner-person')?.value || '').trim();
+      const _scanSec = (document.getElementById('scanner-sector')?.value || '').trim();
+      const _scanScoreVal = (_scoreResult && _scoreResult.score != null) ? parseFloat(_scoreResult.score) : null;
+      const _scanSummary = (document.getElementById('scanner-ai-output')?.textContent || '').slice(0, 800);
+      const { data: _existingArr } = await sbClient.from('prospects').select('id, name, company, stage').eq('client_id', CLIENT_ID).ilike('company', _scanCo).limit(1);
+      const _existing = _existingArr && _existingArr.length ? _existingArr[0] : null;
+      const _actDiv = document.createElement('div');
+      _actDiv.id = 'scanner-pipeline-action';
+      _actDiv.style.cssText = 'margin-top:16px;';
+      if (_existing) {
+        _actDiv.innerHTML = `<button onclick="_viewInPipeline('${_existing.id}')" style="width:100%;padding:11px;background:var(--navy-light);color:var(--navy);border:1px solid var(--border);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="m9 12 2 2 4-4"/></svg>Already in pipeline · ${_esc(_existing.stage)} — View prospect</button>`;
+      } else {
+        window._scannerAddData = { company: _scanCo, name: _scanPer, sector: _scanSec, icp_score: _scanScoreVal, signal: _scanSummary };
+        _actDiv.innerHTML = `<button onclick="_addScannerToPipeline()" style="width:100%;padding:11px;background:var(--navy);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>Add to pipeline</button>`;
+      }
+      const _resDiv = document.getElementById('scanner-results'); if (_resDiv) _resDiv.appendChild(_actDiv);
+    } catch(e) { console.warn('[runScanner] pipeline check failed:', e); }
+  }
 }
 
 // ── MODULE 2: PROSPECT INTELLIGENCE ──
@@ -5072,6 +5095,7 @@ ${_langLine()}`;
 // ── PIPELINE DRAWER (multi-touch timeline) ──
 // ── PHASE 2 DRAWER — interactions / notes / reminders ──────────────────────
 let _drawerProspect = null;
+let _scannerPreFill = null;
 let _drawerInteractions = [];
 let _drawerPollInterval = null;
 
@@ -5214,6 +5238,7 @@ async function openDrawer(card) {
   const reminderDate = card.dataset.reminderDate || null;
   const clientId     = card.dataset.clientId     || CLIENT_ID;
 
+  _scannerPreFill = { company: (_p.company || '').trim() || company.split('·')[0].trim(), sector };
   _drawerProspect = { id:prospectId, name, company, score, sector, stage,
                       last_contact:lastContact, reminder_date:reminderDate, client_id:clientId };
 
@@ -5227,7 +5252,7 @@ async function openDrawer(card) {
         <div class="drawer-last-contact">${lcStr ? 'Last contact: '+_esc(lcStr) : 'No contact logged yet'}</div>
       </div>
       ${icpDial}
-      <button onclick="openScannerPanel()" style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:6px;background:var(--navy-light);border:1px solid var(--border);cursor:pointer;color:var(--blue);flex-shrink:0;" title="Scan company" aria-label="Scan this company">
+      <button onclick="openScannerPanel('drawer')" style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:6px;background:var(--navy-light);border:1px solid var(--border);cursor:pointer;color:var(--blue);flex-shrink:0;" title="Scan company" aria-label="Scan this company">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
       </button>
       <button class="drawer-close" onclick="closeDrawer()" aria-label="Close prospect drawer">✕</button>
@@ -5405,10 +5430,22 @@ function closeDrawer() {
   document.getElementById('drawer-overlay').classList.remove('open');
   document.body.classList.remove('drawer-open');
   _drawerProspect = null;
+  _scannerPreFill = null;
   _drawerInteractions = [];
   if (_drawerPollInterval) { clearInterval(_drawerPollInterval); _drawerPollInterval = null; }
 }
-function openScannerPanel() {
+function openScannerPanel(source) {
+  const ctx = (source === 'drawer') ? _scannerPreFill : null;
+  ['scanner-company','scanner-person','scanner-sector','scanner-stage','scanner-funding','scanner-url','scanner-context'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  const _sr = document.getElementById('scanner-results'); if (_sr) _sr.style.display = 'none';
+  const _pa = document.getElementById('scanner-pipeline-action'); if (_pa) _pa.remove();
+  if (ctx) {
+    const _set = (id, v) => { const el = document.getElementById(id); if (el && v) el.value = v; };
+    _set('scanner-company', ctx.company);
+    _set('scanner-sector', ctx.sector);
+  }
   document.getElementById('scanner-overlay').classList.add('open');
   document.getElementById('scanner-panel').classList.add('open');
   document.body.classList.add('scanner-open');
@@ -5417,6 +5454,41 @@ function closeScannerPanel() {
   document.getElementById('scanner-overlay').classList.remove('open');
   document.getElementById('scanner-panel').classList.remove('open');
   document.body.classList.remove('scanner-open');
+}
+async function _addScannerToPipeline() {
+  const d = window._scannerAddData;
+  if (!d || !d.company) return;
+  const btn = document.querySelector('#scanner-pipeline-action button');
+  if (btn) btn.disabled = true;
+  try {
+    const _p = { name: d.name || d.company, company: d.company };
+    const row = {
+      client_id: CLIENT_ID,
+      mandate_id: (activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null,
+      external_id: identityKey(_p),
+      name: d.name || d.company,
+      company: d.company,
+      sector: d.sector || null,
+      region: 'EMEA',
+      stage: 'Identified',
+      icp_score: d.icp_score != null ? d.icp_score : null,
+      signal: d.signal || null,
+      origin: 'outbound',
+      archived: false,
+      updated_at: new Date().toISOString()
+    };
+    const { error } = await sbClient.from('prospects').insert(row);
+    if (error) throw error;
+    if (btn) { btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg> Added to pipeline'; btn.style.background = '#1D9E75'; }
+    loadKanban(true);
+  } catch(e) {
+    console.warn('[_addScannerToPipeline] failed:', e);
+    if (btn) { btn.disabled = false; }
+  }
+}
+function _viewInPipeline(prospectId) {
+  closeScannerPanel();
+  _prOpenProspect(prospectId);
 }
 function _switchDTab(name, el) {
   document.querySelectorAll('.dtab').forEach(t => t.classList.remove('active'));
@@ -7828,18 +7900,12 @@ if ('serviceWorker' in navigator) {
     <div id="scanner-results" style="display:none">
       <div class="score-grid" id="scanner-score-grid">
         <div class="score-kpi"><span class="score-kpi-val green" id="sc-total">—</span><span class="score-kpi-label" data-en="ICP Score" data-fr="Score ICP">ICP Score</span></div>
-        <div class="score-kpi"><span class="score-kpi-val" id="sc-fit">—</span><span class="score-kpi-label" data-en="Sector Fit" data-fr="Fit secteur">Sector Fit</span></div>
-        <div class="score-kpi"><span class="score-kpi-val" id="sc-timing">—</span><span class="score-kpi-label" data-en="Timing" data-fr="Timing">Timing</span></div>
         <div class="score-kpi"><span class="score-kpi-val amber" id="sc-signals">—</span><span class="score-kpi-label" data-en="Signals detected" data-fr="Signaux détectés">Signals detected</span></div>
       </div>
       <div id="breakdown-panel" style="display:none;margin-bottom:16px;"></div>
       <div class="card" id="scanner-buying-signals-card" style="margin-bottom:16px">
         <div class="card-header"><span class="card-title" data-en="Buying Signals" data-fr="Signaux d'achat">Buying Signals</span><span class="card-badge badge-auto" data-en="AUTO-DETECTED" data-fr="AUTO-DÉTECTÉ">AUTO-DETECTED</span></div>
         <div id="scanner-signals-list"></div>
-        <div class="score-bar-wrap" style="margin-top:16px">
-          <div class="score-bar-meta"><span data-en="ICP Fit Score" data-fr="Score d'adéquation ICP">ICP Fit Score</span><span id="sc-bar-pct">0%</span></div>
-          <div class="score-bar"><div class="score-bar-fill" id="sc-bar" style="--w:0%"></div></div>
-        </div>
       </div>
       <div id="scanner-intel-row" style="margin-bottom:16px">
         <div class="card">
