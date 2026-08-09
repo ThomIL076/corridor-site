@@ -719,7 +719,7 @@ h1, h2, .k-card-name, .k-card-company { overflow-wrap:break-word; word-break:bre
   .kpi-row .kpi-card:last-child { grid-column:1 / -1; }
   /* 4. header compact */
   .user-company { display:none; }
-  .logo-mark { width:20px; }
+  .logo-mark { width:32px; }
   .logo-tagline { display:none; }
   .nav-cta { font-size:0; padding:8px 10px; }
   .nav-cta::before { content:'📅'; font-size:18px; }
@@ -733,6 +733,9 @@ h1, h2, .k-card-name, .k-card-company { overflow-wrap:break-word; word-break:bre
   #kpi-emeana, #score-kpi-naemea { font-size:22px; line-height:1.15; }
   #kpi-emeana .numsplit, #score-kpi-naemea .numsplit { font-size:0; }
   #kpi-emeana .numsplit::after, #score-kpi-naemea .numsplit::after { content:''; display:block; }
+  /* 10. logo mark seul + titres de module centrés */
+  .logo-name { display:none; }
+  .module-header { text-align:center; }
 }
 /* ══ MOBILE FIXES — ROUND 2 (≤480px) ══ */
 @media (max-width:480px) {
@@ -746,7 +749,7 @@ h1, h2, .k-card-name, .k-card-company { overflow-wrap:break-word; word-break:bre
   .csv-full { display:none; }
   .csv-short { display:inline; }
   /* logo mark carré (complète le width:20px du round 1) */
-  .logo-mark { height:20px; }
+  .logo-mark { height:32px; }
 }
 /* ══ MOBILE FIXES — ROUND 4 : Toolbar Pipeline mobile (≤480px) ══ */
 @media (max-width:480px) {
@@ -799,13 +802,15 @@ h1, h2, .k-card-name, .k-card-company { overflow-wrap:break-word; word-break:bre
     box-sizing: border-box;
   }
 }
-/* ══ MOBILE FIXES — ROUND 3 : badge ACTIVE sous la rangée logo/avatar (≤480px) ══ */
+/* ══ MOBILE NAV : avatar+badge centrés, hamburger/logo gauche, Sign out droite (≤480px) ══ */
 @media (max-width:480px) {
-  nav { height:108px; }
-  .user-avatar { width:28px; height:28px; font-size:12px; position:absolute; left:50%; top:18px; transform:translateX(-50%); }
+  nav { height:72px; position:relative; }
   .user-info { display:none; }
-  /* badge ACTIVE descendu au bas du header (sous la rangée logo/avatar). height:auto override l'inline height:100%. */
-  #nav-badge-wrap { position:absolute; left:50%; bottom:16px; transform:translateX(-50%); height:auto !important; top:auto; }
+  /* avatar : centré horizontalement, ancré en haut — symétrique avec le badge en bas */
+  .user-avatar { position:absolute !important; left:50%; transform:translateX(-50%) !important; top:8px !important; width:32px !important; height:32px !important; font-size:13px; }
+  /* badge ACTIVE : centré horizontalement, ancré en bas */
+  #nav-badge-wrap { position:absolute !important; left:50%; transform:translateX(-50%) !important; top:auto !important; bottom:8px; height:auto !important; }
+  .nav-badge { position:static; left:auto; transform:none; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
@@ -1104,7 +1109,7 @@ body.new-nav { padding-left: 220px; }
   <!-- ══ TAB 3: OUTREACH GENERATOR ══ -->
   <!-- ══ TAB 4: AI AGENTS ══ -->
   <div class="tab-panel" id="tab-agents">
-    <div style="margin-bottom:20px;">
+    <div class="module-header" style="margin-bottom:20px;">
       <div style="font-size:18px;font-weight:800;color:var(--navy);font-family:'Plus Jakarta Sans',sans-serif;letter-spacing:-0.3px;line-height:1.2;">Eleven specialists. Always on.</div>
     </div>
 
@@ -1334,7 +1339,7 @@ body.new-nav { padding-left: 220px; }
 
   <!-- ══ TAB 5: PIPELINE VIEW ══ -->
   <div class="tab-panel" id="tab-pipeline">
-    <div style="margin-bottom:20px;">
+    <div class="module-header" style="margin-bottom:20px;">
       <div style="font-size:18px;font-weight:800;color:var(--navy);font-family:'Plus Jakarta Sans',sans-serif;letter-spacing:-0.3px;line-height:1.2;" data-en="Your entire pipeline. One view." data-fr="Tout votre pipeline. Une seule vue.">Your entire pipeline. One view.</div>
     </div>
 
@@ -1447,7 +1452,7 @@ body.new-nav { padding-left: 220px; }
 
   <!-- ══ TAB: SEND ══ -->
   <div class="tab-panel" id="tab-send">
-    <div style="margin-bottom:20px;">
+    <div class="module-header" style="margin-bottom:20px;">
       <div style="font-size:18px;font-weight:800;color:var(--navy);font-family:'Plus Jakarta Sans',sans-serif;letter-spacing:-0.3px;line-height:1.2;" data-en="Today's messages, ready to fire." data-fr="Les messages du jour, prêts à partir.">Today's messages, ready to fire.</div>
     </div>
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap">
@@ -1499,7 +1504,7 @@ body.new-nav { padding-left: 220px; }
 
   <!-- ══ TAB: STATS ══ -->
   <div class="tab-panel" id="tab-stats">
-    <div style="margin-bottom:20px;">
+    <div class="module-header" style="margin-bottom:20px;">
       <div style="font-size:18px;font-weight:800;color:var(--navy);font-family:'Plus Jakarta Sans',sans-serif;letter-spacing:-0.3px;line-height:1.2;" data-en="Your pipeline, in numbers." data-fr="Votre pipeline, en chiffres.">Your pipeline, in numbers.</div>
     </div>
 
@@ -1546,7 +1551,7 @@ body.new-nav { padding-left: 220px; }
   <div class="tab-panel" id="tab-system">
 
     <!-- Intelligence header -->
-    <div style="margin-bottom:20px;">
+    <div class="module-header" style="margin-bottom:20px;">
       <div style="font-size:18px;font-weight:800;color:var(--navy);font-family:'Plus Jakarta Sans',sans-serif;letter-spacing:-0.3px;line-height:1.2;">Signals & Pipeline</div>
     </div>
     <!-- Sub-nav -->
