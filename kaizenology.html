@@ -621,10 +621,21 @@ footer a { color:var(--navy); text-decoration:none; font-weight:600; }
 .k-card { cursor:pointer; }
 #drawer-overlay { position:fixed; inset:0; background:rgba(26,43,94,0.35); z-index:9500; opacity:0; pointer-events:none; transition:opacity 0.25s; }
 #drawer-overlay.open { opacity:1; pointer-events:auto; }
-#drawer { position:fixed; top:0; right:0; height:100%; width:620px; max-width:95vw; background:var(--white); box-shadow:-8px 0 30px rgba(26,43,94,0.18); z-index:9600; transform:translateX(100%); transition:transform 0.3s cubic-bezier(0.4,0,0.2,1); display:flex; flex-direction:column; overflow-y:auto; }
+#drawer { position:fixed; top:0; right:0; height:100%; width:620px; max-width:95vw; background:var(--white); box-shadow:-8px 0 30px rgba(26,43,94,0.18); z-index:9600; transform:translateX(100%); transition:transform 0.3s cubic-bezier(0.4,0,0.2,1); display:flex; flex-direction:column; overflow:hidden; }
 #drawer.open { transform:translateX(0); }
 body.drawer-open { overflow:hidden; }
-.drawer-head { padding:20px 22px 18px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+/* ── Scanner overlay panel ── */
+#scanner-overlay { position:fixed; inset:0; background:rgba(26,43,94,0.35); z-index:9700; opacity:0; pointer-events:none; transition:opacity 0.25s; }
+#scanner-overlay.open { opacity:1; pointer-events:auto; }
+#scanner-panel { position:fixed; top:0; right:0; height:100%; width:520px; max-width:95vw; background:var(--white); box-shadow:-8px 0 30px rgba(26,43,94,0.18); z-index:9800; transform:translateX(100%); transition:transform 0.3s cubic-bezier(0.4,0,0.2,1); display:flex; flex-direction:column; overflow-y:auto; }
+#scanner-panel.open { transform:translateX(0); }
+body.scanner-open { overflow:hidden; }
+.scanner-panel-head { padding:18px 22px 16px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; gap:12px; flex-shrink:0; }
+.scanner-panel-title { font-size:15px; font-weight:800; color:var(--navy); font-family:'Plus Jakarta Sans',sans-serif; }
+.scanner-panel-body { padding:20px 22px; flex:1; overflow-y:auto; }
+.snav-scan-btn { display:flex; align-items:center; justify-content:center; width:34px; height:34px; border-radius:50%; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.18); color:rgba(255,255,255,0.85); cursor:pointer; transition:background 0.15s; margin:0 auto; }
+.snav-scan-btn:hover { background:rgba(255,255,255,0.18); color:#fff; }
+.drawer-head { padding:20px 22px 18px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-shrink:0; }
 .drawer-name { font-size:16px; font-weight:800; color:var(--navy); }
 .drawer-company { font-size:12px; color:var(--muted); margin-top:2px; }
 .drawer-score { font-size:11px; font-weight:700; color:var(--blue); margin-top:6px; display:inline-block; background:var(--navy-light); border:1px solid var(--blue); padding:3px 10px; border-radius:20px; }
@@ -643,12 +654,16 @@ body.drawer-open { overflow:hidden; }
 .tl-status { font-weight:700; }
 
 /* ── PHASE 2 DRAWER ── */
-.drawer-tabs{display:flex;border-bottom:1px solid var(--border);padding:0 22px;gap:18px;margin-top:4px;}
+.drawer-tabs{display:flex;border-bottom:1px solid var(--border);padding:0 22px;gap:18px;margin-top:4px;flex-shrink:0;}
 .dtab{padding:10px 4px;font-size:11px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:var(--text-secondary);cursor:pointer;border-bottom:2px solid transparent;transition:color 0.15s,border-color 0.15s;user-select:none;}
 .dtab:hover{color:#2568B5;}
 .dtab.active{color:#2568B5;border-bottom-color:#3B8BD4;}
 .dtab-panel{display:none;padding:20px 22px;}
-.dtab-panel.active{display:block;}
+.dtab-panel.active{display:flex;flex-direction:column;flex:1;min-height:0;overflow-y:auto;}
+/* Activity panel — timeline scrolls, Log form anchored at bottom */
+#dpanel-activity{overflow:hidden;}
+#dpanel-activity .int-log{flex:1;min-height:0;max-height:none;overflow-y:auto;margin-bottom:0;}
+#dpanel-activity .int-form{flex-shrink:0;margin-top:12px;}
 .int-log{display:flex;flex-direction:column;gap:0;margin-bottom:18px;max-height:240px;overflow-y:auto;}
 .int-item{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);}
 .int-item:last-child{border-bottom:none;}
@@ -659,7 +674,7 @@ body.drawer-open { overflow:hidden; }
 .int-note{font-size:12px;color:var(--text);margin-top:2px;line-height:1.5;word-break:break-word;}
 .int-date{font-size:10px;color:var(--dim);margin-top:3px;}
 .int-empty{font-size:12px;color:var(--dim);font-style:italic;padding:12px 0;}
-.int-form{background:var(--navy-light);border:1px solid var(--blue-light);border-radius:8px;padding:14px;margin-top:4px;}
+.int-form{background:var(--navy-light);border:1px solid var(--blue-light);border-radius:8px;padding:14px;margin-top:0;}
 .int-form-title{font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--dim);margin-bottom:10px;}
 .int-type-btns{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;}
 .int-type-btn{padding:5px 11px;border:1px solid var(--border-mid);border-radius:20px;font-size:11px;font-weight:600;color:var(--muted);background:#fff;cursor:pointer;transition:all 0.15s;}
@@ -1068,8 +1083,8 @@ body.new-nav { padding-left: 220px; }
     </button>
   </div>
   <div class="snav-scanner-zone">
-    <button class="snav-item" data-nav="scanner" onclick="_switchNewNav('scanner')">
-      <span class="snav-icon">🔍</span> Scanner
+    <button class="snav-item" onclick="openScannerPanel()" aria-label="Open company scanner">
+      <span class="snav-icon"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></span> Scanner
     </button>
   </div>
 </aside>
@@ -1130,115 +1145,7 @@ body.new-nav { padding-left: 220px; }
 <main class="main" id="main-content" aria-label="Corridor GTM System">
 
   <!-- ══ TAB 1: SIGNAL SCANNER ══ -->
-  <div class="tab-panel active" id="tab-scanner">
-    <div class="section-header">
-      <div class="section-eyebrow" data-en="Module 01 · Signal Intelligence" data-fr="Module 01 · Intelligence des signaux">Module 01 · Signal Intelligence</div>
-      <div class="section-title" data-en="Detect who's ready to buy, right now." data-fr="Détectez qui est prêt à acheter, maintenant.">Detect who's ready to buy, right now.</div>
-      <div class="section-sub" data-en="Enter any company and Corridor analyses buying signals, ICP fit, and expansion timing in real time." data-fr="Saisissez une société et Corridor analyse les signaux d'achat, l'adéquation ICP et le timing d'expansion en temps réel.">Enter any company and Corridor analyses buying signals, ICP fit, and expansion timing in real time.</div>
-    </div>
-
-    <div class="scanner-mode-toggle">
-      <button class="scanner-mode-btn active" id="scanner-mode-icp" onclick="_scannerSetMode('icp')">ICP Scan</button>
-      <button class="scanner-mode-btn" id="scanner-mode-free" onclick="_scannerSetMode('free')">Free Search</button>
-    </div>
-
-    <div class="input-row">
-      <input class="input-field" id="scanner-company" placeholder="Company name" data-en-ph="Company name" data-fr-ph="Nom de la société" />
-      <input class="input-field" id="scanner-person"
-        placeholder="First name Last name (optional)"
-        data-en-ph="First name Last name (optional)"
-        data-fr-ph="Prénom Nom (optionnel)" />
-      <select class="input-select" id="scanner-sector">
-        <option value="Healthcare & Medical Services">Healthcare &amp; Medical Services</option>
-        <option value="Industrial & Technical Services">Industrial &amp; Technical Services</option>
-        <option value="Environmental & Recycling">Environmental &amp; Recycling</option>
-        <option value="Logistics & Supply Chain">Logistics &amp; Supply Chain</option>
-        <option value="Food & Beverage Production">Food &amp; Beverage Production</option>
-        <option value="Other">Other</option>
-      </select>
-      <select class="input-select" id="scanner-stage">
-        <option value="Family-owned / Founder-led">Family-owned / Founder-led</option>
-        <option value="PE-backed">PE-backed</option>
-        <option value="VC-backed">VC-backed</option>
-        <option value="Listed">Listed</option>
-        <option value="Unknown">Unknown</option>
-      </select>
-      <input class="input-field" id="scanner-funding" placeholder="Funding (optional, e.g. €8M)" data-en-ph="Funding (optional, e.g. €8M)" data-fr-ph="Levée (optionnel, ex. 8M€)" style="max-width:160px" />
-      <input class="input-field" id="scanner-url" placeholder="Website (optional, e.g. risecodes.com)" data-en-ph="Website (optional, e.g. risecodes.com)" data-fr-ph="Site web (optionnel, ex. risecodes.com)" style="max-width:190px" />
-      <button class="btn-primary" onclick="runScanner()" id="scanner-btn">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-        <span id="scanner-btn-label" data-en="Scan signals" data-fr="Analyser les signaux">Scan signals</span>
-      </button>
-    </div>
-    <textarea class="input-field" id="scanner-context" rows="2"
-      placeholder="Optional context -- funding, recent news, CEO name..."
-      data-en-ph="Optional context -- funding, recent news, CEO name..."
-      data-fr-ph="Contexte optionnel -- levée, actualités récentes, nom du CEO..."
-      style="width:100%; margin-top:8px; resize:vertical; font-family:'Plus Jakarta Sans',sans-serif"></textarea>
-
-    <div id="scanner-results" style="display:none">
-      <div class="score-grid" id="scanner-score-grid">
-        <div class="score-kpi"><span class="score-kpi-val green" id="sc-total">—</span><span class="score-kpi-label" data-en="ICP Score" data-fr="Score ICP">ICP Score</span></div>
-        <div class="score-kpi"><span class="score-kpi-val" id="sc-fit">—</span><span class="score-kpi-label" data-en="Sector Fit" data-fr="Fit secteur">Sector Fit</span></div>
-        <div class="score-kpi"><span class="score-kpi-val" id="sc-timing">—</span><span class="score-kpi-label" data-en="Timing" data-fr="Timing">Timing</span></div>
-        <div class="score-kpi"><span class="score-kpi-val amber" id="sc-signals">—</span><span class="score-kpi-label" data-en="Signals detected" data-fr="Signaux détectés">Signals detected</span></div>
-      </div>
-
-      <div id="breakdown-panel" style="display:none;margin-bottom:16px;"></div>
-
-      <div class="card" id="scanner-buying-signals-card" style="margin-bottom:16px">
-        <div class="card-header"><span class="card-title" data-en="Buying Signals" data-fr="Signaux d'achat">Buying Signals</span><span class="card-badge badge-auto" data-en="AUTO-DETECTED" data-fr="AUTO-DÉTECTÉ">AUTO-DETECTED</span></div>
-        <div id="scanner-signals-list"></div>
-        <div class="score-bar-wrap" style="margin-top:16px">
-          <div class="score-bar-meta"><span data-en="ICP Fit Score" data-fr="Score d'adéquation ICP">ICP Fit Score</span><span id="sc-bar-pct">0%</span></div>
-          <div class="score-bar"><div class="score-bar-fill" id="sc-bar" style="--w:0%"></div></div>
-        </div>
-      </div>
-
-      <div id="scanner-intel-row" style="margin-bottom:16px">
-        <div class="card">
-          <div class="card-header"><span class="card-title" data-en="Company Intelligence" data-fr="Intelligence société">Company Intelligence</span></div>
-          <div class="ai-box">
-            <div class="ai-box-header">
-              <span class="ai-box-label" data-en="Signal Intelligence" data-fr="Intelligence des signaux">Signal Intelligence</span>
-              <div class="ai-spinner" id="scanner-spinner"></div>
-            </div>
-            <div class="ai-box-body" id="scanner-ai-output" data-en="Analysis will appear here..." data-fr="L'analyse apparaîtra ici...">Analysis will appear here...</div>
-          </div>
-        </div>
-        <div class="card" id="scanner-contact-card" style="display:none">
-          <div class="card-header"><span class="card-title" data-en="Contact Intelligence" data-fr="Intelligence contact">Contact Intelligence</span></div>
-          <div class="ai-box">
-            <div class="ai-box-header">
-              <span class="ai-box-label" data-en="Person Brief" data-fr="Fiche contact">Person Brief</span>
-              <div class="ai-spinner" id="scanner-contact-spinner"></div>
-            </div>
-            <div class="ai-box-body" id="scanner-contact-output"
-              data-en="Enter a person name above to generate contact intelligence..." data-fr="Saisissez un nom ci-dessus pour générer la fiche contact...">Enter a person name above to generate contact intelligence...</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-header">
-          <span class="card-title" data-en="Buying Committee" data-fr="Comité d'achat">Buying Committee</span>
-        </div>
-        <button class="btn-primary" id="scanner-committee-btn"
-          style="width:100%;justify-content:center;margin-bottom:12px"
-          onclick="_scannerMapCommittee()">
-          <span data-en="Map buying committee" data-fr="Cartographier le comité">Map buying committee</span>
-        </button>
-        <div class="ai-box">
-          <div class="ai-box-header">
-            <span class="ai-box-label" data-en="Stakeholder Map" data-fr="Carte des parties prenantes">Stakeholder Map</span>
-            <div class="ai-spinner" id="scanner-committee-spinner"></div>
-          </div>
-          <div class="ai-box-body" id="scanner-committee-output"
-            data-en="Click to map the buying committee..." data-fr="Cliquez pour cartographier...">Click to map the buying committee...</div>
-        </div>
-      </div>
-    </div>
-  </div>
+  <div class="tab-panel" id="tab-scanner"></div>
 
   <!-- ══ TAB 3: OUTREACH GENERATOR ══ -->
   <!-- ══ TAB 4: AI AGENTS ══ -->
@@ -5272,6 +5179,9 @@ async function openDrawer(card) {
         <div class="drawer-last-contact">${lcStr ? 'Last contact: '+_esc(lcStr) : 'No contact logged yet'}</div>
       </div>
       ${icpDial}
+      <button onclick="openScannerPanel()" style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:6px;background:var(--navy-light);border:1px solid var(--border);cursor:pointer;color:var(--blue);flex-shrink:0;" title="Scan company" aria-label="Scan this company">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      </button>
       <button class="drawer-close" onclick="closeDrawer()" aria-label="Close prospect drawer">✕</button>
     </div>
     <div class="drawer-tabs">
@@ -5449,6 +5359,16 @@ function closeDrawer() {
   _drawerProspect = null;
   _drawerInteractions = [];
   if (_drawerPollInterval) { clearInterval(_drawerPollInterval); _drawerPollInterval = null; }
+}
+function openScannerPanel() {
+  document.getElementById('scanner-overlay').classList.add('open');
+  document.getElementById('scanner-panel').classList.add('open');
+  document.body.classList.add('scanner-open');
+}
+function closeScannerPanel() {
+  document.getElementById('scanner-overlay').classList.remove('open');
+  document.getElementById('scanner-panel').classList.remove('open');
+  document.body.classList.remove('scanner-open');
 }
 function _switchDTab(name, el) {
   document.querySelectorAll('.dtab').forEach(t => t.classList.remove('active'));
@@ -6445,7 +6365,7 @@ function _drawerProfileHTML(id, p, colStage, fb){
     )}
     ${card(
       lbl('Signal / Context') +
-      `<textarea id="drawer-signal" class="dp-inp" rows="3" placeholder="e.g. New CRO hired from Pavilion Data -- scaled $4M to $28M ARR mid-market NA" style="font-size:12px;min-height:60px;resize:vertical">${v(p.signal)}</textarea>` +
+      `<textarea id="drawer-signal" class="dp-inp" rows="3" placeholder="e.g. New CRO hired from PE-backed SaaS — scaled $4M to $28M ARR mid-market NA" style="font-size:12px;min-height:60px;resize:vertical">${v(p.signal)}</textarea>` +
       `<div id="signal-link-wrap" style="font-size:11px"></div>` +
       `<select id="drawer-signal-type" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text)">` +
         `<option value="">-- Signal type --</option>` +
@@ -7700,7 +7620,7 @@ Be direct. No corporate language.`;
     <p class="avatar-hint">Click to change your photo</p>
     <div class="pf-field">
       <label>Display name</label>
-      <input type="text" id="pf-name" placeholder="e.g. Samah">
+      <input type="text" id="pf-name" placeholder="e.g. Alex">
     </div>
     <div class="pf-field">
       <label>Company</label>
@@ -7806,5 +7726,97 @@ if ('serviceWorker' in navigator) {
   });
 }
 </script>
+<!-- ══ SCANNER OVERLAY PANEL ══ -->
+<div id="scanner-overlay" onclick="closeScannerPanel()"></div>
+<div id="scanner-panel">
+  <div class="scanner-panel-head">
+    <span class="scanner-panel-title">Scan a company</span>
+    <button class="drawer-close" onclick="closeScannerPanel()" aria-label="Close scanner">✕</button>
+  </div>
+  <div class="scanner-panel-body">
+    <div class="scanner-mode-toggle">
+      <button class="scanner-mode-btn active" id="scanner-mode-icp" onclick="_scannerSetMode('icp')">ICP Scan</button>
+      <button class="scanner-mode-btn" id="scanner-mode-free" onclick="_scannerSetMode('free')">Free Search</button>
+    </div>
+    <div class="input-row">
+      <input class="input-field" id="scanner-company" placeholder="Company name" data-en-ph="Company name" data-fr-ph="Nom de la société" />
+      <input class="input-field" id="scanner-person"
+        placeholder="First name Last name (optional)"
+        data-en-ph="First name Last name (optional)"
+        data-fr-ph="Prénom Nom (optionnel)" />
+      <input class="input-field" id="scanner-sector" placeholder="Sector (e.g. Healthcare, Logistics, Industrial...)" data-en-ph="Sector (e.g. Healthcare, Logistics, Industrial...)" data-fr-ph="Secteur (ex. Santé, Logistique, Industrie...)" />
+      <input class="input-field" id="scanner-stage" placeholder="Ownership / stage (optional, e.g. PE-backed)" data-en-ph="Ownership / stage (optional, e.g. PE-backed)" data-fr-ph="Structure / stade (optionnel, ex. PE-backed)" />
+      <input class="input-field" id="scanner-funding" placeholder="Funding (optional, e.g. €8M)" data-en-ph="Funding (optional, e.g. €8M)" data-fr-ph="Levée (optionnel, ex. 8M€)" style="max-width:160px" />
+      <input class="input-field" id="scanner-url" placeholder="Website (optional, e.g. company.com)" data-en-ph="Website (optional, e.g. company.com)" data-fr-ph="Site web (optionnel, ex. company.com)" style="max-width:190px" />
+      <button class="btn-primary" onclick="runScanner()" id="scanner-btn" style="width:100%;justify-content:center;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <span id="scanner-btn-label" data-en="Scan signals" data-fr="Analyser les signaux">Scan signals</span>
+      </button>
+    </div>
+    <textarea class="input-field" id="scanner-context" rows="2"
+      placeholder="Optional context -- funding, recent news, CEO name..."
+      data-en-ph="Optional context -- funding, recent news, CEO name..."
+      data-fr-ph="Contexte optionnel -- levée, actualités récentes, nom du CEO..."
+      style="width:100%; margin-top:8px; resize:vertical; font-family:'Plus Jakarta Sans',sans-serif"></textarea>
+    <div id="scanner-results" style="display:none">
+      <div class="score-grid" id="scanner-score-grid">
+        <div class="score-kpi"><span class="score-kpi-val green" id="sc-total">—</span><span class="score-kpi-label" data-en="ICP Score" data-fr="Score ICP">ICP Score</span></div>
+        <div class="score-kpi"><span class="score-kpi-val" id="sc-fit">—</span><span class="score-kpi-label" data-en="Sector Fit" data-fr="Fit secteur">Sector Fit</span></div>
+        <div class="score-kpi"><span class="score-kpi-val" id="sc-timing">—</span><span class="score-kpi-label" data-en="Timing" data-fr="Timing">Timing</span></div>
+        <div class="score-kpi"><span class="score-kpi-val amber" id="sc-signals">—</span><span class="score-kpi-label" data-en="Signals detected" data-fr="Signaux détectés">Signals detected</span></div>
+      </div>
+      <div id="breakdown-panel" style="display:none;margin-bottom:16px;"></div>
+      <div class="card" id="scanner-buying-signals-card" style="margin-bottom:16px">
+        <div class="card-header"><span class="card-title" data-en="Buying Signals" data-fr="Signaux d'achat">Buying Signals</span><span class="card-badge badge-auto" data-en="AUTO-DETECTED" data-fr="AUTO-DÉTECTÉ">AUTO-DETECTED</span></div>
+        <div id="scanner-signals-list"></div>
+        <div class="score-bar-wrap" style="margin-top:16px">
+          <div class="score-bar-meta"><span data-en="ICP Fit Score" data-fr="Score d'adéquation ICP">ICP Fit Score</span><span id="sc-bar-pct">0%</span></div>
+          <div class="score-bar"><div class="score-bar-fill" id="sc-bar" style="--w:0%"></div></div>
+        </div>
+      </div>
+      <div id="scanner-intel-row" style="margin-bottom:16px">
+        <div class="card">
+          <div class="card-header"><span class="card-title" data-en="Company Intelligence" data-fr="Intelligence société">Company Intelligence</span></div>
+          <div class="ai-box">
+            <div class="ai-box-header">
+              <span class="ai-box-label" data-en="Signal Intelligence" data-fr="Intelligence des signaux">Signal Intelligence</span>
+              <div class="ai-spinner" id="scanner-spinner"></div>
+            </div>
+            <div class="ai-box-body" id="scanner-ai-output" data-en="Analysis will appear here..." data-fr="L'analyse apparaîtra ici...">Analysis will appear here...</div>
+          </div>
+        </div>
+        <div class="card" id="scanner-contact-card" style="display:none">
+          <div class="card-header"><span class="card-title" data-en="Contact Intelligence" data-fr="Intelligence contact">Contact Intelligence</span></div>
+          <div class="ai-box">
+            <div class="ai-box-header">
+              <span class="ai-box-label" data-en="Person Brief" data-fr="Fiche contact">Person Brief</span>
+              <div class="ai-spinner" id="scanner-contact-spinner"></div>
+            </div>
+            <div class="ai-box-body" id="scanner-contact-output"
+              data-en="Enter a person name above to generate contact intelligence..." data-fr="Saisissez un nom ci-dessus pour générer la fiche contact...">Enter a person name above to generate contact intelligence...</div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title" data-en="Buying Committee" data-fr="Comité d'achat">Buying Committee</span>
+        </div>
+        <button class="btn-primary" id="scanner-committee-btn"
+          style="width:100%;justify-content:center;margin-bottom:12px"
+          onclick="_scannerMapCommittee()">
+          <span data-en="Map buying committee" data-fr="Cartographier le comité">Map buying committee</span>
+        </button>
+        <div class="ai-box">
+          <div class="ai-box-header">
+            <span class="ai-box-label" data-en="Stakeholder Map" data-fr="Carte des parties prenantes">Stakeholder Map</span>
+            <div class="ai-spinner" id="scanner-committee-spinner"></div>
+          </div>
+          <div class="ai-box-body" id="scanner-committee-output"
+            data-en="Click to map the buying committee..." data-fr="Cliquez pour cartographier...">Click to map the buying committee...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 </body>
 </html>
