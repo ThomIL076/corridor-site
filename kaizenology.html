@@ -385,6 +385,35 @@ nav {
 .crm-roadmap-step { font-size:10px; color:var(--muted); line-height:1.4; padding-left:10px; position:relative; }
 .crm-roadmap-step::before { content:'›'; position:absolute; left:0; color:var(--dim); }
 .crm-card-dormant { opacity:0.45; }
+/* ── CRM CLIENT DRAWER ── */
+.crm-origin-banner { display:flex; align-items:center; gap:10px; padding:12px 14px; background:var(--navy-light); border:1px solid var(--blue-light); border-radius:8px; margin-bottom:20px; cursor:pointer; transition:border-color 0.15s; text-decoration:none; }
+.crm-origin-banner:hover { border-color:var(--blue); }
+.crm-origin-label { font-size:10px; font-weight:700; letter-spacing:0.8px; text-transform:uppercase; color:var(--dim); margin-bottom:2px; }
+.crm-origin-name { font-size:13px; font-weight:700; color:var(--navy); }
+.crm-origin-co { font-size:11px; color:var(--muted); }
+.crm-roadmap-list { display:flex; flex-direction:column; gap:8px; }
+.crm-step-item { display:flex; align-items:flex-start; gap:10px; padding:10px 12px; background:var(--bg); border:1px solid var(--border); border-radius:8px; }
+.crm-step-dot { width:7px; height:7px; border-radius:50%; background:var(--border); flex-shrink:0; margin-top:5px; }
+.crm-step-body { flex:1; min-width:0; }
+.crm-step-label { font-size:13px; font-weight:600; color:var(--navy); line-height:1.3; }
+.crm-step-meta { display:flex; align-items:center; gap:6px; margin-top:4px; flex-wrap:wrap; }
+.crm-step-status-chip { font-size:10px; font-weight:600; padding:2px 7px; border-radius:4px; background:#f0f3fb; color:var(--muted); }
+.crm-step-date { font-size:10px; color:var(--dim); }
+.crm-drawer-empty { font-size:12px; color:var(--dim); font-style:italic; padding:8px 0; }
+/* ── CRM STEP EDITING ── */
+.crm-step-item { cursor:pointer; transition:background 0.12s; }
+.crm-step-item:hover { background:var(--navy-light); }
+.crm-add-step-btn { margin-top:10px; font-size:11px; font-weight:700; color:var(--blue); background:none; border:1.5px dashed var(--border); border-radius:8px; padding:7px 12px; cursor:pointer; width:100%; text-align:center; transition:border-color 0.15s,color 0.15s; }
+.crm-add-step-btn:hover { border-color:var(--blue); }
+.crm-step-form { background:var(--bg); border:1px solid var(--blue-light); border-radius:8px; padding:12px 14px; display:flex; flex-direction:column; gap:8px; margin-top:4px; }
+.crm-step-form input[type="text"],.crm-step-form input[type="date"] { width:100%; box-sizing:border-box; padding:6px 10px; font-size:12px; border:1px solid var(--border); border-radius:6px; background:var(--white); color:var(--navy); font-family:inherit; outline:none; transition:border-color 0.15s; }
+.crm-step-form input:focus { border-color:var(--blue); }
+.crm-step-chips { display:flex; gap:6px; flex-wrap:wrap; }
+.crm-step-chip { font-size:11px; font-weight:600; padding:3px 10px; border-radius:20px; cursor:pointer; border:1.5px solid var(--border); background:var(--bg); color:var(--muted); transition:all 0.15s; }
+.crm-step-chip.active,.crm-step-chip:hover { border-color:var(--blue); background:var(--navy-light); color:var(--navy); }
+.crm-step-form-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:2px; }
+.crm-step-save-btn { font-size:12px; font-weight:700; padding:6px 14px; border-radius:6px; background:var(--navy); color:#fff; border:none; cursor:pointer; }
+.crm-step-cancel-btn { font-size:12px; font-weight:600; padding:6px 12px; border-radius:6px; background:none; color:var(--muted); border:1px solid var(--border); cursor:pointer; }
 /* .deal-badge retiré — le badge deal est désormais rendu inline par buildCard (.k-badge-deal) depuis p.deal_value */
 .dv-row { display:flex; gap:8px; margin-bottom:10px; }
 .dv-row select { flex:1; font-size:12px; padding:7px 8px; border:1px solid var(--border); border-radius:7px; font-family:inherit; color:var(--text); background:#fff; }
@@ -7454,6 +7483,7 @@ function _resetZoom() {
 }
 // ── CRM CLIENTS KANBAN ────────────────────────────────────────────────────────
 let _crmLoaded = false;
+let _crmClientsById = {};
 const _CRM_COLS = {
   active:             { cards: 'crm-cards-active',  count: 'crm-count-active'  },
   next_step_planned:  { cards: 'crm-cards-planned', count: 'crm-count-planned' },
@@ -7477,7 +7507,7 @@ function _buildCrmCard(row, status) {
       + '</div>';
   }
   const dormantClass = status === 'dormant' ? ' crm-card-dormant' : '';
-  return `<div class="k-card${dormantClass}" data-crm-id="${_esc(String(row.id))}" style="cursor:default;">`
+  return `<div class="k-card${dormantClass}" data-crm-id="${_esc(String(row.id))}" onclick="openCrmDrawer('${_esc(String(row.id))}')">`
     + `<div class="k-card-name">${name}</div>`
     + `<div class="k-card-company">${company}</div>`
     + roadmapHtml
@@ -7493,7 +7523,7 @@ async function loadClientsKanban(force) {
   try {
     let q = sbClient
       .from('crm_clients')
-      .select('*, prospects(name, company), client_roadmap_steps(label, step_date)')
+      .select('*, prospects(name, company), client_roadmap_steps(id, label, step_date, status)')
       .eq('client_id', CLIENT_ID);
     if (activeMandateId && activeMandateId !== '__ALL__') {
       q = q.eq('mandate_id', activeMandateId);
@@ -7501,7 +7531,9 @@ async function loadClientsKanban(force) {
     const { data, error } = await q;
     if (error) throw error;
     const buckets = { active: [], next_step_planned: [], next_step_tbd: [], dormant: [] };
+    _crmClientsById = {};
     (data || []).forEach(row => {
+      _crmClientsById[String(row.id)] = row;
       let s = (row.status || 'next_step_tbd').toLowerCase().replace(/\s+/g, '_');
       if (s === 'next_step_to_define') s = 'next_step_tbd';
       if (buckets[s]) buckets[s].push(row);
@@ -7521,6 +7553,250 @@ async function loadClientsKanban(force) {
     _crmLoaded = true;
   } catch(e) {
     console.warn('loadClientsKanban failed:', e && e.message ? e.message : e);
+  }
+}
+
+async function _openProspectFromCrm(prospectId) {
+  if (!prospectId) return;
+
+  // ── 1. Résoudre le mandate_id du prospect cible ──
+  let targetMandateId; // undefined = inconnu (pas bloquant)
+  const pRow = _prospectsById[String(prospectId)]
+    || (_allProspects || []).find(x => String(x.id) === String(prospectId));
+  if (pRow) {
+    targetMandateId = pRow.mandate_id !== undefined ? (pRow.mandate_id ?? null) : undefined;
+  } else {
+    try {
+      const { data } = await sbClient.from('prospects').select('mandate_id').eq('id', prospectId).single();
+      targetMandateId = data ? (data.mandate_id ?? null) : undefined;
+    } catch(e) { /* inconnu — on laisse passer */ }
+  }
+
+  // ── 2. Vérifier visibilité dans le filtre actif ──
+  if (targetMandateId !== undefined) {
+    let visible;
+    if (activeMandateId === '__ALL__') {
+      visible = targetMandateId !== null && _clientMandateIds.some(id => String(id) === String(targetMandateId));
+    } else if (activeMandateId) {
+      visible = targetMandateId !== null && String(targetMandateId) === String(activeMandateId);
+    } else {
+      // null = IS NULL filter (vue consolidée)
+      visible = targetMandateId === null;
+    }
+    if (!visible) {
+      let mandateName;
+      if (targetMandateId === null) {
+        mandateName = currentLang === 'fr' ? 'la vue consolidée (sans mandat)' : 'consolidated view (no mandate)';
+      } else {
+        const sel = document.getElementById('mandate-select');
+        const opt = sel ? sel.querySelector('option[value="' + String(targetMandateId) + '"]') : null;
+        mandateName = opt
+          ? '"' + opt.textContent.trim() + '"'
+          : (currentLang === 'fr' ? 'un autre mandat' : 'a different mandate');
+      }
+      showToast(currentLang === 'fr'
+        ? `Ce prospect est dans ${mandateName} — change de filtre pour le voir`
+        : `This prospect is in ${mandateName} — switch filters to view it`);
+      return;
+    }
+  }
+
+  // ── 3. Naviguer vers la carte ──
+  closeDrawer();
+  await new Promise(r => setTimeout(r, 320));
+  if (!_kanbanLoaded) await loadKanban();
+  const card = document.querySelector('.k-card[data-id="' + String(prospectId) + '"]');
+  if (card) { openDrawer(card); return; }
+  _switchNewNav('pipeline');
+  await new Promise(r => setTimeout(r, 120));
+  const card2 = document.querySelector('.k-card[data-id="' + String(prospectId) + '"]');
+  if (card2) { openDrawer(card2); return; }
+  console.warn('_openProspectFromCrm: card not found for id', prospectId);
+}
+
+function _renderCrmDrawerContent(crmId) {
+  const row = _crmClientsById[crmId];
+  if (!row) return;
+
+  const prospect = Array.isArray(row.prospects) ? row.prospects[0] : row.prospects;
+  const name    = _esc((prospect && prospect.name)    || row.name    || '—');
+  const company = _esc((prospect && prospect.company) || row.company || '');
+  const steps   = Array.isArray(row.client_roadmap_steps) ? row.client_roadmap_steps : [];
+  const originId = row.origin_prospect_id || null;
+
+  // ── Bandeau origine ──
+  let originHtml = '';
+  if (originId) {
+    const op = _prospectsById[String(originId)]
+      || (_allProspects || []).find(x => String(x.id) === String(originId));
+    const opName = _esc((op && op.name)    || '');
+    const opCo   = _esc((op && op.company) || '');
+    originHtml = `<div class="crm-origin-banner" onclick="_openProspectFromCrm('${_esc(String(originId))}')" title="Open prospect drawer">
+      <div style="flex:1;min-width:0;">
+        <div class="crm-origin-label">Converted from prospect</div>
+        <div class="crm-origin-name">${opName}</div>
+        ${opCo ? `<div class="crm-origin-co">${opCo}</div>` : ''}
+      </div>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="color:var(--blue);flex-shrink:0;"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </div>`;
+  }
+
+  // ── Roadmap steps ──
+  let stepsHtml = '';
+  if (steps.length === 0) {
+    stepsHtml = '<div class="crm-drawer-empty">No roadmap steps yet.</div>';
+  } else {
+    stepsHtml = '<div class="crm-roadmap-list">'
+      + steps.map(s => {
+          const sid        = _esc(String(s.id || ''));
+          const lbl        = _esc(s.label || '');
+          const statusChip = s.status
+            ? `<span class="crm-step-status-chip">${_esc(s.status)}</span>` : '';
+          const dateStr    = s.step_date
+            ? `<span class="crm-step-date">${_esc(String(s.step_date).slice(0, 10))}</span>` : '';
+          return `<div class="crm-step-item" data-step-id="${sid}" onclick="_crmShowStepForm('${sid}')">
+            <div class="crm-step-dot"></div>
+            <div class="crm-step-body">
+              <div class="crm-step-label">${lbl}</div>
+              ${(statusChip || dateStr) ? `<div class="crm-step-meta">${statusChip}${dateStr}</div>` : ''}
+            </div>
+          </div>`;
+        }).join('')
+      + '</div>';
+  }
+
+  document.getElementById('drawer').innerHTML = `
+    <div class="drawer-head">
+      <div style="flex:1;min-width:0;">
+        <div class="drawer-name">${name}</div>
+        ${company ? `<div class="drawer-company">${company}</div>` : ''}
+      </div>
+      <button class="drawer-close" onclick="closeDrawer()" aria-label="Close client drawer">✕</button>
+    </div>
+    <div style="padding:20px 22px;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:0;">
+      ${originHtml}
+      <div class="drawer-section-title" style="margin-bottom:12px;">Roadmap</div>
+      ${stepsHtml}
+      <button class="crm-add-step-btn" onclick="_crmShowStepForm(null)">+ Add step</button>
+    </div>`;
+
+  document.getElementById('drawer').dataset.crmId = crmId;
+}
+
+function openCrmDrawer(crmId) {
+  if (!_crmClientsById[crmId]) return;
+  _renderCrmDrawerContent(crmId);
+  document.getElementById('drawer').classList.add('open');
+  document.getElementById('drawer-overlay').classList.add('open');
+  document.body.classList.add('drawer-open');
+}
+
+function _crmShowStepForm(stepId) {
+  const drawer = document.getElementById('drawer');
+  const crmId  = drawer ? drawer.dataset.crmId : null;
+  if (!crmId) return;
+  const row   = _crmClientsById[crmId];
+  if (!row) return;
+  const steps = Array.isArray(row.client_roadmap_steps) ? row.client_roadmap_steps : [];
+  const existing = stepId ? steps.find(s => String(s.id) === String(stepId)) : null;
+
+  const lbl    = existing ? _esc(existing.label    || '') : '';
+  const status = existing ? _esc(existing.status   || '') : '';
+  const date   = existing && existing.step_date ? String(existing.step_date).slice(0, 10) : '';
+  const sidVal = stepId ? `'${_esc(String(stepId))}'` : 'null';
+  const crmEsc = _esc(String(crmId));
+
+  const formHtml = `<div class="crm-step-form" id="crm-sf">
+    <input type="text" id="crm-sf-label" value="${lbl}" placeholder="${currentLang === 'fr' ? 'Libellé de l\'étape…' : 'Step label…'}" oninput="" />
+    <div class="crm-step-chips">
+      <button type="button" class="crm-step-chip" onclick="_crmSetChip('Planned')">Planned</button>
+      <button type="button" class="crm-step-chip" onclick="_crmSetChip('In discussion')">In discussion</button>
+      <button type="button" class="crm-step-chip" onclick="_crmSetChip('Done')">Done</button>
+    </div>
+    <input type="text" id="crm-sf-status" value="${status}" placeholder="${currentLang === 'fr' ? 'Statut (texte libre)…' : 'Status (free text)…'}" oninput="_crmHighlightChips()" />
+    <input type="date" id="crm-sf-date" value="${date}" />
+    <div class="crm-step-form-actions">
+      <button type="button" class="crm-step-cancel-btn" onclick="_renderCrmDrawerContent('${crmEsc}')">${currentLang === 'fr' ? 'Annuler' : 'Cancel'}</button>
+      <button type="button" class="crm-step-save-btn" onclick="_crmSaveStep(${sidVal})">${currentLang === 'fr' ? 'Enregistrer' : 'Save'}</button>
+    </div>
+  </div>`;
+
+  if (stepId) {
+    const el = drawer.querySelector('.crm-step-item[data-step-id="' + String(stepId) + '"]');
+    if (el) { el.insertAdjacentHTML('afterend', formHtml); el.remove(); }
+    else {
+      const rl = drawer.querySelector('.crm-roadmap-list');
+      if (rl) rl.insertAdjacentHTML('beforeend', formHtml);
+    }
+  } else {
+    const addBtn = drawer.querySelector('.crm-add-step-btn');
+    if (addBtn) { addBtn.insertAdjacentHTML('beforebegin', formHtml); addBtn.style.display = 'none'; }
+  }
+
+  const inp = document.getElementById('crm-sf-label');
+  if (inp) { inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }
+  _crmHighlightChips();
+}
+
+function _crmSetChip(label) {
+  const inp = document.getElementById('crm-sf-status');
+  if (inp) inp.value = label;
+  _crmHighlightChips();
+}
+
+function _crmHighlightChips() {
+  const inp = document.getElementById('crm-sf-status');
+  const val = inp ? inp.value : '';
+  document.querySelectorAll('#crm-sf .crm-step-chip').forEach(c => {
+    c.classList.toggle('active', c.textContent.trim() === val);
+  });
+}
+
+async function _crmSaveStep(stepId) {
+  const drawer = document.getElementById('drawer');
+  const crmId  = drawer ? drawer.dataset.crmId : null;
+  if (!crmId) return;
+  const row = _crmClientsById[crmId];
+  if (!row) return;
+
+  const label   = (document.getElementById('crm-sf-label')?.value  || '').trim();
+  if (!label) { showToast(currentLang === 'fr' ? 'Libellé requis' : 'Label required'); return; }
+  const status  = (document.getElementById('crm-sf-status')?.value || '').trim() || null;
+  const dateVal = (document.getElementById('crm-sf-date')?.value   || '').trim() || null;
+
+  const saveBtn = document.querySelector('#crm-sf .crm-step-save-btn');
+  if (saveBtn) saveBtn.disabled = true;
+
+  try {
+    if (stepId) {
+      const { data: _upd, error } = await sbClient
+        .from('client_roadmap_steps')
+        .update({ label, status, step_date: dateVal })
+        .eq('id', stepId)
+        .select('id')
+        .single();
+      if (error) throw error;
+      const steps = row.client_roadmap_steps || [];
+      const idx = steps.findIndex(s => String(s.id) === String(stepId));
+      if (idx >= 0) steps[idx] = { ...steps[idx], label, status, step_date: dateVal };
+    } else {
+      const { data, error } = await sbClient
+        .from('client_roadmap_steps')
+        .insert({ crm_client_id: crmId, label, status, step_date: dateVal })
+        .select('id, label, step_date, status')
+        .single();
+      if (error) throw error;
+      if (!row.client_roadmap_steps) row.client_roadmap_steps = [];
+      row.client_roadmap_steps.push(data);
+    }
+    showToast(currentLang === 'fr' ? 'Étape enregistrée' : 'Step saved');
+    _renderCrmDrawerContent(crmId);
+  } catch(e) {
+    console.error('_crmSaveStep failed:', e);
+    showToast(currentLang === 'fr'
+      ? 'Erreur — ' + (e.message || String(e))
+      : 'Save failed — ' + (e.message || String(e)));
+    if (saveBtn) saveBtn.disabled = false;
   }
 }
 
