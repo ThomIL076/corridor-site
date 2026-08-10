@@ -104,8 +104,8 @@ nav {
   align-items: center;
   gap: 12px;
   padding: 10px 24px;
-  background: #f0f2fa;
-  border-bottom: 1px solid #e0e4f0;
+  background: var(--navy-light);
+  border-bottom: 1px solid var(--border);
 }
 .mandate-bar-label {
   font-size: 12px;
@@ -361,11 +361,11 @@ nav {
 .k-card-company { font-size:11px; color:var(--muted); margin-top:2px; }
 .k-card-icp     { font-size:11px; font-weight:700; color:var(--blue); margin-top:6px; }
 .k-card-badges  { display:flex; flex-wrap:wrap; gap:7px; margin-top:7px; }
-.k-badge { display:inline-flex; align-items:center; padding:2px 7px; border-radius:4px; font-size:10px; font-weight:600; background:#f0f3fb; color:var(--muted); white-space:nowrap; }
-.k-badge-deal { background:#f0fdf6; color:#065f46; }
+.k-badge { display:inline-flex; align-items:center; padding:2px 7px; border-radius:4px; font-size:10px; font-weight:600; background:var(--navy-light); color:var(--muted); white-space:nowrap; }
+.k-badge-deal { background:var(--green-bg); color:var(--green); }
 /* ── Édition prospect (drawer) + modale Ajout ── */
 .dp-edit { display:flex; flex-direction:column; gap:8px; margin-bottom:22px; }
-.dp-inp { width:100%; box-sizing:border-box; border:1px solid #dde2f0; border-radius:7px; padding:9px 12px; font-size:14px; font-family:inherit; outline:none; background:#fff; color:var(--text); }
+.dp-inp { width:100%; box-sizing:border-box; border:1px solid #dde2f0; border-radius:8px; padding:9px 12px; font-size:14px; font-family:inherit; outline:none; background:#fff; color:var(--text); }
 .dp-inp:focus { border-color:var(--blue); }
 .csv-short { display:none; } /* libellés courts Export/Import affichés en mobile uniquement */
 
@@ -416,7 +416,7 @@ nav {
 .crm-step-cancel-btn { font-size:12px; font-weight:600; padding:6px 12px; border-radius:6px; background:none; color:var(--muted); border:1px solid var(--border); cursor:pointer; }
 /* .deal-badge retiré — le badge deal est désormais rendu inline par buildCard (.k-badge-deal) depuis p.deal_value */
 .dv-row { display:flex; gap:8px; margin-bottom:10px; }
-.dv-row select { flex:1; font-size:12px; padding:7px 8px; border:1px solid var(--border); border-radius:7px; font-family:inherit; color:var(--text); background:#fff; }
+.dv-row select { flex:1; font-size:12px; padding:7px 8px; border:1px solid var(--border); border-radius:8px; font-family:inherit; color:var(--text); background:#fff; }
 .dv-conf { margin-bottom:10px; }
 .dv-conf label { display:flex; justify-content:space-between; font-size:11px; color:var(--muted); margin-bottom:4px; }
 .dv-conf input[type=range] { width:100%; accent-color:var(--navy); }
@@ -548,7 +548,7 @@ footer a { color:var(--navy); text-decoration:none; font-weight:600; }
 .pr-group-label-green { color:var(--green); }
 .pr-summary { background:var(--navy-light); border:1px solid var(--blue-light); border-radius:8px; padding:12px 14px; margin-bottom:14px; font-size:13px; line-height:1.65; color:var(--text); }
 .pr-more { font-size:11px; color:var(--muted); text-align:center; padding:8px 0; font-style:italic; }
-.signal-badge { display:inline-block; vertical-align:middle; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; padding:2px 7px; border-radius:10px; border:1px solid; white-space:nowrap; max-width:180px; overflow:hidden; text-overflow:ellipsis; }
+.signal-badge { display:inline-block; vertical-align:middle; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; padding:2px 7px; border-radius:20px; border:1px solid; white-space:nowrap; max-width:180px; overflow:hidden; text-overflow:ellipsis; }
 .signal-s1 { background:#FEF3C7; color:#92400E; border-color:#FCD34D; }
 .signal-s2 { background:var(--green-bg); color:var(--green); border-color:var(--green-border); }
 .signal-s3 { background:var(--navy-light); color:var(--navy); border-color:var(--blue); }
@@ -670,7 +670,7 @@ body.scanner-open { overflow:hidden; }
 .int-item{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);}
 .int-item:last-child{border-bottom:none;}
 .int-icon-circle{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;font-weight:700;}
-.int-icon{width:28px;height:28px;border-radius:7px;background:var(--navy-light);border:1px solid var(--blue);display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;}
+.int-icon{width:28px;height:28px;border-radius:8px;background:var(--navy-light);border:1px solid var(--blue);display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;}
 .int-body{flex:1;min-width:0;}
 .int-type{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--blue);}
 .int-note{font-size:12px;color:var(--text);margin-top:2px;line-height:1.5;word-break:break-word;}
@@ -687,7 +687,7 @@ body.scanner-open { overflow:hidden; }
 .int-save-btn{margin-top:10px;width:100%;padding:9px;background:transparent;color:var(--navy);border:1.5px solid var(--navy);border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;transition:background 0.15s,color 0.15s;}
 .int-save-btn:hover{background:var(--navy);color:#fff;}
 .int-save-btn:disabled{opacity:0.5;cursor:not-allowed;}
-.post-call-box{border-left:3px solid var(--mint,#00c9a7);background:rgba(26,43,94,.18);padding:12px;margin-top:12px;border-radius:6px;font-size:13px;line-height:1.6;}
+.post-call-box{border-left:3px solid var(--sky);background:rgba(26,43,94,.18);padding:12px;margin-top:12px;border-radius:6px;font-size:13px;line-height:1.6;}
 .reminder-block{background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:14px;margin-bottom:16px;}
 .reminder-block.no-reminder{background:var(--navy-light);border-color:var(--blue-light);}
 .reminder-label{font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:#b45309;margin-bottom:6px;}
@@ -724,13 +724,13 @@ body.scanner-open { overflow:hidden; }
 .avatar-hint{text-align:center;font-size:11px;color:var(--dim);margin-bottom:20px;}
 .pf-field{margin-bottom:14px;}
 .pf-field label{display:block;font-size:10px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:5px;}
-.pf-field input{width:100%;border:1px solid #dde2f0;border-radius:7px;padding:9px 12px;font-size:14px;outline:none;box-sizing:border-box;font-family:inherit;}
+.pf-field input{width:100%;border:1px solid #dde2f0;border-radius:8px;padding:9px 12px;font-size:14px;outline:none;box-sizing:border-box;font-family:inherit;}
 .pf-field input:focus{border-color:var(--blue);}
 .pf-field input:disabled{background:#f8f9fc;color:var(--dim);}
 .pf-actions{display:flex;gap:8px;margin-top:22px;}
-.btn-pf-save{flex:1;background:var(--navy);color:#fff;border:none;border-radius:7px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;}
+.btn-pf-save{flex:1;background:var(--navy);color:#fff;border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;}
 .btn-pf-save:hover{background:var(--navy-mid);}
-.btn-pf-cancel{padding:10px 16px;border:1px solid #dde2f0;border-radius:7px;background:#fff;font-size:13px;cursor:pointer;color:var(--dim);font-family:inherit;}
+.btn-pf-cancel{padding:10px 16px;border:1px solid #dde2f0;border-radius:8px;background:#fff;font-size:13px;cursor:pointer;color:var(--dim);font-family:inherit;}
 #avatar-file-input{display:none;}
 
 /* ══ MOBILE-FIRST OPTIMISATION (≤480px) — rendu desktop préservé ══ */
@@ -905,7 +905,7 @@ body.new-nav { padding-left: 220px; }
 .snav-item {
   display: flex; align-items: center; gap: 8px;
   width: 100%; text-align: left;
-  padding: 8px 10px; border-radius: 7px; border: none;
+  padding: 8px 10px; border-radius: 8px; border: none;
   background: transparent; cursor: pointer;
   font-size: 13px; font-weight: 500; color: #EDEFF6;
   font-family: 'Plus Jakarta Sans', sans-serif;
@@ -927,7 +927,7 @@ body.new-nav { padding-left: 220px; }
 .snav-hamburger {
   display: none;
   position: fixed; top: 17px; left: 12px; z-index: 203;
-  background: #12213f; border: none; border-radius: 7px;
+  background: #12213f; border: none; border-radius: 8px;
   width: 38px; height: 38px; cursor: pointer;
   align-items: center; justify-content: center;
   flex-direction: column; gap: 5px; padding: 0;
@@ -1592,7 +1592,22 @@ body.new-nav { padding-left: 220px; }
     <div class="module-header" style="margin-bottom:20px;">
       <div style="font-size:18px;font-weight:800;color:var(--navy);font-family:'Plus Jakarta Sans',sans-serif;letter-spacing:-0.3px;line-height:1.2;">Your clients. All relationships.</div>
     </div>
-    <div class="kanban-scroll">
+    <div id="crm-empty-state" style="display:none;text-align:center;padding:72px 24px 48px;max-width:480px;margin:0 auto;">
+      <svg width="88" height="88" viewBox="0 0 88 88" fill="none" style="margin-bottom:24px;">
+        <circle cx="44" cy="44" r="42" fill="#eef1fa"/>
+        <rect x="14" y="34" width="22" height="20" rx="5" fill="#1a2b5e" opacity="0.12"/>
+        <rect x="16" y="36" width="18" height="4" rx="2" fill="#1a2b5e" opacity="0.45"/>
+        <rect x="16" y="42" width="12" height="2.5" rx="1.25" fill="#1a2b5e" opacity="0.28"/>
+        <path d="M37 44 L52 44" stroke="#93A8D4" stroke-width="2.5" stroke-linecap="round"/>
+        <path d="M49 40 L53 44 L49 48" stroke="#93A8D4" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <rect x="56" y="34" width="22" height="20" rx="5" stroke="#93A8D4" stroke-width="2" stroke-dasharray="4 3" fill="none" opacity="0.6"/>
+        <circle cx="20" cy="24" r="2" fill="#93A8D4" opacity="0.35"/>
+        <circle cx="68" cy="62" r="2" fill="#93A8D4" opacity="0.35"/>
+      </svg>
+      <div style="font-size:18px;font-weight:800;color:var(--navy);letter-spacing:-0.3px;margin-bottom:10px;">No clients yet</div>
+      <div style="font-size:13px;color:var(--muted);line-height:1.7;max-width:340px;margin:0 auto;">When you close a deal in your Pipeline, the client automatically moves here. No manual entry needed.</div>
+    </div>
+    <div class="kanban-scroll" id="crm-kanban-scroll">
       <div class="crm-kanban" id="crm-board">
 
         <div class="kanban-col" id="crm-col-active">
@@ -7608,6 +7623,16 @@ async function loadClientsKanban(force) {
       }
       rows.forEach(row => container.insertAdjacentHTML('beforeend', _buildCrmCard(row, status)));
     });
+    const _crmTotal = Object.values(buckets).reduce((s,a) => s + a.length, 0);
+    const _crmEmptyEl = document.getElementById('crm-empty-state');
+    const _crmScrollEl = document.getElementById('crm-kanban-scroll');
+    if (_crmTotal === 0) {
+      if (_crmEmptyEl) _crmEmptyEl.style.display = 'block';
+      if (_crmScrollEl) _crmScrollEl.style.display = 'none';
+    } else {
+      if (_crmEmptyEl) _crmEmptyEl.style.display = 'none';
+      if (_crmScrollEl) _crmScrollEl.style.display = '';
+    }
     _crmLoaded = true;
   } catch(e) {
     console.warn('loadClientsKanban failed:', e && e.message ? e.message : e);
@@ -8135,14 +8160,14 @@ Be direct. No corporate language.`;
         <input type="password" id="pf-confirm-password" placeholder="Repeat new password" autocomplete="new-password">
       </div>
       <div id="pf-pw-error" style="display:none;font-size:12px;color:#dc2626;margin-bottom:10px;"></div>
-      <button onclick="_changePassword()" style="width:100%;background:var(--navy);color:#fff;border:none;border-radius:7px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">Update password</button>
+      <button onclick="_changePassword()" style="width:100%;background:var(--navy);color:#fff;border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">Update password</button>
     </div>
     <div style="text-align:center;margin-top:16px;">
       <button onclick="signOut()" style="background:none;border:none;font-size:12px;color:var(--dim);cursor:pointer;text-decoration:underline;">Sign out</button>
     </div>
     <div style="text-align:center;margin-top:10px;display:flex;justify-content:center;gap:6px;">
-      <button onclick="setLang('en');closeProfileModal()" style="background:none;border:1px solid #dde2f0;border-radius:5px;padding:3px 10px;font-size:11px;cursor:pointer;font-weight:700;">EN</button>
-      <button onclick="setLang('fr');closeProfileModal()" style="background:none;border:1px solid #dde2f0;border-radius:5px;padding:3px 10px;font-size:11px;cursor:pointer;font-weight:700;">FR</button>
+      <button onclick="setLang('en');closeProfileModal()" style="background:none;border:1px solid #dde2f0;border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;font-weight:700;">EN</button>
+      <button onclick="setLang('fr');closeProfileModal()" style="background:none;border:1px solid #dde2f0;border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;font-weight:700;">FR</button>
     </div>
   </div>
 </div>
