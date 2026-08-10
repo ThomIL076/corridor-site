@@ -319,7 +319,7 @@ nav {
 @media (min-width:481px) {
   .kanban-scroll { display:block; width:100%; overflow-x:auto; overflow-y:visible; -webkit-overflow-scrolling:touch; box-sizing:border-box; padding-right:0; }
   .kanban { display:grid; grid-template-columns:repeat(7, 252px); gap:16px; align-items:start; width:max-content; min-width:unset; }
-  .kanban-col { width:252px; min-width:252px; max-height:calc(100vh - 420px); overflow-y:auto; overflow-x:hidden; scrollbar-width:thin; scrollbar-color:var(--border) transparent; }
+  .kanban-col { width:252px; min-width:252px; max-height:calc(100vh - 370px); overflow-y:auto; overflow-x:hidden; scrollbar-width:thin; scrollbar-color:var(--border) transparent; }
   .k-card { padding:10px 12px; }
   .k-card-name { white-space:normal; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; font-size:13px; font-weight:700; }
   .k-card-company { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:11px; }
@@ -550,9 +550,9 @@ footer a { color:var(--navy); text-decoration:none; font-weight:600; }
 .pr-more { font-size:11px; color:var(--muted); text-align:center; padding:8px 0; font-style:italic; }
 .signal-badge { display:inline-block; vertical-align:middle; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; padding:2px 7px; border-radius:10px; border:1px solid; white-space:nowrap; max-width:180px; overflow:hidden; text-overflow:ellipsis; }
 .signal-s1 { background:#FEF3C7; color:#92400E; border-color:#FCD34D; }
-.signal-s2 { background:#FEE2E2; color:#991B1B; border-color:#FCA5A5; }
-.signal-s3 { background:#FEE2E2; color:#991B1B; border-color:#FCA5A5; }
-.signal-s4 { background:#EDE9FE; color:#5B21B6; border-color:#C4B5FD; }
+.signal-s2 { background:var(--green-bg); color:var(--green); border-color:var(--green-border); }
+.signal-s3 { background:var(--navy-light); color:var(--navy); border-color:var(--blue); }
+.signal-s4 { background:var(--navy-light); color:var(--navy); border-color:var(--blue); }
 .signal-generic { background:#F1F5F9; color:#475569; border-color:#CBD5E1; }
 .k-card-signal { margin-top:4px; margin-right:8px; }
 .sig-attr-row { padding:10px 0; border-bottom:1px solid var(--border); }
@@ -605,7 +605,7 @@ footer a { color:var(--navy); text-decoration:none; font-weight:600; }
 .send-touch { font-size:10px; font-weight:600; padding:4px 10px; border-radius:20px; white-space:nowrap; }
 .touch-j0 { background:var(--green-bg); color:var(--green); }
 .touch-j5 { background:var(--navy-light); color:var(--navy); }
-.touch-invite { background:rgba(139,92,246,0.12); color:#7c3aed; }
+.touch-invite { background:var(--navy-light); color:var(--navy); }
 .touch-j12 { background:rgba(107,114,153,0.12); color:var(--muted); }
 .touch-ambassador { background:#f0f4ff; color:#1a2b5e; }
 .touch-redirect { background:#fff4e6; color:#b45309; }
@@ -658,8 +658,8 @@ body.scanner-open { overflow:hidden; }
 /* ── PHASE 2 DRAWER ── */
 .drawer-tabs{display:flex;border-bottom:1px solid var(--border);padding:0 22px;gap:18px;margin-top:4px;flex-shrink:0;}
 .dtab{padding:10px 4px;font-size:11px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:var(--text-secondary);cursor:pointer;border-bottom:2px solid transparent;transition:color 0.15s,border-color 0.15s;user-select:none;}
-.dtab:hover{color:#2568B5;}
-.dtab.active{color:#2568B5;border-bottom-color:#3B8BD4;}
+.dtab:hover{color:var(--navy);}
+.dtab.active{color:var(--navy);border-bottom-color:#3B8BD4;}
 .dtab-panel{display:none;padding:20px 22px;}
 .dtab-panel.active{display:flex;flex-direction:column;flex:1;min-height:0;overflow-y:auto;}
 /* Activity panel — timeline scrolls, Log form anchored at bottom */
@@ -969,9 +969,9 @@ body.new-nav { padding-left: 220px; }
   .k-j5-badge { position:absolute;bottom:8px;right:8px;font-size:10px;font-weight:600;background:rgba(245,158,11,0.12);color:#92400e;border-radius:4px;padding:2px 6px;cursor:pointer;z-index:3;letter-spacing:.02em; }
   .k-j5-badge:hover { background:rgba(245,158,11,0.22); }
   .k-reply-intel { margin-top:8px;border-top:1px solid rgba(0,0,0,0.07);padding-top:7px; }
-  .k-ri-toggle { font-size:11px;color:#7c3aed;background:none;border:none;padding:0;cursor:pointer;font-family:inherit;font-weight:600; }
-  .k-ri-toggle:hover { color:#5b21b6; }
-  .k-reply-intel h1,.k-reply-intel h2,.k-reply-intel h3,.k-reply-intel h4,.k-reply-intel strong { color:#e8e8e8 !important; }
+  .k-ri-toggle { font-size:11px;color:var(--navy);background:none;border:none;padding:0;cursor:pointer;font-family:inherit;font-weight:600; }
+  .k-ri-toggle:hover { color:var(--blue); }
+  .k-reply-intel h1,.k-reply-intel h2,.k-reply-intel h3,.k-reply-intel h4,.k-reply-intel strong { color:var(--text) !important; }
 </style>
 </head>
 <body>
@@ -1430,7 +1430,7 @@ body.new-nav { padding-left: 220px; }
           </select>
           <button onclick="_bulkChangeStage()" style="font-size:12px;padding:4px 10px;background:#1a2b5e;color:#fff;border:none;border-radius:6px;cursor:pointer;">Apply</button>
           <button onclick="_bulkArchive()" style="font-size:12px;padding:4px 10px;background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:6px;cursor:pointer;">Archive</button>
-          <button id="bulk-email-seq-btn" onclick="_bulkStartEmailSeq()" style="font-size:12px;padding:4px 10px;background:#0f766e;color:#fff;border:none;border-radius:6px;cursor:pointer;">Email Sequence</button>
+          <button id="bulk-email-seq-btn" onclick="_bulkStartEmailSeq()" style="font-size:12px;padding:4px 10px;background:#1D9E75;color:#fff;border:none;border-radius:6px;cursor:pointer;">Email Sequence</button>
           <button onclick="_bulkClear()" style="font-size:12px;padding:4px 10px;background:transparent;color:#6b7a99;border:1px solid var(--border);border-radius:6px;cursor:pointer;">Cancel</button>
         </div>
         <button class="btn-secondary" onclick="openAddProspect()"><span data-en="+ Add" data-fr="+ Ajouter">+ Add</span></button>
@@ -6234,7 +6234,7 @@ async function _findEmailDrawer(pid) {
         if (pd.email) {
           await _saveEmail(pollPid, pd.email, 'fullenrich');
           if (status) status.textContent = '✓ Email verified';
-          if (btn) { btn.style.background = '#166534'; btn.textContent = '✓ Found'; }
+          if (btn) { btn.style.background = '#1D9E75'; btn.textContent = '✓ Found'; }
           if (siblingBtn) siblingBtn.disabled = false;
         } else {
           if (status) status.textContent = 'Not found';
@@ -6311,7 +6311,7 @@ async function _findPhoneDrawer(pid) {
         if (pd.phone) {
           await _savePhone(pollPid, pd.phone, 'fullenrich');
           if (status) status.textContent = '✓ Found';
-          if (btn) { btn.style.background = '#166534'; btn.textContent = '✓ Found'; }
+          if (btn) { btn.style.background = '#1D9E75'; btn.textContent = '✓ Found'; }
           if (siblingBtn) siblingBtn.disabled = false;
         } else {
           if (status) status.textContent = 'Not found';
@@ -6927,12 +6927,12 @@ function buildCard(p){
         ? `<div class="k-reply-intel" onclick="event.stopPropagation()">`
           + `<button id="ri-toggle-${_esc(id)}" class="k-ri-toggle" onclick="_toggleReplyIntel('${_esc(id)}')">💬 Triage reply</button>`
           + `<div id="ri-panel-${_esc(id)}" style="display:none">`
-          + `<textarea id="ri-input-${_esc(id)}" rows="3" placeholder="Paste the reply here..." style="width:100%;box-sizing:border-box;margin-top:6px;padding:7px 9px;background:#1a1a2e;border:1px solid #333;border-radius:6px;color:#e8e8e8;font-size:12px;font-family:inherit;resize:vertical;line-height:1.5"></textarea>`
+          + `<textarea id="ri-input-${_esc(id)}" rows="3" placeholder="Paste the reply here..." style="width:100%;box-sizing:border-box;margin-top:6px;padding:7px 9px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;font-family:inherit;resize:vertical;line-height:1.5"></textarea>`
           + `<div style="display:flex;gap:6px;margin-top:6px;align-items:center;">`
-          + `<button id="ri-btn-${_esc(id)}" onclick="_replyIntel('${_esc(id)}')" style="font-size:12px;padding:5px 12px;background:#7c3aed;color:#fff;border:none;border-radius:6px;cursor:pointer;">Analyze</button>`
+          + `<button id="ri-btn-${_esc(id)}" onclick="_replyIntel('${_esc(id)}')" style="font-size:12px;padding:5px 12px;background:var(--navy);color:#fff;border:none;border-radius:6px;cursor:pointer;">Analyze</button>`
           + `<span id="ri-status-${_esc(id)}" style="font-size:11px;color:#6b7a99;"></span>`
           + `</div>`
-          + `<div id="ri-result-${_esc(id)}" style="display:none;margin-top:8px;background:#1a1a2e;border:1px solid #444;border-radius:6px;padding:12px;font-size:12px;line-height:1.6;color:#e8e8e8;"></div>`
+          + `<div id="ri-result-${_esc(id)}" style="display:none;margin-top:8px;background:var(--navy-light);border:1px solid var(--border);border-radius:6px;padding:12px;font-size:12px;line-height:1.6;color:var(--text);"></div>`
           + `</div>`
           + `</div>`
         : '')
@@ -7383,7 +7383,7 @@ function _checkEmailSeqState(pid, interactions) {
   if ((interactions || []).some(i => i.type === 'email_j5')) {
     btn.disabled = true;
     btn.textContent = '✓ Sequence started';
-    btn.style.background = '#166534';
+    btn.style.background = '#1D9E75';
     if (statusEl) statusEl.textContent = '';
   }
 }
@@ -7418,15 +7418,15 @@ async function _startEmailSeq(id) {
         console.error('[_startEmailSeq] Supabase insert failed:', _seqInsErr);
         if (statusEl) statusEl.textContent = '⚠ Sent but not tracked — ' + _seqInsErr.message;
       } else {
-        if (btn) { btn.disabled = true; btn.textContent = '✓ Sequence started'; btn.style.background = '#166534'; }
+        if (btn) { btn.disabled = true; btn.textContent = '✓ Sequence started'; btn.style.background = '#1D9E75'; }
         if (statusEl) statusEl.textContent = '';
       }
     } else {
-      if (btn) { btn.disabled = false; btn.textContent = 'Start Email Sequence'; btn.style.background = '#0f766e'; }
+      if (btn) { btn.disabled = false; btn.textContent = 'Start Email Sequence'; btn.style.background = '#1D9E75'; }
       if (statusEl) statusEl.textContent = '⚠ ' + (data.error || 'Error, retry');
     }
   } catch(e) {
-    if (btn) { btn.disabled = false; btn.textContent = 'Start Email Sequence'; btn.style.background = '#0f766e'; }
+    if (btn) { btn.disabled = false; btn.textContent = 'Start Email Sequence'; btn.style.background = '#1D9E75'; }
     if (statusEl) statusEl.textContent = '⚠ Network error, retry';
   }
 }
