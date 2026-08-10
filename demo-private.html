@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Corridor">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<meta name="theme-color" content="#0f1c3f">
+<meta name="theme-color" content="#12213f">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300;0,400;0,700;0,900;1,300;1,400&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -140,7 +140,7 @@ nav {
   font-size:10px; font-weight:600; letter-spacing:2px; text-transform:uppercase;
   color:var(--blue); margin-bottom:8px;
 }
-.section-sub { font-size:13px; color:var(--muted); font-weight:300; max-width:560px; }
+.section-sub { font-size:13px; color:var(--muted); font-weight:400; max-width:560px; }
 
 /* ── INPUT ROW ── */
 .input-row { display:flex; gap:10px; margin-bottom:24px; flex-wrap:wrap; }
@@ -226,7 +226,7 @@ nav {
 @keyframes spin { to { transform:rotate(360deg); } }
 .ai-box-body {
   padding:16px; font-size:13px; line-height:1.8; color:var(--muted);
-  min-height:80px; font-weight:300; overflow-wrap:break-word; word-break:break-word;
+  min-height:80px; font-weight:400; overflow-wrap:break-word; word-break:break-word;
 }
 .ai-box-body.loaded { color:var(--text); }
 #intel-ai-output { max-height:500px; overflow-y:auto; }
@@ -473,7 +473,7 @@ footer a { color:var(--navy); text-decoration:none; font-weight:600; }
 @media(max-width:1100px){ .system-grid { grid-template-columns:repeat(2,1fr); } }
 @media(max-width:560px){ .system-grid { grid-template-columns:1fr; } }
 .system-card { display:flex; flex-direction:column; height:100%; }
-.system-desc { font-size:12px; color:var(--muted); line-height:1.6; margin-bottom:14px; font-weight:300; }
+.system-desc { font-size:12px; color:var(--muted); line-height:1.6; margin-bottom:14px; font-weight:400; }
 .system-card-desc { flex-shrink:0; }
 .system-card-btn { margin-top:0; }
 .system-btn { width:100%; justify-content:center; margin-bottom:14px; }
@@ -635,8 +635,6 @@ body.scanner-open { overflow:hidden; }
 .scanner-panel-head { padding:18px 22px 16px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; gap:12px; flex-shrink:0; }
 .scanner-panel-title { font-size:15px; font-weight:800; color:var(--navy); font-family:'Plus Jakarta Sans',sans-serif; }
 .scanner-panel-body { padding:20px 22px; flex:1; overflow-y:auto; }
-.snav-scan-btn { display:flex; align-items:center; justify-content:center; width:34px; height:34px; border-radius:50%; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.18); color:rgba(255,255,255,0.85); cursor:pointer; transition:background 0.15s; margin:0 auto; }
-.snav-scan-btn:hover { background:rgba(255,255,255,0.18); color:#fff; }
 .drawer-head { padding:20px 22px 18px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-shrink:0; }
 .drawer-name { font-size:16px; font-weight:800; color:var(--navy); }
 .drawer-company { font-size:12px; color:var(--muted); margin-top:2px; }
