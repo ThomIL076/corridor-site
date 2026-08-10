@@ -4998,6 +4998,11 @@ function _parseCsvLine(line, sep) {
 async function importCSV(e) {
   const file = e.target.files[0];
   if (!file) return;
+  if (!activeMandateId || activeMandateId === '__ALL__') {
+    alert('Please select a specific mandate before importing. CSV import cannot run on the "All mandates" view.');
+    e.target.value = '';
+    return;
+  }
   showToast('Importing...');
   const reader = new FileReader();
   reader.onload = async ev => {
@@ -5030,7 +5035,7 @@ async function importCSV(e) {
         name, company, sector,
         country: country || null, region: region || null,
         linkedin: linkedin || null, email: email || null,
-        stage: 'Identified', archived: false
+        stage: 'Identified', origin: 'csv_import', archived: false
       });
     }
 
