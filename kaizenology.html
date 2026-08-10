@@ -414,6 +414,8 @@ nav {
 .crm-step-form-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:2px; }
 .crm-step-save-btn { font-size:12px; font-weight:700; padding:6px 14px; border-radius:6px; background:var(--navy); color:#fff; border:none; cursor:pointer; }
 .crm-step-cancel-btn { font-size:12px; font-weight:600; padding:6px 12px; border-radius:6px; background:none; color:var(--muted); border:1px solid var(--border); cursor:pointer; }
+.crm-step-item.crm-step-suggested { border-style:dashed; border-color:#a8b5d8; }
+.crm-step-chip-suggested { background:#eef2ff !important; color:#5c6bc0 !important; }
 /* .deal-badge retiré — le badge deal est désormais rendu inline par buildCard (.k-badge-deal) depuis p.deal_value */
 .dv-row { display:flex; gap:8px; margin-bottom:10px; }
 .dv-row select { flex:1; font-size:12px; padding:7px 8px; border:1px solid var(--border); border-radius:8px; font-family:inherit; color:var(--text); background:#fff; }
@@ -2759,6 +2761,8 @@ const _senderSig = () => (CLIENT_ID === 'kaizenology')
   ? 'Stéphane Rogovsky, CAIA | linkedin.com/company/kaizenology-official'
   : 'Thomas | linkedin.com/company/corridor-gtm-system';
 const _senderName = () => (CLIENT_ID === 'kaizenology') ? 'Stéphane' : 'Thomas';
+const _ownerInboxEmail = () => CLIENT_ID === 'kaizenology' ? 'hello@stephanerogovsky.com' : 'thomas@corridor.systems';
+const _csStepsAttempted = new Set();
 const _systemRole = () => (CLIENT_ID === 'kaizenology')
   ? "Kaizenology's outreach system"
   : "Corridor's outreach system";
@@ -5419,6 +5423,7 @@ async function openDrawer(card) {
       <button class="btn-accent" style="width:100%;justify-content:center;margin-bottom:12px"
         onclick="_drawerAI()" id="drawer-next-btn">▶ Next recommended action</button>
       <button class="btn-secondary" style="width:100%;justify-content:center;margin-bottom:12px" onclick="_escalateProspect()" id="drawer-escalate-btn">Escalation Handler</button>
+  <button class="btn-secondary" style="width:100%;justify-content:center;margin-bottom:12px" onclick="_sendDiscoveryBrief()" id="drawer-discovery-btn">Prepare discovery call</button>
       <div class="ai-box" id="escalate-box" style="display:none">
         <div class="ai-box-header">
           <span class="ai-box-label" style="color:#ef4444">Escalation Brief</span>
@@ -5724,6 +5729,59 @@ ${typeof _langLine === 'function' ? _langLine() : ''}`;
   } finally {
     if (spinner) spinner.classList.remove('active');
     if (btn) btn.disabled = false;
+  }
+}
+
+async function _sendDiscoveryBrief() {
+  if (!_drawerProspect) return;
+  const p = _drawerProspect;
+  const btn = document.getElementById('drawer-discovery-btn');
+  const origLabel = btn ? btn.textContent : 'Prepare discovery call';
+  if (btn) { btn.disabled = true; btn.textContent = 'Preparing…'; }
+  try {
+    const liveCtx = await _prefetchWebContext(p.company, p.sector);
+    const ctx = _drawerInteractions.slice(0, 5)
+      .map(i => `- ${i.type}${i.note ? ': ' + i.note.slice(0, 120) : ''} (${_relDate(i.created_at) || 'recent'})`)
+      .join('\n');
+    const systemPrompt = `You are a B2B sales prep assistant. Generate a discovery call brief. Output valid HTML using only <h3>, <p>, <ul>, <li> tags. No inline styles, no markdown fences. Anti-hallucination rule: only state company facts that appear verbatim in LIVE CONTEXT. If no context is available, omit speculative company claims entirely.`;
+    const userMsg = `Prospect: ${p.name}, ${p.title || 'unknown title'} at ${p.company || 'unknown company'}.
+Sector: ${p.sector || '-'} | Country: ${p.country || '-'} | Stage: ${p.stage || '-'} | ICP Score: ${p.score || '-'}
+Signal: ${p.signal || 'None'} | Notes: ${p.notes || 'None'}
+${ctx ? '\nInteraction history:\n' + ctx : 'No interactions logged.'}
+${liveCtx || '\nNo verified web context available. Do not state any company-specific facts.'}
+
+Generate a discovery call brief with exactly these four sections:
+1. Company context (2-3 sentences max, verified facts only - omit section if no web context)
+2. Why now (why this call makes sense at this exact stage and signal)
+3. Qualification angle (what to validate in this first call)
+4. Questions to ask (4-5 specific questions as a bulleted list)
+
+Output the HTML content only. No preamble, no doctype, no wrapper div.`;
+    const res = await fetch(API_URL, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 900, system: systemPrompt, messages: [{ role: 'user', content: userMsg }] })
+    });
+    if (!res.ok) throw new Error('Claude API ' + res.status);
+    const data = await res.json();
+    const briefHtml = Array.isArray(data.content) ? data.content.filter(b => b.type === 'text').map(b => b.text).join('').trim() : '';
+    if (!briefHtml) throw new Error('Empty response from Claude');
+    const badgeRow = [
+      p.sector  ? `<span style="font-size:11px;font-weight:600;padding:3px 10px;background:#f0f3fb;border-radius:20px;color:#3B5BDB">${_esc(p.sector)}</span>` : '',
+      p.stage   ? `<span style="font-size:11px;font-weight:600;padding:3px 10px;background:#f0f3fb;border-radius:20px;color:#6b7a99">${_esc(p.stage)}</span>` : '',
+      p.country ? `<span style="font-size:11px;font-weight:600;padding:3px 10px;background:#f0f3fb;border-radius:20px;color:#6b7a99">${_esc(p.country)}</span>` : ''
+    ].filter(Boolean).join('');
+    const emailHtml = `<!DOCTYPE html><html><body style="font-family:'Plus Jakarta Sans',Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px 20px;color:#1a2b5e;background:#f8f9fc"><div style="background:#fff;border-radius:12px;padding:28px 32px;border:1px solid #e2e6f0"><div style="font-size:11px;font-weight:700;color:#6b7a99;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:6px">Discovery Call Brief</div><h2 style="margin:0 0 4px;font-size:20px;font-weight:800;color:#1a2b5e">${_esc(p.name || '-')}</h2><p style="margin:0 0 16px;font-size:13px;color:#6b7a99">${[p.title, p.company].filter(Boolean).map(s => _esc(s)).join(' &middot; ')}</p>${badgeRow ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px">${badgeRow}</div>` : ''}<div style="font-size:13px;line-height:1.75;color:#1a2b5e">${briefHtml}</div><div style="margin-top:24px;padding-top:16px;border-top:1px solid #e2e6f0;font-size:11px;color:#a8b5d8">Generated by Corridor &mdash; ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</div></div></body></html>`;
+    const wRes = await fetch('https://thom076il.app.n8n.cloud/webhook/discovery-call-brief-send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-webhook-secret': 'cds_9f4a2e17b6d84c1eb0f3a5d9c7e2b148' },
+      body: JSON.stringify({ to: _ownerInboxEmail(), subject: 'Discovery call brief — ' + (p.name || 'prospect'), html: emailHtml })
+    });
+    if (!wRes.ok) throw new Error('Webhook ' + wRes.status);
+    showToast('Brief sent to your inbox');
+  } catch(e) {
+    showToast('Error: ' + e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = origLabel; }
   }
 }
 
@@ -7771,6 +7829,46 @@ function _resetCrmFilters() {
   _applyCrmFilters();
 }
 
+async function _autoGenerateCsSteps(row) {
+  _csStepsAttempted.add(String(row.id));
+  const prospect = Array.isArray(row.prospects) ? row.prospects[0] : row.prospects;
+  const company  = row.company || (prospect && prospect.company) || '';
+  const name     = row.name    || (prospect && prospect.name)    || '';
+  if (!company && !name) return;
+  const sector   = (prospect && prospect.sector)       || '';
+  const dealVal  = Number((prospect && prospect.deal_value) || row.deal_value) || 0;
+  const notes    = (prospect && prospect.notes) || row.notes || '';
+  const signal   = (prospect && prospect.signal_type)  || '';
+  const systemPrompt = `You are a customer success specialist. Generate 3-5 tailored onboarding roadmap steps for a new B2B client's first 90 days. Output ONLY a valid JSON array — no markdown, no preamble. Each element: {"label":"string up to 60 chars","note":"optional context up to 120 chars"}. If context is too sparse, return [].`;
+  const userMsg = `New client: ${name}${company ? ' at ' + company : ''}\nSector: ${sector || '-'} | Deal: ${dealVal > 0 ? '€' + dealVal : '-'} | Signal: ${signal || '-'}\nNotes: ${notes || 'None'}\nGenerate 3-5 specific, actionable CS roadmap steps for the first 90 days.`;
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 500, system: systemPrompt, messages: [{ role: 'user', content: userMsg }] })
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    const raw = Array.isArray(data.content) ? data.content.filter(b => b.type === 'text').map(b => b.text).join('').trim() : '';
+    let steps;
+    try { steps = JSON.parse(raw); } catch(_) {
+      const m = raw.match(/\[[\s\S]*\]/);
+      if (!m) return;
+      try { steps = JSON.parse(m[0]); } catch(_) { return; }
+    }
+    if (!Array.isArray(steps) || steps.length === 0) return;
+    const inserts = steps.filter(s => s && s.label).map(s => ({
+      crm_client_id: row.id,
+      label: String(s.label).slice(0, 200),
+      status: 'Suggested'
+    }));
+    if (inserts.length === 0) return;
+    const { error } = await sbClient.from('client_roadmap_steps').insert(inserts);
+    if (error) { console.warn('[_autoGenerateCsSteps] insert:', error.message); }
+  } catch(e) {
+    console.warn('[_autoGenerateCsSteps]', e.message);
+  }
+}
+
 async function loadClientsKanban(force) {
   if (_crmLoaded && !force) return;
   Object.values(_CRM_COLS).forEach(({ cards }) => {
@@ -7780,7 +7878,7 @@ async function loadClientsKanban(force) {
   try {
     let q = sbClient
       .from('crm_clients')
-      .select('*, prospects(name, company, sector, country, signal_type, origin, deal_value), client_roadmap_steps(id, label, step_date, status)')
+      .select('*, prospects(name, company, sector, country, signal_type, origin, deal_value, notes), client_roadmap_steps(id, label, step_date, status)')
       .eq('client_id', CLIENT_ID);
     if (activeMandateId && activeMandateId !== '__ALL__') {
       q = q.eq('mandate_id', activeMandateId);
@@ -7844,6 +7942,18 @@ async function loadClientsKanban(force) {
         + signals.map(s => `<option value="${_esc(s)}"${s === cur ? ' selected' : ''}>${_esc(s)}</option>`).join('');
     }
     _crmLoaded = true;
+    // Auto-generate CS roadmap steps for recent clients with none yet
+    const _thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+    const _needsSteps = (data || []).filter(row =>
+      (!Array.isArray(row.client_roadmap_steps) || row.client_roadmap_steps.length === 0) &&
+      (row.created_at || '') >= _thirtyDaysAgo &&
+      !_csStepsAttempted.has(String(row.id))
+    );
+    if (_needsSteps.length > 0) {
+      Promise.allSettled(_needsSteps.map(row => _autoGenerateCsSteps(row)))
+        .then(() => loadClientsKanban(true))
+        .catch(() => {});
+    }
   } catch(e) {
     console.warn('loadClientsKanban failed:', e && e.message ? e.message : e);
   }
@@ -7941,13 +8051,14 @@ function _renderCrmDrawerContent(crmId) {
   } else {
     stepsHtml = '<div class="crm-roadmap-list">'
       + steps.map(s => {
-          const sid        = _esc(String(s.id || ''));
-          const lbl        = _esc(s.label || '');
-          const statusChip = s.status
-            ? `<span class="crm-step-status-chip">${_esc(s.status)}</span>` : '';
-          const dateStr    = s.step_date
+          const sid         = _esc(String(s.id || ''));
+          const lbl         = _esc(s.label || '');
+          const isSuggested = s.status === 'Suggested';
+          const statusChip  = s.status
+            ? `<span class="crm-step-status-chip${isSuggested ? ' crm-step-chip-suggested' : ''}">${_esc(isSuggested ? 'AI suggested' : s.status)}</span>` : '';
+          const dateStr     = s.step_date
             ? `<span class="crm-step-date">${_esc(String(s.step_date).slice(0, 10))}</span>` : '';
-          return `<div class="crm-step-item" data-step-id="${sid}" onclick="_crmShowStepForm('${sid}')">
+          return `<div class="crm-step-item${isSuggested ? ' crm-step-suggested' : ''}" data-step-id="${sid}" onclick="_crmShowStepForm('${sid}')">
             <div class="crm-step-dot"></div>
             <div class="crm-step-body">
               <div class="crm-step-label">${lbl}</div>
