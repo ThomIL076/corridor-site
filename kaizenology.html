@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Corridor — Kaizenology</title>
 <link rel="icon" type="image/svg+xml" href="/corridor-favicon.svg">
-<link rel="manifest" href="/manifest-private.json">
+<link rel="manifest" href="/manifest-kaizenology.json">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -25,8 +25,8 @@
   --border: #e2e8f0;
   --border-mid: #c8d0e0;
   --text: #1e2a45;
-  --muted: #6b7a99;
-  --dim: #8896b3;
+  --muted: #576185;
+  --dim: #5e6e94;
   --green: #15803d;
   --green-bg: #f0fdf4;
   --green-border: #86efac;
@@ -37,18 +37,20 @@
   --red-bg: #fef2f2;
   --fill-accent: #2568B5;
   --on-accent: #ffffff;
-  --text-secondary: #6b7a99;
+  --text-secondary: #576185;
   --surface-1: #f8f9fb;
   --bg-warning: #fffbeb;
   --bg-accent: #dbeafe;
   --text-accent: #3B8BD4;
   --bg-success: #d1fae5;
   --text-success: #1D9E75;
+  --sky: #38bdf8;
+  --drawer-width: 620px;
 }
 
 * { margin:0; padding:0; box-sizing:border-box; }
 *:focus-visible { outline: 2px solid var(--blue) !important; outline-offset: 2px !important; }
-[contenteditable]:focus-visible { outline: none !important; }
+[contenteditable]:focus-visible { outline: 2px solid var(--blue) !important; box-shadow: 0 0 0 3px rgba(147,168,212,0.25) !important; }
 html { scrollbar-gutter: stable; }
 
 
@@ -163,7 +165,7 @@ nav {
   border:none; padding:10px 22px; border-radius:8px; cursor:pointer;
   transition:all 0.2s; white-space:nowrap;
 }
-.btn-primary:hover { background:var(--navy-mid); transform:translateY(-1px); box-shadow:0 4px 12px rgba(26,43,94,0.2); }
+.btn-primary:hover { background:var(--navy-mid); transform:translateY(-1px); box-shadow:0 4px 12px rgba(0,0,0,0.12); }
 .btn-primary:disabled { opacity:0.5; cursor:not-allowed; transform:none; box-shadow:none; }
 .btn-secondary {
   display:inline-flex; align-items:center; gap:8px;
@@ -625,13 +627,13 @@ footer a { color:var(--navy); text-decoration:none; font-weight:600; }
 .k-card { cursor:pointer; }
 #drawer-overlay { position:fixed; inset:0; background:rgba(26,43,94,0.35); z-index:9500; opacity:0; pointer-events:none; transition:opacity 0.25s; }
 #drawer-overlay.open { opacity:1; pointer-events:auto; }
-#drawer { position:fixed; top:0; right:0; height:100%; width:620px; max-width:95vw; background:var(--white); box-shadow:-8px 0 30px rgba(26,43,94,0.18); z-index:9600; transform:translateX(100%); transition:transform 0.3s cubic-bezier(0.4,0,0.2,1); display:flex; flex-direction:column; overflow:hidden; }
+#drawer { position:fixed; top:0; right:0; height:100%; width:var(--drawer-width); max-width:95vw; background:var(--white); box-shadow:-8px 0 30px rgba(26,43,94,0.18); z-index:9600; transform:translateX(100%); transition:transform 0.3s cubic-bezier(0.4,0,0.2,1); display:flex; flex-direction:column; overflow:hidden; }
 #drawer.open { transform:translateX(0); }
 body.drawer-open { overflow:hidden; }
 /* ── Scanner overlay panel ── */
 #scanner-overlay { position:fixed; inset:0; background:rgba(26,43,94,0.35); z-index:9700; opacity:0; pointer-events:none; transition:opacity 0.25s; }
 #scanner-overlay.open { opacity:1; pointer-events:auto; }
-#scanner-panel { position:fixed; top:0; right:0; height:100%; width:520px; max-width:95vw; background:var(--white); box-shadow:-8px 0 30px rgba(26,43,94,0.18); z-index:9800; transform:translateX(100%); transition:transform 0.3s cubic-bezier(0.4,0,0.2,1); display:flex; flex-direction:column; overflow-y:auto; }
+#scanner-panel { position:fixed; top:0; right:0; height:100%; width:var(--drawer-width); max-width:95vw; background:var(--white); box-shadow:-8px 0 30px rgba(26,43,94,0.18); z-index:9800; transform:translateX(100%); transition:transform 0.3s cubic-bezier(0.4,0,0.2,1); display:flex; flex-direction:column; overflow-y:auto; }
 #scanner-panel.open { transform:translateX(0); }
 body.scanner-open { overflow:hidden; }
 .scanner-panel-head { padding:18px 22px 16px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; gap:12px; flex-shrink:0; }
@@ -643,6 +645,7 @@ body.scanner-open { overflow:hidden; }
 .drawer-score { font-size:11px; font-weight:700; color:var(--blue); margin-top:6px; display:inline-block; background:var(--navy-light); border:1px solid var(--blue); padding:3px 10px; border-radius:20px; }
 .drawer-close { background:transparent; border:none; font-size:20px; color:var(--muted); cursor:pointer; line-height:1; padding:0 4px; }
 .drawer-close:hover { color:var(--navy); }
+.module-title { font-size:18px; font-weight:800; color:var(--navy); font-family:'Plus Jakarta Sans',sans-serif; letter-spacing:-0.3px; line-height:1.2; }
 .drawer-body { padding:20px 22px; }
 .drawer-section-title { font-size:11px; font-weight:600; letter-spacing:0.02em; color:var(--muted); margin-bottom:8px; }
 .classification-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
@@ -1140,13 +1143,25 @@ body.new-nav { padding-left: 220px; }
 <main class="main" id="main-content" aria-label="Corridor GTM System">
 
   <!-- ══ TAB 1: SIGNAL SCANNER ══ -->
-  <div class="tab-panel" id="tab-scanner"></div>
+  <div class="tab-panel" id="tab-scanner">
+    <div style="text-align:center;padding:72px 24px 48px;max-width:480px;margin:0 auto;">
+      <svg width="88" height="88" viewBox="0 0 88 88" fill="none" style="margin-bottom:24px;">
+        <circle cx="44" cy="44" r="42" fill="var(--navy-light)"/>
+        <circle cx="44" cy="44" r="20" stroke="var(--blue)" stroke-width="2" stroke-dasharray="5 3" fill="none" opacity="0.6"/>
+        <circle cx="44" cy="44" r="30" stroke="var(--blue)" stroke-width="1.5" stroke-dasharray="4 4" fill="none" opacity="0.35"/>
+        <line x1="44" y1="44" x2="62" y2="28" stroke="var(--blue)" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="44" cy="44" r="3" fill="var(--navy)" opacity="0.5"/>
+      </svg>
+      <div style="font-size:18px;font-weight:800;color:var(--navy);letter-spacing:-0.3px;margin-bottom:10px;">No scan results yet</div>
+      <div style="font-size:13px;color:var(--muted);line-height:1.7;max-width:340px;margin:0 auto;">Prospect scanning results will appear here. Run a scan from the Pipeline view to populate this panel.</div>
+    </div>
+  </div>
 
   <!-- ══ TAB 3: OUTREACH GENERATOR ══ -->
   <!-- ══ TAB 4: AI AGENTS ══ -->
   <div class="tab-panel" id="tab-agents">
     <div class="module-header" style="margin-bottom:20px;">
-      <div style="font-size:18px;font-weight:800;color:var(--navy);font-family:'Plus Jakarta Sans',sans-serif;letter-spacing:-0.3px;line-height:1.2;">Eleven specialists. Always on.</div>
+      <div class="module-title">Eleven specialists. Always on.</div>
     </div>
 
     <div class="agent-tabs">
@@ -1376,7 +1391,7 @@ body.new-nav { padding-left: 220px; }
   <!-- ══ TAB 5: PIPELINE VIEW ══ -->
   <div class="tab-panel" id="tab-pipeline">
     <div class="module-header" style="margin-bottom:20px;">
-      <div style="font-size:18px;font-weight:800;color:var(--navy);font-family:'Plus Jakarta Sans',sans-serif;letter-spacing:-0.3px;line-height:1.2;" data-en="Your entire pipeline. One view." data-fr="Tout votre pipeline. Une seule vue.">Your entire pipeline. One view.</div>
+      <div class="module-title" data-en="Your entire pipeline. One view." data-fr="Tout votre pipeline. Une seule vue.">Your entire pipeline. One view.</div>
     </div>
 
     <div class="csv-actions" style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px;">
@@ -1407,7 +1422,7 @@ body.new-nav { padding-left: 220px; }
           <option value="Closed">Closed</option>
         </select>
         <button onclick="_resetKanbanFilters()" style="font-size:11px;padding:5px 8px;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:6px;cursor:pointer;">Reset</button>
-        <button id="kanban-filters-btn" onclick="_toggleFiltersPanel()" style="height:29px;padding:0 10px;border:1px solid var(--navy);border-radius:6px;font-size:12px;font-family:inherit;color:#fff;background:var(--navy);cursor:pointer;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;">&#8862; Filters <span id="kanban-filters-count" style="display:none;background:#3B8BD4;color:#fff;border-radius:10px;padding:1px 5px;font-size:10px;font-weight:700;line-height:1.4;"></span></button>
+        <button id="kanban-filters-btn" onclick="_toggleFiltersPanel()" style="height:29px;padding:0 10px;border:1px solid var(--navy);border-radius:6px;font-size:12px;font-family:inherit;color:#fff;background:var(--navy);cursor:pointer;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;">&#8862; Filters <span id="kanban-filters-count" style="display:none;background:var(--text-accent);color:#fff;border-radius:10px;padding:1px 5px;font-size:10px;font-weight:700;line-height:1.4;"></span></button>
       </div>
       <div id="kanban-filters-panel" style="display:none;background:var(--white);border:1.5px solid var(--navy);border-radius:10px;padding:14px 14px 10px;margin-top:6px;">
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
@@ -1454,8 +1469,8 @@ body.new-nav { padding-left: 220px; }
         </div>
       </div>
       <div class="toolbar-actions" style="display:flex;gap:8px;align-items:center;justify-content:flex-end;flex-wrap:wrap;">
-        <div id="bulk-bar" style="display:none;align-items:center;gap:8px;background:#eef1fa;border:1px solid #c8d0e0;border-radius:8px;padding:6px 12px;">
-          <span id="bulk-count" style="font-size:12px;font-weight:600;color:#1a2b5e;">0 selected</span>
+        <div id="bulk-bar" style="display:none;align-items:center;gap:8px;background:var(--navy-light);border:1px solid var(--border-mid);border-radius:8px;padding:6px 12px;">
+          <span id="bulk-count" style="font-size:12px;font-weight:600;color:var(--navy);">0 selected</span>
           <select id="bulk-stage-select" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--white);color:var(--text);">
             <option value="">Move to stage...</option>
             <option value="Identified">Identified</option>
@@ -1466,7 +1481,7 @@ body.new-nav { padding-left: 220px; }
             <option value="Negotiation">Negotiation</option>
             <option value="Closed">Closed</option>
           </select>
-          <button onclick="_bulkChangeStage()" style="font-size:12px;padding:4px 10px;background:#1a2b5e;color:#fff;border:none;border-radius:6px;cursor:pointer;">Apply</button>
+          <button onclick="_bulkChangeStage()" style="font-size:12px;padding:4px 10px;background:var(--navy);color:#fff;border:none;border-radius:6px;cursor:pointer;">Apply</button>
           <button onclick="_bulkArchive()" style="font-size:12px;padding:4px 10px;background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:6px;cursor:pointer;">Archive</button>
           <button id="bulk-email-seq-btn" onclick="_bulkStartEmailSeq()" style="font-size:12px;padding:4px 10px;background:#1D9E75;color:#fff;border:none;border-radius:6px;cursor:pointer;">Email Sequence</button>
           <button onclick="_bulkClear()" style="font-size:12px;padding:4px 10px;background:transparent;color:#6b7a99;border:1px solid var(--border);border-radius:6px;cursor:pointer;">Cancel</button>
@@ -1527,7 +1542,7 @@ body.new-nav { padding-left: 220px; }
   <!-- ══ TAB: SEND ══ -->
   <div class="tab-panel" id="tab-send">
     <div class="module-header" style="margin-bottom:20px;">
-      <div style="font-size:18px;font-weight:800;color:var(--navy);font-family:'Plus Jakarta Sans',sans-serif;letter-spacing:-0.3px;line-height:1.2;" data-en="Today's messages, ready to fire." data-fr="Les messages du jour, prêts à partir.">Today's messages, ready to fire.</div>
+      <div class="module-title" data-en="Today's messages, ready to fire." data-fr="Les messages du jour, prêts à partir.">Today's messages, ready to fire.</div>
     </div>
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap">
       <span style="font-size:14px;font-weight:700;color:var(--navy)" data-en="Today's send queue" data-fr="File d'envoi du jour">Today's send queue</span>
@@ -1579,7 +1594,7 @@ body.new-nav { padding-left: 220px; }
   <!-- ══ TAB: STATS ══ -->
   <div class="tab-panel" id="tab-stats">
     <div class="module-header" style="margin-bottom:20px;">
-      <div style="font-size:18px;font-weight:800;color:var(--navy);font-family:'Plus Jakarta Sans',sans-serif;letter-spacing:-0.3px;line-height:1.2;" data-en="Your pipeline, in numbers." data-fr="Votre pipeline, en chiffres.">Your pipeline, in numbers.</div>
+      <div class="module-title" data-en="Your pipeline, in numbers." data-fr="Votre pipeline, en chiffres.">Your pipeline, in numbers.</div>
     </div>
 
     <!-- Section A: Funnel -->
@@ -1624,7 +1639,7 @@ body.new-nav { padding-left: 220px; }
   <!-- ══ TAB 7: CLIENTS ══ -->
   <div class="tab-panel" id="tab-clients">
     <div class="module-header" style="margin-bottom:20px;">
-      <div style="font-size:18px;font-weight:800;color:var(--navy);font-family:'Plus Jakarta Sans',sans-serif;letter-spacing:-0.3px;line-height:1.2;">Your clients. All relationships.</div>
+      <div class="module-title">Your clients. All relationships.</div>
     </div>
     <div id="crm-filter-bar" style="display:none;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:16px;">
       <input type="text" id="crm-search" placeholder="Search clients..."
@@ -1723,7 +1738,7 @@ body.new-nav { padding-left: 220px; }
 
     <!-- Intelligence header -->
     <div class="module-header" style="margin-bottom:20px;">
-      <div style="font-size:18px;font-weight:800;color:var(--navy);font-family:'Plus Jakarta Sans',sans-serif;letter-spacing:-0.3px;line-height:1.2;">Signals & Pipeline</div>
+      <div class="module-title">Signals & Pipeline</div>
     </div>
     <!-- Sub-nav -->
     <div class="sys-tabs">
