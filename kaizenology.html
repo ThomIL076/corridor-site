@@ -1941,6 +1941,14 @@ window.addEventListener('resize', _syncNavHeight);
 
 const API_URL = '/api/generate';
 let CLIENT_ID = 'thomas'; // identifiant d'instance — résolu dynamiquement dans loadClientProfile()
+const SENDER_BIO = `STEPHANE'S REAL BACKGROUND (use only these facts when referencing his experience -- never invent a specific area of focus, a claim like "the thing I spend most of my time on", or any expertise not listed here):
+- M&A advisor, capital raising, and strategic transactions -- advising business owners, investors, and VC portfolio companies
+- Founder of Kaizenology (deal-making and strategic introductions)
+- M&A Advisor to STS Capital Partners and Transworld Business Advisors GCC (sell-side, buyer matching, deal execution)
+- Advisor to Loyal VC portfolio companies (operating models, governance, execution discipline)
+- Earlier career: banking operations leadership at Euroclear, Deutsche Bank, and Lloyds (Brussels/Geneva) -- controls, governance, risk, restructuring
+- Built and ran an influencer marketing agency for over a decade in South Africa, chaired industry standards bodies (IAB South Africa, IAB France)
+- CAIA charterholder`;
 let activeMandateId = null; // null = vue consolidée (tous mandats), sinon uuid du mandat actif
 
 async function _resolveMandate(mandateId) {
@@ -4720,14 +4728,7 @@ ${langRule}
 
 Prospect: ${p.name}, ${p.title||'unknown title'} at ${p.company} (${p.sector||'B2B'}, ${p.region||'EMEA'}).
 ${intCtx ? 'Recent interactions: ' + intCtx : ''}
-${CLIENT_ID === 'kaizenology' ? `STEPHANE'S REAL BACKGROUND (use only these facts when referencing his experience -- never invent a specific area of focus, a claim like "the thing I spend most of my time on", or any expertise not listed here):
-- M&A advisor, capital raising, and strategic transactions -- advising business owners, investors, and VC portfolio companies
-- Founder of Kaizenology (deal-making and strategic introductions)
-- M&A Advisor to STS Capital Partners and Transworld Business Advisors GCC (sell-side, buyer matching, deal execution)
-- Advisor to Loyal VC portfolio companies (operating models, governance, execution discipline)
-- Earlier career: banking operations leadership at Euroclear, Deutsche Bank, and Lloyds (Brussels/Geneva) -- controls, governance, risk, restructuring
-- Built and ran an influencer marketing agency for over a decade in South Africa, chaired industry standards bodies (IAB South Africa, IAB France)
-- CAIA charterholder` : `Sender: Thomas Dratler, founder of Corridor (corridor.systems). B2B GTM system, operational in 4 weeks.`}
+${SENDER_BIO}
 ${liveBlock}${personBlock}${prevMsgBlock}${inviteBlock}${originBlock}${memoryBlock}${touch === 'invite' ? `CRITICAL INVITE RULE (non-negotiable): LinkedIn connection request. STRUCTURE: one factual observation (max 15 words) + one short question (max 10 words) + sign off "Thomas" on its own line. TOTAL under 200 characters. NO greeting. NO Corridor. NO URL. NO closing line. NO "Sent via". Output ONLY the 2-sentence message + Thomas, nothing else.` : ''}\nRules: NEVER use em-dashes (—) in any message, replace with a period or comma. No bullet points. No mention of "Alliance Grid" or "Corridor" in the main message body (sentences 1 and 2 only -- the mandatory closing line appended below is the only exception and must be reproduced exactly as given). ${langRule} Replace every vague claim with something specific and provable. Never write 'I help companies grow' or 'I drive results'. Write what you actually observed about this company and why it is relevant right now.${(touch === 'invite' || touch === 'j0') ? ' Strip all marketing language. No buzzwords, no value propositions, no product claims. Rewrite as a text a peer would send to another peer -- direct, human, zero corporate tone.' : ''} NEVER claim or imply that the prospect asked a question, made a specific statement, or expressed a specific interest unless that exact information is explicitly given in the prompt -- if no such detail is provided, do not invent one. NEVER state or imply a specific niche focus for the sender (e.g. a named industry, a named type of deal) that is not listed in their background above. NEVER use generic AI-sounding filler phrases (e.g. "passionate about", "excited to connect", "love what you're building") -- ground every claim in a real fact from the sender's background above or the prospect's own title/company/signal. Output the message only, no preamble.${touch === 'j5' ? '\n\nFOLLOW-UP TONE RULES (mandatory):\n- NEVER use: "follow up", "following up", "checking in", "touching base", "circling back", "just wanted to", "I wanted to reach out", "hope this finds you well"\n- Do NOT open with a reference to the previous message (e.g. "I sent you a note last week")\n- Write as if continuing a conversation, not tracking an unanswered message\n- Introduce a NEW angle, observation, or question — never repeat the idea from the previous message\n- Conversational tone: peer to peer, not vendor to prospect\n- j5: one specific observation or question that opens a thread — no CTA harder than "thoughts?" or "does this resonate?"\n- The closing question must be different from the J+0 question. Never use "Curious what the growth focus looks like" or any variation of it.\n- Previous message sent: "' + (intCtx || 'not available') + '" — do not repeat its angle, observation, or closing question.' : ''}${j0LinkedInNote}${j0NoContextNote}${stealthBlock}${signalBlock}`);
   try {
     const res = await fetch(API_URL, {
