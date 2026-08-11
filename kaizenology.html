@@ -5424,16 +5424,17 @@ async function openDrawer(card) {
       <div style="border-top:1px solid var(--border);padding-top:16px;">
         <div class="drawer-section-title" style="margin-bottom:12px" data-en="Deal Value" data-fr="Valeur du deal">Deal Value</div>
         <div class="dv-row">
-          <select id="dv-team" onchange="recalcDealValue()">
-            <option value="1-10">1-10</option>
-            <option value="11-50">11-50</option>
-            <option value="51-200">51-200</option>
-            <option value="200+">200+</option>
+          <select id="dv-txvalue" onchange="recalcDealValue()">
+            <option value="lt500">&lt; 500K€</option>
+            <option value="500k-2m">500K – 2M€</option>
+            <option value="2m-10m" selected>2M – 10M€</option>
+            <option value="10m-50m">10M – 50M€</option>
+            <option value="50m+">50M+€</option>
           </select>
-          <select id="dv-length" onchange="recalcDealValue()">
-            <option value="3" data-en="3 months" data-fr="3 mois">3 months</option>
-            <option value="6" data-en="6 months" data-fr="6 mois" selected>6 months</option>
-            <option value="12" data-en="12 months" data-fr="12 mois">12 months</option>
+          <select id="dv-fee" onchange="recalcDealValue()">
+            <option value="0.02">2% fee</option>
+            <option value="0.03" selected>3% fee</option>
+            <option value="0.05">5% fee</option>
           </select>
         </div>
         <div class="dv-conf">
@@ -5441,7 +5442,7 @@ async function openDrawer(card) {
           <input type="range" id="dv-conf" min="0" max="100" value="50" oninput="recalcDealValue()">
         </div>
         <div style="background:var(--surface-1);border:0.5px solid var(--border);border-radius:12px;padding:14px;text-align:center;margin-top:12px;">
-          <div style="font-size:11px;color:var(--muted);letter-spacing:0.02em;margin-bottom:4px" data-en="Estimated deal value" data-fr="Valeur estimée du deal">Estimated deal value</div>
+          <div style="font-size:11px;color:var(--muted);letter-spacing:0.02em;margin-bottom:4px" data-en="Estimated advisory fee" data-fr="Honoraires estimés">Estimated advisory fee</div>
           <div id="dv-result" class="dv-result" style="font-size:22px;font-weight:500;color:var(--navy)">€0</div>
         </div>
       </div>
@@ -5519,7 +5520,7 @@ async function openDrawer(card) {
   _dEl.classList.add('open');
   document.getElementById('drawer-overlay').classList.add('open');
   document.body.classList.add('drawer-open');
-  if (document.getElementById('dv-team')) _restoreDealValue();
+  if (document.getElementById('dv-txvalue')) _restoreDealValue();
   _renderSignalLink((_prospectsById[prospectId] || {}).signal);
 
   if (prospectId) {
@@ -6278,27 +6279,34 @@ function applyMomentum(){
     head.insertAdjacentElement('afterend', leg);
   });
 }
-// ── DEAL VALUE ESTIMATOR (Feature 1) ──
+// ── DEAL VALUE ESTIMATOR (Kaizenology — M&A advisory fees) ──
+// TX_MID: representative midpoints per transaction value band used in fee calculation.
+// lt500  → 250K  (conservative avg for sub-500K deals)
+// 500k-2m → 1.25M (geometric centre of 500K–2M range)
+// 2m-10m  → 6M   (skewed above arithmetic midpoint; deal distribution is right-heavy)
+// 10m-50m → 30M  (midpoint of range)
+// 50m+    → 75M  (conservative floor for large-cap; avoids overstating mega-deals)
+const TX_MID = { 'lt500': 250000, '500k-2m': 1250000, '2m-10m': 6000000, '10m-50m': 30000000, '50m+': 75000000 };
 function _pid(name){ return (name||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''); }
 function _eur(n){ return '€' + Math.round(n).toLocaleString('en-US'); }
 function recalcDealValue(){
   if (!_drawerProspect) return;
-  const team = document.getElementById('dv-team').value;
-  const months = parseInt(document.getElementById('dv-length').value, 10);
+  const txvalue = document.getElementById('dv-txvalue').value;
+  const fee = parseFloat(document.getElementById('dv-fee').value);
   const conf = parseInt(document.getElementById('dv-conf').value, 10);
   const cv = document.getElementById('dv-conf-val'); if (cv) cv.textContent = conf + '%';
-  const mult = team === '51-200' ? 1.5 : team === '200+' ? 2 : 1;
-  const val = Math.round(1500 * months * mult * (conf/100));
+  const txMid = TX_MID[txvalue] || 250000;
+  const val = Math.round(txMid * fee * (conf / 100));
   document.getElementById('dv-result').textContent = _eur(val);
-  sessionStorage.setItem('deal_value_' + _pid(_drawerProspect.name), JSON.stringify({ team, months, conf, val }));
+  sessionStorage.setItem('deal_value_' + _pid(_drawerProspect.name), JSON.stringify({ txvalue, fee, conf, val }));
   applyDealBadges();
 }
 function _restoreDealValue(){
   if (!_drawerProspect) return;
   const raw = sessionStorage.getItem('deal_value_' + _pid(_drawerProspect.name));
   if (raw){ try { const d = JSON.parse(raw);
-    const t=document.getElementById('dv-team'); if(t) t.value=d.team;
-    const l=document.getElementById('dv-length'); if(l) l.value=String(d.months);
+    const t=document.getElementById('dv-txvalue'); if(t) t.value=d.txvalue;
+    const l=document.getElementById('dv-fee'); if(l) l.value=String(d.fee);
     const c=document.getElementById('dv-conf'); if(c) c.value=d.conf;
   } catch(e){} }
   recalcDealValue();
