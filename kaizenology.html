@@ -2775,10 +2775,11 @@ Product: Corridor, a done-for-you GTM system.
 Buying signals that matter: S1 recent fundraise, S3 new senior hire or role posted, S7 warm network connection.
 Stay strictly within this context. Do not invent fictional companies, scores, or metrics.`;
 const KAIZENOLOGY_CONTEXT = `Operating context for every answer (this is the real business, not a hypothetical):
-Stéphane Rogovsky, CAIA — Kaizenology, based in Dubai/GCC region.
-Strategic transactions and M&A advisory across the Gulf. Five active mandate segments: Cession (sell-side divestitures), Acquisition (buy-side searches), Levée de fonds (capital raising), Strategic Advisory, Advisory de Transaction.
-ICP: Founders and investors active in M&A and transactions in the Gulf region. CAIA-designated.
-Buying signals that matter: active transaction (sell-side, buy-side, or fundraise), senior role in corporate development, GCC-active investor.
+Stéphane Rogovsky, CAIA — Kaizenology, M&A and strategic advisory, based in Dubai.
+Eight active mandates: Cession/sell-side (UAE-specific geography), Acquisition/buy-side (international — ~20 countries including Europe, US, UK, and more), Fundraising, Strategic Advisory, Live Transactions (existing network/CRM only — no active outreach), Fractional & Interim Roles (Stéphane's own board/advisory/interim mandates), two partner profiles (Corridor GTM system, The Vaults), and two Metals mandates (Material Sourcing and Buyer Search — import corridor to India and Asia).
+Geographic scope: international by default. Only the Cession mandate is explicitly UAE-specific. Dubai/GCC is the base, not a restriction on the overall practice.
+ICP varies by mandate: founders and investors for transaction mandates, corporate development leaders for strategic advisory, senior executives for fractional roles. CAIA-designated.
+Buying signals that matter: active transaction (sell, buy, or fundraise), senior role in corporate development, cross-border or international deal activity.
 Stay strictly within this context. Do not invent fictional companies, scores, or metrics.`;
 const _senderSig = () => (CLIENT_ID === 'kaizenology')
   ? 'Stéphane Rogovsky, CAIA | linkedin.com/company/kaizenology-official'
@@ -3726,7 +3727,7 @@ async function _runPipelineReview() {
     while (true) {
       let _prQuery = _supabase
         .from('prospects')
-        .select('id,name,company,sector,country,stage,last_contact,reminder_date,deal_value,linkedin_tag,created_at')
+        .select('id,name,company,sector,country,stage,last_contact,reminder_date,deal_value,deal_currency,linkedin_tag,created_at')
         .eq('client_id', resolvedClientId);
       _prQuery = _applyMandateFilter(_prQuery);
       const { data: chunk, error } = await _prQuery
@@ -3817,7 +3818,7 @@ async function _runPipelineReview() {
       const nameEsc = (p.name||'?').replace(/</g,'&lt;');
       const compEsc = (p.company||'?').replace(/</g,'&lt;');
       const actEsc  = (p.action||'').replace(/</g,'&lt;');
-      const deal = p.deal_value ? ' <span style="font-size:10px;background:var(--navy-light);color:var(--navy);padding:1px 6px;border-radius:4px;margin-left:4px;">EUR' + Math.round(parseInt(p.deal_value)/1000) + 'k</span>' : '';
+      const deal = p.deal_value ? ' <span style="font-size:10px;background:var(--navy-light);color:var(--navy);padding:1px 6px;border-radius:4px;margin-left:4px;">' + (p.deal_currency || 'EUR') + ' ' + Math.round(parseInt(p.deal_value)/1000) + 'k</span>' : '';
       return '<div class="pr-prospect-row" onclick="_prOpenProspect(\'' + p.id + '\')">' +
         '<div class="pr-dot ' + dotClass + '"></div>' +
         '<div style="flex:1;min-width:0;">' +
@@ -5442,8 +5443,199 @@ async function openDrawer(card) {
           <input type="range" id="dv-conf" min="0" max="100" value="50" oninput="recalcDealValue()">
         </div>
         <div style="background:var(--surface-1);border:0.5px solid var(--border);border-radius:12px;padding:14px;text-align:center;margin-top:12px;">
-          <div style="font-size:11px;color:var(--muted);letter-spacing:0.02em;margin-bottom:4px" data-en="Estimated advisory fee" data-fr="Honoraires estimés">Estimated advisory fee</div>
+          <div id="dv-est-label" style="font-size:11px;color:var(--muted);letter-spacing:0.02em;margin-bottom:4px" data-en="Estimated advisory fee" data-fr="Honoraires estimés">Estimated advisory fee</div>
           <div id="dv-result" class="dv-result" style="font-size:22px;font-weight:500;color:var(--navy)">€0</div>
+        </div>
+        <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">
+          <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px;" data-en="Manual override" data-fr="Saisie manuelle">Manual override</div>
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+            <input type="number" id="dv-manual" min="0" step="1000" placeholder="e.g. 150000"
+              oninput="recalcDealValue()"
+              style="flex:1;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;background:var(--bg);color:var(--text);min-width:0;" />
+            <select id="dv-currency" onchange="recalcDealValue()"
+              style="width:100px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;background:var(--bg);color:var(--text);flex-shrink:0;">
+              <option value="">— —</option>
+              <optgroup label="Common">
+                <option value="EUR">EUR — Euro</option>
+                <option value="USD">USD — US Dollar</option>
+                <option value="GBP">GBP — British Pound</option>
+                <option value="CHF">CHF — Swiss Franc</option>
+                <option value="JPY">JPY — Japanese Yen</option>
+                <option value="CAD">CAD — Canadian Dollar</option>
+                <option value="AUD">AUD — Australian Dollar</option>
+                <option value="SGD">SGD — Singapore Dollar</option>
+                <option value="HKD">HKD — Hong Kong Dollar</option>
+                <option value="AED">AED — UAE Dirham</option>
+                <option value="SAR">SAR — Saudi Riyal</option>
+                <option value="QAR">QAR — Qatari Riyal</option>
+                <option value="NOK">NOK — Norwegian Krone</option>
+                <option value="SEK">SEK — Swedish Krona</option>
+                <option value="DKK">DKK — Danish Krone</option>
+                <option value="MAD">MAD — Moroccan Dirham</option>
+              </optgroup>
+              <optgroup label="All currencies">
+                <option value="AED">AED — UAE Dirham</option>
+                <option value="AFN">AFN — Afghan Afghani</option>
+                <option value="ALL">ALL — Albanian Lek</option>
+                <option value="AMD">AMD — Armenian Dram</option>
+                <option value="ANG">ANG — Netherlands Antillean Guilder</option>
+                <option value="AOA">AOA — Angolan Kwanza</option>
+                <option value="ARS">ARS — Argentine Peso</option>
+                <option value="AUD">AUD — Australian Dollar</option>
+                <option value="AWG">AWG — Aruban Florin</option>
+                <option value="AZN">AZN — Azerbaijani Manat</option>
+                <option value="BAM">BAM — Bosnia-Herzegovina Convertible Mark</option>
+                <option value="BBD">BBD — Barbadian Dollar</option>
+                <option value="BDT">BDT — Bangladeshi Taka</option>
+                <option value="BGN">BGN — Bulgarian Lev</option>
+                <option value="BHD">BHD — Bahraini Dinar</option>
+                <option value="BIF">BIF — Burundian Franc</option>
+                <option value="BMD">BMD — Bermudian Dollar</option>
+                <option value="BND">BND — Brunei Dollar</option>
+                <option value="BOB">BOB — Bolivian Boliviano</option>
+                <option value="BRL">BRL — Brazilian Real</option>
+                <option value="BSD">BSD — Bahamian Dollar</option>
+                <option value="BTN">BTN — Bhutanese Ngultrum</option>
+                <option value="BWP">BWP — Botswanan Pula</option>
+                <option value="BYN">BYN — Belarusian Ruble</option>
+                <option value="BZD">BZD — Belize Dollar</option>
+                <option value="CAD">CAD — Canadian Dollar</option>
+                <option value="CDF">CDF — Congolese Franc</option>
+                <option value="CHF">CHF — Swiss Franc</option>
+                <option value="CLP">CLP — Chilean Peso</option>
+                <option value="CNY">CNY — Chinese Yuan</option>
+                <option value="COP">COP — Colombian Peso</option>
+                <option value="CRC">CRC — Costa Rican Colón</option>
+                <option value="CUP">CUP — Cuban Peso</option>
+                <option value="CVE">CVE — Cape Verdean Escudo</option>
+                <option value="CZK">CZK — Czech Koruna</option>
+                <option value="DJF">DJF — Djiboutian Franc</option>
+                <option value="DKK">DKK — Danish Krone</option>
+                <option value="DOP">DOP — Dominican Peso</option>
+                <option value="DZD">DZD — Algerian Dinar</option>
+                <option value="EGP">EGP — Egyptian Pound</option>
+                <option value="ERN">ERN — Eritrean Nakfa</option>
+                <option value="ETB">ETB — Ethiopian Birr</option>
+                <option value="EUR">EUR — Euro</option>
+                <option value="FJD">FJD — Fijian Dollar</option>
+                <option value="FKP">FKP — Falkland Islands Pound</option>
+                <option value="GBP">GBP — British Pound Sterling</option>
+                <option value="GEL">GEL — Georgian Lari</option>
+                <option value="GHS">GHS — Ghanaian Cedi</option>
+                <option value="GIP">GIP — Gibraltar Pound</option>
+                <option value="GMD">GMD — Gambian Dalasi</option>
+                <option value="GNF">GNF — Guinean Franc</option>
+                <option value="GTQ">GTQ — Guatemalan Quetzal</option>
+                <option value="GYD">GYD — Guyanese Dollar</option>
+                <option value="HKD">HKD — Hong Kong Dollar</option>
+                <option value="HNL">HNL — Honduran Lempira</option>
+                <option value="HRK">HRK — Croatian Kuna</option>
+                <option value="HTG">HTG — Haitian Gourde</option>
+                <option value="HUF">HUF — Hungarian Forint</option>
+                <option value="IDR">IDR — Indonesian Rupiah</option>
+                <option value="ILS">ILS — Israeli New Shekel</option>
+                <option value="INR">INR — Indian Rupee</option>
+                <option value="IQD">IQD — Iraqi Dinar</option>
+                <option value="IRR">IRR — Iranian Rial</option>
+                <option value="ISK">ISK — Icelandic Króna</option>
+                <option value="JMD">JMD — Jamaican Dollar</option>
+                <option value="JOD">JOD — Jordanian Dinar</option>
+                <option value="JPY">JPY — Japanese Yen</option>
+                <option value="KES">KES — Kenyan Shilling</option>
+                <option value="KGS">KGS — Kyrgystani Som</option>
+                <option value="KHR">KHR — Cambodian Riel</option>
+                <option value="KMF">KMF — Comorian Franc</option>
+                <option value="KPW">KPW — North Korean Won</option>
+                <option value="KRW">KRW — South Korean Won</option>
+                <option value="KWD">KWD — Kuwaiti Dinar</option>
+                <option value="KYD">KYD — Cayman Islands Dollar</option>
+                <option value="KZT">KZT — Kazakhstani Tenge</option>
+                <option value="LAK">LAK — Laotian Kip</option>
+                <option value="LBP">LBP — Lebanese Pound</option>
+                <option value="LKR">LKR — Sri Lankan Rupee</option>
+                <option value="LRD">LRD — Liberian Dollar</option>
+                <option value="LSL">LSL — Lesotho Loti</option>
+                <option value="LYD">LYD — Libyan Dinar</option>
+                <option value="MAD">MAD — Moroccan Dirham</option>
+                <option value="MDL">MDL — Moldovan Leu</option>
+                <option value="MGA">MGA — Malagasy Ariary</option>
+                <option value="MKD">MKD — Macedonian Denar</option>
+                <option value="MMK">MMK — Myanmar Kyat</option>
+                <option value="MNT">MNT — Mongolian Tögrög</option>
+                <option value="MOP">MOP — Macanese Pataca</option>
+                <option value="MRU">MRU — Mauritanian Ouguiya</option>
+                <option value="MUR">MUR — Mauritian Rupee</option>
+                <option value="MVR">MVR — Maldivian Rufiyaa</option>
+                <option value="MWK">MWK — Malawian Kwacha</option>
+                <option value="MXN">MXN — Mexican Peso</option>
+                <option value="MYR">MYR — Malaysian Ringgit</option>
+                <option value="MZN">MZN — Mozambican Metical</option>
+                <option value="NAD">NAD — Namibian Dollar</option>
+                <option value="NGN">NGN — Nigerian Naira</option>
+                <option value="NIO">NIO — Nicaraguan Córdoba</option>
+                <option value="NOK">NOK — Norwegian Krone</option>
+                <option value="NPR">NPR — Nepalese Rupee</option>
+                <option value="NZD">NZD — New Zealand Dollar</option>
+                <option value="OMR">OMR — Omani Rial</option>
+                <option value="PAB">PAB — Panamanian Balboa</option>
+                <option value="PEN">PEN — Peruvian Sol</option>
+                <option value="PGK">PGK — Papua New Guinean Kina</option>
+                <option value="PHP">PHP — Philippine Peso</option>
+                <option value="PKR">PKR — Pakistani Rupee</option>
+                <option value="PLN">PLN — Polish Złoty</option>
+                <option value="PYG">PYG — Paraguayan Guaraní</option>
+                <option value="QAR">QAR — Qatari Riyal</option>
+                <option value="RON">RON — Romanian Leu</option>
+                <option value="RSD">RSD — Serbian Dinar</option>
+                <option value="RUB">RUB — Russian Ruble</option>
+                <option value="RWF">RWF — Rwandan Franc</option>
+                <option value="SAR">SAR — Saudi Riyal</option>
+                <option value="SBD">SBD — Solomon Islands Dollar</option>
+                <option value="SCR">SCR — Seychellois Rupee</option>
+                <option value="SDG">SDG — Sudanese Pound</option>
+                <option value="SEK">SEK — Swedish Krona</option>
+                <option value="SGD">SGD — Singapore Dollar</option>
+                <option value="SHP">SHP — Saint Helena Pound</option>
+                <option value="SLL">SLL — Sierra Leonean Leone</option>
+                <option value="SOS">SOS — Somali Shilling</option>
+                <option value="SRD">SRD — Surinamese Dollar</option>
+                <option value="SSP">SSP — South Sudanese Pound</option>
+                <option value="STN">STN — São Tomé &amp; Príncipe Dobra</option>
+                <option value="SVC">SVC — Salvadoran Colón</option>
+                <option value="SYP">SYP — Syrian Pound</option>
+                <option value="SZL">SZL — Swazi Lilangeni</option>
+                <option value="THB">THB — Thai Baht</option>
+                <option value="TJS">TJS — Tajikistani Somoni</option>
+                <option value="TMT">TMT — Turkmenistani Manat</option>
+                <option value="TND">TND — Tunisian Dinar</option>
+                <option value="TOP">TOP — Tongan Paʻanga</option>
+                <option value="TRY">TRY — Turkish Lira</option>
+                <option value="TTD">TTD — Trinidad &amp; Tobago Dollar</option>
+                <option value="TWD">TWD — New Taiwan Dollar</option>
+                <option value="TZS">TZS — Tanzanian Shilling</option>
+                <option value="UAH">UAH — Ukrainian Hryvnia</option>
+                <option value="UGX">UGX — Ugandan Shilling</option>
+                <option value="USD">USD — US Dollar</option>
+                <option value="UYU">UYU — Uruguayan Peso</option>
+                <option value="UZS">UZS — Uzbekistani Som</option>
+                <option value="VES">VES — Venezuelan Bolívar</option>
+                <option value="VND">VND — Vietnamese Dong</option>
+                <option value="VUV">VUV — Vanuatu Vatu</option>
+                <option value="WST">WST — Samoan Tala</option>
+                <option value="XAF">XAF — Central African CFA Franc</option>
+                <option value="XCD">XCD — East Caribbean Dollar</option>
+                <option value="XOF">XOF — West African CFA Franc</option>
+                <option value="XPF">XPF — CFP Franc</option>
+                <option value="YER">YER — Yemeni Rial</option>
+                <option value="ZAR">ZAR — South African Rand</option>
+                <option value="ZMW">ZMW — Zambian Kwacha</option>
+                <option value="ZWL">ZWL — Zimbabwean Dollar</option>
+              </optgroup>
+            </select>
+          </div>
+          <button class="btn-secondary" style="width:100%;justify-content:center;font-size:12px;" onclick="_saveDealToDB()">
+            <span data-en="Save deal value to prospect" data-fr="Sauvegarder la valeur du deal">Save deal value to prospect</span>
+          </button>
         </div>
       </div>
     </div>
@@ -6289,27 +6481,75 @@ function applyMomentum(){
 const TX_MID = { 'lt500': 250000, '500k-2m': 1250000, '2m-10m': 6000000, '10m-50m': 30000000, '50m+': 75000000 };
 function _pid(name){ return (name||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''); }
 function _eur(n){ return '€' + Math.round(n).toLocaleString('en-US'); }
+function _fmtCurrency(n, cur){ return (cur || 'EUR') + ' ' + Math.abs(Math.round(n)).toLocaleString('en-US'); }
 function recalcDealValue(){
   if (!_drawerProspect) return;
   const txvalue = document.getElementById('dv-txvalue').value;
   const fee = parseFloat(document.getElementById('dv-fee').value);
   const conf = parseInt(document.getElementById('dv-conf').value, 10);
   const cv = document.getElementById('dv-conf-val'); if (cv) cv.textContent = conf + '%';
-  const txMid = TX_MID[txvalue] || 250000;
-  const val = Math.round(txMid * fee * (conf / 100));
-  document.getElementById('dv-result').textContent = _eur(val);
-  sessionStorage.setItem('deal_value_' + _pid(_drawerProspect.name), JSON.stringify({ txvalue, fee, conf, val }));
+  const manualEl = document.getElementById('dv-manual');
+  const manualRaw = manualEl ? manualEl.value.trim() : '';
+  const manualVal = manualRaw !== '' ? parseFloat(manualRaw) : NaN;
+  const isManual = !isNaN(manualVal) && manualVal > 0;
+  const currency = document.getElementById('dv-currency')?.value || '';
+  let val;
+  if (isManual) {
+    val = Math.round(manualVal);
+  } else {
+    const txMid = TX_MID[txvalue] || 250000;
+    val = Math.round(txMid * fee * (conf / 100));
+  }
+  const lbl = document.getElementById('dv-est-label');
+  if (lbl) {
+    const isEn = currentLang !== 'fr';
+    lbl.textContent = isManual ? (isEn ? 'Deal value (manual)' : 'Valeur du deal (manuelle)') : (isEn ? 'Estimated advisory fee' : 'Honoraires estimés');
+  }
+  document.getElementById('dv-result').textContent = currency ? _fmtCurrency(val, currency) : _eur(val);
+  sessionStorage.setItem('deal_value_' + _pid(_drawerProspect.name), JSON.stringify({ txvalue, fee, conf, val, manual: isManual ? manualVal : null, currency: currency || null }));
   applyDealBadges();
 }
 function _restoreDealValue(){
   if (!_drawerProspect) return;
   const raw = sessionStorage.getItem('deal_value_' + _pid(_drawerProspect.name));
-  if (raw){ try { const d = JSON.parse(raw);
-    const t=document.getElementById('dv-txvalue'); if(t) t.value=d.txvalue;
-    const l=document.getElementById('dv-fee'); if(l) l.value=String(d.fee);
-    const c=document.getElementById('dv-conf'); if(c) c.value=d.conf;
-  } catch(e){} }
+  if (raw) {
+    try {
+      const d = JSON.parse(raw);
+      const t=document.getElementById('dv-txvalue'); if(t) t.value=d.txvalue;
+      const l=document.getElementById('dv-fee'); if(l) l.value=String(d.fee);
+      const c=document.getElementById('dv-conf'); if(c) c.value=d.conf;
+      const m=document.getElementById('dv-manual'); if(m && d.manual) m.value=d.manual;
+      const cur=document.getElementById('dv-currency'); if(cur && d.currency) cur.value=d.currency;
+    } catch(e){}
+  } else {
+    const m=document.getElementById('dv-manual');
+    if (m && _drawerProspect.deal_value) m.value=_drawerProspect.deal_value;
+    const cur=document.getElementById('dv-currency');
+    if (cur && _drawerProspect.deal_currency) cur.value=_drawerProspect.deal_currency;
+  }
   recalcDealValue();
+}
+async function _saveDealToDB(){
+  if (!_drawerProspect || !_drawerProspect.id) return;
+  const manualEl = document.getElementById('dv-manual');
+  const manualVal = manualEl && manualEl.value.trim() ? (Math.round(parseFloat(manualEl.value)) || null) : null;
+  const currency = document.getElementById('dv-currency')?.value || null;
+  let deal_value = manualVal;
+  if (!deal_value) {
+    const raw = sessionStorage.getItem('deal_value_' + _pid(_drawerProspect.name));
+    if (raw) { try { deal_value = JSON.parse(raw).val || null; } catch(e){} }
+  }
+  try {
+    const { error } = await sbClient.from('prospects').update({ deal_value, deal_currency: currency, updated_at: new Date().toISOString() }).eq('id', _drawerProspect.id).eq('client_id', CLIENT_ID);
+    if (error) throw error;
+    if (_prospectsById[_drawerProspect.id]) { _prospectsById[_drawerProspect.id].deal_value = deal_value; _prospectsById[_drawerProspect.id].deal_currency = currency; }
+    _drawerProspect.deal_value = deal_value; _drawerProspect.deal_currency = currency;
+    showToast(currentLang === 'fr' ? 'Valeur du deal sauvegardée' : 'Deal value saved');
+    loadKanban(true);
+  } catch(e) {
+    console.warn('_saveDealToDB failed:', e && e.message ? e.message : e);
+    showToast(currentLang === 'fr' ? 'Échec de la sauvegarde' : 'Save failed');
+  }
 }
 function applyDealBadges(){ /* no-op : le badge deal est désormais rendu inline par buildCard (.k-badge-deal) depuis p.deal_value */ }
 
@@ -6685,6 +6925,9 @@ async function saveProspectEdit(id){
   const newStage = STAGE_DB[stageSel] || stageSel;
   const p = _prospectsById[id] || {};
   const advancedStages = ['1st Contact','Engaged','Replied','Proposal','Closed'];
+  const _dvM = document.getElementById('dv-manual');
+  const _dvMVal = _dvM && _dvM.value.trim() ? (Math.round(parseFloat(_dvM.value)) || null) : null;
+  const _dvCurSel = document.getElementById('dv-currency')?.value || null;
   const row = {
     name: g('ed-name') || null, company: g('ed-company') || null, title: g('ed-title') || null,
     email: g('ed-email') || null, phone: g('ed-phone') || null, linkedin: g('ed-linkedin') || null, sector: g('ed-sector') || null,
@@ -6692,6 +6935,8 @@ async function saveProspectEdit(id){
     stage: newStage, notes: g('ed-notes') || null,
     signal: (document.getElementById('drawer-signal')?.value || '').replace(/<[^>]*>/g, '').trim() || null,
     signal_type: document.getElementById('drawer-signal-type')?.value || null,
+    deal_value: _dvMVal !== null ? _dvMVal : (p.deal_value || null),
+    deal_currency: _dvCurSel,
     updated_at: new Date().toISOString()
   };
   if (advancedStages.includes(newStage) && p.linkedin_tag === 'invite-sent') {
@@ -6735,7 +6980,9 @@ async function addProspect(){
     client_id: CLIENT_ID, mandate_id: (activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null, external_id: identityKey(p),
     name, company, title: g('ap-title') || null, email: g('ap-email') || null, linkedin: g('ap-linkedin') || null,
     sector: g('ap-sector') || null, country: g('ap-country') || null, region: document.getElementById('ap-region')?.value || null,
-    stage: STAGE_DB[stageSel] || stageSel, archived: false, updated_at: new Date().toISOString()
+    stage: STAGE_DB[stageSel] || stageSel, archived: false,
+    deal_value: null, deal_currency: null,
+    updated_at: new Date().toISOString()
   };
   const btn = document.getElementById('ap-save-btn'); if (btn) btn.disabled = true;
   try {
@@ -7138,7 +7385,8 @@ function buildCard(p){
   const id = (p.id != null) ? p.id : '';
   const place = (p.country && p.country.trim()) || p.location || '';
   const dv = Number(p.deal_value) || 0;
-  const dealBadge = dv > 0 ? (dv >= 1000 ? '€' + Math.round(dv/1000) + 'k' : '€' + Math.round(dv)) : '';
+  const _dvCur = p.deal_currency || 'EUR';
+  const dealBadge = dv > 0 ? (_dvCur + ' ' + (dv >= 1000 ? Math.round(dv/1000) + 'k' : Math.round(dv))) : '';
   const _isEst = !(p.icp_score && Number(p.icp_score) > 0);
   const _sv = parseFloat(score);
   const _hs = !isNaN(_sv);
@@ -7400,6 +7648,38 @@ async function renderStatsSignal() {
   html += '</div>';
   el.innerHTML = html;
 }
+/*
+ * OPTION B SQL — À exécuter dans Supabase SQL Editor quand Kaizenology commence
+ * à clôturer des deals multi-devises. Pas exécuté automatiquement.
+ *
+ * Étape 1 — Ajouter currency à revenue_events :
+ *   ALTER TABLE revenue_events ADD COLUMN IF NOT EXISTS currency text;
+ *
+ * Étape 2 — Mettre à jour le trigger log_revenue_on_close (remplacer le corps) :
+ *   CREATE OR REPLACE FUNCTION log_revenue_on_close()
+ *   RETURNS TRIGGER AS $$
+ *   BEGIN
+ *     IF NEW.stage = 'Closed' AND (OLD.stage IS DISTINCT FROM 'Closed') THEN
+ *       INSERT INTO revenue_events (client_id, event_type, amount, currency, description, occurred_at)
+ *       VALUES (
+ *         NEW.client_id,
+ *         'client_deal_closed',
+ *         COALESCE(NEW.deal_value, 0),
+ *         COALESCE(NEW.deal_currency, 'EUR'),
+ *         COALESCE(NEW.name, '') || ' @ ' || COALESCE(NEW.company, ''),
+ *         NOW()
+ *       );
+ *     END IF;
+ *     RETURN NEW;
+ *   END;
+ *   $$ LANGUAGE plpgsql;
+ *
+ * Étape 3 — Dans renderStatsRevenue(), changer la ligne select :
+ *   .select('description,amount,occurred_at')
+ *   → .select('description,amount,occurred_at,currency')
+ *   Le reste du rendu (fmtRow) affichera automatiquement la devise par ligne dès que
+ *   d.currency sera peuplé (il est déjà intégré dans la logique fmtRow ci-dessous).
+ */
 async function renderStatsRevenue(){
   const el = document.getElementById('stats-revenue');
   if (!el) return;
@@ -7417,12 +7697,16 @@ async function renderStatsRevenue(){
   const sum = arr => arr.reduce((s,d) => s + (parseFloat(d.amount)||0), 0);
   const monthTotal = sum(data.filter(d => new Date(d.occurred_at) >= som));
   const qTotal    = sum(data.filter(d => new Date(d.occurred_at) >= soq));
-  const fmt = v => v >= 1000 ? '€' + (v/1000).toFixed(1).replace(/\.0$/,'') + 'k' : '€' + Math.round(v);
+  // fmtAmt: montant sans symbole de devise — la devise par deal sera affichée dès que la colonne currency
+  // sera ajoutée à revenue_events (voir SQL Option B dans le commentaire ci-dessus renderStatsRevenue).
+  const fmtAmt = v => { const n = Math.abs(v); return n >= 1000 ? (n/1000).toFixed(1).replace(/\.0$/,'') + 'k' : String(Math.round(n)); };
+  const fmtRow = d => { const cur = d.currency || ''; return cur ? cur + ' ' + fmtAmt(parseFloat(d.amount)||0) : fmtAmt(parseFloat(d.amount)||0); };
   let html = `<div class="rev-kpi-grid">
-    <div class="rev-kpi"><span class="rev-kpi-val">${fmt(monthTotal)}</span><span class="rev-kpi-label">Total closed (this month)</span></div>
-    <div class="rev-kpi"><span class="rev-kpi-val">${fmt(qTotal)}</span><span class="rev-kpi-label">Total closed (this quarter)</span></div>
+    <div class="rev-kpi"><span class="rev-kpi-val">${fmtAmt(monthTotal)}</span><span class="rev-kpi-label">Closed this month</span></div>
+    <div class="rev-kpi"><span class="rev-kpi-val">${fmtAmt(qTotal)}</span><span class="rev-kpi-label">Closed this quarter</span></div>
     <div class="rev-kpi"><span class="rev-kpi-val">${data.length}</span><span class="rev-kpi-label">Deals closed (count)</span></div>
-  </div>`;
+  </div>
+  <div style="font-size:10px;color:var(--muted);text-align:right;margin-top:2px;margin-bottom:4px;">amounts in each deal's currency</div>`;
   const months = [];
   for (let i = 5; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
@@ -7445,7 +7729,7 @@ async function renderStatsRevenue(){
     html += '<div>' + data.map(d => {
       const dt = new Date(d.occurred_at);
       const ds = dt.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
-      return `<div class="deal-row"><div><div class="deal-name">${_esc(d.description||'-')}</div></div><div class="deal-right"><div class="deal-amt">${fmt(parseFloat(d.amount)||0)}</div><div class="deal-date">${_esc(ds)}</div></div></div>`;
+      return `<div class="deal-row"><div><div class="deal-name">${_esc(d.description||'-')}</div></div><div class="deal-right"><div class="deal-amt">${fmtRow(d)}</div><div class="deal-date">${_esc(ds)}</div></div></div>`;
     }).join('') + '</div>';
   }
   el.innerHTML = html;
@@ -8256,7 +8540,7 @@ async function loadKanban(force){
     while (true) {
       let _kQuery = sbClient
         .from('prospects')
-        .select('id, name, company, title, sector, region, country, stage, linkedin, email, phone, deal_value, notes, last_contact, reminder_date, icp_score, archived, client_id, linkedin_tag, origin, signal, signal_type, created_at, draft_invite_note, company_size, next_action, next_action_date')
+        .select('id, name, company, title, sector, region, country, stage, linkedin, email, phone, deal_value, deal_currency, notes, last_contact, reminder_date, icp_score, archived, client_id, linkedin_tag, origin, signal, signal_type, created_at, draft_invite_note, company_size, next_action, next_action_date')
         .eq('client_id', CLIENT_ID);
       _kQuery = _applyMandateFilter(_kQuery);
       const { data: chunk, error } = await _kQuery
@@ -8435,7 +8719,7 @@ async function _escalateProspect() {
 Prospect: ${p.name} at ${p.company || 'unknown company'} (${p.title || 'unknown title'})
 Sector: ${p.sector || 'unknown'} | Country: ${p.country || 'unknown'}
 Pipeline stage: ${p.stage || 'unknown'} | ICP score: ${p.icp_score || 'unknown'}/10
-Deal value: ${p.deal_value ? '$'+p.deal_value+'/month' : 'not set'}
+Deal value: ${p.deal_value ? (p.deal_currency || 'EUR') + ' ' + p.deal_value : 'not set'}
 Total touches: ${touchCount} | Last contact: ${lastTouch}
 Interaction history:
 ${touchSummary || 'No interactions logged'}
