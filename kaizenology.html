@@ -5105,9 +5105,9 @@ function _parseCsvLine(line, sep) {
   return result;
 }
 // CSV format attendu (header optionnel) :
-// name, company, sector, country, linkedin, email
-// Colonnes optionnelles : sector (defaut B2B SaaS), country, linkedin, email
-// ON CONFLICT (client_id, external_id) → ignore les doublons
+// name, company, sector, country, linkedin, email, title, notes
+// Colonnes optionnelles : sector (null si vide), country, linkedin, email, title, notes
+// ON CONFLICT (client_id, external_id) → insère les nouvelles lignes, complète les champs vides sur les existantes
 async function importCSV(e) {
   const file = e.target.files[0];
   if (!file) return;
@@ -5133,10 +5133,12 @@ async function importCSV(e) {
       const name    = (f[0] || '').trim();
       if (!name) continue;
       const company  = (f[1] || '').trim();
-      const sector   = (f[2] || 'B2B SaaS').trim();
+      const sector   = (f[2] || '').trim() || null;
       const country  = (f[3] || '').trim();
       const linkedin = (f[4] || '').trim();
       const email    = (f[5] || '').trim();
+      const title    = (f[6] || '').trim() || null;
+      const notes    = (f[7] || '').trim() || null;
       const region   = country ? _inferRegion(country) : '';
 
       const external_id = linkedin
@@ -5148,12 +5150,14 @@ async function importCSV(e) {
         name, company, sector,
         country: country || null, region: region || null,
         linkedin: linkedin || null, email: email || null,
+        title, notes,
         stage: 'Identified', origin: 'csv_import', archived: false
       });
     }
 
     if (!rows.length) { showToast('No valid rows'); return; }
 
+    // Pass 1 : insert new rows, skip conflicts
     let inserted = 0;
     for (let i = 0; i < rows.length; i += 50) {
       const chunk = rows.slice(i, i + 50);
@@ -5168,7 +5172,41 @@ async function importCSV(e) {
       }
     }
 
-    showToast(inserted + ' prospects imported');
+    // Pass 2 : fill null fields (title, notes, sector) on existing rows
+    const fillable = rows.filter(r => r.title || r.notes || r.sector);
+    let fillUpdated = 0, fillFailed = 0;
+    const FILL_BATCH = 10; // rows/batch → up to 30 concurrent requests
+    for (let i = 0; i < fillable.length; i += FILL_BATCH) {
+      showToast(`Updating existing records… ${i}/${fillable.length}`);
+      const batch = fillable.slice(i, i + FILL_BATCH);
+      const batchResults = await Promise.all(batch.map(async row => {
+        const ops = [];
+        if (row.title)  ops.push(['title',  row.title]);
+        if (row.notes)  ops.push(['notes',  row.notes]);
+        if (row.sector) ops.push(['sector', row.sector]);
+        const fieldResults = await Promise.allSettled(ops.map(async ([field, val]) => {
+          const { error } = await sbClient.from('prospects')
+            .update({ [field]: val })
+            .eq('client_id', CLIENT_ID).eq('external_id', row.external_id).is(field, null);
+          if (error) throw error;
+        }));
+        return {
+          anyOk:   fieldResults.some(r => r.status === 'fulfilled'),
+          anyFail: fieldResults.some(r => r.status === 'rejected')
+        };
+      }));
+      for (const r of batchResults) {
+        if (r.anyOk)   fillUpdated++;
+        if (r.anyFail) fillFailed++;
+      }
+    }
+
+    let importMsg = `${inserted} prospects imported`;
+    if (fillable.length > 0) {
+      importMsg += ` · ${fillUpdated} updated`;
+      if (fillFailed > 0) importMsg += ` · ${fillFailed} update error(s)`;
+    }
+    showToast(importMsg);
     e.target.value = '';
     await loadKanban();
   };
@@ -7612,6 +7650,11 @@ async function _bulkStartEmailSeq() {
     return;
   }
 
+  if (!confirm(`Start the email sequence for ${toSend.length} prospect(s)?\nThis will send the first email immediately to each.`)) {
+    if (btn) { btn.disabled = false; btn.textContent = 'Email Sequence'; }
+    return;
+  }
+
   if (capped > 0) showToast(`Limite 40/jour : ${capped} prospects non envoyés aujourd'hui`);
 
   // Envois séquentiels avec délai 700ms
@@ -7632,7 +7675,7 @@ async function _bulkStartEmailSeq() {
           first_name: nameParts[0] || '',
           last_name: nameParts.slice(1).join(' ') || '',
           company_name: p.company || '',
-          campaign_id: SMARTLEAD_CAMPAIGN_ID
+          campaign_id: (_activeMandate?.smartlead_campaign_id) || SMARTLEAD_CAMPAIGN_ID
         })
       });
       const d = await r.json();
@@ -8279,6 +8322,7 @@ async function _startEmailSeq(id) {
   const btn = document.getElementById('start-seq-' + id);
   if (!p) { if (statusEl) statusEl.textContent = 'Prospect not found'; return; }
   if (!p.email) { if (statusEl) statusEl.textContent = 'No email on record'; return; }
+  if (!confirm(`Start the email sequence for ${p.name} at ${p.company}?\nThis will send the first email immediately.`)) return;
   if (btn) { btn.disabled = true; btn.textContent = 'Sending...'; btn.style.background = '#6b7a99'; }
   if (statusEl) statusEl.textContent = '';
   try {
