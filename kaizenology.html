@@ -2093,7 +2093,7 @@ function _applyMandateFilter(query) {
   return query.is('mandate_id', null); // vue consolidée = IS NULL explicite
 }
 
-function _onMandateChange() {
+async function _onMandateChange() {
   const sel = document.getElementById('mandate-select');
   const val = sel ? sel.value : '';
   if (val === '__new__') {
@@ -2103,7 +2103,24 @@ function _onMandateChange() {
   const url = new URL(window.location.href);
   if (val) url.searchParams.set('mandate', val);
   else url.searchParams.delete('mandate');
-  window.location.href = url.toString();
+  history.pushState({ mandate: val || null }, '', url.toString());
+  if (val) {
+    activeMandateId = val;
+    _activeMandate = await _resolveMandate(val);
+    if (!_activeMandate) {
+      console.warn('[_onMandateChange] mandate invalide, retour vue consolidée:', val);
+      activeMandateId = '__ALL__';
+      if (sel) sel.value = '';
+      const fb = new URL(window.location.href);
+      fb.searchParams.delete('mandate');
+      history.replaceState({ mandate: null }, '', fb.toString());
+    }
+  } else {
+    activeMandateId = '__ALL__';
+    _activeMandate = null;
+  }
+  loadKanban(true);
+  _initHpFilters();
 }
 
 const SMARTLEAD_CAMPAIGN_ID = '3778944'; // Kaizenology dedicated campaign
@@ -2240,6 +2257,22 @@ async function doLogin(e){
 async function signOut(){ await sbClient.auth.signOut(); showLogin(); }
 sbClient.auth.getSession().then(({ data }) => { checkAccess(data.session); });
 sbClient.auth.onAuthStateChange((_e, session) => { checkAccess(session); });
+window.addEventListener('popstate', async () => {
+  if (!_demoStarted) return;
+  const val = new URLSearchParams(window.location.search).get('mandate') || '';
+  const sel = document.getElementById('mandate-select');
+  if (sel) sel.value = val;
+  if (val) {
+    activeMandateId = val;
+    _activeMandate = await _resolveMandate(val);
+    if (!_activeMandate) activeMandateId = '__ALL__';
+  } else {
+    activeMandateId = '__ALL__';
+    _activeMandate = null;
+  }
+  loadKanban(true);
+  _initHpFilters();
+});
 
 // ── BILINGUE (EN / FR) ──
 let currentLang = 'en';
@@ -7105,7 +7138,12 @@ async function saveMandateForm() {
 
     const url = new URL(window.location.href);
     url.searchParams.set('mandate', data.id);
-    window.location.href = url.toString();
+    history.pushState({ mandate: data.id }, '', url.toString());
+    activeMandateId = data.id;
+    _activeMandate = data;
+    await _loadMandateOptions();
+    loadKanban(true);
+    _initHpFilters();
   } catch (e) {
     errEl.textContent = e.message || 'Failed to create mandate.';
     errEl.style.display = 'block';
