@@ -3712,7 +3712,7 @@ async function _runPipelineReview() {
     while (true) {
       let _prQuery = _supabase
         .from('prospects')
-        .select('id,name,company,sector,country,stage,last_contact,reminder_date,deal_value,linkedin_tag,created_at')
+        .select('id,name,company,sector,country,stage,last_contact,reminder_date,deal_value,deal_currency,linkedin_tag,created_at')
         .eq('client_id', resolvedClientId);
       _prQuery = _applyMandateFilter(_prQuery);
       const { data: chunk, error } = await _prQuery
@@ -3803,7 +3803,7 @@ async function _runPipelineReview() {
       const nameEsc = (p.name||'?').replace(/</g,'&lt;');
       const compEsc = (p.company||'?').replace(/</g,'&lt;');
       const actEsc  = (p.action||'').replace(/</g,'&lt;');
-      const deal = p.deal_value ? ' <span style="font-size:10px;background:var(--navy-light);color:var(--navy);padding:1px 6px;border-radius:4px;margin-left:4px;">EUR' + Math.round(parseInt(p.deal_value)/1000) + 'k</span>' : '';
+      const deal = p.deal_value ? ' <span style="font-size:10px;background:var(--navy-light);color:var(--navy);padding:1px 6px;border-radius:4px;margin-left:4px;">' + (p.deal_currency || 'EUR') + ' ' + Math.round(parseInt(p.deal_value)/1000) + 'k</span>' : '';
       return '<div class="pr-prospect-row" onclick="_prOpenProspect(\'' + p.id + '\')">' +
         '<div class="pr-dot ' + dotClass + '"></div>' +
         '<div style="flex:1;min-width:0;">' +
@@ -4715,9 +4715,9 @@ async function _generateSequenceMessage(pid, touch, forceGenerate = false) {
   const ambassadorPrompt = isAmbassador ? (() => {
     const hasHistory = !!(p.last_contact || intCtx);
     if (!hasHistory) {
-      return `${langRule}
+      return `${SENDER_BIO}
 
-You are writing a LinkedIn direct message on behalf of Thomas Dratler, founder of Corridor (corridor.systems) — the commercial engine your business is missing. A done-for-you GTM system for B2B companies.
+You are writing a LinkedIn direct message on behalf of Thomas (see background above).
 
 Corridor is launching its Ambassador Programme. You are inviting ${p.name} at ${p.company} to become one of its founding members.
 
@@ -4738,13 +4738,14 @@ ${langRule}
 - No "follow up", "checking in", "touching base", "circle back"
 - Do NOT mention Corridor pricing or features
 - Tone: warm, confident, non-transactional. Sound like a specific person with a point of view, not a program
-- Reference their specific milestone or network calibre (not generic). Use what you know: ${p.company}, ${p.title || 'their role'}
+- Reference only what you concretely know about them: ${p.company}, ${p.title || 'their role'} — never invent expertise, interests, or priorities for them
+- Never invent claims about Thomas not explicitly listed in his background above
 - Replace every vague claim with something specific and provable
 - Write only the message body, nothing else`;
     } else {
-      return `${langRule}
+      return `${SENDER_BIO}
 
-You are writing a LinkedIn direct message on behalf of Thomas Dratler, founder of Corridor (corridor.systems) — the commercial engine your business is missing. A done-for-you GTM system for B2B companies.
+You are writing a LinkedIn direct message on behalf of Thomas (see background above).
 
 Thomas has had a prior conversation with ${p.name} at ${p.company}. He is now reaching out with a different proposition.
 
@@ -4766,7 +4767,8 @@ ${langRule}
 - Do NOT mention Corridor pricing or features
 - No "follow up", "checking in", "touching base", "circle back"
 - Tone: warm, confident, non-transactional. Sound like a person not a program
-- Reference something specific about ${p.name} or ${p.company}, not generic flattery
+- Reference only what you concretely know about ${p.name} or ${p.company} (role, company name) — never invent interests, priorities, or expertise for them
+- Never invent claims about Thomas not explicitly listed in his background above
 - Replace every vague claim with something specific and provable
 - Write only the message body, nothing else`;
     }
@@ -5474,6 +5476,13 @@ async function openDrawer(card) {
             <option value="3" data-en="3 months" data-fr="3 mois">3 months</option>
             <option value="6" data-en="6 months" data-fr="6 mois" selected>6 months</option>
             <option value="12" data-en="12 months" data-fr="12 mois">12 months</option>
+          </select>
+          <select id="dv-currency" onchange="recalcDealValue()">
+            <option value="">— —</option>
+            <option value="EUR">EUR</option>
+            <option value="USD">USD</option>
+            <option value="GBP">GBP</option>
+            <option value="ILS">ILS</option>
           </select>
         </div>
         <div class="dv-conf">
@@ -6322,6 +6331,7 @@ function applyMomentum(){
 // ── DEAL VALUE ESTIMATOR (Feature 1) ──
 function _pid(name){ return (name||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''); }
 function _eur(n){ return '€' + Math.round(n).toLocaleString('en-US'); }
+function _fmtCurrency(n, cur){ return (cur || 'EUR') + ' ' + Math.abs(Math.round(n)).toLocaleString('en-US'); }
 function recalcDealValue(){
   if (!_drawerProspect) return;
   const team = document.getElementById('dv-team').value;
@@ -6330,8 +6340,9 @@ function recalcDealValue(){
   const cv = document.getElementById('dv-conf-val'); if (cv) cv.textContent = conf + '%';
   const mult = team === '51-200' ? 1.5 : team === '200+' ? 2 : 1;
   const val = Math.round(1500 * months * mult * (conf/100));
-  document.getElementById('dv-result').textContent = _eur(val);
-  sessionStorage.setItem('deal_value_' + _pid(_drawerProspect.name), JSON.stringify({ team, months, conf, val }));
+  const currency = document.getElementById('dv-currency')?.value || '';
+  document.getElementById('dv-result').textContent = _fmtCurrency(val, currency || 'EUR');
+  sessionStorage.setItem('deal_value_' + _pid(_drawerProspect.name), JSON.stringify({ team, months, conf, val, currency }));
   applyDealBadges();
 }
 function _restoreDealValue(){
@@ -6341,19 +6352,23 @@ function _restoreDealValue(){
     const t=document.getElementById('dv-team'); if(t) t.value=d.team;
     const l=document.getElementById('dv-length'); if(l) l.value=String(d.months);
     const c=document.getElementById('dv-conf'); if(c) c.value=d.conf;
-  } catch(e){} }
+    const cur=document.getElementById('dv-currency'); if(cur) cur.value=d.currency||_drawerProspect.deal_currency||'';
+  } catch(e){} } else {
+    const cur=document.getElementById('dv-currency'); if(cur&&_drawerProspect.deal_currency) cur.value=_drawerProspect.deal_currency;
+  }
   recalcDealValue();
 }
 async function _saveDealToDB(){
   if (!_drawerProspect || !_drawerProspect.id) return;
   const raw = sessionStorage.getItem('deal_value_' + _pid(_drawerProspect.name));
-  let deal_value = null;
-  if (raw) { try { deal_value = JSON.parse(raw).val || null; } catch(e){} }
+  let deal_value = null, deal_currency = null;
+  if (raw) { try { const d = JSON.parse(raw); deal_value = d.val || null; deal_currency = d.currency || null; } catch(e){} }
+  if (!deal_currency) { const curEl = document.getElementById('dv-currency'); deal_currency = (curEl && curEl.value) || null; }
   try {
-    const { error } = await sbClient.from('prospects').update({ deal_value, updated_at: new Date().toISOString() }).eq('id', _drawerProspect.id).eq('client_id', CLIENT_ID);
+    const { error } = await sbClient.from('prospects').update({ deal_value, deal_currency, updated_at: new Date().toISOString() }).eq('id', _drawerProspect.id).eq('client_id', CLIENT_ID);
     if (error) throw error;
-    if (_prospectsById[_drawerProspect.id]) _prospectsById[_drawerProspect.id].deal_value = deal_value;
-    _drawerProspect.deal_value = deal_value;
+    if (_prospectsById[_drawerProspect.id]) { _prospectsById[_drawerProspect.id].deal_value = deal_value; _prospectsById[_drawerProspect.id].deal_currency = deal_currency; }
+    _drawerProspect.deal_value = deal_value; _drawerProspect.deal_currency = deal_currency;
     showToast(currentLang === 'fr' ? 'Valeur du deal sauvegardée' : 'Deal value saved');
     loadKanban(true);
   } catch(e) {
@@ -6736,8 +6751,9 @@ async function saveProspectEdit(id){
   const p = _prospectsById[id] || {};
   const advancedStages = ['1st Contact','Engaged','Replied','Proposal','Closed'];
   const _dvRaw = sessionStorage.getItem('deal_value_' + _pid(p.name || ''));
-  let _dvVal = null;
-  if (_dvRaw) { try { _dvVal = JSON.parse(_dvRaw).val || null; } catch(e){} }
+  let _dvVal = null, _dvCurSel = null;
+  if (_dvRaw) { try { const _dvObj = JSON.parse(_dvRaw); _dvVal = _dvObj.val || null; _dvCurSel = _dvObj.currency || null; } catch(e){} }
+  if (!_dvCurSel) { const _curEl = document.getElementById('dv-currency'); _dvCurSel = (_curEl && _curEl.value) || null; }
   const row = {
     name: g('ed-name') || null, company: g('ed-company') || null, title: g('ed-title') || null,
     email: g('ed-email') || null, phone: g('ed-phone') || null, linkedin: g('ed-linkedin') || null, sector: g('ed-sector') || null,
@@ -6746,6 +6762,7 @@ async function saveProspectEdit(id){
     signal: (document.getElementById('drawer-signal')?.value || '').replace(/<[^>]*>/g, '').trim() || null,
     signal_type: document.getElementById('drawer-signal-type')?.value || null,
     deal_value: _dvVal !== null ? _dvVal : (p.deal_value || null),
+    deal_currency: _dvCurSel !== null ? _dvCurSel : (p.deal_currency || null),
     updated_at: new Date().toISOString()
   };
   if (advancedStages.includes(newStage) && p.linkedin_tag === 'invite-sent') {
@@ -6789,7 +6806,7 @@ async function addProspect(){
     client_id: CLIENT_ID, mandate_id: (activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null, external_id: identityKey(p),
     name, company, title: g('ap-title') || null, email: g('ap-email') || null, linkedin: g('ap-linkedin') || null,
     sector: g('ap-sector') || null, country: g('ap-country') || null, region: document.getElementById('ap-region')?.value || null,
-    stage: STAGE_DB[stageSel] || stageSel, archived: false, deal_value: null, updated_at: new Date().toISOString()
+    stage: STAGE_DB[stageSel] || stageSel, archived: false, deal_value: null, deal_currency: null, updated_at: new Date().toISOString()
   };
   const btn = document.getElementById('ap-save-btn'); if (btn) btn.disabled = true;
   try {
@@ -7192,7 +7209,8 @@ function buildCard(p){
   const id = (p.id != null) ? p.id : '';
   const place = (p.country && p.country.trim()) || p.location || '';
   const dv = Number(p.deal_value) || 0;
-  const dealBadge = dv > 0 ? (dv >= 1000 ? '€' + Math.round(dv/1000) + 'k' : '€' + Math.round(dv)) : '';
+  const _dvCur = p.deal_currency || 'EUR';
+  const dealBadge = dv > 0 ? (_dvCur + ' ' + (dv >= 1000 ? Math.round(dv/1000) + 'k' : Math.round(dv))) : '';
   const _isEst = !(p.icp_score && Number(p.icp_score) > 0);
   const _sv = parseFloat(score);
   const _hs = !isNaN(_sv);
@@ -7461,7 +7479,7 @@ async function renderStatsRevenue(){
   el.innerHTML = '<span style="color:var(--muted);font-size:12px">Loading...</span>';
   const { data, error } = await _supabase
     .from('revenue_events')
-    .select('description,amount,occurred_at')
+    .select('description,amount,currency,occurred_at')
     .eq('event_type','client_deal_closed')
     .eq('client_id', CLIENT_ID)
     .order('occurred_at', { ascending: false });
@@ -7472,12 +7490,14 @@ async function renderStatsRevenue(){
   const sum = arr => arr.reduce((s,d) => s + (parseFloat(d.amount)||0), 0);
   const monthTotal = sum(data.filter(d => new Date(d.occurred_at) >= som));
   const qTotal    = sum(data.filter(d => new Date(d.occurred_at) >= soq));
-  const fmt = v => v >= 1000 ? '€' + (v/1000).toFixed(1).replace(/\.0$/,'') + 'k' : '€' + Math.round(v);
+  const fmtAmt = v => { const n = Math.abs(v); return n >= 1000 ? (n/1000).toFixed(1).replace(/\.0$/,'') + 'k' : String(Math.round(n)); };
+  const fmtRow = d => { const cur = d.currency || ''; return cur ? cur + ' ' + fmtAmt(parseFloat(d.amount)||0) : fmtAmt(parseFloat(d.amount)||0); };
   let html = `<div class="rev-kpi-grid">
-    <div class="rev-kpi"><span class="rev-kpi-val">${fmt(monthTotal)}</span><span class="rev-kpi-label">Total closed (this month)</span></div>
-    <div class="rev-kpi"><span class="rev-kpi-val">${fmt(qTotal)}</span><span class="rev-kpi-label">Total closed (this quarter)</span></div>
-    <div class="rev-kpi"><span class="rev-kpi-val">${data.length}</span><span class="rev-kpi-label">Deals closed (count)</span></div>
-  </div>`;
+    <div class="rev-kpi"><span class="rev-kpi-val">${fmtAmt(monthTotal)}</span><span class="rev-kpi-label">Closed this month</span></div>
+    <div class="rev-kpi"><span class="rev-kpi-val">${fmtAmt(qTotal)}</span><span class="rev-kpi-label">Closed this quarter</span></div>
+    <div class="rev-kpi"><span class="rev-kpi-val">${data.length}</span><span class="rev-kpi-label">Deals (count)</span></div>
+  </div>
+  <div style="font-size:10px;color:var(--muted);margin-bottom:8px">Amounts in each deal's currency</div>`;
   const months = [];
   for (let i = 5; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
@@ -7500,7 +7520,7 @@ async function renderStatsRevenue(){
     html += '<div>' + data.map(d => {
       const dt = new Date(d.occurred_at);
       const ds = dt.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
-      return `<div class="deal-row"><div><div class="deal-name">${_esc(d.description||'-')}</div></div><div class="deal-right"><div class="deal-amt">${fmt(parseFloat(d.amount)||0)}</div><div class="deal-date">${_esc(ds)}</div></div></div>`;
+      return `<div class="deal-row"><div><div class="deal-name">${_esc(d.description||'-')}</div></div><div class="deal-right"><div class="deal-amt">${fmtRow(d)}</div><div class="deal-date">${_esc(ds)}</div></div></div>`;
     }).join('') + '</div>';
   }
   el.innerHTML = html;
@@ -8331,7 +8351,7 @@ async function loadKanban(force){
     while (true) {
       let _kQuery = sbClient
         .from('prospects')
-        .select('id, name, company, title, sector, region, country, stage, linkedin, email, phone, deal_value, notes, last_contact, reminder_date, icp_score, archived, client_id, linkedin_tag, origin, signal, signal_type, created_at, draft_invite_note, company_size, next_action, next_action_date')
+        .select('id, name, company, title, sector, region, country, stage, linkedin, email, phone, deal_value, deal_currency, notes, last_contact, reminder_date, icp_score, archived, client_id, linkedin_tag, origin, signal, signal_type, created_at, draft_invite_note, company_size, next_action, next_action_date')
         .eq('client_id', CLIENT_ID);
       _kQuery = _applyMandateFilter(_kQuery);
       const { data: chunk, error } = await _kQuery
@@ -8510,7 +8530,7 @@ async function _escalateProspect() {
 Prospect: ${p.name} at ${p.company || 'unknown company'} (${p.title || 'unknown title'})
 Sector: ${p.sector || 'unknown'} | Country: ${p.country || 'unknown'}
 Pipeline stage: ${p.stage || 'unknown'} | ICP score: ${p.icp_score || 'unknown'}/10
-Deal value: ${p.deal_value ? '$'+p.deal_value+'/month' : 'not set'}
+Deal value: ${p.deal_value ? (p.deal_currency || 'EUR') + ' ' + p.deal_value : 'not set'}
 Total touches: ${touchCount} | Last contact: ${lastTouch}
 Interaction history:
 ${touchSummary || 'No interactions logged'}
