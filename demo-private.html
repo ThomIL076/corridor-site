@@ -1970,6 +1970,7 @@ async function _resolveMandate(mandateId) {
       .from('mandates')
       .select('*')
       .eq('id', mandateId)
+      .eq('client_id', CLIENT_ID)
       .single();
     if (error) throw error;
     return data || null;
@@ -2609,7 +2610,7 @@ Language instruction: Write your entire response in ${currentLang === 'fr' ? 'Fr
       try {
         const { data: _md } = await sbClient.from('mandates')
           .select('icp_criteria,decision_makers,sectors,geography,signals,exclusions')
-          .eq('id', activeMandateId).single();
+          .eq('id', activeMandateId).eq('client_id', CLIENT_ID).single();
         if (_md) {
           _mandateCriteria = '\nMANDATE CRITERIA (primary evaluation framework):\n'
             + (_md.icp_criteria    ? 'ICP criteria: '       + _md.icp_criteria    + '\n' : '')
@@ -2771,8 +2772,8 @@ ICP: CEO or Founder, AdTech, Fintech, B2B SaaS, 20 to 150 employees. Ticket: 1,5
 Product: Corridor, a done-for-you GTM system.
 Buying signals that matter: S1 recent fundraise, S3 new senior hire or role posted, S7 warm network connection.
 Stay strictly within this context. Do not invent fictional companies, scores, or metrics.`;
-const _senderName = () => (CLIENT_ID === 'kaizenology') ? 'Stéphane' : 'Thomas';
-const _ownerInboxEmail = () => CLIENT_ID === 'kaizenology' ? 'hello@stephanerogovsky.com' : 'thomas@corridor.systems';
+const _senderName = () => 'Thomas';
+const _ownerInboxEmail = () => 'thomas@corridor.systems';
 const _csStepsAttempted = new Set();
 const agentSystemPrompts = {
   cmo: `You are the CMO of a fast-growing B2B company. You coordinate GTM strategy across content, positioning, distribution, outreach, and pipeline. You think at the level of a chief marketing officer: weekly priorities, channel mix, brand coherence, and commercial outcomes. Be direct and strategic. Max 200 words per response. No em-dashes.
@@ -4818,7 +4819,7 @@ async function _saveSequenceDraft(pid, touch, bodyOverride) {
   const body = bodyOverride || out?.textContent?.trim() || '';
   if (!body) return;
   if (seqId) {
-    const { error: _sdErr } = await sbClient.from('sequences').update({ body, status:'draft' }).eq('id', seqId);
+    const { error: _sdErr } = await sbClient.from('sequences').update({ body, status:'draft' }).eq('id', seqId).eq('client_id', CLIENT_ID);
     if (_sdErr) { console.error('[_saveSequenceDraft] update failed:', _sdErr); showToast('Error saving draft'); return; }
   } else {
     const { data, error: _sdInsErr } = await sbClient.from('sequences')
@@ -4838,7 +4839,7 @@ async function _saveSequenceDraft(pid, touch, bodyOverride) {
 async function _markReady(pid) {
   const seqId = document.getElementById('sc-' + pid)?.dataset.seqId || '';
   if (!seqId) { showToast('Save draft first'); return; }
-  const { error } = await sbClient.from('sequences').update({ status:'ready' }).eq('id', seqId);
+  const { error } = await sbClient.from('sequences').update({ status:'ready' }).eq('id', seqId).eq('client_id', CLIENT_ID);
   if (error) { showToast('Error'); return; }
   const btn = document.getElementById('sr-' + pid);
   if (btn) { btn.textContent = '✓ Ready'; btn.style.borderColor = 'var(--green)'; btn.style.color = 'var(--green)'; }
@@ -4910,7 +4911,7 @@ async function _markSent(pid, touch, auto = false, msgText = '') {
   const seqId = card?.dataset.seqId || '';
   const now = new Date().toISOString();
   if (seqId) {
-    const { error } = await sbClient.from('sequences').update({ status:'sent', sent_at:now }).eq('id', seqId);
+    const { error } = await sbClient.from('sequences').update({ status:'sent', sent_at:now }).eq('id', seqId).eq('client_id', CLIENT_ID);
     if (error) { showToast('Error updating sequence'); return; }
   }
   const _sentNote = touch === 'ambassador'
@@ -5483,6 +5484,9 @@ async function openDrawer(card) {
           <div style="font-size:11px;color:var(--muted);letter-spacing:0.02em;margin-bottom:4px" data-en="Estimated deal value" data-fr="Valeur estimée du deal">Estimated deal value</div>
           <div id="dv-result" class="dv-result" style="font-size:22px;font-weight:500;color:var(--navy)">€0</div>
         </div>
+        <button class="btn-secondary" style="width:100%;justify-content:center;font-size:12px;margin-top:10px;" onclick="_saveDealToDB()">
+          <span data-en="Save deal value to prospect" data-fr="Sauvegarder la valeur du deal">Save deal value to prospect</span>
+        </button>
       </div>
     </div>
     <div class="dtab-panel" id="dpanel-ai">
@@ -6340,6 +6344,23 @@ function _restoreDealValue(){
   } catch(e){} }
   recalcDealValue();
 }
+async function _saveDealToDB(){
+  if (!_drawerProspect || !_drawerProspect.id) return;
+  const raw = sessionStorage.getItem('deal_value_' + _pid(_drawerProspect.name));
+  let deal_value = null;
+  if (raw) { try { deal_value = JSON.parse(raw).val || null; } catch(e){} }
+  try {
+    const { error } = await sbClient.from('prospects').update({ deal_value, updated_at: new Date().toISOString() }).eq('id', _drawerProspect.id).eq('client_id', CLIENT_ID);
+    if (error) throw error;
+    if (_prospectsById[_drawerProspect.id]) _prospectsById[_drawerProspect.id].deal_value = deal_value;
+    _drawerProspect.deal_value = deal_value;
+    showToast(currentLang === 'fr' ? 'Valeur du deal sauvegardée' : 'Deal value saved');
+    loadKanban(true);
+  } catch(e) {
+    console.warn('_saveDealToDB failed:', e && e.message ? e.message : e);
+    showToast(currentLang === 'fr' ? 'Échec de la sauvegarde' : 'Save failed');
+  }
+}
 function applyDealBadges(){ /* no-op : le badge deal est désormais rendu inline par buildCard (.k-badge-deal) depuis p.deal_value */ }
 
 // Init langue (EN par défaut) + drag & drop kanban (la vue Send se charge via loadSendView() à l'ouverture de l'onglet)
@@ -6714,6 +6735,9 @@ async function saveProspectEdit(id){
   const newStage = STAGE_DB[stageSel] || stageSel;
   const p = _prospectsById[id] || {};
   const advancedStages = ['1st Contact','Engaged','Replied','Proposal','Closed'];
+  const _dvRaw = sessionStorage.getItem('deal_value_' + _pid(p.name || ''));
+  let _dvVal = null;
+  if (_dvRaw) { try { _dvVal = JSON.parse(_dvRaw).val || null; } catch(e){} }
   const row = {
     name: g('ed-name') || null, company: g('ed-company') || null, title: g('ed-title') || null,
     email: g('ed-email') || null, phone: g('ed-phone') || null, linkedin: g('ed-linkedin') || null, sector: g('ed-sector') || null,
@@ -6721,6 +6745,7 @@ async function saveProspectEdit(id){
     stage: newStage, notes: g('ed-notes') || null,
     signal: (document.getElementById('drawer-signal')?.value || '').replace(/<[^>]*>/g, '').trim() || null,
     signal_type: document.getElementById('drawer-signal-type')?.value || null,
+    deal_value: _dvVal !== null ? _dvVal : (p.deal_value || null),
     updated_at: new Date().toISOString()
   };
   if (advancedStages.includes(newStage) && p.linkedin_tag === 'invite-sent') {
@@ -6764,7 +6789,7 @@ async function addProspect(){
     client_id: CLIENT_ID, mandate_id: (activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null, external_id: identityKey(p),
     name, company, title: g('ap-title') || null, email: g('ap-email') || null, linkedin: g('ap-linkedin') || null,
     sector: g('ap-sector') || null, country: g('ap-country') || null, region: document.getElementById('ap-region')?.value || null,
-    stage: STAGE_DB[stageSel] || stageSel, archived: false, updated_at: new Date().toISOString()
+    stage: STAGE_DB[stageSel] || stageSel, archived: false, deal_value: null, updated_at: new Date().toISOString()
   };
   const btn = document.getElementById('ap-save-btn'); if (btn) btn.disabled = true;
   try {

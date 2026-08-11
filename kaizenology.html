@@ -1973,6 +1973,7 @@ async function _resolveMandate(mandateId) {
       .from('mandates')
       .select('*')
       .eq('id', mandateId)
+      .eq('client_id', CLIENT_ID)
       .single();
     if (error) throw error;
     return data || null;
@@ -2612,7 +2613,7 @@ Language instruction: Write your entire response in ${currentLang === 'fr' ? 'Fr
       try {
         const { data: _md } = await sbClient.from('mandates')
           .select('icp_criteria,decision_makers,sectors,geography,signals,exclusions')
-          .eq('id', activeMandateId).single();
+          .eq('id', activeMandateId).eq('client_id', CLIENT_ID).single();
         if (_md) {
           _mandateCriteria = '\nMANDATE CRITERIA (primary evaluation framework):\n'
             + (_md.icp_criteria    ? 'ICP criteria: '       + _md.icp_criteria    + '\n' : '')
@@ -4778,7 +4779,7 @@ async function _saveSequenceDraft(pid, touch, bodyOverride) {
   const body = bodyOverride || out?.textContent?.trim() || '';
   if (!body) return;
   if (seqId) {
-    const { error: _sdErr } = await sbClient.from('sequences').update({ body, status:'draft' }).eq('id', seqId);
+    const { error: _sdErr } = await sbClient.from('sequences').update({ body, status:'draft' }).eq('id', seqId).eq('client_id', CLIENT_ID);
     if (_sdErr) { console.error('[_saveSequenceDraft] update failed:', _sdErr); showToast('Error saving draft'); return; }
   } else {
     const { data, error: _sdInsErr } = await sbClient.from('sequences')
@@ -4798,7 +4799,7 @@ async function _saveSequenceDraft(pid, touch, bodyOverride) {
 async function _markReady(pid) {
   const seqId = document.getElementById('sc-' + pid)?.dataset.seqId || '';
   if (!seqId) { showToast('Save draft first'); return; }
-  const { error } = await sbClient.from('sequences').update({ status:'ready' }).eq('id', seqId);
+  const { error } = await sbClient.from('sequences').update({ status:'ready' }).eq('id', seqId).eq('client_id', CLIENT_ID);
   if (error) { showToast('Error'); return; }
   const btn = document.getElementById('sr-' + pid);
   if (btn) { btn.textContent = '✓ Ready'; btn.style.borderColor = 'var(--green)'; btn.style.color = 'var(--green)'; }
@@ -4870,7 +4871,7 @@ async function _markSent(pid, touch, auto = false, msgText = '') {
   const seqId = card?.dataset.seqId || '';
   const now = new Date().toISOString();
   if (seqId) {
-    const { error } = await sbClient.from('sequences').update({ status:'sent', sent_at:now }).eq('id', seqId);
+    const { error } = await sbClient.from('sequences').update({ status:'sent', sent_at:now }).eq('id', seqId).eq('client_id', CLIENT_ID);
     if (error) { showToast('Error updating sequence'); return; }
   }
   const _sentNote = touch === 'ambassador'
