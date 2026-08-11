@@ -1610,8 +1610,8 @@ body.new-nav { padding-left: 220px; }
         <div id="stats-sector"></div>
       </div>
       <div class="card stats-section">
-        <div class="card-header"><span class="card-title" data-en="By Region" data-fr="Par région">By Region</span></div>
-        <div id="stats-region"></div>
+        <div class="card-header"><span class="card-title" data-en="By Country" data-fr="Par pays">By Country</span></div>
+        <div id="stats-country"></div>
       </div>
     </div>
 
@@ -7289,15 +7289,20 @@ function renderStats(){
     const pct = tot ? Math.round(c/tot*100) : 0;
     return `<div class="dist-row"><div class="dist-meta"><span class="dist-name">${_esc(name)}</span><span class="dist-pct">${pct}%</span></div><div class="dist-track"><div class="dist-fill" style="width:${pct}%"></div></div></div>`;
   }).join('');
-  // Distribution région
+  // Distribution région (conservé pour le KPI card NA / EMEA)
   const emea = active.filter(p => _regionTag(p.region) === 'EMEA').length;
   const na = tot - emea;
-  const naPct = tot ? Math.round(na/tot*100) : 0;
-  const emeaPct = tot ? Math.round(emea/tot*100) : 0;
-  const rEl = document.getElementById('stats-region');
-  if (rEl) rEl.innerHTML =
-    `<div class="dist-row"><div class="dist-meta"><span class="dist-name">North America</span><span class="dist-pct">${naPct}%</span></div><div class="dist-track"><div class="dist-fill" style="width:${naPct}%"></div></div></div>` +
-    `<div class="dist-row"><div class="dist-meta"><span class="dist-name">EMEA</span><span class="dist-pct">${emeaPct}%</span></div><div class="dist-track"><div class="dist-fill" style="width:${emeaPct}%"></div></div></div>`;
+  // Distribution pays — colonne country (top 8 + Other ; null → '—')
+  const cty = {};
+  active.forEach(p => { const c = (p.country && p.country.trim()) || '—'; cty[c] = (cty[c] || 0) + 1; });
+  const ctySorted = Object.entries(cty).sort((a,b) => b[1]-a[1]);
+  const topCty = ctySorted.slice(0,8);
+  const otherCount = ctySorted.slice(8).reduce((s,[,n]) => s+n, 0);
+  const rEl = document.getElementById('stats-country');
+  if (rEl) rEl.innerHTML = (topCty.length ? topCty : [['—',0]]).map(([name,c]) => {
+    const pct = tot ? Math.round(c/tot*100) : 0;
+    return `<div class="dist-row"><div class="dist-meta"><span class="dist-name">${_esc(name)}</span><span class="dist-pct">${pct}%</span></div><div class="dist-track"><div class="dist-fill" style="width:${pct}%"></div></div></div>`;
+  }).join('') + (otherCount > 0 ? `<div class="dist-row"><div class="dist-meta"><span class="dist-name" style="color:var(--muted)">Other (${ctySorted.length - 8})</span><span class="dist-pct">${tot ? Math.round(otherCount/tot*100) : 0}%</span></div><div class="dist-track"><div class="dist-fill" style="width:${tot ? Math.round(otherCount/tot*100) : 0}%"></div></div></div>` : '');
   // KPI cards de l'onglet Stats (mêmes ids que renderKanban)
   const setT = (id,v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
   setT('score-kpi-active', tot);
