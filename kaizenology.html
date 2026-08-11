@@ -1020,6 +1020,25 @@ body.new-nav { padding-left: 220px; }
   </div>
 </div>
 
+<!-- PROFILE LOAD ERROR (transient network / DB unavailable at login) -->
+<div id="profile-error-screen" style="display:none;position:fixed;inset:0;z-index:9999;background:#1a2b5e;align-items:center;justify-content:center;font-family:'Plus Jakarta Sans',sans-serif;">
+  <div style="width:100%;max-width:420px;padding:32px;text-align:center;">
+    <div style="display:flex;align-items:center;gap:10px;justify-content:center;margin-bottom:6px;">
+      <div style="display:grid;grid-template-columns:9px 9px;grid-template-rows:9px 9px;gap:3px;">
+        <span style="background:#fff;border-radius:2px;"></span>
+        <span style="background:#93A8D4;border-radius:2px;"></span>
+        <span style="background:#93A8D4;border-radius:2px;"></span>
+        <span style="background:#fff;border-radius:2px;"></span>
+      </div>
+      <span style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:22px;letter-spacing:3px;color:#fff;">CORRIDOR</span>
+    </div>
+    <h2 style="color:#fff;font-family:'Fraunces',serif;font-weight:700;font-size:26px;margin:24px 0 12px;">Unable to load your profile</h2>
+    <p style="color:#93A8D4;font-size:15px;line-height:1.7;margin-bottom:28px;">Check your connection and try again. If the issue persists, reload the page.</p>
+    <button onclick="_retryProfileLoad()" style="background:#fff;color:#1a2b5e;padding:13px 26px;border-radius:8px;font-weight:700;font-size:15px;border:none;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;">Try again</button>
+    <div style="margin-top:18px;"><button onclick="signOut()" style="background:transparent;border:none;color:#93A8D4;font-size:13px;cursor:pointer;text-decoration:underline;font-family:inherit;">Sign out</button></div>
+  </div>
+</div>
+
 <!-- ═══ NEW SIDEBAR (visible only with ?newnav=1) ═══ -->
 <aside class="new-sidebar" id="new-sidebar" aria-label="Main navigation">
   <div class="snav-logo">
@@ -2167,20 +2186,44 @@ function paintBlocked(){
   cta.textContent = fr ? 'Contacter Thomas' : 'Contact Thomas';
   const so = document.getElementById('blocked-signout'); if (so) so.textContent = fr ? 'Se déconnecter' : 'Sign out';
 }
+let _profileRetryFn = null;
+function showProfileError(retryFn) {
+  _profileRetryFn = retryFn;
+  document.getElementById('auth-gate').style.display = 'none';
+  const ab = document.getElementById('access-blocked'); if (ab) ab.style.display = 'none';
+  document.getElementById('profile-error-screen').style.display = 'flex';
+  const so = document.getElementById('signout-btn'); if (so) so.style.display = 'inline-flex';
+}
+function hideProfileError() {
+  const el = document.getElementById('profile-error-screen');
+  if (el) el.style.display = 'none';
+}
+function _retryProfileLoad() {
+  if (_profileRetryFn) { const fn = _profileRetryFn; _profileRetryFn = null; fn(); }
+}
 async function checkAccess(session){
   if (!session){ showLogin(); return; }
-  if (session.user && session.user.email === OWNER_EMAIL){ await loadClientProfile(); showDemo(); return; }
+  async function _loadAndShow() {
+    hideProfileError();
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      if (attempt > 1) await new Promise(r => setTimeout(r, 1000));
+      const result = await loadClientProfile();
+      if (result === true) { showDemo(); return; }
+      if (result === 'blocked') return;
+    }
+    showProfileError(_loadAndShow);
+  }
+  if (session.user && session.user.email === OWNER_EMAIL){ await _loadAndShow(); return; }
   try {
     const { data: status, error } = await sbClient.rpc('check_client_access', { user_id: session.user.id });
     if (error){
       console.warn('check_client_access unavailable, allowing access:', error.message);
-      await loadClientProfile(); showDemo(); return;
+      await _loadAndShow(); return;
     }
-    await loadClientProfile();
-    if (status === 'active'){ showDemo(); }
+    if (status === 'active'){ await _loadAndShow(); }
     else if (status === 'not_found'){ showBlocked('not_found'); }
     else { showBlocked('expired'); }
-  } catch(e){ console.warn(e); showDemo(); }
+  } catch(e){ console.warn(e); await _loadAndShow(); }
 }
 async function doLogin(e){
   e.preventDefault();
@@ -8588,17 +8631,17 @@ function _modalAvatarHTML(url, name) {
 async function loadClientProfile() {
   try {
     const { data: { user } } = await _supabase.auth.getUser();
-    if (!user) return;
+    if (!user) return false;
     const { data, error } = await _supabase
       .from('clients')
       .select('client_id, contact_name, company_name, display_name, avatar_url')
       .eq('auth_user_id', user.id)
       .single();
-    if (error || !data) return;
+    if (error || !data) return false;
     if (!data.client_id) {
       console.error('loadClientProfile: client_id manquant pour', user.id);
       showBlocked('no_client_id');
-      return;
+      return 'blocked';
     }
     CLIENT_ID = data.client_id;
     _clientProfile = data;
@@ -8607,7 +8650,8 @@ async function loadClientProfile() {
     document.getElementById('nav-company').textContent = data.company_name;
     document.getElementById('nav-avatar').innerHTML = _navAvatarHTML(data.avatar_url, name);
     document.getElementById('user-profile-btn').style.display = 'flex';
-  } catch(e) { console.warn('loadClientProfile:', e); }
+    return true;
+  } catch(e) { console.warn('loadClientProfile:', e); return false; }
 }
 
 function openProfileModal() {
