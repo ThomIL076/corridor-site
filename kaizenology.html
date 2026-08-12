@@ -2873,8 +2873,9 @@ Stay strictly within this context. Do not invent fictional companies, scores, or
 const _senderSig = () => (CLIENT_ID === 'kaizenology')
   ? 'Stéphane Rogovsky, CAIA | linkedin.com/company/kaizenology-official'
   : 'Thomas | linkedin.com/company/corridor-gtm-system';
-const _senderName = () => (CLIENT_ID === 'kaizenology') ? 'Stéphane' : 'Thomas';
-const _ownerInboxEmail = () => CLIENT_ID === 'kaizenology' ? 'hello@stephanerogovsky.com' : 'thomas@corridor.systems';
+const _senderBio = () => _clientProfile?.sender_bio || SENDER_BIO;
+const _senderName = () => _clientProfile?.display_name || _clientProfile?.contact_name?.split(' ')[0] || (CLIENT_ID === 'kaizenology' ? 'Stéphane' : 'Thomas');
+const _ownerInboxEmail = () => _clientProfile?.owner_inbox_email || (CLIENT_ID === 'kaizenology' ? 'hello@stephanerogovsky.com' : 'thomas@corridor.systems');
 const _csStepsAttempted = new Set();
 const _systemRole = () => (CLIENT_ID === 'kaizenology')
   ? "Kaizenology's outreach system"
@@ -4820,7 +4821,7 @@ ${langRule}
     }
   })() : null;
 
-  const redirectPrompt = isRedirect ? `${SENDER_BIO}\n\nYou are writing a LinkedIn message on behalf of ${_senderName()} (see background above).\n\nThe prospect ${p.name} at ${p.company} replied that they are not the right person or that this is not relevant for them.\n\nWrite a short, graceful message that:\n- Opens by thanking them briefly for taking the time to reply\n- Acknowledges their response without repeating or referencing the original pitch\n- Asks naturally if they know someone in their network who might be considering a business transaction — acquisition, sale, fundraise, or strategic advisory\n- Frames it as a genuine question, not a sales move\n- Closes with an open, no-pressure sign-off\n- Signs: ${_senderName()}\n\nRules:\n- Under 60 words total\n- No em-dashes (replace any -- with a period)\n- No exclamation marks\n- No mention of Kaizenology by name\n- No re-pitch of any kind\n- Tone: warm, peer-to-peer, zero pressure\n- Never invent expertise, interests, or context for ${p.name} not explicitly stated above\n- Never invent claims about ${_senderName()} not listed in the background above\n- Write only the message body, nothing else` : null;
+  const redirectPrompt = isRedirect ? `${_senderBio()}\n\nYou are writing a LinkedIn message on behalf of ${_senderName()} (see background above).\n\nThe prospect ${p.name} at ${p.company} replied that they are not the right person or that this is not relevant for them.\n\nWrite a short, graceful message that:\n- Opens by thanking them briefly for taking the time to reply\n- Acknowledges their response without repeating or referencing the original pitch\n- Asks naturally if they know someone in their network who might be considering a business transaction — acquisition, sale, fundraise, or strategic advisory\n- Frames it as a genuine question, not a sales move\n- Closes with an open, no-pressure sign-off\n- Signs: ${_senderName()}\n\nRules:\n- Under 60 words total\n- No em-dashes (replace any -- with a period)\n- No exclamation marks\n- No mention of Kaizenology by name\n- No re-pitch of any kind\n- Tone: warm, peer-to-peer, zero pressure\n- Never invent expertise, interests, or context for ${p.name} not explicitly stated above\n- Never invent claims about ${_senderName()} not listed in the background above\n- Write only the message body, nothing else` : null;
 
   const _sig = _interpretSignal(p.signal);
   const signalBlock = _sig ? (
@@ -4833,7 +4834,7 @@ ${langRule}
 
 Prospect: ${p.name}, ${p.title||'unknown title'} at ${p.company} (${p.sector||'B2B'}, ${p.region||'EMEA'}).
 ${intCtx ? 'Recent interactions: ' + intCtx : ''}
-${SENDER_BIO}
+${_senderBio()}
 ${liveBlock}${personBlock}${prevMsgBlock}${inviteBlock}${originBlock}${memoryBlock}${touch === 'invite' ? `CRITICAL INVITE RULE (non-negotiable): LinkedIn connection request. STRUCTURE: one factual observation (max 15 words) + one short question (max 10 words) + sign off "Thomas" on its own line. TOTAL under 200 characters. NO greeting. NO Corridor. NO URL. NO closing line. NO "Sent via". Output ONLY the 2-sentence message + Thomas, nothing else.` : ''}\nRules: NEVER use em-dashes (—) in any message, replace with a period or comma. No bullet points. No mention of "Alliance Grid" or "Corridor" in the main message body (sentences 1 and 2 only -- the mandatory closing line appended below is the only exception and must be reproduced exactly as given). ${langRule} Replace every vague claim with something specific and provable. Never write 'I help companies grow' or 'I drive results'. Write what you actually observed about this company and why it is relevant right now.${(touch === 'invite' || touch === 'j0') ? ' Strip all marketing language. No buzzwords, no value propositions, no product claims. Rewrite as a text a peer would send to another peer -- direct, human, zero corporate tone.' : ''} NEVER claim or imply that the prospect asked a question, made a specific statement, or expressed a specific interest unless that exact information is explicitly given in the prompt -- if no such detail is provided, do not invent one. NEVER state or imply a specific niche focus for the sender (e.g. a named industry, a named type of deal) that is not listed in their background above. NEVER use generic AI-sounding filler phrases (e.g. "passionate about", "excited to connect", "love what you're building") -- ground every claim in a real fact from the sender's background above or the prospect's own title/company/signal. Output the message only, no preamble.${touch === 'j5' ? '\n\nFOLLOW-UP TONE RULES (mandatory):\n- NEVER use: "follow up", "following up", "checking in", "touching base", "circling back", "just wanted to", "I wanted to reach out", "hope this finds you well"\n- Do NOT open with a reference to the previous message (e.g. "I sent you a note last week")\n- Write as if continuing a conversation, not tracking an unanswered message\n- Introduce a NEW angle, observation, or question — never repeat the idea from the previous message\n- Conversational tone: peer to peer, not vendor to prospect\n- j5: one specific observation or question that opens a thread — no CTA harder than "thoughts?" or "does this resonate?"\n- The closing question must be different from the J+0 question. Never use "Curious what the growth focus looks like" or any variation of it.\n- Previous message sent: "' + (intCtx || 'not available') + '" — do not repeat its angle, observation, or closing question.' : ''}${j0LinkedInNote}${j0NoContextNote}${stealthBlock}${signalBlock}`);
   try {
     const res = await fetch(API_URL, {
@@ -7695,7 +7696,7 @@ async function _bulkStartEmailSeq() {
           first_name: nameParts[0] || '',
           last_name: nameParts.slice(1).join(' ') || '',
           company_name: p.company || '',
-          campaign_id: (_activeMandate?.smartlead_campaign_id) || SMARTLEAD_CAMPAIGN_ID
+          campaign_id: (_activeMandate?.smartlead_campaign_id) || _clientProfile?.smartlead_campaign_id || SMARTLEAD_CAMPAIGN_ID
         })
       });
       const d = await r.json();
@@ -8354,7 +8355,7 @@ async function _startEmailSeq(id) {
         first_name: nameParts[0] || '',
         last_name: nameParts.slice(1).join(' ') || '',
         company_name: p.company || '',
-        campaign_id: SMARTLEAD_CAMPAIGN_ID
+        campaign_id: _clientProfile?.smartlead_campaign_id || SMARTLEAD_CAMPAIGN_ID
       })
     });
     const data = await r.json();
@@ -8944,7 +8945,7 @@ async function loadClientProfile() {
     if (!user) return false;
     const { data, error } = await _supabase
       .from('clients')
-      .select('client_id, contact_name, company_name, display_name, avatar_url')
+      .select('client_id, contact_name, company_name, display_name, avatar_url, sender_bio, owner_inbox_email, smartlead_campaign_id')
       .eq('auth_user_id', user.id)
       .single();
     if (error || !data) return false;
