@@ -2131,6 +2131,7 @@ async function _onMandateChange() {
     activeMandateId = '__ALL__';
     _activeMandate = null;
   }
+  _morningItems = []; _liveAlertItems = []; _renderSignalsFeed();
   loadKanban(true);
   _initHpFilters();
 }
@@ -4306,7 +4307,7 @@ function _applySendFilters() {
 
   const passesFilters = p => {
     if (regionFilter && _regionTag(p.region) !== regionFilter) return false;
-    if (icpFilter > 0 && parseFloat(p.icp_score || _calcICP(p)) < icpFilter) return false;
+    if (icpFilter > 0 && !(parseFloat(p.icp_score) >= icpFilter)) return false;
     if (originFilter !== 'all' && p.origin !== originFilter) return false;
     if (touchFilter !== 'all') {
       const qt = (p.linkedin_tag === 'connection-accepted' && !p.last_contact) ? 'j0' : _suggestTouch(p);
@@ -4321,7 +4322,7 @@ function _applySendFilters() {
     !p.last_contact &&
     p.linkedin_tag !== 'invite-sent' &&
     p.linkedin_tag !== 'connection-accepted' &&
-    parseFloat(p.icp_score || _calcICP(p)) >= 8 &&
+    parseFloat(p.icp_score) >= 8 &&
     !!p.linkedin &&
     (!todayOnly || (p.reminder_date && new Date(p.reminder_date).toDateString() === new Date().toDateString())) &&
     passesFilters(p)
@@ -4835,6 +4836,7 @@ ${langRule}
 Prospect: ${p.name}, ${p.title||'unknown title'} at ${p.company} (${p.sector||'B2B'}, ${p.region||'EMEA'}).
 ${intCtx ? 'Recent interactions: ' + intCtx : ''}
 ${_senderBio()}
+${_activeMandate ? 'ACTIVE MANDATE CONTEXT (defines the purpose of every message; the signal below informs the angle but must not contradict this mandate):' + '\n' + _mandateContext() + '\n---\n' : ''}
 ${liveBlock}${personBlock}${prevMsgBlock}${inviteBlock}${originBlock}${memoryBlock}${touch === 'invite' ? `CRITICAL INVITE RULE (non-negotiable): LinkedIn connection request. STRUCTURE: one factual observation (max 15 words) + one short question (max 10 words) + sign off "Thomas" on its own line. TOTAL under 200 characters. NO greeting. NO Corridor. NO URL. NO closing line. NO "Sent via". Output ONLY the 2-sentence message + Thomas, nothing else.` : ''}\nRules: NEVER use em-dashes (—) in any message, replace with a period or comma. No bullet points. No mention of "Alliance Grid" or "Corridor" in the main message body (sentences 1 and 2 only -- the mandatory closing line appended below is the only exception and must be reproduced exactly as given). ${langRule} Replace every vague claim with something specific and provable. Never write 'I help companies grow' or 'I drive results'. Write what you actually observed about this company and why it is relevant right now.${(touch === 'invite' || touch === 'j0') ? ' Strip all marketing language. No buzzwords, no value propositions, no product claims. Rewrite as a text a peer would send to another peer -- direct, human, zero corporate tone.' : ''} NEVER claim or imply that the prospect asked a question, made a specific statement, or expressed a specific interest unless that exact information is explicitly given in the prompt -- if no such detail is provided, do not invent one. NEVER state or imply a specific niche focus for the sender (e.g. a named industry, a named type of deal) that is not listed in their background above. NEVER use generic AI-sounding filler phrases (e.g. "passionate about", "excited to connect", "love what you're building") -- ground every claim in a real fact from the sender's background above or the prospect's own title/company/signal. Output the message only, no preamble.${touch === 'j5' ? '\n\nFOLLOW-UP TONE RULES (mandatory):\n- NEVER use: "follow up", "following up", "checking in", "touching base", "circling back", "just wanted to", "I wanted to reach out", "hope this finds you well"\n- Do NOT open with a reference to the previous message (e.g. "I sent you a note last week")\n- Write as if continuing a conversation, not tracking an unanswered message\n- Introduce a NEW angle, observation, or question — never repeat the idea from the previous message\n- Conversational tone: peer to peer, not vendor to prospect\n- j5: one specific observation or question that opens a thread — no CTA harder than "thoughts?" or "does this resonate?"\n- The closing question must be different from the J+0 question. Never use "Curious what the growth focus looks like" or any variation of it.\n- Previous message sent: "' + (intCtx || 'not available') + '" — do not repeat its angle, observation, or closing question.' : ''}${j0LinkedInNote}${j0NoContextNote}${stealthBlock}${signalBlock}`);
   try {
     const res = await fetch(API_URL, {
@@ -5138,7 +5140,7 @@ async function importCSV(e) {
       const country  = (f[3] || '').trim();
       const linkedin = (f[4] || '').trim();
       const email    = (f[5] || '').trim();
-      const title    = (f[6] || '').trim() || null;
+      const title    = ((f[6] || '').split(' | ')[0].trim()) || null;
       const notes    = (f[7] || '').trim() || null;
       const region   = country ? _inferRegion(country) : '';
 
@@ -5202,6 +5204,21 @@ async function importCSV(e) {
       }
     }
 
+    // ICP scoring webhook (non-blocking)
+    (async () => {
+      try {
+        const _extIds = rows.map(r => r.external_id);
+        const { data: _toScore } = await sbClient.from('prospects').select('id').eq('client_id', CLIENT_ID).in('external_id', _extIds).is('icp_score', null);
+        const _icpIds = (_toScore || []).map(r => r.id);
+        if (_icpIds.length) {
+          fetch('https://thom076il.app.n8n.cloud/webhook/icp-score-batch', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-webhook-secret': 'icpb_7f3a9c1e5d82b4f6a0c9e3d7b1f5a842' },
+            body: JSON.stringify({ prospect_ids: _icpIds })
+          }).catch(e => console.warn('[icp-score-batch] webhook failed:', e));
+        }
+      } catch(e) { console.warn('[icp-score-batch] ID lookup failed:', e); }
+    })();
     let importMsg = `${inserted} prospects imported`;
     if (fillable.length > 0) {
       importMsg += ` · ${fillUpdated} updated`;
@@ -5684,14 +5701,12 @@ async function openDrawer(card) {
                 <option value="MAD">MAD — Moroccan Dirham</option>
               </optgroup>
               <optgroup label="All currencies">
-                <option value="AED">AED — UAE Dirham</option>
                 <option value="AFN">AFN — Afghan Afghani</option>
                 <option value="ALL">ALL — Albanian Lek</option>
                 <option value="AMD">AMD — Armenian Dram</option>
                 <option value="ANG">ANG — Netherlands Antillean Guilder</option>
                 <option value="AOA">AOA — Angolan Kwanza</option>
                 <option value="ARS">ARS — Argentine Peso</option>
-                <option value="AUD">AUD — Australian Dollar</option>
                 <option value="AWG">AWG — Aruban Florin</option>
                 <option value="AZN">AZN — Azerbaijani Manat</option>
                 <option value="BAM">BAM — Bosnia-Herzegovina Convertible Mark</option>
@@ -5709,9 +5724,7 @@ async function openDrawer(card) {
                 <option value="BWP">BWP — Botswanan Pula</option>
                 <option value="BYN">BYN — Belarusian Ruble</option>
                 <option value="BZD">BZD — Belize Dollar</option>
-                <option value="CAD">CAD — Canadian Dollar</option>
                 <option value="CDF">CDF — Congolese Franc</option>
-                <option value="CHF">CHF — Swiss Franc</option>
                 <option value="CLP">CLP — Chilean Peso</option>
                 <option value="CNY">CNY — Chinese Yuan</option>
                 <option value="COP">COP — Colombian Peso</option>
@@ -5720,16 +5733,13 @@ async function openDrawer(card) {
                 <option value="CVE">CVE — Cape Verdean Escudo</option>
                 <option value="CZK">CZK — Czech Koruna</option>
                 <option value="DJF">DJF — Djiboutian Franc</option>
-                <option value="DKK">DKK — Danish Krone</option>
                 <option value="DOP">DOP — Dominican Peso</option>
                 <option value="DZD">DZD — Algerian Dinar</option>
                 <option value="EGP">EGP — Egyptian Pound</option>
                 <option value="ERN">ERN — Eritrean Nakfa</option>
                 <option value="ETB">ETB — Ethiopian Birr</option>
-                <option value="EUR">EUR — Euro</option>
                 <option value="FJD">FJD — Fijian Dollar</option>
                 <option value="FKP">FKP — Falkland Islands Pound</option>
-                <option value="GBP">GBP — British Pound Sterling</option>
                 <option value="GEL">GEL — Georgian Lari</option>
                 <option value="GHS">GHS — Ghanaian Cedi</option>
                 <option value="GIP">GIP — Gibraltar Pound</option>
@@ -5737,7 +5747,6 @@ async function openDrawer(card) {
                 <option value="GNF">GNF — Guinean Franc</option>
                 <option value="GTQ">GTQ — Guatemalan Quetzal</option>
                 <option value="GYD">GYD — Guyanese Dollar</option>
-                <option value="HKD">HKD — Hong Kong Dollar</option>
                 <option value="HNL">HNL — Honduran Lempira</option>
                 <option value="HRK">HRK — Croatian Kuna</option>
                 <option value="HTG">HTG — Haitian Gourde</option>
@@ -5750,7 +5759,6 @@ async function openDrawer(card) {
                 <option value="ISK">ISK — Icelandic Króna</option>
                 <option value="JMD">JMD — Jamaican Dollar</option>
                 <option value="JOD">JOD — Jordanian Dinar</option>
-                <option value="JPY">JPY — Japanese Yen</option>
                 <option value="KES">KES — Kenyan Shilling</option>
                 <option value="KGS">KGS — Kyrgystani Som</option>
                 <option value="KHR">KHR — Cambodian Riel</option>
@@ -5766,7 +5774,6 @@ async function openDrawer(card) {
                 <option value="LRD">LRD — Liberian Dollar</option>
                 <option value="LSL">LSL — Lesotho Loti</option>
                 <option value="LYD">LYD — Libyan Dinar</option>
-                <option value="MAD">MAD — Moroccan Dirham</option>
                 <option value="MDL">MDL — Moldovan Leu</option>
                 <option value="MGA">MGA — Malagasy Ariary</option>
                 <option value="MKD">MKD — Macedonian Denar</option>
@@ -5783,7 +5790,6 @@ async function openDrawer(card) {
                 <option value="NAD">NAD — Namibian Dollar</option>
                 <option value="NGN">NGN — Nigerian Naira</option>
                 <option value="NIO">NIO — Nicaraguan Córdoba</option>
-                <option value="NOK">NOK — Norwegian Krone</option>
                 <option value="NPR">NPR — Nepalese Rupee</option>
                 <option value="NZD">NZD — New Zealand Dollar</option>
                 <option value="OMR">OMR — Omani Rial</option>
@@ -5794,17 +5800,13 @@ async function openDrawer(card) {
                 <option value="PKR">PKR — Pakistani Rupee</option>
                 <option value="PLN">PLN — Polish Złoty</option>
                 <option value="PYG">PYG — Paraguayan Guaraní</option>
-                <option value="QAR">QAR — Qatari Riyal</option>
                 <option value="RON">RON — Romanian Leu</option>
                 <option value="RSD">RSD — Serbian Dinar</option>
                 <option value="RUB">RUB — Russian Ruble</option>
                 <option value="RWF">RWF — Rwandan Franc</option>
-                <option value="SAR">SAR — Saudi Riyal</option>
                 <option value="SBD">SBD — Solomon Islands Dollar</option>
                 <option value="SCR">SCR — Seychellois Rupee</option>
                 <option value="SDG">SDG — Sudanese Pound</option>
-                <option value="SEK">SEK — Swedish Krona</option>
-                <option value="SGD">SGD — Singapore Dollar</option>
                 <option value="SHP">SHP — Saint Helena Pound</option>
                 <option value="SLL">SLL — Sierra Leonean Leone</option>
                 <option value="SOS">SOS — Somali Shilling</option>
@@ -5825,7 +5827,6 @@ async function openDrawer(card) {
                 <option value="TZS">TZS — Tanzanian Shilling</option>
                 <option value="UAH">UAH — Ukrainian Hryvnia</option>
                 <option value="UGX">UGX — Ugandan Shilling</option>
-                <option value="USD">USD — US Dollar</option>
                 <option value="UYU">UYU — Uruguayan Peso</option>
                 <option value="UZS">UZS — Uzbekistani Som</option>
                 <option value="VES">VES — Venezuelan Bolívar</option>
@@ -7509,7 +7510,7 @@ function _calcConfidence(p) {
 }
 function _deriveCountry(raw) {
   if (!raw) return '';
-  const COUNTRY_ALIASES = { 'UK': 'United Kingdom', 'USA': 'United States' };
+  const COUNTRY_ALIASES = { 'UK': 'United Kingdom', 'USA': 'United States', 'UAE': 'United Arab Emirates' };
   const parts = raw.split(',');
   const derived = parts[parts.length - 1].trim();
   return COUNTRY_ALIASES[derived] || derived;
