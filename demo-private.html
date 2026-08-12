@@ -2128,6 +2128,7 @@ async function _onMandateChange() {
     activeMandateId = null;
     _activeMandate = null;
   }
+  _morningItems = []; _liveAlertItems = []; _renderSignalsFeed();
   loadKanban(true);
   _initHpFilters();
 }
@@ -4877,6 +4878,7 @@ ${langRule}
 Prospect: ${p.name}, ${p.title||'unknown title'} at ${p.company} (${p.sector||'B2B'}, ${p.region||'EMEA'}).
 ${intCtx ? 'Recent interactions: ' + intCtx : ''}
 ${_senderBio()}
+${_activeMandate ? 'ACTIVE MANDATE CONTEXT (defines the purpose of every message; the signal below informs the angle but must not contradict this mandate):' + '\n' + _mandateContext() + '\n---\n' : ''}
 ${liveBlock}${personBlock}${prevMsgBlock}${inviteBlock}${originBlock}${memoryBlock}${touch === 'invite' ? `CRITICAL INVITE RULE (non-negotiable): LinkedIn connection request. STRUCTURE: one factual observation (max 15 words) + one short question (max 10 words) + sign off "Thomas" on its own line. TOTAL under 200 characters. NO greeting. NO Corridor. NO URL. NO closing line. NO "Sent via". Output ONLY the 2-sentence message + Thomas, nothing else.` : ''}\nRules: NEVER use em-dashes (—) in any message, replace with a period or comma. No bullet points. No mention of "Alliance Grid" or "Corridor" in the main message body (sentences 1 and 2 only -- the mandatory closing line appended below is the only exception and must be reproduced exactly as given). ${langRule} Replace every vague claim with something specific and provable. Never write 'I help companies grow' or 'I drive results'. Write what you actually observed about this company and why it is relevant right now.${(touch === 'invite' || touch === 'j0') ? ' Strip all marketing language. No buzzwords, no value propositions, no product claims. Rewrite as a text a peer would send to another peer -- direct, human, zero corporate tone.' : ''} NEVER claim or imply that the prospect asked a question, made a specific statement, or expressed a specific interest unless that exact information is explicitly given in the prompt -- if no such detail is provided, do not invent one. NEVER state or imply a specific niche focus for the sender (e.g. a named industry, a named type of deal) that is not listed in their background above. NEVER use generic AI-sounding filler phrases (e.g. "passionate about", "excited to connect", "love what you're building") -- ground every claim in a real fact from the sender's background above or the prospect's own title/company/signal. Output the message only, no preamble.${touch === 'j5' ? '\n\nFOLLOW-UP TONE RULES (mandatory):\n- NEVER use: "follow up", "following up", "checking in", "touching base", "circling back", "just wanted to", "I wanted to reach out", "hope this finds you well"\n- Do NOT open with a reference to the previous message (e.g. "I sent you a note last week")\n- Write as if continuing a conversation, not tracking an unanswered message\n- Introduce a NEW angle, observation, or question — never repeat the idea from the previous message\n- Conversational tone: peer to peer, not vendor to prospect\n- j5: one specific observation or question that opens a thread — no CTA harder than "thoughts?" or "does this resonate?"\n- The closing question must be different from the J+0 question. Never use "Curious what the growth focus looks like" or any variation of it.\n- Previous message sent: "' + (intCtx || 'not available') + '" — do not repeat its angle, observation, or closing question.' : ''}${j0LinkedInNote}${j0NoContextNote}${stealthBlock}${signalBlock}`);
   try {
     const res = await fetch(API_URL, {
@@ -7319,7 +7321,7 @@ function _calcConfidence(p) {
 }
 function _deriveCountry(raw) {
   if (!raw) return '';
-  const COUNTRY_ALIASES = { 'UK': 'United Kingdom', 'USA': 'United States' };
+  const COUNTRY_ALIASES = { 'UK': 'United Kingdom', 'USA': 'United States', 'UAE': 'United Arab Emirates' };
   const parts = raw.split(',');
   const derived = parts[parts.length - 1].trim();
   return COUNTRY_ALIASES[derived] || derived;
