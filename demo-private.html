@@ -425,6 +425,18 @@ nav {
 .dv-conf label { display:flex; justify-content:space-between; font-size:11px; color:var(--muted); margin-bottom:4px; }
 .dv-conf input[type=range] { width:100%; accent-color:var(--navy); }
 .dv-result { font-size:13px; font-weight:700; color:var(--navy); }
+.dv-field-group { margin-bottom:4px; }
+.dv-field-row { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+.dv-field-row label { font-size:11px; color:var(--muted); flex:0 0 120px; }
+.dv-field-row input[type=number] { flex:1; padding:6px 8px; border:1px solid var(--border); border-radius:6px; font-size:12px; font-family:inherit; background:var(--bg); color:var(--text); min-width:0; }
+.dv-field-row select { flex:1; font-size:12px; padding:6px 8px; border:1px solid var(--border); border-radius:6px; font-family:inherit; color:var(--text); background:var(--bg); min-width:0; }
+.dv-field-row .dv-pct { font-size:11px; color:var(--muted); flex-shrink:0; }
+.dv-results-box { background:var(--surface-1); border:0.5px solid var(--border); border-radius:12px; padding:14px; margin-top:12px; }
+.dv-results-row { display:flex; justify-content:space-between; align-items:center; }
+.dv-results-row + .dv-results-row { margin-top:8px; padding-top:8px; border-top:1px solid var(--border); }
+.dv-results-lbl { font-size:11px; color:var(--muted); letter-spacing:0.02em; }
+.dv-results-val { font-size:16px; font-weight:700; color:var(--navy); }
+.dv-results-val.dv-weighted { font-size:14px; color:var(--green,#16a34a); }
 /* ── CALL PREP MODAL (Feature 4) ── */
 .cp-overlay { position:fixed; inset:0; background:rgba(26,43,94,0.55); display:none; align-items:flex-start; justify-content:center; z-index:9999; padding:48px 16px; overflow-y:auto; }
 .cp-overlay.open { display:flex; }
@@ -5540,34 +5552,128 @@ async function openDrawer(card) {
         <span id="seq-status-${prospectId}" style="font-size:11px;color:#6b7a99"></span>
       </div>
       <div style="border-top:1px solid var(--border);padding-top:16px;">
-        <div class="drawer-section-title" style="margin-bottom:12px" data-en="Deal Value" data-fr="Valeur du deal">Deal Value</div>
-        <div class="dv-row">
-          <select id="dv-team" onchange="recalcDealValue()">
-            <option value="1-10">1-10</option>
-            <option value="11-50">11-50</option>
-            <option value="51-200">51-200</option>
-            <option value="200+">200+</option>
+                <div class="drawer-section-title" style="margin-bottom:12px" data-en="Deal Value" data-fr="Valeur du deal">Deal Value</div>
+        <div class="dv-field-row" style="margin-bottom:10px">
+          <label>Deal Type</label>
+          <select id="dv-deal-type" onchange="_dvShowFields();recalcDealValue()">
+            <option value="">— select —</option>
+            <option value="retainer_only">Retainer only</option>
+            <option value="retainer_success">Retainer + Performance fee</option>
+            <option value="prep_success">Upfront fee + Performance fee</option>
+            <option value="success_only">Performance fee only</option>
+            <option value="fixed">Fixed amount</option>
+            <option value="shared">Shared / Split</option>
+            <option value="referral">Commission (degressive)</option>
           </select>
-          <select id="dv-length" onchange="recalcDealValue()">
-            <option value="3" data-en="3 months" data-fr="3 mois">3 months</option>
-            <option value="6" data-en="6 months" data-fr="6 mois" selected>6 months</option>
-            <option value="12" data-en="12 months" data-fr="12 mois">12 months</option>
-          </select>
-          <select id="dv-currency" onchange="recalcDealValue()">
+        </div>
+        <div id="dvg-retainer" class="dv-field-group" style="display:none">
+          <div class="dv-field-row">
+            <label>Monthly fee</label>
+            <input type="number" id="dv-retainer-monthly" min="0" placeholder="0" oninput="recalcDealValue()">
+          </div>
+          <div class="dv-field-row">
+            <label>Duration</label>
+            <input type="number" id="dv-retainer-months" min="1" placeholder="6" oninput="recalcDealValue()">
+            <span class="dv-pct">months</span>
+          </div>
+        </div>
+        <div id="dvg-prep" class="dv-field-group" style="display:none">
+          <div class="dv-field-row">
+            <label>Upfront fee</label>
+            <input type="number" id="dv-prep-fee" min="0" placeholder="0" oninput="recalcDealValue()">
+          </div>
+        </div>
+        <div id="dvg-success" class="dv-field-group" style="display:none">
+          <div class="dv-field-row">
+            <label>Performance</label>
+            <input type="number" id="dv-success-rate" min="0" max="100" step="0.1" placeholder="0" oninput="recalcDealValue()">
+            <span class="dv-pct">%</span>
+          </div>
+          <div class="dv-field-row">
+            <label>Basis</label>
+            <select id="dv-base-type" onchange="_dvShowFields();recalcDealValue()">
+              <option value="transaction_value">% of deal value</option>
+              <option value="third_party_fee">% of a partner's fee</option>
+            </select>
+          </div>
+          <div class="dv-field-row">
+            <label id="dv-base-amount-lbl">Base amount</label>
+            <input type="number" id="dv-base-amount" min="0" placeholder="0" oninput="recalcDealValue()">
+          </div>
+        </div>
+        <div id="dvg-fixed" class="dv-field-group" style="display:none">
+          <div class="dv-field-row">
+            <label>Amount</label>
+            <input type="number" id="dv-fixed-amount" min="0" placeholder="0" oninput="recalcDealValue()">
+          </div>
+        </div>
+        <div id="dvg-shared" class="dv-field-group" style="display:none">
+          <div class="dv-field-row">
+            <label>Our share</label>
+            <input type="number" id="dv-share-pct" min="0" max="100" step="1" placeholder="50" oninput="recalcDealValue()">
+            <span class="dv-pct">%</span>
+          </div>
+          <div class="dv-field-row">
+            <label>Based on</label>
+            <select id="dv-sub-type" onchange="_dvShowFields();recalcDealValue()">
+              <option value="retainer_only">Retainer only</option>
+              <option value="retainer_success">Retainer + Performance fee</option>
+              <option value="prep_success">Upfront fee + Performance fee</option>
+              <option value="success_only">Performance fee only</option>
+              <option value="fixed">Fixed amount</option>
+            </select>
+          </div>
+          <div class="dv-field-row" id="dvg-gross-row" style="display:none">
+            <label style="color:var(--muted)">Gross fee</label>
+            <span id="dv-gross-fee" style="font-size:12px;font-weight:600;color:var(--navy)">—</span>
+          </div>
+        </div>
+        <div id="dvg-referral" class="dv-field-group" style="display:none">
+          <div class="dv-field-row">
+            <label>Monthly base</label>
+            <input type="number" id="dv-referral-base" min="0" placeholder="0" oninput="recalcDealValue()">
+          </div>
+          <div class="dv-field-row">
+            <label>1st period</label>
+            <input type="number" id="dv-referral-first" min="0" max="100" step="0.1" placeholder="15" oninput="recalcDealValue()">
+            <span class="dv-pct">%</span>
+          </div>
+          <div class="dv-field-row">
+            <label>Following</label>
+            <input type="number" id="dv-referral-sub" min="0" max="100" step="0.1" placeholder="10" oninput="recalcDealValue()">
+            <span class="dv-pct">%</span>
+          </div>
+          <div class="dv-field-row">
+            <label>Duration</label>
+            <input type="number" id="dv-referral-dur" min="1" placeholder="12" oninput="recalcDealValue()">
+            <span class="dv-pct">months</span>
+          </div>
+        </div>
+        <div class="dv-conf">
+          <label><span data-en="Confidence" data-fr="Confiance">Confidence</span> <span id="dv-conf-val">50%</span></label>
+          <input type="range" id="dv-conf" min="0" max="100" value="50" oninput="recalcDealValue()">
+        </div>
+        <div class="dv-results-box">
+          <div class="dv-results-row">
+            <span class="dv-results-lbl">Fee if closed</span>
+            <span class="dv-results-val" id="dv-fee-if-closed">—</span>
+          </div>
+          <div class="dv-results-row">
+            <span class="dv-results-lbl">Weighted expectation</span>
+            <span class="dv-results-val dv-weighted" id="dv-weighted">—</span>
+          </div>
+        </div>
+        <div class="dv-field-row" style="margin-top:12px">
+          <label>Currency</label>
+          <select id="dv-currency" style="flex:0 0 72px" onchange="recalcDealValue()">
             <option value="">— —</option>
             <option value="EUR">EUR</option>
             <option value="USD">USD</option>
             <option value="GBP">GBP</option>
             <option value="ILS">ILS</option>
           </select>
-        </div>
-        <div class="dv-conf">
-          <label><span data-en="Confidence" data-fr="Confiance">Confidence</span> <span id="dv-conf-val">50%</span></label>
-          <input type="range" id="dv-conf" min="0" max="100" value="50" oninput="recalcDealValue()">
-        </div>
-        <div style="background:var(--surface-1);border:0.5px solid var(--border);border-radius:12px;padding:14px;text-align:center;margin-top:12px;">
-          <div style="font-size:11px;color:var(--muted);letter-spacing:0.02em;margin-bottom:4px" data-en="Estimated deal value" data-fr="Valeur estimée du deal">Estimated deal value</div>
-          <div id="dv-result" class="dv-result" style="font-size:22px;font-weight:500;color:var(--navy)">€0</div>
+          <label style="flex:0 0 auto">Manual</label>
+          <input type="number" id="dv-manual" min="0" placeholder="override" oninput="recalcDealValue()">
         </div>
         <button class="btn-secondary" style="width:100%;justify-content:center;font-size:12px;margin-top:10px;" onclick="_saveDealToDB()">
           <span data-en="Save deal value to prospect" data-fr="Sauvegarder la valeur du deal">Save deal value to prospect</span>
@@ -6428,43 +6534,170 @@ function applyMomentum(){
 function _pid(name){ return (name||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''); }
 function _eur(n){ return '€' + Math.round(n).toLocaleString('en-US'); }
 function _fmtCurrency(n, cur){ return (cur || 'EUR') + ' ' + Math.abs(Math.round(n)).toLocaleString('en-US'); }
+function _dvGet(id){ return parseFloat(document.getElementById(id)?.value || 0) || 0; }
+function _dvSet(id, val){ const el = document.getElementById(id); if (el && val != null) el.value = val; }
+function _dvShow(id, visible){ const el = document.getElementById(id); if (el) el.style.display = visible ? '' : 'none'; }
+function _dvShowFields(){
+  const type    = document.getElementById('dv-deal-type')?.value || '';
+  const subType = document.getElementById('dv-sub-type')?.value || 'retainer_only';
+  const baseType= document.getElementById('dv-base-type')?.value || 'transaction_value';
+  const eff = (type === 'shared') ? subType : type;
+  _dvShow('dvg-retainer', ['retainer_only','retainer_success'].includes(eff));
+  _dvShow('dvg-prep',     eff === 'prep_success');
+  _dvShow('dvg-success',  ['retainer_success','prep_success','success_only'].includes(eff));
+  _dvShow('dvg-fixed',    eff === 'fixed');
+  _dvShow('dvg-shared',   type === 'shared');
+  _dvShow('dvg-referral', type === 'referral');
+  const bl = document.getElementById('dv-base-amount-lbl');
+  if (bl) bl.textContent = baseType === 'third_party_fee' ? 'Partner fee' : 'Base amount';
+  _dvShow('dvg-gross-row', type === 'shared');
+}
 function recalcDealValue(){
   if (!_drawerProspect) return;
-  const team = document.getElementById('dv-team').value;
-  const months = parseInt(document.getElementById('dv-length').value, 10);
-  const conf = parseInt(document.getElementById('dv-conf').value, 10);
+  const type    = document.getElementById('dv-deal-type')?.value || '';
+  const subType = document.getElementById('dv-sub-type')?.value || 'retainer_only';
+  const conf    = parseInt(document.getElementById('dv-conf')?.value || 50, 10);
+  const currency= document.getElementById('dv-currency')?.value || '';
   const cv = document.getElementById('dv-conf-val'); if (cv) cv.textContent = conf + '%';
-  const mult = team === '51-200' ? 1.5 : team === '200+' ? 2 : 1;
-  const val = Math.round(1500 * months * mult * (conf/100));
-  const currency = document.getElementById('dv-currency')?.value || '';
-  document.getElementById('dv-result').textContent = _fmtCurrency(val, currency || 'EUR');
-  sessionStorage.setItem('deal_value_' + _pid(_drawerProspect.name), JSON.stringify({ team, months, conf, val, currency }));
+  const manualRaw = (document.getElementById('dv-manual')?.value || '').trim();
+  const manualVal = manualRaw !== '' ? parseFloat(manualRaw) : NaN;
+  const isManual  = !isNaN(manualVal) && manualVal > 0;
+  const eff = (type === 'shared') ? subType : type;
+  let fee_if_closed = 0;
+  if (isManual) {
+    fee_if_closed = Math.round(manualVal);
+  } else if (type === 'referral') {
+    const base  = _dvGet('dv-referral-base');
+    const first = _dvGet('dv-referral-first') / 100;
+    const sub   = _dvGet('dv-referral-sub') / 100;
+    const dur   = Math.max(1, Math.round(_dvGet('dv-referral-dur')));
+    fee_if_closed = Math.round(base * first + base * sub * Math.max(0, dur - 1));
+  } else if (type) {
+    const retainer = ['retainer_only','retainer_success'].includes(eff)
+      ? _dvGet('dv-retainer-monthly') * _dvGet('dv-retainer-months') : 0;
+    const success  = ['retainer_success','prep_success','success_only'].includes(eff)
+      ? _dvGet('dv-base-amount') * (_dvGet('dv-success-rate') / 100) : 0;
+    const prep     = eff === 'prep_success' ? _dvGet('dv-prep-fee') : 0;
+    const fixed    = eff === 'fixed' ? _dvGet('dv-fixed-amount') : 0;
+    const gross    = Math.round(retainer + success + prep + fixed);
+    if (type === 'shared') {
+      const gEl = document.getElementById('dv-gross-fee');
+      if (gEl) gEl.textContent = gross > 0 ? _fmtCurrency(gross, currency || 'EUR') : '—';
+      fee_if_closed = Math.round(gross * (_dvGet('dv-share-pct') / 100));
+    } else {
+      fee_if_closed = gross;
+    }
+  }
+  const weighted = Math.round(fee_if_closed * conf / 100);
+  const fmt = v => v > 0 ? _fmtCurrency(v, currency || 'EUR') : (currency ? currency + ' 0' : '€0');
+  const ficEl = document.getElementById('dv-fee-if-closed'); if (ficEl) ficEl.textContent = fmt(fee_if_closed);
+  const wEl   = document.getElementById('dv-weighted');      if (wEl)   wEl.textContent   = fmt(weighted);
+  sessionStorage.setItem('deal_value_' + _pid(_drawerProspect.name), JSON.stringify({
+    deal_type: type, sub_type: type === 'shared' ? subType : undefined, currency: currency || null,
+    confidence: conf, fee_if_closed, weighted,
+    retainer_monthly: _dvGet('dv-retainer-monthly') || undefined,
+    retainer_months:  _dvGet('dv-retainer-months')  || undefined,
+    prep_fee:    _dvGet('dv-prep-fee')       || undefined,
+    success_rate:_dvGet('dv-success-rate')   || undefined,
+    base_type:   document.getElementById('dv-base-type')?.value || undefined,
+    base_amount: _dvGet('dv-base-amount')    || undefined,
+    fixed_amount:_dvGet('dv-fixed-amount')   || undefined,
+    share_pct:   _dvGet('dv-share-pct')      || undefined,
+    referral_base: _dvGet('dv-referral-base')  || undefined,
+    referral_first:_dvGet('dv-referral-first') || undefined,
+    referral_sub:  _dvGet('dv-referral-sub')   || undefined,
+    referral_dur:  _dvGet('dv-referral-dur')   || undefined,
+    manual: isManual ? manualVal : undefined,
+  }));
   applyDealBadges();
 }
 function _restoreDealValue(){
   if (!_drawerProspect) return;
   const raw = sessionStorage.getItem('deal_value_' + _pid(_drawerProspect.name));
-  if (raw){ try { const d = JSON.parse(raw);
-    const t=document.getElementById('dv-team'); if(t) t.value=d.team;
-    const l=document.getElementById('dv-length'); if(l) l.value=String(d.months);
-    const c=document.getElementById('dv-conf'); if(c) c.value=d.conf;
-    const cur=document.getElementById('dv-currency'); if(cur) cur.value=d.currency||_drawerProspect.deal_currency||'';
-  } catch(e){} } else {
-    const cur=document.getElementById('dv-currency'); if(cur&&_drawerProspect.deal_currency) cur.value=_drawerProspect.deal_currency;
+  if (raw) {
+    try {
+      const d = JSON.parse(raw);
+      _dvSet('dv-deal-type', d.deal_type); _dvSet('dv-currency', d.currency); _dvSet('dv-conf', d.confidence);
+      _dvSet('dv-sub-type', d.sub_type);   _dvSet('dv-base-type', d.base_type);
+      _dvSet('dv-retainer-monthly', d.retainer_monthly); _dvSet('dv-retainer-months', d.retainer_months);
+      _dvSet('dv-prep-fee', d.prep_fee);   _dvSet('dv-success-rate', d.success_rate);
+      _dvSet('dv-base-amount', d.base_amount); _dvSet('dv-fixed-amount', d.fixed_amount);
+      _dvSet('dv-share-pct', d.share_pct);
+      _dvSet('dv-referral-base', d.referral_base); _dvSet('dv-referral-first', d.referral_first);
+      _dvSet('dv-referral-sub', d.referral_sub);   _dvSet('dv-referral-dur', d.referral_dur);
+      _dvSet('dv-manual', d.manual);
+    } catch(e){}
+  } else if (_drawerProspect.deal_structure) {
+    const d = _drawerProspect.deal_structure;
+    const eff = d.deal_type === 'shared' ? (d.sub_type || '') : (d.deal_type || '');
+    _dvSet('dv-deal-type', d.deal_type); _dvSet('dv-currency', d.currency); _dvSet('dv-conf', d.confidence);
+    _dvSet('dv-sub-type', d.sub_type);   _dvSet('dv-base-type', d.base_type);
+    if (['retainer_only','retainer_success'].includes(eff)){ _dvSet('dv-retainer-monthly', d.retainer_monthly); _dvSet('dv-retainer-months', d.retainer_months); }
+    if (eff === 'prep_success') _dvSet('dv-prep-fee', d.prep_fee);
+    if (['retainer_success','prep_success','success_only'].includes(eff)){
+      _dvSet('dv-success-rate', d.success_rate != null ? d.success_rate * 100 : undefined);
+      _dvSet('dv-base-amount', d.base_amount);
+    }
+    if (eff === 'fixed') _dvSet('dv-fixed-amount', d.fixed_amount);
+    if (d.deal_type === 'shared') _dvSet('dv-share-pct', d.share_pct != null ? d.share_pct * 100 : undefined);
+    if (d.deal_type === 'referral'){
+      _dvSet('dv-referral-base', d.monthly_base);
+      _dvSet('dv-referral-first', d.first_month_rate != null ? d.first_month_rate * 100 : undefined);
+      _dvSet('dv-referral-sub', d.subsequent_rate != null ? d.subsequent_rate * 100 : undefined);
+      _dvSet('dv-referral-dur', d.duration_months);
+    }
+  } else {
+    _dvSet('dv-manual', _drawerProspect.deal_value || undefined);
+    _dvSet('dv-currency', _drawerProspect.deal_currency || undefined);
   }
+  _dvShowFields();
   recalcDealValue();
 }
 async function _saveDealToDB(){
   if (!_drawerProspect || !_drawerProspect.id) return;
-  const raw = sessionStorage.getItem('deal_value_' + _pid(_drawerProspect.name));
-  let deal_value = null, deal_currency = null;
-  if (raw) { try { const d = JSON.parse(raw); deal_value = d.val || null; deal_currency = d.currency || null; } catch(e){} }
-  if (!deal_currency) { const curEl = document.getElementById('dv-currency'); deal_currency = (curEl && curEl.value) || null; }
+  const type    = document.getElementById('dv-deal-type')?.value || '';
+  const subType = document.getElementById('dv-sub-type')?.value || '';
+  const conf    = parseInt(document.getElementById('dv-conf')?.value || 50, 10);
+  const currency= document.getElementById('dv-currency')?.value || null;
+  const manualRaw = (document.getElementById('dv-manual')?.value || '').trim();
+  const manualVal = manualRaw !== '' ? parseFloat(manualRaw) : NaN;
+  const isManual  = !isNaN(manualVal) && manualVal > 0;
+  let deal_value = null, deal_weighted = null;
+  if (isManual) {
+    deal_value    = Math.round(manualVal);
+    deal_weighted = Math.round(manualVal * conf / 100);
+  } else {
+    const raw = sessionStorage.getItem('deal_value_' + _pid(_drawerProspect.name));
+    if (raw) { try { const d = JSON.parse(raw); deal_value = d.fee_if_closed || null; deal_weighted = d.weighted || null; } catch(e){} }
+  }
+  let deal_structure = null;
+  if (type) {
+    const eff = type === 'shared' ? subType : type;
+    deal_structure = { deal_type: type, currency: currency || null, confidence: conf, fee_if_closed: deal_value, weighted: deal_weighted };
+    if (type === 'shared'){ deal_structure.share_pct = _dvGet('dv-share-pct') / 100; deal_structure.sub_type = subType; }
+    if (['retainer_only','retainer_success'].includes(eff)){ deal_structure.retainer_monthly = _dvGet('dv-retainer-monthly'); deal_structure.retainer_months = _dvGet('dv-retainer-months'); }
+    if (eff === 'prep_success') deal_structure.prep_fee = _dvGet('dv-prep-fee');
+    if (['retainer_success','prep_success','success_only'].includes(eff)){
+      deal_structure.success_rate = _dvGet('dv-success-rate') / 100;
+      deal_structure.base_type    = document.getElementById('dv-base-type')?.value || 'transaction_value';
+      deal_structure.base_amount  = _dvGet('dv-base-amount');
+    }
+    if (eff === 'fixed') deal_structure.fixed_amount = _dvGet('dv-fixed-amount');
+    if (type === 'referral'){
+      deal_structure.monthly_base     = _dvGet('dv-referral-base');
+      deal_structure.first_month_rate = _dvGet('dv-referral-first') / 100;
+      deal_structure.subsequent_rate  = _dvGet('dv-referral-sub') / 100;
+      deal_structure.duration_months  = Math.round(_dvGet('dv-referral-dur'));
+    }
+  }
   try {
-    const { error } = await sbClient.from('prospects').update({ deal_value, deal_currency, updated_at: new Date().toISOString() }).eq('id', _drawerProspect.id).eq('client_id', CLIENT_ID);
+    const { error } = await sbClient.from('prospects').update({
+      deal_value, deal_currency: currency, deal_structure, deal_weighted, updated_at: new Date().toISOString()
+    }).eq('id', _drawerProspect.id).eq('client_id', CLIENT_ID);
     if (error) throw error;
-    if (_prospectsById[_drawerProspect.id]) { _prospectsById[_drawerProspect.id].deal_value = deal_value; _prospectsById[_drawerProspect.id].deal_currency = deal_currency; }
-    _drawerProspect.deal_value = deal_value; _drawerProspect.deal_currency = deal_currency;
+    const upd = { deal_value, deal_currency: currency, deal_structure, deal_weighted };
+    if (_prospectsById[_drawerProspect.id]) Object.assign(_prospectsById[_drawerProspect.id], upd);
+    Object.assign(_drawerProspect, upd);
     showToast(currentLang === 'fr' ? 'Valeur du deal sauvegardée' : 'Deal value saved');
     loadKanban(true);
   } catch(e) {
@@ -6848,7 +7081,7 @@ async function saveProspectEdit(id){
   const advancedStages = ['1st Contact','Engaged','Replied','Proposal','Closed'];
   const _dvRaw = sessionStorage.getItem('deal_value_' + _pid(p.name || ''));
   let _dvVal = null, _dvCurSel = null;
-  if (_dvRaw) { try { const _dvObj = JSON.parse(_dvRaw); _dvVal = _dvObj.val || null; _dvCurSel = _dvObj.currency || null; } catch(e){} }
+  if (_dvRaw) { try { const _dvObj = JSON.parse(_dvRaw); _dvVal = _dvObj.fee_if_closed ?? _dvObj.val ?? null; _dvCurSel = _dvObj.currency || null; } catch(e){} }
   if (!_dvCurSel) { const _curEl = document.getElementById('dv-currency'); _dvCurSel = (_curEl && _curEl.value) || null; }
   const row = {
     name: g('ed-name') || null, company: g('ed-company') || null, title: g('ed-title') || null,
