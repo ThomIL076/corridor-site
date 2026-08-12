@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -5889,8 +5889,24 @@ async function _sendDiscoveryBrief() {
   const p = _drawerProspect;
   const btn = document.getElementById('drawer-discovery-btn');
   const origLabel = btn ? btn.textContent : 'Prepare discovery call';
+  const isConnected = p.linkedin_tag === 'connection-accepted';
+  const confirmMsg = isConnected
+    ? `Send discovery call brief for ${p.name} at ${p.company}?`
+    : `${p.name} isn't connected on LinkedIn yet. Send the discovery call brief anyway?`;
+  if (!confirm(confirmMsg)) return;
   if (btn) { btn.disabled = true; btn.textContent = 'Preparing…'; }
   try {
+    const _now = new Date();
+    const _wStart = new Date(_now.getFullYear(), _now.getMonth(), _now.getDate()).toISOString();
+    const _wEnd   = new Date(_now.getFullYear(), _now.getMonth(), _now.getDate() + 1).toISOString();
+    const { data: existingBrief } = await sbClient.from('interactions')
+      .select('id').eq('client_id', CLIENT_ID).eq('prospect_id', p.id)
+      .eq('type', 'discovery_brief').gte('created_at', _wStart).lt('created_at', _wEnd).limit(1);
+    if (existingBrief?.length) {
+      showToast('Brief already sent today for ' + (p.name || 'this prospect'));
+      if (btn) { btn.disabled = false; btn.textContent = origLabel; }
+      return;
+    }
     const liveCtx = await _prefetchWebContext(p.company, p.sector);
     const ctx = _drawerInteractions.slice(0, 5)
       .map(i => `- ${i.type}${i.note ? ': ' + i.note.slice(0, 120) : ''} (${_relDate(i.created_at) || 'recent'})`)
@@ -5929,10 +5945,13 @@ Output the HTML content only. No preamble, no doctype, no wrapper div.`;
       body: JSON.stringify({ to: _ownerInboxEmail(), subject: 'Discovery call brief — ' + (p.name || 'prospect'), html: emailHtml })
     });
     if (!wRes.ok) throw new Error('Webhook ' + wRes.status);
+    await sbClient.from('interactions').insert({
+      client_id: CLIENT_ID, prospect_id: p.id, mandate_id: p.mandate_id ?? null,
+      type: 'discovery_brief', note: 'Discovery call brief sent by email'
+    });
     showToast('Brief sent to your inbox');
   } catch(e) {
     showToast('Error: ' + e.message);
-  } finally {
     if (btn) { btn.disabled = false; btn.textContent = origLabel; }
   }
 }
