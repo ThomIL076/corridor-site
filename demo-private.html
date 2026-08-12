@@ -4935,7 +4935,7 @@ async function _sendViaLinkedIn(pid, touch) {
   if (body.includes('{') || body.includes('}')) {
     showToast('Blocked: message contains literal braces {}. Fix template before sending.');
     const { error: _seErr1 } = await sbClient.from('interactions').insert({
-      prospect_id: pid, client_id: CLIENT_ID, mandate_id: (activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null, type: 'send_error',
+      prospect_id: pid, client_id: CLIENT_ID, mandate_id: _prospectsById[pid]?.mandate_id ?? null, type: 'send_error',
       note: 'blocked: message contains literal braces {}'
     });
     if (_seErr1) console.error('[_sendViaLinkedIn] send_error insert failed:', _seErr1);
@@ -4946,7 +4946,7 @@ async function _sendViaLinkedIn(pid, touch) {
   if (touch !== 'invite' && p.linkedin_tag !== 'connection-accepted') {
     showToast('Blocked: not yet connected with this prospect');
     const { error: _seErr2 } = await sbClient.from('interactions').insert({
-      prospect_id: pid, client_id: CLIENT_ID, mandate_id: (activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null, type: 'send_error',
+      prospect_id: pid, client_id: CLIENT_ID, mandate_id: _prospectsById[pid]?.mandate_id ?? null, type: 'send_error',
       note: 'blocked: not connected'
     });
     if (_seErr2) console.error('[_sendViaLinkedIn] send_error insert failed:', _seErr2);
@@ -4999,7 +4999,7 @@ async function _markSent(pid, touch, auto = false, msgText = '') {
     : `${touch} sent${auto ? ' via HeyReach' : ' (manual)'}${msgText ? ' | ' + msgText.slice(0, 300) : ''}`;
   const _validTouch = ['invite', 'j0', 'j5', 'j12'];
   const { error: _msIntErr } = await sbClient.from('interactions').insert({
-    prospect_id: pid, client_id: CLIENT_ID, mandate_id: (activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null, type: 'linkedin',
+    prospect_id: pid, client_id: CLIENT_ID, mandate_id: _prospectsById[pid]?.mandate_id ?? null, type: 'linkedin',
     note: _sentNote,
     touch: _validTouch.includes(touch) ? touch : null,
   });
@@ -5764,6 +5764,7 @@ async function _saveInteraction() {
   const { data, error } = await sbClient
     .from('interactions')
     .insert({ prospect_id:pid, client_id:_drawerClientId(),
+               mandate_id: (_prospectsById[pid] || _drawerProspect)?.mandate_id ?? null,
                type, note: note || null })
     .select('id,type,note,created_at')
     .single();
@@ -6056,7 +6057,7 @@ Rules: no em-dashes, no markdown headers, factual only, base everything on the n
   // Persist debrief to interactions table
   try {
     const { data: intData } = await sbClient.from('interactions')
-      .insert({ prospect_id: pid, client_id: _drawerClientId(), type: 'call', note: responseText })
+      .insert({ prospect_id: pid, client_id: _drawerClientId(), mandate_id: p?.mandate_id ?? null, type: 'call', note: responseText })
       .select('id,type,note,created_at').single();
     if (intData) {
       _drawerInteractions = [intData, ..._drawerInteractions];
@@ -6659,7 +6660,7 @@ async function _saveEmail(pid, email, source) {
   const { error: _emailSaveErr } = await sbClient.from('prospects').update({ email }).eq('id', pid).eq('client_id', CLIENT_ID);
   if (_emailSaveErr) { console.error('[_saveEmail] prospects update failed:', _emailSaveErr); showToast('Error saving email'); return; }
   const { error: _emailIntErr } = await sbClient.from('interactions').insert({
-    prospect_id: pid, client_id: CLIENT_ID, mandate_id: (activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null, type: 'email_found',
+    prospect_id: pid, client_id: CLIENT_ID, mandate_id: p?.mandate_id ?? null, type: 'email_found',
     note: 'Email verified: ' + email
   });
   if (_emailIntErr) console.error('[_saveEmail] interactions insert failed:', _emailIntErr);
@@ -6673,7 +6674,7 @@ async function _savePhone(pid, phone, source) {
   const { error: _phoneSaveErr } = await sbClient.from('prospects').update({ phone, phone_source: source, phone_status: source }).eq('id', pid).eq('client_id', CLIENT_ID);
   if (_phoneSaveErr) { console.error('[_savePhone] prospects update failed:', _phoneSaveErr); showToast('Error saving phone'); return; }
   const { error: _phoneIntErr } = await sbClient.from('interactions').insert({
-    prospect_id: pid, client_id: CLIENT_ID, mandate_id: (activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null, type: 'phone_found',
+    prospect_id: pid, client_id: CLIENT_ID, mandate_id: p?.mandate_id ?? null, type: 'phone_found',
     note: 'Phone found: ' + phone
   });
   if (_phoneIntErr) console.error('[_savePhone] interactions insert failed:', _phoneIntErr);
@@ -7257,7 +7258,7 @@ async function _bulkStartEmailSeq() {
       });
       const d = await r.json();
       if (r.ok && !d.error) {
-        successRows.push({ prospect_id: p.id, client_id: p.client_id || CLIENT_ID, type: 'email_j5', note: 'Follow-up email sent' });
+        successRows.push({ prospect_id: p.id, client_id: p.client_id || CLIENT_ID, mandate_id: p?.mandate_id ?? null, type: 'email_j5', note: 'Follow-up email sent' });
       } else { failed++; }
     } catch(e) { failed++; }
     if (i < toSend.length - 1) await new Promise(res => setTimeout(res, 700));
@@ -7904,7 +7905,7 @@ async function _startEmailSeq(id) {
     const data = await r.json();
     if (r.ok && !data.error) {
       const { error: _seqInsErr } = await sbClient.from('interactions').insert({
-        prospect_id: p.id, client_id: p.client_id || CLIENT_ID, mandate_id: (activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null,
+        prospect_id: p.id, client_id: p.client_id || CLIENT_ID, mandate_id: p?.mandate_id ?? null,
         type: 'email_j5', note: 'Follow-up email sent'
       });
       if (_seqInsErr) {
