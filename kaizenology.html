@@ -9248,6 +9248,24 @@ if ('serviceWorker' in navigator) {
       .catch(err => console.error('SW error:', err));
   });
 }
+(function(){
+  var _ml = document.querySelector('link[rel="manifest"]');
+  if (!_ml) return;
+  var _mh = _ml.getAttribute('href');
+  fetch(_mh)
+    .then(function(r){ return r.json(); })
+    .then(function(m){
+      var _su = (m.start_url || '').replace(/^https?:\/\/[^/]+/, '');
+      var _cp = window.location.pathname;
+      if (_su && _su !== _cp)
+        console.error(
+          '[MANIFEST MISMATCH] This page is "' + _cp +
+          '" but its manifest (' + _mh + ') points to "' + _su +
+          '" -- PWA install will break for this client'
+        );
+    })
+    .catch(function(){ console.warn('[manifest-check] Could not fetch manifest:', _mh); });
+})();
 </script>
 <!-- ══ SCANNER OVERLAY PANEL ══ -->
 <div id="scanner-overlay" onclick="closeScannerPanel()"></div>
