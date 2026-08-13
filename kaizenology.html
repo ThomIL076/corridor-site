@@ -2892,7 +2892,7 @@ Write all content in ${currentLang === 'fr' ? 'French' : 'English'} but keep the
 const THOMAS_CONTEXT = `Operating context for every answer (this is the real business, not a hypothetical):
 Thomas Dratler, Corridor GTM System.
 Founder of Corridor (corridor.systems), a done-for-you GTM system for B2B companies that need predictable pipeline.
-ICP: CEO or Founder, AdTech, Fintech, B2B SaaS, 20 to 150 employees. Ticket: 1,500 EUR per month retainer. Use case: entering a new market, accelerating on an existing one, or replacing pipeline that depends on too few people.
+ICP: CEO or Founder, any industry, any geography, 11-200 employees. Ticket: 1,500 EUR per month retainer. Use case: entering a new market, accelerating on an existing one, or replacing pipeline that depends on too few people.
 Product: Corridor, a done-for-you GTM system.
 Buying signals that matter: S1 recent fundraise, S3 new senior hire or role posted, S7 warm network connection.
 Stay strictly within this context. Do not invent fictional companies, scores, or metrics.`;
@@ -5105,7 +5105,7 @@ function logSentMessage(url, message){
 
 // ── CSV IMPORT / EXPORT (Pipeline View) ──
 function exportCSV(){
-  const rows = [['Name','Company','Sector','Stage','ICP Score','Corridor']];
+  const rows = [['Name','Company','Sector','Stage','ICP Score','Country']];
   document.querySelectorAll('#tab-pipeline .kanban-col').forEach(col => {
     const head = col.querySelector('.kanban-col-head span');
     const stage = head ? (head.dataset.en || head.textContent.trim()) : '';
@@ -5115,7 +5115,7 @@ function exportCSV(){
       const company = companyRaw.split('·')[0].trim();
       const sector = (card.querySelector('.k-badge-sector')?.textContent || '').trim();
       const score = card.dataset.icpScore || '';
-      rows.push([name, company, sector, stage, score, 'EMEA']);
+      rows.push([name, company, sector, stage, score, card.dataset.country || card.dataset.region || '']);
     });
   });
   const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
@@ -6057,7 +6057,7 @@ async function _addScannerToPipeline() {
       name: d.name || d.company,
       company: d.company,
       sector: d.sector || null,
-      region: 'EMEA',
+      region: d.region || null,
       stage: 'Identified',
       icp_score: d.icp_score != null ? d.icp_score : null,
       signal: d.signal || null,
@@ -8208,7 +8208,6 @@ function _calc90d(card) {
   if (icpScore >= 8) s += 10;
   if (icpScore >= 9) s += 5;
   if (origin === 'network') s += 10;
-  if (['AdTech','Fintech','Gaming','B2B SaaS'].includes(sector)) s += 5;
   // Negative signals
   if (stage === 'Identified') s -= 10;
   if (!lastContact) s -= 15;
