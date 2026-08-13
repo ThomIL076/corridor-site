@@ -2749,7 +2749,8 @@ Language instruction: Write your entire response in ${currentLang === 'fr' ? 'Fr
     const _sigsLine = sigs.length > 0
       ? '\nDetected buying signals for this company: ' + sigs.map(s => s.label).join(', ') + '. Factor these signals into your score.'
       : '';
-    const _scorePromptText = 'You are an ICP scoring engine for Corridor, a B2B GTM advisory firm. Score this prospect 0-10.\n\nCompany: ' + company + '\nSector: ' + sector + '\nStage: ' + stage + '\n' + fundingStr + urlStr + contextStr + _mandateCriteria + _sigsLine + '\n' + (_mandateCriteria ? 'Score strictly against the mandate criteria above.' : 'Generic criteria: ideal is a scale-up (Series A-C), 11-200 employees, expanding internationally; strong signals: fundraise, new market entry, new CXO/VP hire; target roles: CEO, founder, CRO, CMO, VP Sales/Marketing — no hard sector filter.') + '\n\nReturn ONLY valid JSON, no other text:\n{"score":<0-10 one decimal>,"confidence":"<low|medium|high>","rationale":"<one sentence>"}';
+    const _scorePromptText = 'You are an ICP scoring engine for Corridor, a B2B GTM advisory firm. Evaluate this prospect and return 4 sub-scores.\n\nCompany: ' + company + '\nSector: ' + sector + '\nStage: ' + stage + '\n' + fundingStr + urlStr + contextStr + _mandateCriteria + _sigsLine + '\n\nSCORING RULES:\nrole_score (0-10): CEO/Founder/Co-founder=10, C-suite/VP/Partner=6-8, Director/Head of=4-5, other or unknown=2\nsize_score: return -1 if company size is unknown — never guess from sector or name. If known: 11-200 employees=9, 201-500=6, 1-10=4, 500+=3\nsignal_strength_score (0-10): 0 if no buying signal detected. Fundraise/market expansion=9, new CXO/VP hire=7, role posted=5, other=3\nmandate_fit_score (0-10): ' + (_mandateCriteria ? 'score fit against mandate criteria above (sector, geography, decision-makers)' : 'return 5 — no mandate active, score is neutral') + '\n\nReturn ONLY valid JSON, no other text:\n{"role_score":<0-10>,"size_score":<-1 or 0-10>,"signal_strength_score":<0-10>,"mandate_fit_score":<0-10>,"confidence":"<low|medium|high>","rationale":"<one sentence>"}';
+
     try {
       const _scoreResp = await fetch(API_URL, {
         method: 'POST',
@@ -2763,8 +2764,12 @@ Language instruction: Write your entire response in ${currentLang === 'fr' ? 'Fr
         try { _scoreResult = _m ? JSON.parse(_m[0]) : null; } catch(e) {}
       }
     } catch(e) { console.warn('[runScanner] score failed:', e); }
-    if (_scoreResult && _scoreResult.score != null) {
-      const _icpPct = Math.min(100, Math.max(0, Math.round(parseFloat(_scoreResult.score) * 10)));
+    if (_scoreResult && _scoreResult.role_score != null) {
+      const _composite = _calcComposite(
+        _scoreResult.role_score, _scoreResult.size_score, _scoreResult.signal_strength_score,
+        _scoreResult.mandate_fit_score, 0, 0
+      );
+      const _icpPct = Math.min(100, Math.max(0, Math.round(_composite * 10)));
       document.getElementById('sc-total').textContent = _icpPct + '/100';
     } else {
       document.getElementById('sc-total').textContent = '—';
@@ -2778,7 +2783,9 @@ Language instruction: Write your entire response in ${currentLang === 'fr' ? 'Fr
     try {
       const _scanPer = (document.getElementById('scanner-person')?.value || '').trim();
       const _scanSec = (document.getElementById('scanner-sector')?.value || '').trim();
-      const _scanScoreVal = (_scoreResult && _scoreResult.score != null) ? parseFloat(_scoreResult.score) : null;
+      const _scanScoreVal = (_scoreResult && _scoreResult.role_score != null)
+        ? _calcComposite(_scoreResult.role_score, _scoreResult.size_score, _scoreResult.signal_strength_score, _scoreResult.mandate_fit_score, 0, 0)
+        : null;
       const _scanSummary = (document.getElementById('scanner-ai-output')?.textContent || '').slice(0, 800);
       const { data: _existingArr } = await sbClient.from('prospects').select('id, name, company, stage').eq('client_id', CLIENT_ID).ilike('company', _scanCo).limit(1);
       const _existing = _existingArr && _existingArr.length ? _existingArr[0] : null;
@@ -7552,28 +7559,48 @@ function getMomentumClass(p){
 }
 // Score ICP dérivé quand icp_score est null : hash déterministe → 7.5–9.5 (parité cartes statiques).
 // Scoring ICP unifié (réel Supabase prioritaire, sinon calcul sur critères — aligné App.jsx)
+function _calcRecency(p) {
+  if (!p.last_contact) return 0;
+  const days = (Date.now() - new Date(p.last_contact).getTime()) / 86400000;
+  if (days <= 7)  return 10;
+  if (days <= 30) return 7;
+  if (days <= 90) return 4;
+  return 0;
+}
+function _calcCompleteness(p) {
+  const fields = [p.name, p.company, p.title, p.email, p.linkedin, p.sector, p.country];
+  return Math.round(fields.filter(Boolean).length / fields.length * 10);
+}
+function _calcComposite(role, size, signal, mandateFit, recency, completeness) {
+  const s = (size === -1) ? 5 : size;
+  return Math.min(10, Math.max(0,
+    role * 0.35 + s * 0.20 + signal * 0.20 + mandateFit * 0.10 + recency * 0.10 + completeness * 0.05
+  ));
+}
 function _calcICP(p) {
   if (p.icp_score && Number(p.icp_score) > 0) return Number(p.icp_score).toFixed(1);
-  let score = 5.0;
-  const region = (p.region || p.country || '').toLowerCase();
-  const _geoTier1 = ['france','belgium','netherlands','israel'];
-  const _geoTier2 = ['united kingdom','ireland','germany','switzerland','austria','united states','canada'];
-  const _geoTier3 = ['spain','italy','sweden','norway','denmark','finland','portugal','poland','czech','romania','hungary','turkey','ukraine','uae','united arab','saudi','egypt','south africa','morocco'];
-  const _geoApac  = ['singapore','australia','japan','india','hong kong','new zealand','south korea','indonesia','vietnam','thailand','malaysia'];
-  const _geoLatam = ['brazil','mexico','argentina','colombia','chile','peru'];
-  if      (_geoTier1.some(c => region.includes(c)))                                           score += 2.5;
-  else if (_geoTier2.some(c => region.includes(c)))                                           score += 1.5;
-  else if (_geoTier3.some(c => region.includes(c)) || region.includes('emea') || region.includes('europe')) score += 1.0;
-  else if ([..._geoApac, ..._geoLatam].some(c => region.includes(c)))                        score += 0.5;
-  const title = (p.title || '').toLowerCase();
-  if (['ceo','founder','co-founder','chief executive'].some(t => title.includes(t))) score += 2.0;
-  else if (['cro','cmo','coo','vp','vice president'].some(t => title.includes(t)))   score += 1.2;
-  else if (['director','head of'].some(t => title.includes(t)))                      score += 0.7;
+  const t = (p.title || '').toLowerCase();
+  let roleScore;
+  if (['ceo','founder','co-founder','chief executive'].some(k => t.includes(k))) roleScore = 10;
+  else if (
+    ['cto','cro','cmo','coo','cpo','vp','vice president'].some(k => t.includes(k)) ||
+    ['head of sales','head of growth','head of revenue'].some(k => t.includes(k))
+  ) roleScore = 6;
+  else if (['director','senior manager'].some(k => t.includes(k))) roleScore = 3;
+  else roleScore = 0;
+  let sizeScore = 5;
   if (p.company_size) {
-    const _csNum = parseInt(String(p.company_size)) || 0;
-    if (_csNum >= 11 && _csNum <= 200) score += 0.5;
+    const n = parseInt(String(p.company_size)) || 0;
+    if      (n >= 30 && n <= 100)  sizeScore = 10;
+    else if (n >= 11 && n < 30)    sizeScore = 7;
+    else if (n > 100 && n <= 200)  sizeScore = 7;
+    else if (n > 200 && n <= 500)  sizeScore = 4;
+    else if (n > 0   && n < 11)    sizeScore = 3;
+    else if (n > 500)              sizeScore = 2;
   }
-  return Math.min(score, 10).toFixed(1);
+  const knownCount = [p.title, p.company, p.company_size].filter(Boolean).length;
+  const completenessScore = knownCount === 3 ? 10 : knownCount > 0 ? 5 : 0;
+  return _calcComposite(roleScore, sizeScore, 0, 5, 5, completenessScore).toFixed(1);
 }
 function _calcConfidence(p) {
   const icp = parseFloat(_calcICP(p));
