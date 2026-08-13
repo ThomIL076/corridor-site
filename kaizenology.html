@@ -5291,7 +5291,9 @@ function _inferRegion(country) {
 
 // ── WEEKLY REPORT (System module) ──
 async function runWeeklyReport(){
-  document.getElementById('weekly-btn').disabled = true;
+  const _btn = document.getElementById('weekly-btn');
+  _btn.disabled = true;
+  try {
 
   // Compute Monday 00:00 UTC of current week
   const now = new Date();
@@ -5301,8 +5303,11 @@ async function runWeeklyReport(){
   const weekStart = monday.toISOString();
   const _wrMandateId = (activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null;
   const _wrBaseQ = sbClient.from('weekly_reports').select('id').eq('client_id', CLIENT_ID).eq('week_start', weekStart);
-  const { data: _wrRows } = await (_wrMandateId ? _wrBaseQ.eq('mandate_id', _wrMandateId) : _wrBaseQ.is('mandate_id', null)).order('created_at', { ascending: false }).limit(1);
-  const _wrExist = _wrRows && _wrRows[0];
+  let _wrExist = null;
+  try {
+    const { data: _wrRows } = await (_wrMandateId ? _wrBaseQ.eq('mandate_id', _wrMandateId) : _wrBaseQ.is('mandate_id', null)).order('created_at', { ascending: false }).limit(1);
+    _wrExist = _wrRows && _wrRows[0];
+  } catch(e) { console.warn('[runWeeklyReport] pre-check:', e); }
   const _wrSave = (payload) => _wrExist
     ? sbClient.from('weekly_reports').update(payload).eq('id', _wrExist.id)
     : sbClient.from('weekly_reports').insert(payload);
@@ -5358,7 +5363,6 @@ async function runWeeklyReport(){
       });
     } catch(e) { console.warn('[runWeeklyReport] insert failed:', e); }
     await _loadWeeklyReports();
-    document.getElementById('weekly-btn').disabled = false;
     return;
   }
 
@@ -5400,7 +5404,13 @@ ${_langLine()}`;
     });
   } catch(e) { console.warn('[runWeeklyReport] insert failed:', e); }
   await _loadWeeklyReports();
-  document.getElementById('weekly-btn').disabled = false;
+  } catch(e) {
+    console.warn('[runWeeklyReport]', e);
+    const _wrl = document.getElementById('weekly-reports-list');
+    if (_wrl) _wrl.innerHTML = '<div style="color:var(--red);font-size:var(--fs-base);padding:16px 0;">Report generation failed — please retry.</div>';
+  } finally {
+    _btn.disabled = false;
+  }
 }
 
 // ── PIPELINE DRAWER (multi-touch timeline) ──
