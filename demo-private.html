@@ -1486,9 +1486,24 @@ body.new-nav { padding-left: 220px; }
         <select id="kanban-filter-sector" onchange="_applyKanbanFilters()" style="font-size:var(--fs-sm);padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--white);color:var(--text);cursor:pointer;">
           <option value="">All sectors</option>
           <option value="AdTech">AdTech</option>
-          <option value="Fintech">Fintech</option>
+          <option value="Fintech/Payments">Fintech/Payments</option>
+          <option value="Data/eCommerce">Data/eCommerce</option>
+          <option value="Programmatic">Programmatic</option>
+          <option value="Performance Marketing">Performance Marketing</option>
           <option value="B2B SaaS">B2B SaaS</option>
+          <option value="Retail Tech">Retail Tech</option>
+          <option value="Sales &amp; RevOps">Sales &amp; RevOps</option>
+          <option value="HR Tech">HR Tech</option>
+          <option value="Finance &amp; Accounting">Finance &amp; Accounting</option>
+          <option value="Cybersecurity">Cybersecurity</option>
+          <option value="LegalTech">LegalTech</option>
+          <option value="Productivity &amp; Collaboration">Productivity &amp; Collaboration</option>
+          <option value="Operations &amp; Supply Chain">Operations &amp; Supply Chain</option>
           <option value="Gaming">Gaming</option>
+          <option value="Investment / Financial Services">Investment / Financial Services</option>
+          <option value="Real Estate &amp; Construction">Real Estate &amp; Construction</option>
+          <option value="Industrial &amp; Energy">Industrial &amp; Energy</option>
+          <option value="Other">Other</option>
           <option value="Investor">Investor</option>
         </select>
         <select id="kanban-filter-stage" onchange="_applyKanbanFilters()" style="font-size:var(--fs-sm);padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--white);color:var(--text);cursor:pointer;">
@@ -4019,7 +4034,7 @@ async function runMorningScan() {
       ? scored.map((p, i) => {
           const sig = p.signal_type ? `[${p.signal_type.toUpperCase()}] ` : '';
           const sigLine = p.signal ? ` | Signal: ${sig}${p.signal}` : '';
-          return `${i + 1}. ${p.name || 'Unknown'} · ${p.company || '—'} · ${p.sector || '—'} · ${p.country || p.region || '—'} · Stage: ${p.stage || 'Identified'} · ICP: ${p.icp_score || 0} · Score: ${p.combinedScore}${sigLine}`;
+          return `${i + 1}. ${p.name || 'Unknown'} · ${p.company || '—'} · ${p.sector || '—'} · ${p.country || p.region || '—'} · Stage: ${p.stage || 'Identified'} · ICP: ${p.icp_score !== null && p.icp_score !== undefined ? p.icp_score : 'not yet scored'} · Score: ${p.combinedScore}${sigLine}`;
         }).join('\n')
       : 'No active prospects in pipeline.';
 
@@ -4933,7 +4948,7 @@ ${langRule}
     ? investorPrompts[touch]
     : `Write ${touchDescriptions[touch]||'a LinkedIn outreach message'} for this prospect.
 
-Prospect: ${p.name}, ${p.title||'unknown title'} at ${p.company} (${p.sector||'B2B'}, ${p.region||'EMEA'}).
+Prospect: ${p.name}, ${p.title||'unknown title'} at ${p.company}${(p.sector || p.country) ? ' (' + [p.sector, p.country].filter(Boolean).join(', ') + ')' : ''}.
 ${intCtx ? 'Recent interactions: ' + intCtx : ''}
 ${_senderBio()}
 ${_activeMandate ? 'ACTIVE MANDATE CONTEXT (defines the purpose of every message; the signal below informs the angle but must not contradict this mandate):' + '\n' + _mandateContext() + '\n---\n' : ''}
@@ -6480,7 +6495,7 @@ function _markPostCallSent() {
 
 async function _scannerMapCommittee() {
   const company = (document.getElementById('scanner-company')?.value || '').trim();
-  const sector  = (document.getElementById('scanner-sector')?.value  || 'B2B SaaS').trim();
+  const sector  = (document.getElementById('scanner-sector')?.value  || 'unspecified sector').trim();
   if (!company) { showToast('Enter a company name in Scanner first'); return; }
   const p = { company, sector, country: '', region: '', title: '' };
   const btn  = document.getElementById('scanner-committee-btn');
@@ -9096,7 +9111,7 @@ Be direct. No corporate language.`;
     <input id="ap-title" class="dp-inp" placeholder="Title">
     <input id="ap-email" class="dp-inp" placeholder="Email">
     <input id="ap-linkedin" class="dp-inp" placeholder="LinkedIn URL">
-    <input id="ap-sector" class="dp-inp" value="B2B SaaS" placeholder="Sector">
+    <input id="ap-sector" class="dp-inp" placeholder="Sector">
     <input id="ap-country" class="dp-inp" placeholder="Country">
     <select id="ap-region" class="dp-inp"><option value="" selected>Select region...</option><option value="EMEA">EMEA</option><option value="NA">NA</option></select>
     <select id="ap-stage" class="dp-inp"><option>Identified</option><option value="1st Contact">Connected</option><option>Engaged</option><option>Replied</option><option>Proposal</option><option>Negotiation</option><option>Closed</option></select>
