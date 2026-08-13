@@ -5346,7 +5346,7 @@ async function runWeeklyReport(){
       .eq('client_id', _wrClientId);
     _wrIntQuery = _applyMandateFilter(_wrIntQuery);
     const { data: ints, error } = await _wrIntQuery
-      .in('type', ['linkedin', 'email', 'call', 'meeting'])
+      .in('type', ['linkedin', 'LinkedIn', 'email', 'call', 'meeting', 'email_j5'])
       .gte('created_at', weekStart)
       .order('created_at', { ascending: false })
       .limit(500);
@@ -5360,9 +5360,11 @@ async function runWeeklyReport(){
       const { data: freshProspects } = await _wrPQuery.in('id', uniqueIds);
       const pById = {};
       (freshProspects || []).forEach(p => { pById[p.id] = p; });
+      const _wrTypeLabel = { LinkedIn: 'linkedin', email_j5: 'J+5 follow-up' };
       interactionLines = ints.map(i => {
         const p = pById[i.prospect_id] || {};
-        return `${p.name || 'Unknown'} - ${p.company || ''} - ${i.type || 'interaction'} - ${(i.created_at || '').slice(0, 10)}`;
+        const _lbl = _wrTypeLabel[i.type] || i.type || 'interaction';
+        return `${p.name || 'Unknown'} - ${p.company || ''} - ${_lbl} - ${(i.created_at || '').slice(0, 10)}`;
       }).join('\n');
       // Factual summary computed from raw data — no AI parsing needed
       const _byType = {};
