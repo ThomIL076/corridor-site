@@ -5301,7 +5301,7 @@ async function runWeeklyReport(){
   const weekStart = monday.toISOString();
   const _wrMandateId = (activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null;
   const _wrBaseQ = sbClient.from('weekly_reports').select('id').eq('client_id', CLIENT_ID).eq('week_start', weekStart);
-  const { data: _wrRows } = await (_wrMandateId ? _wrBaseQ.eq('mandate_id', _wrMandateId) : _wrBaseQ.is('mandate_id', null)).limit(1);
+  const { data: _wrRows } = await (_wrMandateId ? _wrBaseQ.eq('mandate_id', _wrMandateId) : _wrBaseQ.is('mandate_id', null)).order('created_at', { ascending: false }).limit(1);
   const _wrExist = _wrRows && _wrRows[0];
   const _wrSave = (payload) => _wrExist
     ? sbClient.from('weekly_reports').update(payload).eq('id', _wrExist.id)
