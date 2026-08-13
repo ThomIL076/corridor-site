@@ -1483,7 +1483,7 @@ body.new-nav { padding-left: 220px; }
           onblur="this.style.borderColor='var(--border)'; _applyKanbanFilters(); _resetZoom();">
         <button class="btn-md" id="sort-icp-btn" onclick="_toggleSortICP()" style="border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;color:var(--text);background:#fff;cursor:pointer;white-space:nowrap;display:flex;align-items:center;justify-content:space-between;gap:6px;"><span>ICP</span><span id="icp-sort-arrow">⇅</span></button>
         <button class="btn-md" id="btn-rank-90d" onclick="_rank90d()" style="border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;color:var(--text);background:#fff;cursor:pointer;white-space:nowrap;"><span data-en="Rank 90d" data-fr="Score 90j">Rank 90d</span></button>
-        <select id="kanban-filter-sector" onchange="_applyKanbanFilters()" style="font-size:var(--fs-sm);padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--white);color:var(--text);cursor:pointer;">
+        <select id="kanban-filter-sector" onchange="_applyKanbanFilters()" style="font-size:var(--fs-sm);padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--white);color:var(--text);cursor:pointer;max-width:180px;">
           <option value="">All sectors</option>
           <option value="AdTech">AdTech</option>
           <option value="Fintech/Payments">Fintech/Payments</option>
