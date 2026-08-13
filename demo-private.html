@@ -5259,7 +5259,7 @@ async function importCSV(e) {
         name, company, sector,
         country: country || null, region: region || null,
         linkedin: linkedin || null, email: email || null,
-        stage: 'Identified', origin: 'csv_import', archived: false
+        stage: 'Identified', origin: 'csv_import', import_source: 'csv_import', archived: false
       });
     }
 
@@ -5926,7 +5926,7 @@ async function _addScannerToPipeline() {
       stage: 'Identified',
       icp_score: d.icp_score != null ? d.icp_score : null,
       signal: d.signal || null,
-      origin: 'outbound',
+      origin: 'outbound', import_source: 'scanner',
       archived: false,
       updated_at: new Date().toISOString()
     };
@@ -7237,7 +7237,7 @@ async function addProspect(){
     client_id: CLIENT_ID, mandate_id: (activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null, external_id: identityKey(p),
     name, company, title: g('ap-title') || null, email: g('ap-email') || null, linkedin: g('ap-linkedin') || null,
     sector: g('ap-sector') || null, country: g('ap-country') || null, region: document.getElementById('ap-region')?.value || null,
-    stage: STAGE_DB[stageSel] || stageSel, archived: false, deal_value: null, deal_currency: null, updated_at: new Date().toISOString()
+    stage: STAGE_DB[stageSel] || stageSel, archived: false, import_source: 'manual', deal_value: null, deal_currency: null, updated_at: new Date().toISOString()
   };
   const btn = document.getElementById('ap-save-btn'); if (btn) btn.disabled = true;
   try {

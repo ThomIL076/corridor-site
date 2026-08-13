@@ -1540,6 +1540,7 @@ body.new-nav { padding-left: 220px; }
             <option value="overdue">Overdue</option>
             <option value="upcoming">Upcoming</option>
           </select>
+          <input id="kanban-filter-title" type="text" oninput="_applyKanbanFilters()" placeholder="Role / title" style="font-size:var(--fs-sm);padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--white);color:var(--text);width:100%;">
         </div>
         <div style="border-top:1px solid var(--border);margin-top:12px;padding-top:8px;display:flex;justify-content:flex-end;">
           <button onclick="_resetKanbanFilters()" style="font-size:var(--fs-xs);padding:4px 10px;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;">Clear filters</button>
@@ -5206,7 +5207,7 @@ async function importCSV(e) {
         country: country || null, region: region || null,
         linkedin: linkedin || null, email: email || null,
         title, notes,
-        stage: 'Identified', origin: 'csv_import', archived: false
+        stage: 'Identified', origin: 'csv_import', import_source: 'csv_import', archived: false
       });
     }
 
@@ -5588,6 +5589,7 @@ async function openDrawer(card) {
       </button>
       <button class="drawer-close" onclick="closeDrawer()" aria-label="Close prospect drawer">✕</button>
     </div>
+    ${_p.icp_reason ? `<div style="margin:8px 16px 0;padding:8px 12px;background:var(--navy-light);border-radius:var(--radius-md);font-size:var(--fs-xs);color:var(--text);line-height:1.5;border-left:3px solid var(--blue-brand);">${_esc(_p.icp_reason)}</div>` : ''}
     <div class="drawer-tabs">
       <div class="dtab active" onclick="_switchDTab('activity',this)">Activity</div>
       <div class="dtab" onclick="_switchDTab('profile',this)">Profile</div>
@@ -5596,6 +5598,14 @@ async function openDrawer(card) {
     </div>
     <div class="dtab-panel active" id="dpanel-activity">
       ${_reminderBannerHTML(reminderDate)}
+      <div style="margin:12px 16px 0;padding:12px;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--bg);">
+        <div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);letter-spacing:0.02em;margin-bottom:8px">Next action</div>
+        <input id="drawer-next-action" class="dp-inp" value="${_esc(_p.next_action || '')}" placeholder="Next step..." style="margin-bottom:6px">
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input id="drawer-next-action-date" type="date" class="dp-inp" value="${_esc((_p.next_action_date || '').slice(0,10))}" style="flex:1;min-width:0">
+          <button onclick="_saveNextAction('${_esc(prospectId)}')" style="font-size:var(--fs-sm);padding:5px 12px;background:var(--navy);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer;white-space:nowrap">Save</button>
+        </div>
+      </div>
       <div class="int-log" id="drawer-int-list">
         <div class="int-empty" style="color:var(--dim);font-size:var(--fs-sm)">Loading...</div>
       </div>
@@ -6066,7 +6076,7 @@ async function _addScannerToPipeline() {
       stage: 'Identified',
       icp_score: d.icp_score != null ? d.icp_score : null,
       signal: d.signal || null,
-      origin: 'outbound',
+      origin: 'outbound', import_source: 'scanner',
       archived: false,
       updated_at: new Date().toISOString()
     };
@@ -7263,6 +7273,19 @@ async function _setOrigin(pid, origin) {
   if (_originErr) { console.error('[_setOrigin] update failed:', _originErr); showToast('Error updating origin'); return; }
   showToast(origin === 'network' ? 'Marked as known contact' : 'Marked as new prospect');
 }
+async function _saveNextAction(id) {
+  const naText = (document.getElementById('drawer-next-action')?.value || '').trim() || null;
+  const naDate = document.getElementById('drawer-next-action-date')?.value || null;
+  const { error } = await sbClient.from('prospects')
+    .update({ next_action: naText, next_action_date: naDate || null, updated_at: new Date().toISOString() })
+    .eq('id', id).eq('client_id', CLIENT_ID);
+  if (error) { showToast('Save failed'); return; }
+  const p = _prospectsById[id];
+  if (p) { p.next_action = naText; p.next_action_date = naDate || null; }
+  const card = document.querySelector(`.k-card[data-id="${id}"]`);
+  if (card) { card.dataset.nextAction = naText ? '1' : '0'; card.dataset.nextActionDate = naDate || ''; }
+  showToast('Next action saved');
+}
 function _renderSignalLink(signalText) {
   const wrap = document.getElementById('signal-link-wrap');
   if (!wrap) return;
@@ -7394,7 +7417,7 @@ async function addProspect(){
     client_id: CLIENT_ID, mandate_id: (activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null, external_id: identityKey(p),
     name, company, title: g('ap-title') || null, email: g('ap-email') || null, linkedin: g('ap-linkedin') || null,
     sector: g('ap-sector') || null, country: g('ap-country') || null, region: document.getElementById('ap-region')?.value || null,
-    stage: STAGE_DB[stageSel] || stageSel, archived: false,
+    stage: STAGE_DB[stageSel] || stageSel, archived: false, import_source: 'manual',
     deal_value: null, deal_currency: null,
     updated_at: new Date().toISOString()
   };
@@ -8261,6 +8284,7 @@ function _applyKanbanFilters() {
   const confidence  = document.getElementById('kanban-filter-confidence')?.value || '';
   const nextAction  = document.getElementById('kanban-filter-next-action')?.value || '';
   const naDate      = document.getElementById('kanban-filter-na-date')?.value   || '';
+  const titleFilter = (document.getElementById('kanban-filter-title')?.value || '').toLowerCase().trim();
   const todayStr    = new Date().toISOString().slice(0, 10);
   document.querySelectorAll('.k-card').forEach(card => {
     if (card.closest('#crm-board')) return;
@@ -8276,6 +8300,7 @@ function _applyKanbanFilters() {
     const cardConf    = card.dataset.confidence || '';
     const cardNA      = card.dataset.nextAction || '0';
     const cardNADate  = card.dataset.nextActionDate || '';
+    const cardTitle   = (card.dataset.jobTitle || '').toLowerCase();
     const matchSearch  = !search  || name.includes(search) || company.includes(search);
     const matchSector  = !sector  || cardSector  === sector;
     const matchStage   = !stage   || cardStage   === stage;
@@ -8299,7 +8324,8 @@ function _applyKanbanFilters() {
     else if (_hpFilter === 'warm')    matchHp = cardScore >= 6 && cardScore < 8;
     else if (_hpFilter === 'neutral') matchHp = cardScore >= 4 && cardScore < 6;
     else if (_hpFilter === 'cold')    matchHp = cardScore < 4;
-    card.style.display = (matchSearch && matchSector && matchStage && matchCountry && matchSignal && matchOrigin && matchDeal && matchConf && matchNA && matchNADate && matchHp) ? '' : 'none';
+    const matchTitle = !titleFilter || cardTitle.includes(titleFilter);
+    card.style.display = (matchSearch && matchSector && matchStage && matchCountry && matchSignal && matchOrigin && matchDeal && matchConf && matchNA && matchNADate && matchHp && matchTitle) ? '' : 'none';
   });
   document.querySelectorAll('.kanban-col').forEach(col => {
     if (col.closest('#crm-board')) return;
@@ -8312,7 +8338,7 @@ function _applyKanbanFilters() {
 function _resetKanbanFilters() {
   ['kanban-search','kanban-filter-sector','kanban-filter-stage',
    'kanban-filter-country','kanban-filter-signal','kanban-filter-origin','kanban-filter-deal',
-   'kanban-filter-confidence','kanban-filter-next-action','kanban-filter-na-date']
+   'kanban-filter-confidence','kanban-filter-next-action','kanban-filter-na-date','kanban-filter-title']
     .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   _resetHpFilter();
   _applyKanbanFilters();
@@ -8345,7 +8371,7 @@ function _toggleFiltersPanel() {
 }
 function _updateKanbanFiltersBadge() {
   const ids = ['kanban-filter-country','kanban-filter-signal','kanban-filter-origin',
-               'kanban-filter-deal','kanban-filter-confidence','kanban-filter-next-action','kanban-filter-na-date'];
+               'kanban-filter-deal','kanban-filter-confidence','kanban-filter-next-action','kanban-filter-na-date','kanban-filter-title'];
   const n = ids.filter(id => { const el = document.getElementById(id); return el && el.value; }).length;
   const countEl = document.getElementById('kanban-filters-count');
   const btn = document.getElementById('kanban-filters-btn');
@@ -8965,7 +8991,7 @@ async function loadKanban(force){
     while (true) {
       let _kQuery = sbClient
         .from('prospects')
-        .select('id, name, company, title, sector, region, country, stage, linkedin, email, phone, deal_value, deal_currency, deal_structure, deal_weighted, notes, last_contact, reminder_date, icp_score, archived, client_id, linkedin_tag, origin, signal, signal_type, created_at, draft_invite_note, company_size, next_action, next_action_date')
+        .select('id, name, company, title, sector, region, country, stage, linkedin, email, phone, deal_value, deal_currency, deal_structure, deal_weighted, notes, last_contact, reminder_date, icp_score, icp_reason, archived, client_id, linkedin_tag, origin, signal, signal_type, created_at, draft_invite_note, company_size, next_action, next_action_date')
         .eq('client_id', CLIENT_ID);
       _kQuery = _applyMandateFilter(_kQuery);
       const { data: chunk, error } = await _kQuery
