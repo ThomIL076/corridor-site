@@ -2043,7 +2043,7 @@ async function _resolveMandate(mandateId) {
   try {
     const { data, error } = await sbClient
       .from('mandates')
-      .select('*')
+      .select('id, client_id, segment, name, status, icp_criteria, geography, sectors, decision_makers, signals, exclusions, smartlead_campaign_id')
       .eq('id', mandateId)
       .eq('client_id', CLIENT_ID)
       .single();
