@@ -1923,7 +1923,7 @@ function _renderSignalsFeed() {
       : '';
     const header = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">${badge}${labelHtml}<span style="font-size:var(--fs-xs);color:var(--text-secondary);white-space:nowrap;margin-left:auto;">${tsStr}</span></div>`;
     const bodyHtml = item.type === 'morning'
-      ? `<div>${renderMarkdown(item.content)}</div>`
+      ? `<div>${renderMarkdown(item.content)}${item.linkHtml || ''}</div>`
       : `<div style="font-size:var(--fs-base);line-height:1.6;color:var(--text-primary);">${item.signal ? _sanitizeSignal(item.signal) + '<br>' : ''}${_esc(item.content)}</div>`;
     return `<div style="border:1px solid var(--border);border-radius:var(--radius-panel);padding:14px 16px;margin-bottom:12px;">${header}${bodyHtml}</div>`;
   }).join('');
@@ -4136,6 +4136,12 @@ Max 300 words. Keep it tight and operational.`;
       })
       .filter(item => item.content);
     if (!_morningItems.length) _morningItems = [{ timestamp: runTs, type: 'morning', label: 'Morning Scan', content: text.trim() }];
+    const _msLink = window.location.origin + window.location.pathname +
+      (activeMandateId && activeMandateId !== '__ALL__' ? '?mandate=' + activeMandateId : '');
+    if (eligibleTotal > 20) {
+      const _topItem = _morningItems.find(it => it.label.toLowerCase().includes('prospect'));
+      if (_topItem) _topItem.linkHtml = `<div style="margin-top:8px;"><a href="${_msLink}" style="color:var(--navy);font-size:var(--fs-sm);text-decoration:underline;">View full pipeline (${eligibleTotal} prospects) →</a></div>`;
+    }
     _renderSignalsFeed();
   } catch (e) {
     _morningItems = [{ timestamp: new Date().toISOString(), type: 'morning', label: 'Error', content: e.message }];
