@@ -1176,6 +1176,9 @@ body.new-nav { padding-left: 220px; }
     <button class="snav-item" data-nav="stats" onclick="_switchNewNav('stats')">
       <span class="snav-icon">📈</span> Stats
     </button>
+    <button class="snav-item" data-nav="integrations" onclick="_switchNewNav('integrations')">
+      <span class="snav-icon">🔗</span> Integrations
+    </button>
   </div>
   <div class="snav-scanner-zone">
     <button class="snav-item" onclick="openScannerPanel()" aria-label="Open company scanner">
@@ -1900,6 +1903,64 @@ body.new-nav { padding-left: 220px; }
 
   </div>
 
+  <!-- ══ TAB: INTEGRATIONS ══ -->
+  <div class="tab-panel" id="tab-integrations">
+    <div class="module-header" style="margin-bottom:20px;">
+      <div class="module-title">Integrations</div>
+    </div>
+
+    <div class="card" style="max-width:620px;">
+      <div class="card-header">
+        <span class="card-title">HubSpot CRM</span>
+        <span id="hs-status-badge" class="card-badge" style="display:none;"></span>
+      </div>
+
+      <!-- 1. API key -->
+      <div style="margin-bottom:16px;">
+        <label style="display:block;font-size:var(--fs-sm);font-weight:600;color:var(--navy);margin-bottom:6px;">API Key</label>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input type="password" id="hs-api-key" class="input-field"
+            placeholder="pat-na1-••••••••"
+            style="flex:1;font-family:monospace;font-size:var(--fs-sm);letter-spacing:0.04em;"
+            oninput="_hsOnKeyInput()">
+          <button class="btn-secondary btn-sm" onclick="_hsRevealKey()" id="hs-reveal-btn"
+            title="Reveal / hide" style="padding:7px 10px;font-size:15px;line-height:1;">👁</button>
+          <button class="btn-secondary btn-sm" onclick="_hsCopyKey()" style="white-space:nowrap;">Copy</button>
+        </div>
+      </div>
+
+      <!-- 2. Test connection -->
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+        <button class="btn-primary btn-md" id="hs-test-btn" onclick="_hsTestConnection()" disabled>
+          Test connection
+        </button>
+        <div class="ai-spinner" id="hs-spinner" style="display:none;"></div>
+        <span id="hs-test-result" style="font-size:var(--fs-sm);"></span>
+      </div>
+
+      <!-- 3 + 4. Stage mapping + Save (revealed after successful test) -->
+      <div id="hs-mapping-section" style="display:none;">
+        <div style="border-top:1px solid var(--border);padding-top:20px;margin-bottom:16px;">
+          <div style="font-size:var(--fs-sm);font-weight:700;color:var(--navy);margin-bottom:4px;">Stage Mapping</div>
+          <div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:16px;">
+            For each HubSpot deal stage, choose the equivalent Corridor stage.
+          </div>
+          <div id="hs-mapping-rows"></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <button class="btn-primary btn-md" id="hs-save-btn" onclick="_hsSaveMapping()">Save mapping</button>
+          <span id="hs-save-result" style="font-size:var(--fs-sm);"></span>
+        </div>
+      </div>
+
+      <!-- 5. Last sync -->
+      <div style="margin-top:20px;padding-top:14px;border-top:1px solid var(--border);
+                  font-size:var(--fs-xs);color:var(--muted);">
+        Last sync: <span id="hs-last-sync">—</span>
+      </div>
+    </div>
+  </div>
+
 </main>
 
 <footer>
@@ -2413,6 +2474,7 @@ function switchTab(name, fromClick = false) {
   if (name === 'send') loadSendView();
   if (name === 'stats') { if (!_kanbanLoaded) { loadKanban().then(() => renderStats()); } else { renderStats(); } }
   if (name === 'clients') loadClientsKanban();
+  if (name === 'integrations') loadIntegrationsTab();
   // Scroll vers le panel actif uniquement sur clic utilisateur (pas au lancement de la PWA).
   // Offset calculé dynamiquement (hauteur réelle des barres fixes) — fiable sur iPhone.
   if (fromClick) {
@@ -8869,7 +8931,7 @@ async function loadClientProfile() {
     if (!user) return false;
     const { data, error } = await _supabase
       .from('clients')
-      .select('client_id, contact_name, company_name, display_name, avatar_url, sender_bio, owner_inbox_email, smartlead_campaign_id')
+      .select('client_id, contact_name, company_name, display_name, avatar_url, sender_bio, owner_inbox_email, smartlead_campaign_id, hubspot_api_key, hubspot_stage_mapping, hubspot_last_sync')
       .eq('auth_user_id', user.id)
       .single();
     if (error || !data) return false;
@@ -9031,6 +9093,167 @@ Be direct. No corporate language.`;
     btn.textContent = 'Escalation Handler';
     spinner.style.display = 'none';
   }
+}
+
+// ─── INTEGRATIONS — HubSpot ──────────────────────────────────────────────────
+
+let _hsStages = [];       // stages fetched from HubSpot after a successful test
+let _hsPipelineCount = 0; // number of distinct pipelines; drives label disambiguation
+
+function loadIntegrationsTab() {
+  if (!_clientProfile) return;
+  const key = _clientProfile.hubspot_api_key || '';
+  const keyInput = document.getElementById('hs-api-key');
+  if (keyInput) {
+    keyInput.value = key;
+    document.getElementById('hs-test-btn').disabled = !key.trim();
+  }
+  const syncEl = document.getElementById('hs-last-sync');
+  if (syncEl) {
+    const ts = _clientProfile.hubspot_last_sync;
+    syncEl.textContent = ts ? new Date(ts).toLocaleString() : 'Never synced';
+  }
+  const savedMapping = _clientProfile.hubspot_stage_mapping;
+  if (_hsStages.length && savedMapping) _hsRestoreMapping(savedMapping);
+}
+
+function _hsOnKeyInput() {
+  const val = (document.getElementById('hs-api-key').value || '').trim();
+  document.getElementById('hs-test-btn').disabled = !val;
+  document.getElementById('hs-test-result').textContent = '';
+  document.getElementById('hs-mapping-section').style.display = 'none';
+  document.getElementById('hs-status-badge').style.display = 'none';
+}
+
+function _hsRevealKey() {
+  const input = document.getElementById('hs-api-key');
+  const btn   = document.getElementById('hs-reveal-btn');
+  input.type  = input.type === 'password' ? 'text' : 'password';
+  btn.textContent = input.type === 'password' ? '👁' : '🙈';
+}
+
+function _hsCopyKey() {
+  const val = document.getElementById('hs-api-key').value || '';
+  if (!val) return;
+  navigator.clipboard.writeText(val).then(() => {
+    const btn = document.querySelector('#tab-integrations .btn-secondary[onclick="_hsCopyKey()"]');
+    if (!btn) return;
+    const orig = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = orig; }, 1500);
+  });
+}
+
+async function _hsTestConnection() {
+  const apiKey = (document.getElementById('hs-api-key').value || '').trim();
+  if (!apiKey) return;
+
+  const testBtn  = document.getElementById('hs-test-btn');
+  const spinner  = document.getElementById('hs-spinner');
+  const resultEl = document.getElementById('hs-test-result');
+  const badge    = document.getElementById('hs-status-badge');
+
+  testBtn.disabled = true;
+  spinner.style.display = '';
+  resultEl.textContent  = '';
+  resultEl.style.color  = 'var(--muted)';
+  document.getElementById('hs-mapping-section').style.display = 'none';
+
+  try {
+    const res  = await fetch('/api/hubspot', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'get_pipelines', apiKey })
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      _hsStages        = data.stages || [];
+      _hsPipelineCount = data.pipelineCount || 0;
+      resultEl.textContent = `✓ Connected — ${_hsStages.length} stage${_hsStages.length !== 1 ? 's' : ''} found`;
+      resultEl.style.color = 'var(--green, #16a34a)';
+      badge.textContent    = 'Connected';
+      badge.className      = 'card-badge badge-ai';
+      badge.style.cssText  = '';
+      badge.style.display  = '';
+      await sbClient.from('clients').update({ hubspot_api_key: apiKey }).eq('client_id', CLIENT_ID);
+      if (_clientProfile) _clientProfile.hubspot_api_key = apiKey;
+      _hsRenderStageMapping(_hsStages, _clientProfile?.hubspot_stage_mapping || {});
+    } else {
+      resultEl.textContent = '✗ ' + (data.error || 'Connection failed — check your API key');
+      resultEl.style.color = 'var(--red, #dc2626)';
+      badge.textContent    = 'Error';
+      badge.className      = 'card-badge';
+      badge.style.cssText  = 'background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;';
+      badge.style.display  = '';
+    }
+  } catch (e) {
+    resultEl.textContent = '✗ Network error — ' + e.message;
+    resultEl.style.color = 'var(--red, #dc2626)';
+  } finally {
+    testBtn.disabled = false;
+    spinner.style.display = 'none';
+  }
+}
+
+function _hsRenderStageMapping(stages, existingMapping) {
+  const container = document.getElementById('hs-mapping-rows');
+  if (!container) return;
+
+  const corridorOptions = ['', ...KANBAN_STAGES]
+    .map(s => `<option value="${s}">${s || '— do not map —'}</option>`)
+    .join('');
+
+  container.innerHTML = stages.map(stage => {
+    const key   = `${stage.pipelineId}:${stage.id}`;
+    const saved = existingMapping[key] || '';
+    const pipelineLabel = _hsPipelineCount > 1
+      ? `<span style="font-size:var(--fs-xs);color:var(--muted);margin-left:6px;">${stage.pipeline}</span>`
+      : '';
+    return `
+      <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;margin-bottom:10px;">
+        <div style="font-size:var(--fs-sm);color:var(--navy);">${stage.label}${pipelineLabel}</div>
+        <div style="font-size:var(--fs-xs);color:var(--muted);">→</div>
+        <select class="input-field" style="font-size:var(--fs-sm);padding:7px 10px;" data-hs-key="${key}">
+          ${corridorOptions.replace(`value="${saved}"`, `value="${saved}" selected`)}
+        </select>
+      </div>`;
+  }).join('');
+
+  document.getElementById('hs-mapping-section').style.display = '';
+}
+
+function _hsRestoreMapping(existingMapping) {
+  if (!_hsStages.length) return;
+  _hsRenderStageMapping(_hsStages, existingMapping);
+}
+
+async function _hsSaveMapping() {
+  const saveBtn  = document.getElementById('hs-save-btn');
+  const resultEl = document.getElementById('hs-save-result');
+
+  const mapping = {};
+  document.querySelectorAll('#hs-mapping-rows [data-hs-key]').forEach(sel => {
+    if (sel.value) mapping[sel.dataset.hsKey] = sel.value;
+  });
+
+  saveBtn.disabled     = true;
+  resultEl.textContent = '';
+
+  const { error } = await sbClient.from('clients')
+    .update({ hubspot_stage_mapping: mapping })
+    .eq('client_id', CLIENT_ID);
+
+  if (error) {
+    resultEl.textContent = '✗ Save failed — ' + error.message;
+    resultEl.style.color = 'var(--red, #dc2626)';
+  } else {
+    if (_clientProfile) _clientProfile.hubspot_stage_mapping = mapping;
+    resultEl.textContent = '✓ Mapping saved';
+    resultEl.style.color = 'var(--green, #16a34a)';
+    setTimeout(() => { resultEl.textContent = ''; }, 3000);
+  }
+  saveBtn.disabled = false;
 }
 
 
