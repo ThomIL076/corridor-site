@@ -1448,6 +1448,57 @@ footer {
 .news-skel-line { background:var(--border); border-radius:4px; margin-bottom:6px; animation:skel-pulse 1.5s ease-in-out infinite; }
 @keyframes skel-pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
 @media (max-width:600px) { .news-grid { grid-template-columns:1fr; } }
+/* ── FAQ ── */
+.faq-section {
+  padding: 80px 40px;
+  background: var(--surf);
+}
+.faq-inner {
+  max-width: 720px;
+  margin: 0 auto;
+}
+.faq-section .section-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--blue);
+  margin-bottom: 12px;
+}
+.faq-section h2 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--navy);
+  margin-bottom: 48px;
+  line-height: 1.2;
+}
+.faq-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.faq-item {
+  padding: 24px 0;
+  border-bottom: 1px solid var(--border);
+}
+.faq-item:first-child { border-top: 1px solid var(--border); }
+.faq-q {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--navy);
+  margin-bottom: 10px;
+  line-height: 1.4;
+}
+.faq-a {
+  font-size: 0.9375rem;
+  color: var(--text, #2d3748);
+  line-height: 1.7;
+  margin: 0;
+}
+@media (max-width: 600px) {
+  .faq-section { padding: 64px 20px; }
+  .faq-section h2 { font-size: 1.4rem; }
+}
 </style>
 <!-- RB2B Visitor Tracking (consent-gated; visible in source for RB2B validation) -->
 <script>
@@ -1467,6 +1518,78 @@ footer {
     }("0NW1GHZ0GWO4");
   }
 })();
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Do I need to give up my current CRM to use Corridor?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "No. Corridor already exports into Salesforce, Pipedrive, and HubSpot automatically. If you have an existing pipeline in one of these tools, it can be brought into Corridor rather than replaced."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How long does it take to get started?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "3-4 weeks from kickoff to your first outreach live, based on the standard onboarding timeline. See the comparison above for how that stacks up against a country manager hire or building in-house."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What do I actually own once Corridor is running?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Your prospect and signal database, your ICP model and scoring rules, your outreach sequences, your brand knowledge base, your pipeline history, and the AI agents configured for your brand. The system is yours from day one, not licensed access to someone else's."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does Corridor send messages from its own accounts, or mine?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yours. Every message goes out through LinkedIn and email accounts you own and control. Corridor never initiates outreach independently or maintains a shared sending infrastructure across clients."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Is Corridor only for a specific industry?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "No. Corridor works across industries for companies roughly 11-200 employees where a founder or small team is not yet running a dedicated, systematic outbound motion."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What if I already have a sales team?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Corridor is built for founders and small teams without a dedicated GTM function yet, not to replace an existing sales team. Most clients bring it in before or while building that team out, to establish a working pipeline sooner."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How is this different from tools like Clay or Apollo?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Those are components: enrichment, or a contact database. Corridor is the closed loop around them: signal intelligence, targeting, outreach across LinkedIn and email, and pipeline management that tracks and improves the system over time, not just one layer of it."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What does pricing look like?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "It depends on scope, discussed directly on the discovery call. No deck, no fixed package pushed before understanding what you actually need."
+      }
+    }
+  ]
+}
 </script>
 </head>
 <body>
@@ -1807,6 +1930,48 @@ footer {
         <span>Founder, Corridor · 20+ years B2B GTM</span>
       </div>
     </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="faq-section" id="faq">
+  <div class="faq-inner">
+    <p class="section-label">Common questions</p>
+    <h2>What prospects actually ask.</h2>
+    <ul class="faq-list">
+      <li class="faq-item">
+        <p class="faq-q">Do I need to give up my current CRM to use Corridor?</p>
+        <p class="faq-a">No. Corridor already exports into Salesforce, Pipedrive, and HubSpot automatically. If you have an existing pipeline in one of these tools, it can be brought into Corridor rather than replaced.</p>
+      </li>
+      <li class="faq-item">
+        <p class="faq-q">How long does it take to get started?</p>
+        <p class="faq-a">3–4 weeks from kickoff to your first outreach live, based on the standard onboarding timeline. See the comparison above for how that stacks up against a country manager hire or building in-house.</p>
+      </li>
+      <li class="faq-item">
+        <p class="faq-q">What do I actually own once Corridor is running?</p>
+        <p class="faq-a">Your prospect and signal database, your ICP model and scoring rules, your outreach sequences, your brand knowledge base, your pipeline history, and the AI agents configured for your brand. The system is yours from day one, not licensed access to someone else's.</p>
+      </li>
+      <li class="faq-item">
+        <p class="faq-q">Does Corridor send messages from its own accounts, or mine?</p>
+        <p class="faq-a">Yours. Every message goes out through LinkedIn and email accounts you own and control. Corridor never initiates outreach independently or maintains a shared sending infrastructure across clients.</p>
+      </li>
+      <li class="faq-item">
+        <p class="faq-q">Is Corridor only for a specific industry?</p>
+        <p class="faq-a">No. Corridor works across industries for companies roughly 11–200 employees where a founder or small team is not yet running a dedicated, systematic outbound motion.</p>
+      </li>
+      <li class="faq-item">
+        <p class="faq-q">What if I already have a sales team?</p>
+        <p class="faq-a">Corridor is built for founders and small teams without a dedicated GTM function yet, not to replace an existing sales team. Most clients bring it in before or while building that team out, to establish a working pipeline sooner.</p>
+      </li>
+      <li class="faq-item">
+        <p class="faq-q">How is this different from tools like Clay or Apollo?</p>
+        <p class="faq-a">Those are components: enrichment, or a contact database. Corridor is the closed loop around them: signal intelligence, targeting, outreach across LinkedIn and email, and pipeline management that tracks and improves the system over time, not just one layer of it.</p>
+      </li>
+      <li class="faq-item">
+        <p class="faq-q">What does pricing look like?</p>
+        <p class="faq-a">It depends on scope, discussed directly on the discovery call. No deck, no fixed package pushed before understanding what you actually need.</p>
+      </li>
+    </ul>
   </div>
 </section>
 
