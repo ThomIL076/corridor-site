@@ -8422,6 +8422,7 @@ function _applyKanbanFilters() {
     if (badge) badge.textContent = visible;
   });
   _updateKanbanFiltersBadge();
+  _updateKpiCards();
 }
 function _resetKanbanFilters() {
   ['kanban-search','kanban-filter-sector','kanban-filter-stage',
@@ -8430,6 +8431,43 @@ function _resetKanbanFilters() {
     .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   _resetHpFilter();
   _applyKanbanFilters();
+}
+function _updateKpiCards() {
+  const cards = Array.from(document.querySelectorAll('.k-card'))
+    .filter(c => !c.closest('#crm-board') && c.style.display !== 'none');
+  const total  = cards.length;
+  const emea   = cards.filter(c => _regionTag(c.dataset.region) === 'EMEA').length;
+  const na     = total - emea;
+  const inConv = cards.filter(c => (_stageRank[_stageKey(c.dataset.stage)] || 0) >= _stageRank['1st Contact']).length;
+  const nowMs  = Date.now();
+  const highPrio = cards.filter(c => {
+    const icpS  = parseFloat(c.dataset.icpScore) || 0;
+    const stage = _stageKey(c.dataset.stage);
+    const rem   = c.dataset.reminderDate || '';
+    const lc    = c.dataset.lastContact  || '';
+    let ps = (icpS / 10) * 4 + ((_stageRank[stage] || 0) / 5) * 3;
+    const overdue = !!rem && new Date(rem).getTime() < nowMs && (!!lc || stage !== 'Identified');
+    const dsc = lc ? Math.floor((nowMs - new Date(lc)) / 86400000) : null;
+    if (overdue)                        ps += 3;
+    else if (dsc !== null && dsc > 7)   ps += 1.5;
+    else if (dsc !== null && dsc > 3)   ps += 0.8;
+    return Math.min(ps, 10) >= 8 || overdue;
+  }).length;
+  const weighted = cards.reduce((s, c) => s + (parseFloat(c.dataset.deal) || 0) * _closingProb(_stageKey(c.dataset.stage)), 0);
+  const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  const pair = (a, b) => a + '<span class="numsplit"> / </span>' + b;
+  setTxt('kpi-active', total);
+  setTxt('score-kpi-active', total);
+  setTxt('score-kpi-inconv', inConv);
+  const naEmea = document.getElementById('score-kpi-naemea');
+  if (naEmea) naEmea.innerHTML = pair(na, emea);
+  const emeaNa = document.getElementById('kpi-emeana');
+  if (emeaNa) { emeaNa.innerHTML = pair(emea, na); emeaNa.style.color = ''; }
+  const inconv = document.getElementById('kpi-inconv');
+  if (inconv) { inconv.textContent = inConv; inconv.classList.remove('amber'); }
+  setTxt('kpi-highprio', highPrio);
+  const pipeEl = document.getElementById('kpi-pipeline');
+  if (pipeEl) pipeEl.textContent = weighted > 0 ? ('€' + Math.round(weighted / 1000) + 'k') : (currentLang === 'fr' ? 'En construction' : 'Building');
 }
 
 let _hpFilter = 'all';
