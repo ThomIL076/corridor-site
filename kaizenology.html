@@ -4315,7 +4315,15 @@ async function runMorningScan() {
             },
             {
               role: 'user',
-              content: (() => { const s = _activeMandate?.sectors || 'Private Equity, M&A, Wealth Management, Alternative Investments'; return `Find the most important B2B business signals from the last 24-48 hours relevant to: ${s}. Focus on:\n- Fundraising rounds, M&A activity, and fund announcements\n- Senior leadership changes and key hires at target companies\n- Regulatory or market shifts impacting these sectors\n- Strategic partnerships and expansion announcements\nReturn a concise bullet list of max 10 signals, each with: company name, signal type, and date if available.`; })()
+              content: (() => {
+                const m = _activeMandate;
+                const sectors = m?.sectors || 'Private Equity, M&A, Wealth Management, Alternative Investments';
+                const geography = m?.geography ? ` in ${m.geography}` : '';
+                const signalsFocus = m?.signals ? ` Prioritize signals matching: ${m.signals}.` : '';
+                const exclusions = m?.exclusions ? ` Exclude anything related to: ${m.exclusions}.` : '';
+                const query = `Recent market signals (last 24-48h) in ${sectors}${geography}: fundraises, senior hires, M&A moves, market expansions.${signalsFocus}${exclusions}`;
+                return `${query}\n\nReturn a concise bullet list of max 10 signals, each with: company name, signal type, and date if available.`;
+              })()
             }
           ]
         })
@@ -4333,8 +4341,6 @@ async function runMorningScan() {
 
 RANKING RULE: Always rank and prioritize by combined score = ICP fit + timing signal. A prospect with ICP 7 and an active signal ranks above an ICP 9 with no signal. Never rank by ICP alone.
 
-STAKEHOLDERS RULE: The "Stakeholders to Watch" section must contain ONLY names sourced from the market signals section — never names from the internal pipeline. Internal pipeline contacts are already being worked; they must never appear as external stakeholders to monitor.
-
 ${_noDash}
 ${_langLine()}`;
 
@@ -4348,18 +4354,18 @@ ${marketSignals}
 
 ---
 
-Generate today's morning scan with exactly these three sections:
+OUTPUT FORMAT (STRICT): Return ONLY a JSON array, no prose before or after, no markdown code fences. Each element is one market signal:
 
-## Signals Detected
-[Up to 5 bullets from the MARKET SIGNALS section above. Each tagged: S1 fundraise, S3 senior hire, S7 network move, or S9 expansion. Only include signals explicitly present in the market data — never invent.]
+{
+  "tag": one of "S1 fundraise" | "S3 senior hire" | "S7 network move" | "S9 expansion",
+  "headline": short factual headline (who + what happened + date),
+  "date": "YYYY-MM-DD" if known, else null,
+  "why_it_matters": 1-2 sentences explaining why THIS signal matters for the active mandate's actual criteria below, not generic commentary,
+  "recommended_action": one concrete next step tied to this specific signal,
+  "new_stakeholder": true if this involves a person not in the internal pipeline worth tracking, false otherwise
+}
 
-## Stakeholders to Watch
-[Up to 3 names from the MARKET SIGNALS section only — never from the internal pipeline. Include their company, role, and why they matter now.]
-
-## Recommended Actions Today
-[2 to 3 concrete next actions tied to specific people or companies from the pipeline or market signals above.]
-
-Max 225 words. Keep it tight and operational.`;
+Max 5 signals, only those explicitly present in MARKET SIGNALS. Never invent a signal, date, or source. If nothing is relevant to this mandate, return [].`;
 
     // 4. Call Claude — no web_search, Perplexity already sourced the market data
     const res = await fetch(API_URL, {
@@ -4383,20 +4389,36 @@ Max 225 words. Keep it tight and operational.`;
       ? data.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim() || 'No response.'
       : 'No response.';
     const runTs = new Date().toISOString();
-    // Parse Claude output into per-section items. Timestamp = run time (no per-item TS in generated text).
-    // Live alert items use prospect.updated_at, so a signal from 3 days ago ranks below today's morning scan — semantically correct.
-    const parts = ('\n' + text).split(/\n(?=## )/);
-    _morningItems = parts
-      .filter(s => s.startsWith('## '))
-      .map(s => {
-        const nl = s.indexOf('\n');
-        const label = nl > 0 ? s.slice(3, nl).trim() : s.slice(3).trim();
-        const content = nl > 0 ? s.slice(nl + 1).trim() : '';
-        return { timestamp: runTs, type: 'morning', label, content };
-      })
-      .filter(item => item.content);
-    if (!_morningItems.length) _morningItems = [{ timestamp: runTs, type: 'morning', label: 'Morning Scan', content: text.trim() }];
-    _morningItems.unshift({ timestamp: runTs, type: 'morning', label: 'Top Prospects Today', htmlContent: topProspectsHtml });
+    let signalsData = null;
+    try {
+      let raw = text.trim().replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) signalsData = parsed;
+    } catch (e) { /* signalsData reste null */ }
+
+    const TAG_COLORS = { 'S1 fundraise':'#2568B5', 'S3 senior hire':'#7C3AED', 'S7 network move':'#B45309', 'S9 expansion':'#059669' };
+
+    const signalsHtml = signalsData === null
+      ? '<div style="color:var(--muted);font-size:var(--fs-sm);">Signal parsing failed this run — try again or check console.</div>'
+      : signalsData.length === 0
+        ? '<div style="color:var(--muted);font-size:var(--fs-sm);">No market signal relevant to this mandate today.</div>'
+        : signalsData.map(s => {
+            const color = TAG_COLORS[s.tag] || 'var(--navy)';
+            return '<div style="padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);margin-bottom:8px;">' +
+              '<div style="display:flex;align-items:center;gap:8px;">' +
+                '<span style="font-size:var(--fs-xs);font-weight:700;color:' + color + ';background:' + color + '1a;border-radius:var(--radius-pill);padding:2px 8px;">' + _esc(s.tag||'') + '</span>' +
+                (s.date ? '<span style="margin-left:auto;font-size:var(--fs-xs);color:var(--muted);">' + _esc(s.date) + '</span>' : '') +
+              '</div>' +
+              '<div style="font-weight:700;font-size:var(--fs-sm);margin-top:5px;">' + _esc(s.headline||'') + '</div>' +
+              '<div style="font-size:var(--fs-xs);color:var(--text-secondary);margin-top:4px;"><span style="font-weight:700;color:var(--text-primary);">Why it matters:</span> ' + _esc(s.why_it_matters||'') + '</div>' +
+              '<div style="font-size:var(--fs-xs);color:var(--text-secondary);margin-top:3px;"><span style="font-weight:700;color:var(--text-primary);">Action:</span> ' + _esc(s.recommended_action||'') + '</div>' +
+            '</div>';
+          }).join('');
+
+    _morningItems = [
+      { timestamp: runTs, type: 'morning', label: 'Top Prospects Today', htmlContent: topProspectsHtml },
+      { timestamp: runTs, type: 'morning', label: 'Signals & Interpretation', htmlContent: signalsHtml }
+    ];
     const _msLink = window.location.origin + window.location.pathname +
       (activeMandateId && activeMandateId !== '__ALL__' ? '?mandate=' + activeMandateId : '');
     if (eligibleTotal > displayCount) {
