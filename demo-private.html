@@ -706,6 +706,18 @@ body.drawer-open { overflow:hidden; }
 #scanner-panel { position:fixed; top:0; right:0; height:100%; width:var(--drawer-width); max-width:95vw; background:var(--white); box-shadow:-8px 0 30px rgba(26,43,94,0.18); z-index:9800; transform:translateX(100%); transition:transform 0.3s cubic-bezier(0.4,0,0.2,1); display:flex; flex-direction:column; overflow-y:auto; }
 #scanner-panel.open { transform:translateX(0); }
 body.scanner-open { overflow:hidden; }
+/* ── Ask Corridor panel ── */
+#ask-overlay { position:fixed; inset:0; background:rgba(26,43,94,0.35); z-index:9700; opacity:0; pointer-events:none; transition:opacity 0.25s; }
+#ask-overlay.open { opacity:1; pointer-events:auto; }
+#ask-panel { position:fixed; top:0; right:0; height:100%; width:var(--drawer-width); max-width:95vw; background:var(--white); box-shadow:-8px 0 30px rgba(26,43,94,0.18); z-index:9800; transform:translateX(100%); transition:transform 0.3s cubic-bezier(0.4,0,0.2,1); display:flex; flex-direction:column; overflow:hidden; }
+#ask-panel.open { transform:translateX(0); }
+body.ask-open { overflow:hidden; }
+.ask-panel-head { padding:18px 22px 16px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-shrink:0; }
+.ask-panel-title { font-size:15px; font-weight:800; color:var(--navy); font-family:'Plus Jakarta Sans',sans-serif; }
+.ask-ctx-pill { font-size:10px; font-weight:700; background:var(--navy-light); color:var(--navy); border:1px solid var(--blue); border-radius:var(--radius-pill); padding:2px 8px; letter-spacing:0.02em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:220px; margin-top:3px; }
+#ask-messages { flex:1; overflow-y:auto; padding:16px 22px; display:flex; flex-direction:column; gap:10px; }
+.ask-input-row { padding:12px 22px 16px; border-top:1px solid var(--border); display:flex; gap:8px; align-items:flex-end; flex-shrink:0; }
+#ask-input { flex:1; min-height:44px; max-height:120px; font-size:var(--fs-sm); padding:10px 12px; border:1px solid var(--border); border-radius:var(--radius-sm); background:var(--bg); color:var(--text); font-family:'Plus Jakarta Sans',sans-serif; resize:none; line-height:1.5; }
 .scanner-panel-head { padding:18px 22px 16px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; gap:12px; flex-shrink:0; }
 .scanner-panel-title { font-size:15px; font-weight:800; color:var(--navy); font-family:'Plus Jakarta Sans',sans-serif; }
 .scanner-panel-body { padding:20px 22px; flex:1; overflow-y:auto; }
@@ -1184,6 +1196,9 @@ body.new-nav { padding-left: 220px; }
     <button class="snav-item" onclick="openScannerPanel()" aria-label="Open company scanner">
       <span class="snav-icon"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></span> Scanner
     </button>
+    <button class="snav-item" onclick="_openAskPanel(null)" aria-label="Ask Corridor">
+      <span class="snav-icon"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span> Ask
+    </button>
   </div>
 </aside>
 
@@ -1225,6 +1240,7 @@ body.new-nav { padding-left: 220px; }
   <select class="input-select" id="mandate-select" onchange="_onMandateChange()">
     <option value="">Consolidated view (all)</option>
   </select>
+  <button onclick="_openAskFromMandate()" style="flex-shrink:0;display:flex;align-items:center;gap:6px;font-size:var(--fs-xs);font-weight:700;padding:4px 12px;border:1px solid var(--blue);border-radius:var(--radius-pill);background:transparent;color:var(--blue);cursor:pointer;height:28px;" data-en="Ask Corridor" data-fr="Demander à Corridor">Ask Corridor</button>
 </div>
 
 
@@ -2002,7 +2018,7 @@ function _renderSignalsFeed() {
     const header = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">${badge}${labelHtml}<span style="font-size:var(--fs-xs);color:var(--text-secondary);white-space:nowrap;margin-left:auto;">${tsStr}</span></div>`;
     const bodyHtml = item.type === 'morning'
       ? `<div>${renderMarkdown(item.content)}${item.linkHtml || ''}</div>`
-      : `<div style="font-size:var(--fs-base);line-height:1.6;color:var(--text-primary);">${item.signal ? _sanitizeSignal(item.signal) + '<br>' : ''}${_esc(item.content)}</div>`;
+      : `<div style="font-size:var(--fs-base);line-height:1.6;color:var(--text-primary);">${item.signal ? _sanitizeSignal(item.signal) + '<br>' : ''}${_esc(item.content)}<br><button data-ctx="${_esc(JSON.stringify({type:'signal',signal:item.signal||'',signalInterpretation:item.signalInterpretation||'',prospectName:item.prospectName||'',company:item.prospectCompany||''})}" onclick="_openAskPanel(JSON.parse(this.dataset.ctx))" style="margin-top:8px;font-size:var(--fs-xs);font-weight:700;padding:3px 10px;border:1px solid var(--blue);border-radius:var(--radius-pill);background:transparent;color:var(--blue);cursor:pointer;">${(typeof currentLang!=='undefined'&&currentLang==='fr')?'Demander à Corridor':'Ask Corridor'}</button></div>`;
     return `<div style="border:1px solid var(--border);border-radius:var(--radius-panel);padding:14px 16px;margin-bottom:12px;">${header}${bodyHtml}</div>`;
   }).join('');
 }
@@ -3812,6 +3828,157 @@ function handleEnter(e, agentName) {
   }
 }
 
+// ── Ask Corridor panel ──────────────────────────────────────────────────────
+let _askHistory = [];
+let _askCtx = null;
+let _askCtxKey = null;
+
+function _openAskPanel(ctx) {
+  const newKey = ctx ? JSON.stringify(ctx) : '__global__';
+  if (newKey !== _askCtxKey) {
+    _askHistory = [];
+    _askCtxKey = newKey;
+    _askCtx = ctx;
+    _askRenderWelcome(ctx);
+  }
+  document.getElementById('ask-overlay').classList.add('open');
+  document.getElementById('ask-panel').classList.add('open');
+  document.body.classList.add('ask-open');
+  setTimeout(() => document.getElementById('ask-input') && document.getElementById('ask-input').focus(), 120);
+}
+
+function _closeAskPanel() {
+  document.getElementById('ask-overlay').classList.remove('open');
+  document.getElementById('ask-panel').classList.remove('open');
+  document.body.classList.remove('ask-open');
+}
+
+function _askRenderWelcome(ctx) {
+  const fr = (typeof currentLang !== 'undefined' && currentLang === 'fr');
+  const msgs = document.getElementById('ask-messages');
+  if (!msgs) return;
+  const welcome = fr
+    ? 'Posez-moi une question sur votre pipeline, un prospect ou un signal de marché.'
+    : 'Ask me anything about your pipeline, a prospect, or a market signal.';
+  msgs.innerHTML = '<div class="chat-msg assistant"><div class="chat-avatar">C</div><div class="chat-bubble">' + _esc(welcome) + '</div></div>';
+  const pill = document.getElementById('ask-ctx-label');
+  if (!pill) return;
+  if (ctx) {
+    const label = ctx.type === 'prospect' ? (ctx.name + (ctx.company ? ' · ' + ctx.company : ''))
+                : ctx.type === 'mandate'  ? ctx.name
+                : ctx.type === 'signal'   ? (ctx.prospectName || ctx.company || 'Signal')
+                : '';
+    if (label) { pill.textContent = label; pill.style.display = ''; return; }
+  }
+  pill.style.display = 'none';
+}
+
+function _openAskFromDrawer() {
+  const p = (_drawerProspect && typeof _prospectsById !== 'undefined' && _prospectsById[_drawerProspect.id]) || {};
+  _openAskPanel({
+    type: 'prospect',
+    name: p.name || (_drawerProspect && _drawerProspect.name) || '',
+    company: p.company || (_drawerProspect && _drawerProspect.company) || '',
+    sector: p.sector || (_drawerProspect && _drawerProspect.sector) || '',
+    stage: p.stage || (_drawerProspect && _drawerProspect.stage) || '',
+    icp_score: p.icp_score != null ? p.icp_score : ((_drawerProspect && _drawerProspect.score) || ''),
+    signal: p.signal ? p.signal.replace(/<[^>]*>/g, '').trim() : '',
+    signalInterpretation: p.signalInterpretation || ''
+  });
+}
+
+function _openAskFromMandate() {
+  const m = (typeof _activeMandate !== 'undefined') ? _activeMandate : null;
+  if (!m) { _openAskPanel(null); return; }
+  _openAskPanel({
+    type: 'mandate',
+    name: m.name || '',
+    criteria: m.icp_criteria || '',
+    geography: m.geography || '',
+    sectors: m.sectors || '',
+    exclusions: m.exclusions || ''
+  });
+}
+
+function _buildAskSystemPrompt(ctx) {
+  const fr = (typeof currentLang !== 'undefined' && currentLang === 'fr');
+  const lang = fr ? 'French' : 'English';
+  const mandateBlock = (typeof _mandateContext === 'function') ? _mandateContext() : '';
+  let ctxBlock = '';
+  if (ctx) {
+    if (ctx.type === 'prospect') {
+      const parts = ['CURRENT PROSPECT CONTEXT:'];
+      if (ctx.name)                                       parts.push('Name: '                  + ctx.name);
+      if (ctx.company)                                    parts.push('Company: '               + ctx.company);
+      if (ctx.sector)                                     parts.push('Sector: '                + ctx.sector);
+      if (ctx.stage)                                      parts.push('Stage: '                 + ctx.stage);
+      if (ctx.icp_score != null && ctx.icp_score !== '')  parts.push('ICP score: '             + ctx.icp_score);
+      if (ctx.signal)                                     parts.push('Signal: '                + ctx.signal);
+      if (ctx.signalInterpretation)                       parts.push('Signal interpretation: ' + ctx.signalInterpretation);
+      ctxBlock = '\n\n' + parts.join('\n');
+    } else if (ctx.type === 'mandate') {
+      const parts = ['CURRENT MANDATE CONTEXT:'];
+      if (ctx.name)       parts.push('Mandate: '      + ctx.name);
+      if (ctx.criteria)   parts.push('ICP criteria: ' + ctx.criteria);
+      if (ctx.geography)  parts.push('Geography: '    + ctx.geography);
+      if (ctx.sectors)    parts.push('Sectors: '      + ctx.sectors);
+      if (ctx.exclusions) parts.push('Exclusions: '   + ctx.exclusions);
+      ctxBlock = '\n\n' + parts.join('\n');
+    } else if (ctx.type === 'signal') {
+      const parts = ['CURRENT SIGNAL CONTEXT:'];
+      if (ctx.prospectName)         parts.push('Prospect: '              + ctx.prospectName);
+      if (ctx.company)              parts.push('Company: '               + ctx.company);
+      if (ctx.signal)               parts.push('Signal: '                + ctx.signal);
+      if (ctx.signalInterpretation) parts.push('Signal interpretation: ' + ctx.signalInterpretation);
+      ctxBlock = '\n\n' + parts.join('\n');
+    }
+  }
+  return 'You are Corridor\'s assistant helping with GTM pipeline management.\n' + mandateBlock + ctxBlock + '\n\nBe factual and concise. Never use em-dashes (—) or horizontal rules (---) in your response.\nNever state a fact about a prospect, company, mandate, or signal that is not explicitly present in the context provided or in what the user has told you in this conversation. If you don\'t have enough information to answer accurately, say so directly rather than guessing or inferring plausibly-sounding details. Do not invent URLs, dates, numbers, or attributions. When asked about something outside the provided context (general market knowledge, definitions, how-to questions), you may answer from general knowledge, but never blend invented specifics about THIS prospect/mandate/signal with general knowledge in a way that makes them indistinguishable.\nLanguage instruction: Write your entire response in ' + lang + '. All section headers, bullet points, and analysis must be in that language.';
+}
+
+async function _sendAskMessage() {
+  const input = document.getElementById('ask-input');
+  const msg = (input ? input.value : '').trim();
+  if (!msg) return;
+  const msgs = document.getElementById('ask-messages');
+  const btn = document.getElementById('ask-send-btn');
+  if (btn) btn.disabled = true;
+  if (input) input.value = '';
+  const fr = (typeof currentLang !== 'undefined' && currentLang === 'fr');
+  _askHistory.push({ role: 'user', content: msg });
+  msgs.innerHTML += '<div class="chat-msg user"><div class="chat-avatar">T</div><div class="chat-bubble">' + _esc(msg) + '</div></div>';
+  const thinkId = 'ask-think-' + Date.now();
+  msgs.innerHTML += '<div class="chat-msg assistant" id="' + thinkId + '"><div class="chat-avatar">C</div><div class="chat-bubble" style="color:var(--muted);font-style:italic">' + (fr ? 'En train de réfléchir…' : 'Thinking…') + '</div></div>';
+  msgs.scrollTop = msgs.scrollHeight;
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-5',
+        max_tokens: 4000,
+        system: _buildAskSystemPrompt(_askCtx),
+        messages: _askHistory
+      })
+    });
+    const data = await res.json();
+    const reply = (Array.isArray(data.content) ? data.content.filter(function(b){ return b.type === 'text'; }).map(function(b){ return b.text; }).join('\n').trim() : '') || (fr ? 'Pas de réponse.' : 'No response.');
+    _askHistory.push({ role: 'assistant', content: reply });
+    const thinkEl = document.getElementById(thinkId);
+    if (thinkEl) thinkEl.querySelector('.chat-bubble').innerHTML = renderMarkdown(reply);
+  } catch(e) {
+    const thinkEl = document.getElementById(thinkId);
+    if (thinkEl) thinkEl.querySelector('.chat-bubble').textContent = 'Error: ' + e.message;
+  } finally {
+    if (btn) btn.disabled = false;
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+}
+
+function _askOnEnter(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); _sendAskMessage(); }
+}
+
 // ── KANBAN DRAG & DROP (HTML5 natif, sans librairie) ──
 function updateKanbanCounts(){
   document.querySelectorAll('.kanban-col').forEach(col => {
@@ -4303,14 +4470,17 @@ async function runLiveAlert() {
 
     const runTs = new Date().toISOString();
     _liveAlertItems = _named.map(p => {
-      const sigType = p.signal_type ? p.signal_type.toUpperCase() : '';
+      const sigType = (p.signal_type && p.signal_type.toLowerCase() !== 'activity') ? p.signal_type.toUpperCase() : '';
       const co = p.company || '';
       return {
         timestamp: p.updated_at || runTs,
         type: 'live',
         label: `${p.name}${co ? ' · ' + co : ''}${sigType ? ' [' + sigType + ']' : ''}`,
         signal: p.signal || '',
-        content: `ICP ${p.icp_score || 'N/A'} · ${p.country || p.region || 'Location unknown'} · Stage: ${p.stage || 'Identified'}`
+        signalInterpretation: p.signalInterpretation || '',
+        prospectName: p.name || '',
+        prospectCompany: co,
+        content: `ICP ${p.icp_score || 'N/A'}${p.sector ? ' · ' + p.sector : ''} · ${p.country || p.region || 'Location unknown'} · Stage: ${p.stage || 'Identified'}`
       };
     });
     _renderSignalsFeed();
@@ -5671,6 +5841,9 @@ async function openDrawer(card) {
       ${icpDial}
       <button onclick="openScannerPanel('drawer')" style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:var(--radius-sm);background:var(--navy-light);border:1px solid var(--border);cursor:pointer;color:var(--blue);flex-shrink:0;" title="Scan company" aria-label="Scan this company">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      </button>
+      <button onclick="_openAskFromDrawer()" style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:var(--radius-sm);background:var(--navy-light);border:1px solid var(--border);cursor:pointer;color:var(--blue);flex-shrink:0;" title="Ask Corridor" aria-label="Ask Corridor about this prospect">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
       </button>
       <button class="drawer-close" onclick="closeDrawer()" aria-label="Close prospect drawer">✕</button>
     </div>
@@ -7188,6 +7361,7 @@ function _drawerProfileHTML(id, p, colStage, fb){
   if (!id) return '';
   fb = fb || {};
   const v = s => _esc(s == null ? '' : String(s));
+  const stripHtml = s => (s || '').replace(/<a\s[^>]*>([^<]*)<\/a>/gi, '$1').replace(/<[^>]*>/g, '').trim();
   const opts = KANBAN_STAGES.map(s => `<option value="${s}"${s === colStage ? ' selected' : ''}>${s}</option>`).join('');
   const rt = p.region ? _regionTag(p.region) : '';
   const lbl = t => `<div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);letter-spacing:0.02em">${t}</div>`;
@@ -7228,12 +7402,13 @@ function _drawerProfileHTML(id, p, colStage, fb){
     )}
     ${card(
       lbl('Signal / Context') +
-      `<textarea id="drawer-signal" class="dp-inp" rows="3" placeholder="e.g. New CRO hired from PE-backed SaaS — scaled $4M to $28M ARR mid-market NA" style="font-size:var(--fs-sm);min-height:60px;resize:vertical">${v(p.signal)}</textarea>` +
+      `<textarea id="drawer-signal" class="dp-inp" rows="3" placeholder="e.g. New CRO hired from PE-backed SaaS — scaled $4M to $28M ARR mid-market NA" style="font-size:var(--fs-sm);min-height:60px;resize:vertical">${v(stripHtml(p.signal))}</textarea>` +
       `<div id="signal-link-wrap" style="font-size:var(--fs-xs)"></div>` +
       `<select id="drawer-signal-type" style="font-size:var(--fs-sm);padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);color:var(--text)">` +
         `<option value="">-- Signal type --</option>` +
         `${(_signalTaxonomy && Object.keys(_signalTaxonomy).length ? Object.values(_signalTaxonomy) : [{code:'S1',label:'S1'},{code:'S2',label:'S2'},{code:'S3',label:'S3'},{code:'S4',label:'S4'}]).map(t => `<option value="${_esc(t.code)}"${p.signal_type===t.code?' selected':''}>${_esc(t.icon||'')} ${_esc(t.code)} — ${_esc(t.label||t.code)}</option>`).join('')}` +
-      `</select>`
+      `</select>` +
+      (p.signalInterpretation ? `<div style="background:var(--navy-light);border:1px solid var(--blue);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--navy);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:10px;opacity:0.65;display:block;margin-bottom:3px">✦ ${currentLang==='fr'?'Analyse IA':'AI Insight'}</span>${v(stripHtml(p.signalInterpretation))}</div>` : '')
     )}
     <textarea id="ed-notes" class="dp-inp" placeholder="Notes" style="min-height:60px;resize:vertical">${v(p.notes)}</textarea>
     <button class="btn-primary btn-lg" style="width:100%;justify-content:center" onclick="saveProspectEdit('${v(id)}')"><span data-en="Save changes" data-fr="Enregistrer les modifications">Save changes</span></button>
@@ -9536,6 +9711,30 @@ if ('serviceWorker' in navigator) {
         </div>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- ── Ask Corridor panel ── -->
+<div id="ask-overlay" onclick="_closeAskPanel()"></div>
+<div id="ask-panel">
+  <div class="ask-panel-head">
+    <div style="display:flex;flex-direction:column;gap:2px;min-width:0;flex:1;">
+      <span class="ask-panel-title">Ask Corridor</span>
+      <span class="ask-ctx-pill" id="ask-ctx-label" style="display:none;"></span>
+    </div>
+    <button class="drawer-close" onclick="_closeAskPanel()" aria-label="Close">&#10005;</button>
+  </div>
+  <div id="ask-messages">
+    <div class="chat-msg assistant">
+      <div class="chat-avatar">C</div>
+      <div class="chat-bubble">Ask me anything about your pipeline, a prospect, or a market signal.</div>
+    </div>
+  </div>
+  <div class="ask-input-row">
+    <textarea id="ask-input" rows="2" placeholder="Ask Corridor&#8230;" onkeydown="_askOnEnter(event)"></textarea>
+    <button class="btn-primary" id="ask-send-btn" onclick="_sendAskMessage()" style="height:44px;flex-shrink:0;">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 2L11 13"/><path d="M22 2L15 22 11 13 2 9l20-7z"/></svg>
+    </button>
   </div>
 </div>
 </body>
