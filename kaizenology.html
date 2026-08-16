@@ -4322,7 +4322,7 @@ async function runMorningScan() {
                 const signalsFocus = m?.signals ? ` Prioritize signals matching: ${m.signals}.` : '';
                 const exclusions = m?.exclusions ? ` Exclude anything related to: ${m.exclusions}.` : '';
                 const query = `Recent market signals (last 24-48h) in ${sectors}${geography}: fundraises, senior hires, M&A moves, market expansions.${signalsFocus}${exclusions}`;
-                return `${query}\n\nReturn a concise bullet list of max 10 signals, each with: company name, signal type, and date if available.`;
+                return `${query}\n\nReturn a concise bullet list of max 10 signals. For each signal include: company name, signal type, date (if available), company industry/sector (if known), approximate company size or funding stage (if mentioned or inferable from context), and one specific reason why this signal is strategically notable.`;
               })()
             }
           ]
@@ -4340,6 +4340,10 @@ async function runMorningScan() {
     const systemPrompt = `You are Kaizenology's AI operating system generating the daily morning scan for a senior M&A advisor.
 
 RANKING RULE: Always rank and prioritize by combined score = ICP fit + timing signal. A prospect with ICP 7 and an active signal ranks above an ICP 9 with no signal. Never rank by ICP alone.
+
+FORBIDDEN IN why_it_matters: generic boilerplate that could apply to any signal regardless of company (e.g. "worth checking headcount", "needs a quick size check", "confirm employee count"). If the source data doesn't give you enough context to say something specific to THIS company and THIS mandate, say so explicitly — e.g. "Limited public data on this company; flagged for manual research" — rather than padding with a generic caveat.
+
+DIVERSITY RULE: If multiple signals share the same tag (e.g. several "S3 senior hire"), each why_it_matters must reference something concrete and distinct about that specific company or person — their stated role, their company's actual sector or stage if known, why this particular signal differs from the others. Never reuse the same reasoning pattern across signals of the same type.
 
 ${_noDash}
 ${_langLine()}`;
