@@ -2016,9 +2016,12 @@ function _renderSignalsFeed() {
     const labelHtml = item.label
       ? `<span style="font-weight:600;font-size:var(--fs-sm);color:var(--text-primary);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_esc(item.label)}</span>`
       : '';
-    const header = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">${badge}${labelHtml}<span style="font-size:var(--fs-xs);color:var(--text-secondary);white-space:nowrap;margin-left:auto;">${tsStr}</span></div>`;
+    const linkedinLink = (item.type === 'live' && item.linkedinUrl)
+      ? `<a href="${_esc(item.linkedinUrl)}" target="_blank" rel="noopener" style="flex-shrink:0;font-size:var(--fs-xs);color:var(--blue);text-decoration:none;opacity:0.8;" title="LinkedIn profile">&#8599;</a>`
+      : '';
+    const header = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">${badge}${labelHtml}${linkedinLink}<span style="font-size:var(--fs-xs);color:var(--text-secondary);white-space:nowrap;margin-left:auto;">${tsStr}</span></div>`;
     const bodyHtml = item.type === 'morning'
-      ? `<div>${renderMarkdown(item.content)}${item.linkHtml || ''}</div>`
+      ? `<div>${item.htmlContent || renderMarkdown(item.content)}${item.linkHtml || ''}</div>`
       : `<div style="font-size:var(--fs-base);line-height:1.6;color:var(--text-primary);">${item.signal ? _sanitizeSignal(item.signal) + '<br>' : ''}${_esc(item.content)}<br><button data-ctx="${_esc(JSON.stringify({type:'signal',signal:item.signal||'',signalInterpretation:item.signalInterpretation||'',prospectName:item.prospectName||'',company:item.prospectCompany||''}))}" onclick="_openAskPanel(JSON.parse(this.dataset.ctx))" style="margin-top:8px;font-size:var(--fs-xs);font-weight:700;padding:3px 10px;border:1px solid var(--blue);border-radius:var(--radius-pill);background:transparent;color:var(--blue);cursor:pointer;">${(typeof currentLang!=='undefined'&&currentLang==='fr')?'Demander à Corridor':'Ask Corridor'}</button></div>`;
     return `<div style="border:1px solid var(--border);border-radius:var(--radius-panel);padding:14px 16px;margin-bottom:12px;">${header}${bodyHtml}</div>`;
   }).join('');
@@ -4259,6 +4262,24 @@ async function runMorningScan() {
       .sort((a, b) => b.combinedScore - a.combinedScore || (b.icp_score || 0) - (a.icp_score || 0));
     const eligibleTotal = _eligible.length;
     const scored = _eligible.slice(0, 20);
+    const displayCount = Math.min(5, scored.length);
+    const topProspectsHtml = scored.slice(0, displayCount).length
+      ? '<div style="display:flex;flex-direction:column;gap:6px;">' +
+        scored.slice(0, displayCount).map(function(p) {
+          const sigText = p.signal ? p.signal.replace(/<[^>]*>/g,'').trim().slice(0,90) + (p.signal.replace(/<[^>]*>/g,'').trim().length > 90 ? '…' : '') : '';
+          const liLink = p.linkedin ? ' <a href="' + _esc(p.linkedin) + '" target="_blank" rel="noopener" style="color:var(--blue);font-size:var(--fs-xs);text-decoration:none;opacity:0.8;" title="LinkedIn profile">&#8599;</a>' : '';
+          return '<div style="padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);">' +
+            '<div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;">' +
+              '<span style="font-weight:700;font-size:var(--fs-sm);color:var(--navy);">' + _esc(p.name||'') + '</span>' + liLink +
+              '<span style="font-size:var(--fs-xs);font-weight:700;background:var(--navy-light);color:var(--navy);border:1px solid var(--blue);border-radius:var(--radius-pill);padding:1px 8px;flex-shrink:0;">ICP ' + (p.icp_score!=null?p.icp_score:'N/A') + '</span>' +
+            '</div>' +
+            '<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:2px;">' + _esc((p.company||'') + (p.sector?' · '+p.sector:'') + ' · Stage: '+(p.stage||'Identified')) + '</div>' +
+            (sigText ? '<div style="font-size:var(--fs-xs);color:var(--text-secondary);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + _esc(sigText) + '</div>' : '') +
+          '</div>';
+        }).join('') +
+        '</div>' +
+        (eligibleTotal > displayCount ? '<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:8px;">Showing top ' + displayCount + ' of ' + eligibleTotal + ' active prospects</div>' : '')
+      : '<div style="color:var(--muted);font-size:var(--fs-sm);">No active prospects in pipeline.</div>';
 
     const pipelineBlock = scored.length
       ? scored.map((p, i) => {
@@ -4304,8 +4325,6 @@ RANKING RULE: Always rank and prioritize by combined score = ICP fit + timing si
 
 STAKEHOLDERS RULE: The "Stakeholders to Watch" section must contain ONLY names sourced from the market signals section — never names from the internal pipeline. Internal pipeline contacts are already being worked; they must never appear as external stakeholders to monitor.
 
-COVERAGE RULE: The pipeline section lists the top ${scored.length} of ${eligibleTotal} active prospects. If ${eligibleTotal} exceeds 20, you MUST explicitly state in the scan (e.g., at the end of "Top Prospects Today") that this briefing covers only the top ${scored.length} prospects out of ${eligibleTotal} active — never write or imply the list is exhaustive.
-
 ${_noDash}
 ${_langLine()}`;
 
@@ -4319,10 +4338,7 @@ ${marketSignals}
 
 ---
 
-Generate today's morning scan with exactly these four sections:
-
-## Top Prospects Today
-[Up to 5 prospects from the pipeline above, ranked by combined score. One line each: Name · Company · ICP · combined score · stage · signal if any. Never rank by ICP alone.]
+Generate today's morning scan with exactly these three sections:
 
 ## Signals Detected
 [Up to 5 bullets from the MARKET SIGNALS section above. Each tagged: S1 fundraise, S3 senior hire, S7 network move, or S9 expansion. Only include signals explicitly present in the market data — never invent.]
@@ -4333,7 +4349,7 @@ Generate today's morning scan with exactly these four sections:
 ## Recommended Actions Today
 [2 to 3 concrete next actions tied to specific people or companies from the pipeline or market signals above.]
 
-Max 300 words. Keep it tight and operational.`;
+Max 225 words. Keep it tight and operational.`;
 
     // 4. Call Claude — no web_search, Perplexity already sourced the market data
     const res = await fetch(API_URL, {
@@ -4370,9 +4386,10 @@ Max 300 words. Keep it tight and operational.`;
       })
       .filter(item => item.content);
     if (!_morningItems.length) _morningItems = [{ timestamp: runTs, type: 'morning', label: 'Morning Scan', content: text.trim() }];
+    _morningItems.unshift({ timestamp: runTs, type: 'morning', label: 'Top Prospects Today', htmlContent: topProspectsHtml });
     const _msLink = window.location.origin + window.location.pathname +
       (activeMandateId && activeMandateId !== '__ALL__' ? '?mandate=' + activeMandateId : '');
-    if (eligibleTotal > 20) {
+    if (eligibleTotal > displayCount) {
       const _topItem = _morningItems.find(it => it.label.toLowerCase().includes('prospect'));
       if (_topItem) _topItem.linkHtml = `<div style="margin-top:8px;"><a href="${_msLink}" style="color:var(--navy);font-size:var(--fs-sm);text-decoration:underline;">View full pipeline (${eligibleTotal} prospects) →</a></div>`;
     }
@@ -4436,7 +4453,7 @@ async function runLiveAlert() {
   try {
     let _msQuery = sbClient
       .from('prospects')
-      .select('id, name, company, sector, country, region, stage, icp_score, signal, signal_type, updated_at')
+      .select('id, name, company, sector, country, region, stage, icp_score, signal, signal_type, updated_at, linkedin')
       .eq('client_id', CLIENT_ID);
     _msQuery = _applyMandateFilter(_msQuery);
     const { data: signalProspects, error } = await _msQuery
@@ -4481,6 +4498,7 @@ async function runLiveAlert() {
         signalInterpretation: p.signalInterpretation || '',
         prospectName: p.name || '',
         prospectCompany: co,
+        linkedinUrl: p.linkedin || '',
         content: `ICP ${p.icp_score || 'N/A'}${p.sector ? ' · ' + p.sector : ''} · ${p.country || p.region || 'Location unknown'} · Stage: ${p.stage || 'Identified'}`
       };
     });
