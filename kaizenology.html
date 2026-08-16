@@ -2001,7 +2001,7 @@ function _renderSignalsFeed() {
       ? `<span style="font-weight:600;font-size:var(--fs-sm);color:var(--text-primary);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_esc(item.label)}</span>`
       : '';
     const linkedinLink = (item.type === 'live' && item.linkedinUrl)
-      ? `<a href="${_esc(item.linkedinUrl)}" target="_blank" rel="noopener" style="flex-shrink:0;font-size:var(--fs-xs);color:var(--blue);text-decoration:none;opacity:0.8;" title="LinkedIn profile">&#8599;</a>`
+      ? `<a href="${_esc(item.linkedinUrl)}" target="_blank" rel="noopener" style="flex-shrink:0;color:var(--fill-accent);text-decoration:none;line-height:1;" title="LinkedIn profile"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg></a>`
       : '';
     const header = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">${badge}${labelHtml}${linkedinLink}<span style="font-size:var(--fs-xs);color:var(--text-secondary);white-space:nowrap;margin-left:auto;">${tsStr}</span></div>`;
     const bodyHtml = item.type === 'morning'
@@ -4271,7 +4271,7 @@ async function runMorningScan() {
       ? '<div style="display:flex;flex-direction:column;gap:6px;">' +
         scored.slice(0, displayCount).map(function(p) {
           const sigText = p.signal ? p.signal.replace(/<[^>]*>/g,'').trim().slice(0,90) + (p.signal.replace(/<[^>]*>/g,'').trim().length > 90 ? '…' : '') : '';
-          const liLink = p.linkedin ? ' <a href="' + _esc(p.linkedin) + '" target="_blank" rel="noopener" style="color:var(--blue);font-size:var(--fs-xs);text-decoration:none;opacity:0.8;" title="LinkedIn profile">&#8599;</a>' : '';
+          const liLink = p.linkedin ? ' <a href="' + _esc(p.linkedin) + '" target="_blank" rel="noopener" style="color:var(--fill-accent);text-decoration:none;line-height:1;" title="LinkedIn profile"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg></a>' : '';
           return '<div style="padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);">' +
             '<div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;">' +
               '<span style="font-weight:700;font-size:var(--fs-sm);color:var(--navy);">' + _esc(p.name||'') + '</span>' + liLink +
