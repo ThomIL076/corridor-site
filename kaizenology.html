@@ -4341,7 +4341,7 @@ async function runMorningScan() {
 
 RANKING RULE: Always rank and prioritize by combined score = ICP fit + timing signal. A prospect with ICP 7 and an active signal ranks above an ICP 9 with no signal. Never rank by ICP alone.
 
-FORBIDDEN IN why_it_matters: generic boilerplate that could apply to any signal regardless of company (e.g. "worth checking headcount", "needs a quick size check", "confirm employee count"). If the source data doesn't give you enough context to say something specific to THIS company and THIS mandate, say so explicitly — e.g. "Limited public data on this company; flagged for manual research" — rather than padding with a generic caveat.
+EXCLUSION RULE: If the source data doesn't give you enough context to write a specific, mandate-relevant why_it_matters for a signal (i.e. you would need to fall back on generic boilerplate like "worth checking headcount" or "confirm employee count"), DO NOT include that signal in the output at all. A thin signal with a placeholder interpretation wastes the reader's time more than omitting it. Only include signals you can genuinely interpret against this mandate's real criteria.
 
 DIVERSITY RULE: If multiple signals share the same tag (e.g. several "S3 senior hire"), each why_it_matters must reference something concrete and distinct about that specific company or person — their stated role, their company's actual sector or stage if known, why this particular signal differs from the others. Never reuse the same reasoning pattern across signals of the same type.
 
