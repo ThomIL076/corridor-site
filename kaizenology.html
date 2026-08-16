@@ -4362,10 +4362,13 @@ OUTPUT FORMAT (STRICT): Return ONLY a JSON array, no prose before or after, no m
   "date": "YYYY-MM-DD" if known, else null,
   "why_it_matters": 1-2 sentences explaining why THIS signal matters for the active mandate's actual criteria below, not generic commentary,
   "recommended_action": one concrete next step tied to this specific signal,
-  "new_stakeholder": true if this involves a person not in the internal pipeline worth tracking, false otherwise
+  "new_stakeholder": true if this involves a person not in the internal pipeline worth tracking, false otherwise,
+  "stakeholder_name": person's name if identifiable from the signal, else null,
+  "stakeholder_company": their company if identifiable, else null,
+  "stakeholder_title": their role/title if mentioned, else null
 }
 
-Max 5 signals, only those explicitly present in MARKET SIGNALS. Never invent a signal, date, or source. If nothing is relevant to this mandate, return [].`;
+Populate stakeholder_* fields ONLY when new_stakeholder is true; set to null otherwise. Max 5 signals, only those explicitly present in MARKET SIGNALS. Never invent a signal, date, or source. If nothing is relevant to this mandate, return [].`;
 
     // 4. Call Claude — no web_search, Perplexity already sourced the market data
     const res = await fetch(API_URL, {
@@ -4402,8 +4405,13 @@ Max 5 signals, only those explicitly present in MARKET SIGNALS. Never invent a s
       ? '<div style="color:var(--muted);font-size:var(--fs-sm);">Signal parsing failed this run — try again or check console.</div>'
       : signalsData.length === 0
         ? '<div style="color:var(--muted);font-size:var(--fs-sm);">No market signal relevant to this mandate today.</div>'
-        : signalsData.map(s => {
+        : (window._msSigCache = {}, signalsData.map((s, idx) => {
+            window._msSigCache[idx] = s;
             const color = TAG_COLORS[s.tag] || 'var(--navy)';
+            const canAdd = s.new_stakeholder && s.stakeholder_name && s.stakeholder_company;
+            const addBtnHtml = canAdd
+              ? '<button onclick="_addStakeholderToPipeline(' + idx + ', this)" style="margin-top:6px;font-size:var(--fs-xs);font-weight:600;color:var(--fill-accent);background:none;border:1px solid var(--fill-accent);border-radius:var(--radius-sm);padding:3px 10px;cursor:pointer;">+ Add to pipeline</button>'
+              : '';
             return '<div style="padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);margin-bottom:8px;">' +
               '<div style="display:flex;align-items:center;gap:8px;">' +
                 '<span style="font-size:var(--fs-xs);font-weight:700;color:' + color + ';background:' + color + '1a;border-radius:var(--radius-pill);padding:2px 8px;">' + _esc(s.tag||'') + '</span>' +
@@ -4412,8 +4420,9 @@ Max 5 signals, only those explicitly present in MARKET SIGNALS. Never invent a s
               '<div style="font-weight:700;font-size:var(--fs-sm);margin-top:5px;">' + _esc(s.headline||'') + '</div>' +
               '<div style="font-size:var(--fs-xs);color:var(--text-secondary);margin-top:4px;"><span style="font-weight:700;color:var(--text-primary);">Why it matters:</span> ' + _esc(s.why_it_matters||'') + '</div>' +
               '<div style="font-size:var(--fs-xs);color:var(--text-secondary);margin-top:3px;"><span style="font-weight:700;color:var(--text-primary);">Action:</span> ' + _esc(s.recommended_action||'') + '</div>' +
+              addBtnHtml +
             '</div>';
-          }).join('');
+          })).join('');
 
     _morningItems = [
       { timestamp: runTs, type: 'morning', label: 'Top Prospects Today', htmlContent: topProspectsHtml },
@@ -6365,6 +6374,76 @@ function closeScannerPanel() {
   document.getElementById('scanner-overlay').classList.remove('open');
   document.getElementById('scanner-panel').classList.remove('open');
   document.body.classList.remove('scanner-open');
+}
+async function _aiScoreProspect(company, title, mandate) {
+  let mandateCriteria = '';
+  if (mandate) {
+    mandateCriteria = '\nMANDATE CRITERIA (primary evaluation framework):\n'
+      + (mandate.icp_criteria    ? 'ICP criteria: '       + mandate.icp_criteria    + '\n' : '')
+      + (mandate.decision_makers ? 'Target roles: '       + mandate.decision_makers + '\n' : '')
+      + (mandate.sectors         ? 'Target sectors: '     + mandate.sectors         + '\n' : '')
+      + (mandate.geography       ? 'Target geography: '   + mandate.geography       + '\n' : '')
+      + (mandate.signals         ? 'Key buying signals: ' + mandate.signals         + '\n' : '')
+      + (mandate.exclusions      ? 'Exclusions: '         + mandate.exclusions      + '\n' : '');
+  }
+  const scorePrompt = 'You are an ICP scoring engine for Corridor, a B2B GTM advisory firm. Evaluate this prospect and return 4 sub-scores.\n\nCompany: ' + company + '\nTitle/role known: ' + (title || 'unknown') + '\n' + mandateCriteria + '\n\nSCORING RULES:\nrole_score (0-10): CEO/Founder/Co-founder=10, C-suite/VP/Partner=6-8, Director/Head of=4-5, other or unknown=2\nsize_score: return -1 if company size is unknown — never guess from sector or name. If known: 11-200 employees=9, 201-500=6, 1-10=4, 500+=3\nsignal_strength_score (0-10): 0 if no buying signal detected. Fundraise/market expansion=9, new CXO/VP hire=7, role posted=5, other=3\nmandate_fit_score (0-10): ' + (mandateCriteria ? 'score fit against mandate criteria above (sector, geography, decision-makers)' : 'return 5 — no mandate active, score is neutral') + '\n\nReturn ONLY valid JSON, no other text:\n{"role_score":<0-10>,"size_score":<-1 or 0-10>,"signal_strength_score":<0-10>,"mandate_fit_score":<0-10>,"confidence":"<low|medium|high>","rationale":"<one sentence>"}';
+  try {
+    const resp = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 400, messages: [{ role: 'user', content: scorePrompt }] })
+    });
+    const data = resp.ok ? await resp.json() : null;
+    if (data && Array.isArray(data.content)) {
+      const t = data.content.filter(b => b.type === 'text').map(b => b.text).join('').trim();
+      const m = t.match(/\{[\s\S]*\}/);
+      const parsed = m ? JSON.parse(m[0]) : null;
+      if (parsed && parsed.role_score != null) {
+        const score = _calcComposite(parsed.role_score, parsed.size_score, parsed.signal_strength_score, parsed.mandate_fit_score, 0, 0);
+        return { score, reason: parsed.rationale || null };
+      }
+    }
+  } catch(e) { console.warn('[_aiScoreProspect] failed:', e); }
+  return { score: null, reason: null };
+}
+async function _addStakeholderToPipeline(idx, btn) {
+  const s = (window._msSigCache || {})[idx];
+  if (!s || !s.stakeholder_name || !s.stakeholder_company) return;
+  if (btn) { btn.disabled = true; btn.textContent = 'Adding…'; }
+  try {
+    const { data: existing } = await sbClient.from('prospects')
+      .select('id, stage')
+      .eq('client_id', CLIENT_ID)
+      .ilike('company', s.stakeholder_company)
+      .limit(1);
+    if (existing && existing.length > 0) {
+      if (btn) { btn.disabled = false; btn.textContent = 'Already in pipeline — View'; }
+      _prOpenProspect(existing[0].id);
+      return;
+    }
+    const scoreResult = await _aiScoreProspect(s.stakeholder_company, s.stakeholder_title || '', _activeMandate);
+    const { error } = await sbClient.from('prospects').insert({
+      client_id: CLIENT_ID,
+      mandate_id: _activeMandate?.id || null,
+      name: s.stakeholder_name,
+      company: s.stakeholder_company,
+      title: s.stakeholder_title || null,
+      stage: 'Identified',
+      origin: 'morning_scan',
+      icp_score: scoreResult.score,
+      icp_reason: scoreResult.reason,
+      signal: s.headline + (s.why_it_matters ? '. ' + s.why_it_matters : ''),
+      signal_type: s.tag || null,
+      archived: false,
+      updated_at: new Date().toISOString()
+    });
+    if (error) throw error;
+    if (btn) { btn.textContent = '✓ Added'; btn.style.color = 'var(--green-brand)'; btn.style.borderColor = 'var(--green-brand)'; }
+    loadKanban(true);
+  } catch(e) {
+    console.warn('[_addStakeholderToPipeline] failed:', e);
+    if (btn) { btn.disabled = false; btn.textContent = '+ Add to pipeline'; }
+  }
 }
 async function _addScannerToPipeline() {
   const d = window._scannerAddData;
