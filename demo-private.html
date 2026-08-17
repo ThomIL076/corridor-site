@@ -4252,7 +4252,7 @@ function _prOpenProspect(prospectId) {
     },
     closest: () => ({ querySelector: () => ({ dataset: { en: p.stage || 'Identified' }, textContent: p.stage || 'Identified' }) })
   };
-  openDrawer(fakeCard);
+  openDrawer(fakeCard, 'profile');
 }
 
 async function runMorningScan() {
@@ -5900,7 +5900,7 @@ function _reminderBannerHTML(reminderDate) {
   </div>`;
 }
 
-async function openDrawer(card) {
+async function openDrawer(card, initialTab = 'activity') {
   const prospectId   = card.dataset.id          || null;
   const name         = (card.querySelector('.k-card-name')?.textContent    || '').trim();
   const company      = (card.querySelector('.k-card-company')?.textContent || '').trim();
@@ -5968,10 +5968,10 @@ async function openDrawer(card) {
         </button>
       </div>
     </div>
-    <div class="dtab-panel" id="dpanel-profile">
+    <div class="dtab-panel${initialTab==='profile'?' active':''}" id="dpanel-profile">
       ${_drawerProfileHTML(prospectId, _prospectsById[prospectId] || {}, stage, { name, company, sector })}
     </div>
-    <div class="dtab-panel" id="dpanel-deal">
+    <div class="dtab-panel${initialTab==='deal'?' active':''}" id="dpanel-deal">
       <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">
         <div style="display:flex;gap:10px">
           <button class="btn-md" onclick="_scheduleCall('${prospectId}')" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;background:var(--white);color:var(--text);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;font-family:inherit">
@@ -6119,7 +6119,7 @@ async function openDrawer(card) {
         </button>
       </div>
     </div>
-    <div class="dtab-panel" id="dpanel-ai">
+    <div class="dtab-panel${initialTab==='ai'?' active':''}" id="dpanel-ai">
       <div class="drawer-section-title" style="margin-bottom:10px">Next action</div>
       <button class="btn-accent btn-lg" style="width:100%;justify-content:center;margin-bottom:12px"
         onclick="_drawerAI()" id="drawer-next-btn">▶ Next recommended action</button>
