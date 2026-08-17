@@ -121,6 +121,28 @@ export default async function handler(req, res) {
   const lastName  = parts.slice(1).join(' ') || '';
   const resolvedAccountId = accountId ? Number(accountId) : null;
 
+  // Preventive connection check — only for direct messages (j0/j5/j12), never for invites.
+  // Confirmed response shape: { "isConnection": true/false }
+  if (touch && touch !== 'invite' && resolvedAccountId) {
+    try {
+      const connCheck = await fetch(`${BASE}/MyNetwork/IsConnection`, {
+        method: 'POST',
+        headers: { 'X-API-KEY': apiKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ senderAccountId: resolvedAccountId, leadProfileUrl: linkedinUrl })
+      });
+      const connText = await connCheck.text();
+      let connData;
+      try { connData = JSON.parse(connText); } catch { connData = null; }
+      if (connCheck.ok && connData && connData.isConnection === false) {
+        return res.status(200).json({ success: false, error: 'Not connected on LinkedIn (verified via HeyReach)' });
+      }
+      // If the check itself fails (network error, non-2xx, unexpected shape), proceed without blocking —
+      // don't let a broken verification call silently prevent all sends.
+    } catch(e) {
+      console.error('[heyreach-send] IsConnection check failed, proceeding without it:', e.message);
+    }
+  }
+
   const payload = {
     campaignId: Number(campaignId),
     accountLeadPairs: [
