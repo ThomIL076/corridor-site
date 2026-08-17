@@ -66,7 +66,7 @@ async function resolveConfig(clientId, touch) {
   );
   const campaignMessages = clean(
     dbMessages ||
-    (isThomas ? (process.env.HEYREACH_CAMPAIGN_MESSAGES || '529179') : '')
+    (isThomas ? (process.env.HEYREACH_CAMPAIGN_MESSAGES || '554070') : '')
   );
   const accountId = clean(dbAccountId || (isThomas ? process.env.HEYREACH_LINKEDIN_ACCOUNT_ID : ''));
 
