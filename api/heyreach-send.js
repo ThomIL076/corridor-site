@@ -153,6 +153,12 @@ export default async function handler(req, res) {
     }
 
     const messageId = data?.addedLeadsCount ?? data?.id ?? data?.leadId ?? 'queued';
+    const added   = data?.addedLeadsCount   ?? 0;
+    const updated = data?.updatedLeadsCount ?? 0;
+    const failed  = data?.failedLeadsCount  ?? 0;
+    if (added + updated === 0) {
+      return res.status(200).json({ success: false, error: `HeyReach: 0 leads added/updated (failed: ${failed})`, detail: data });
+    }
     return res.status(200).json({ success: true, messageId, detail: data });
   } catch(e) {
     return res.status(200).json({ success: false, error: String(e && e.message ? e.message : e) });
