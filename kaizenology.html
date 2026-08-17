@@ -4241,7 +4241,22 @@ async function _runPipelineReview() {
 function _prOpenProspect(prospectId) {
   if (!prospectId) return;
   const p = _prospectsById[prospectId] || (_allProspects || []).find(x => String(x.id) === String(prospectId));
-  if (p) openDrawer(p);
+  if (!p) return;
+  const fakeCard = {
+    dataset: {
+      id: String(p.id),
+      lastContact: p.last_contact || null,
+      reminderDate: p.reminder_date || null,
+      clientId: p.client_id || CLIENT_ID
+    },
+    querySelector: sel => {
+      if (sel === '.k-card-name')    return { textContent: p.name    || '' };
+      if (sel === '.k-card-company') return { textContent: p.company || '' };
+      return null;
+    },
+    closest: () => ({ querySelector: () => ({ dataset: { en: p.stage || 'Identified' }, textContent: p.stage || 'Identified' }) })
+  };
+  openDrawer(fakeCard);
 }
 
 async function runMorningScan() {
@@ -4280,7 +4295,7 @@ async function runMorningScan() {
                 liIconHtml +
                 '<span style="position:relative;display:inline-block;" onmouseover="this.querySelector(\'.icp-tt\').style.display=\'block\'" onmouseout="this.querySelector(\'.icp-tt\').style.display=\'none\'">' +
                   '<span style="font-size:var(--fs-xs);font-weight:700;background:var(--navy-light);color:var(--navy);border:1px solid var(--blue);border-radius:var(--radius-pill);padding:1px 8px;white-space:nowrap;cursor:default;">ICP ' + p.icp_score + '</span>' +
-                  '<span class="icp-tt" style="display:none;position:absolute;bottom:100%;right:0;margin-bottom:6px;background:var(--navy);color:#fff;font-size:var(--fs-xs);font-weight:400;padding:6px 10px;border-radius:var(--radius-sm);white-space:normal;width:220px;line-height:1.4;z-index:20;box-shadow:0 2px 8px rgba(0,0,0,0.15);">ICP Score: ' + p.icp_score + '/10 — scored by Corridor pipeline: role seniority, sector fit, company size, signal activity, and mandate alignment</span>' +
+                  '<span class="icp-tt" style="display:none;position:absolute;bottom:100%;right:0;margin-bottom:6px;background:var(--navy);color:#fff;font-size:var(--fs-xs);font-weight:400;padding:6px 10px;border-radius:var(--radius-sm);white-space:normal;width:220px;line-height:1.4;z-index:20;box-shadow:0 2px 8px rgba(0,0,0,0.15);">' + (p.icp_reason ? ('ICP ' + p.icp_score + '/10 — ' + _esc(p.icp_reason)) : ('ICP Score: ' + p.icp_score + '/10 — scored by Corridor pipeline: role seniority, sector fit, company size, signal activity, and mandate alignment')) + '</span>' +
                 '</span>' +
               '</div>' +
             '</div>' +
