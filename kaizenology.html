@@ -5928,12 +5928,12 @@ async function openDrawer(card, initialTab = 'activity') {
     </div>
     ${_p.icp_reason ? `<div style="margin:8px 22px 4px;padding:8px 12px;background:var(--navy-light);border-radius:var(--radius-md);font-size:var(--fs-xs);color:var(--text);line-height:1.5;border-left:3px solid var(--blue-brand);">${_esc(_p.icp_reason)}</div>` : ''}
     <div class="drawer-tabs">
-      <div class="dtab${initialTab==='activity'?' active':''}" onclick="_switchDTab('activity',this)">Activity</div>
-      <div class="dtab${initialTab==='profile'?' active':''}" onclick="_switchDTab('profile',this)">Profile</div>
-      <div class="dtab${initialTab==='deal'?' active':''}" onclick="_switchDTab('deal',this)">Deal</div>
-      <div class="dtab${initialTab==='ai'?' active':''}" onclick="_switchDTab('ai',this)">AI</div>
+      <div class="dtab active" onclick="_switchDTab('activity',this)">Activity</div>
+      <div class="dtab" onclick="_switchDTab('profile',this)">Profile</div>
+      <div class="dtab" onclick="_switchDTab('deal',this)">Deal</div>
+      <div class="dtab" onclick="_switchDTab('ai',this)">AI</div>
     </div>
-    <div class="dtab-panel${initialTab==='activity'?' active':''}" id="dpanel-activity">
+    <div class="dtab-panel active" id="dpanel-activity">
       ${_reminderBannerHTML(reminderDate)}
       <div style="margin:12px 0 0;padding:12px;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--bg);">
         <div style="font-size:var(--fs-micro);font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--dim);margin-bottom:8px">Next action</div>
@@ -5961,10 +5961,10 @@ async function openDrawer(card, initialTab = 'activity') {
         </button>
       </div>
     </div>
-    <div class="dtab-panel${initialTab==='profile'?' active':''}" id="dpanel-profile">
+    <div class="dtab-panel" id="dpanel-profile">
       ${_drawerProfileHTML(prospectId, _prospectsById[prospectId] || {}, stage, { name, company, sector })}
     </div>
-    <div class="dtab-panel${initialTab==='deal'?' active':''}" id="dpanel-deal">
+    <div class="dtab-panel" id="dpanel-deal">
       <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">
         <div style="display:flex;gap:10px">
           <button onclick="_scheduleCall('${prospectId}')" style="flex:1;font-size:12.5px;padding:9px;display:flex;align-items:center;justify-content:center;gap:6px;background:var(--white);color:var(--text);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;font-family:inherit">
@@ -6269,7 +6269,7 @@ async function openDrawer(card, initialTab = 'activity') {
         </div>
       </div>
     </div>
-    <div class="dtab-panel${initialTab==='ai'?' active':''}" id="dpanel-ai">
+    <div class="dtab-panel" id="dpanel-ai">
       <div class="drawer-section-title" style="margin-bottom:10px">Next action</div>
       <button class="btn-accent" style="width:100%;justify-content:center;margin-bottom:12px"
         onclick="_drawerAI()" id="drawer-next-btn">▶ Next recommended action</button>
@@ -6342,6 +6342,9 @@ async function openDrawer(card, initialTab = 'activity') {
   _dEl.classList.add('open');
   document.getElementById('drawer-overlay').classList.add('open');
   document.body.classList.add('drawer-open');
+  if (initialTab && initialTab !== 'activity') {
+    _switchDTab(initialTab, document.querySelector(`.drawer-tabs .dtab[onclick*="'${initialTab}'"]`));
+  }
   if (document.getElementById('dv-deal-type')) _restoreDealValue();
   _renderSignalLink((_prospectsById[prospectId] || {}).signal);
 
