@@ -4279,7 +4279,9 @@ async function runMorningScan() {
     const topProspectsHtml = scored.slice(0, displayCount).length
       ? '<div style="display:flex;flex-direction:column;gap:6px;">' +
         scored.slice(0, displayCount).map(function(p) {
-          const sigText = p.signal.replace(/<[^>]*>/g,'').trim().slice(0,90) + (p.signal.replace(/<[^>]*>/g,'').trim().length > 90 ? '…' : '');
+          const sigText = p.signal_interpretation
+            ? p.signal_interpretation.slice(0, 140)
+            : p.signal.replace(/<[^>]*>/g,'').trim().slice(0,90) + (p.signal.replace(/<[^>]*>/g,'').trim().length > 90 ? '…' : '');
           const nameEl = '<span onclick="_prOpenProspect(\'' + p.id + '\')" style="font-weight:700;font-size:var(--fs-sm);color:var(--navy);cursor:pointer;text-decoration:none;" onmouseover="this.style.textDecoration=\'underline\'" onmouseout="this.style.textDecoration=\'none\'">' + _esc(p.name||'') + '</span>';
           const liIconHtml = p.linkedin
             ? '<a href="' + _esc(p.linkedin) + '" target="_blank" rel="noopener" style="color:var(--fill-accent);text-decoration:none;line-height:1;flex-shrink:0;" title="View LinkedIn profile"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg></a>'
@@ -6282,6 +6284,30 @@ async function _aiScoreProspect(company, title, mandate) {
   } catch(e) { console.warn('[_aiScoreProspect] failed:', e); }
   return { score: null, reason: null };
 }
+async function _generateSignalInterpretation(signalText, company, title) {
+  if (!signalText || !signalText.trim()) return { interpretation: null, date: null };
+  const prompt = `Given this raw signal text about a prospect, write ONE factual sentence explaining why this signal is timely or relevant right now — not a generic description of the prospect's fit. If the signal text doesn't contain enough information to justify timeliness (no date, no clear trigger event), respond with exactly: "insufficient_context" — do not invent urgency or a plausible-sounding reason.\n\nAlso extract a date if one is explicitly present in the text (format YYYY-MM-DD), else null.\n\nSignal text: ${signalText}\nCompany: ${company || ''}\nTitle: ${title || ''}\n\nRespond as JSON only: {"interpretation": "..." | "insufficient_context", "date": "YYYY-MM-DD" | null}`;
+  try {
+    const resp = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 300, messages: [{ role: 'user', content: prompt }] })
+    });
+    const data = resp.ok ? await resp.json() : null;
+    if (data && Array.isArray(data.content)) {
+      const t = data.content.filter(b => b.type === 'text').map(b => b.text).join('').trim();
+      const m = t.match(/\{[\s\S]*\}/);
+      const parsed = m ? JSON.parse(m[0]) : null;
+      if (parsed) {
+        return {
+          interpretation: parsed.interpretation === 'insufficient_context' ? null : (parsed.interpretation || null),
+          date: parsed.date || null
+        };
+      }
+    }
+  } catch(e) { console.warn('[_generateSignalInterpretation] failed:', e); }
+  return { interpretation: null, date: null };
+}
 async function _addStakeholderToPipeline(idx, btn) {
   const s = (window._msSigCache || {})[idx];
   if (!s || !s.stakeholder_name || !s.stakeholder_company) return;
@@ -6298,6 +6324,8 @@ async function _addStakeholderToPipeline(idx, btn) {
       return;
     }
     const scoreResult = await _aiScoreProspect(s.stakeholder_company, s.stakeholder_title || '', _activeMandate);
+    const _sigText = s.headline + (s.why_it_matters ? '. ' + s.why_it_matters : '');
+    const _sigInterp = await _generateSignalInterpretation(_sigText, s.stakeholder_company, s.stakeholder_title || '');
     const { error } = await sbClient.from('prospects').insert({
       client_id: CLIENT_ID,
       mandate_id: _activeMandate?.id || null,
@@ -6308,8 +6336,10 @@ async function _addStakeholderToPipeline(idx, btn) {
       origin: 'morning_scan',
       icp_score: scoreResult.score,
       icp_reason: scoreResult.reason,
-      signal: s.headline + (s.why_it_matters ? '. ' + s.why_it_matters : ''),
+      signal: _sigText,
       signal_type: s.tag || null,
+      signal_interpretation: _sigInterp.interpretation,
+      signal_date: _sigInterp.date,
       archived: false,
       updated_at: new Date().toISOString()
     });
@@ -6327,6 +6357,7 @@ async function _addScannerToPipeline() {
   const btn = document.querySelector('#scanner-pipeline-action button');
   if (btn) btn.disabled = true;
   try {
+    const _sigInterp = await _generateSignalInterpretation(d.signal || '', d.company, d.name || '');
     const _p = { name: d.name || d.company, company: d.company };
     const row = {
       client_id: CLIENT_ID,
@@ -6339,6 +6370,8 @@ async function _addScannerToPipeline() {
       stage: 'Identified',
       icp_score: d.icp_score != null ? d.icp_score : null,
       signal: d.signal || null,
+      signal_interpretation: _sigInterp.interpretation,
+      signal_date: _sigInterp.date,
       origin: 'outbound', import_source: 'scanner',
       archived: false,
       updated_at: new Date().toISOString()
@@ -7600,12 +7633,13 @@ async function saveProspectEdit(id){
   let _dvVal = null, _dvCurSel = null;
   if (_dvRaw) { try { const _dvObj = JSON.parse(_dvRaw); _dvVal = _dvObj.fee_if_closed ?? _dvObj.val ?? null; _dvCurSel = _dvObj.currency || null; } catch(e){} }
   if (!_dvCurSel) { const _curEl = document.getElementById('dv-currency'); _dvCurSel = (_curEl && _curEl.value) || null; }
+  const signalVal = (document.getElementById('drawer-signal')?.value || '').replace(/<[^>]*>/g, '').trim() || null;
   const row = {
     name: g('ed-name') || null, company: g('ed-company') || null, title: g('ed-title') || null,
     email: g('ed-email') || null, phone: g('ed-phone') || null, linkedin: g('ed-linkedin') || null, sector: g('ed-sector') || null,
     country: g('ed-country') || null, region: document.getElementById('ed-region')?.value || null,
     stage: newStage, notes: g('ed-notes') || null,
-    signal: (document.getElementById('drawer-signal')?.value || '').replace(/<[^>]*>/g, '').trim() || null,
+    signal: signalVal,
     signal_type: document.getElementById('drawer-signal-type')?.value || null,
     deal_value: _dvVal !== null ? _dvVal : (p.deal_value || null),
     deal_currency: _dvCurSel !== null ? _dvCurSel : (p.deal_currency || null),
@@ -7615,6 +7649,12 @@ async function saveProspectEdit(id){
     row.linkedin_tag = 'connection-accepted';
   }
   try {
+    const signalChanged = signalVal !== ((p.signal && p.signal.replace(/<[^>]*>/g,'').trim()) || null);
+    if (signalChanged) {
+      const _sigInterp = await _generateSignalInterpretation(signalVal || '', row.company || '', row.title || '');
+      row.signal_interpretation = _sigInterp.interpretation;
+      row.signal_date = _sigInterp.date;
+    }
     const { error } = await sbClient.from('prospects').update(row).eq('client_id', CLIENT_ID).eq('id', id);
     if (error) throw error;
     showToast(currentLang === 'fr' ? 'Prospect mis à jour' : 'Prospect updated');
@@ -9265,7 +9305,7 @@ async function loadKanban(force){
     while (true) {
       let _kQuery = sbClient
         .from('prospects')
-        .select('id, name, company, title, sector, region, country, stage, linkedin, email, phone, deal_value, deal_currency, deal_structure, deal_weighted, notes, last_contact, reminder_date, icp_score, icp_reason, archived, client_id, linkedin_tag, origin, signal, signal_type, created_at, draft_invite_note, company_size, next_action, next_action_date')
+        .select('id, name, company, title, sector, region, country, stage, linkedin, email, phone, deal_value, deal_currency, deal_structure, deal_weighted, notes, last_contact, reminder_date, icp_score, icp_reason, archived, client_id, linkedin_tag, origin, signal, signal_type, signal_interpretation, signal_date, created_at, draft_invite_note, company_size, next_action, next_action_date')
         .eq('client_id', CLIENT_ID);
       _kQuery = _applyMandateFilter(_kQuery);
       const { data: chunk, error } = await _kQuery
