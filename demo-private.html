@@ -3014,7 +3014,7 @@ Thomas Dratler, Corridor GTM System.
 Founder of Corridor (corridor.systems), a done-for-you GTM system for B2B companies that need predictable pipeline.
 ICP: CEO or Founder, any industry, any geography, 11-200 employees. Ticket: 1,500 EUR per month retainer. Use case: entering a new market, accelerating on an existing one, or replacing pipeline that depends on too few people.
 Product: Corridor, a done-for-you GTM system.
-Buying signals that matter: S1 recent fundraise, S3 new senior hire or role posted, S7 warm network connection.
+Buying signals that matter: fundraising, leadership-change, expansion, activity.
 Stay strictly within this context. Do not invent fictional companies, scores, or metrics.`;
 const _senderBio = () => _clientProfile?.sender_bio || SENDER_BIO;
 const _senderName = () => _clientProfile?.display_name || _clientProfile?.contact_name?.split(' ')[0] || 'Thomas';
@@ -3960,7 +3960,8 @@ async function _buildPipelineSnapshot() {
     const _psRes = await fetch('/api/pipeline-prospects' + _psParam, {
       headers: { 'Authorization': 'Bearer ' + _psToken }
     });
-    if (!_psRes.ok) return '';
+    console.log('[snapshot] fetch status:', _psRes.status, _psRes.ok);
+    if (!_psRes.ok) { console.warn('[pipeline-snapshot] fetch failed:', _psRes.status); return ''; }
     const { prospects: _psAll } = await _psRes.json();
     if (!_psAll || !_psAll.length) return '';
     const active = _psAll.filter(p => p.stage !== 'Closed');
@@ -4001,7 +4002,7 @@ async function _buildPipelineSnapshot() {
       .sort((a, b) => (_psDaysSince(b.last_contact) || 0) - (_psDaysSince(a.last_contact) || 0))
       .slice(0, 5)
       .map(p => '  - ' + p.name + ' (' + (p.company || '?') + ') | ' + p.stage + ' | last contact: ' + (_psDaysSince(p.last_contact) === null ? 'never' : _psDaysSince(p.last_contact) + 'd ago'));
-    const topSignals = prospects
+    const topSignals = _psAll
       .filter(p => p.score_signal_strength && ['Identified', '1st Contact'].includes(p.stage))
       .sort((a, b) => (b.score_signal_strength || 0) - (a.score_signal_strength || 0))
       .slice(0, 5)
@@ -4018,8 +4019,11 @@ async function _buildPipelineSnapshot() {
     ];
     if (topRed.length) lines.push('Most urgent RED:\n' + topRed.join('\n'));
     if (topSignals.length) lines.push('Top unactioned signals (high strength, early stage):\n' + topSignals.join('\n'));
-    return lines.join('\n');
+    const _psResult = lines.join('\n');
+    console.log('[snapshot] built, length:', _psResult.length);
+    return _psResult;
   } catch(e) {
+    console.error('[snapshot] EXCEPTION:', e);
     return '';
   }
 }
@@ -4040,8 +4044,9 @@ async function _sendAskMessage() {
   msgs.scrollTop = msgs.scrollHeight;
   let _askSnapshot = '';
   if (!_askCtx) {
-    try { _askSnapshot = await _buildPipelineSnapshot(); } catch(e) {}
+    try { _askSnapshot = await _buildPipelineSnapshot(); } catch(e) { console.warn('[pipeline-snapshot] error:', e); }
   }
+  console.log('[snapshot] injected into prompt, length:', _askSnapshot.length);
   try {
     const res = await fetch(API_URL, {
       method: 'POST',

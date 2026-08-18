@@ -56,7 +56,8 @@ export default async function handler(req, res) {
         .range(from, from + 999);
 
       if (mandate_mode === 'all') {
-        q = (mandateIds && mandateIds.length > 0) ? q.in('mandate_id', mandateIds) : q.is('mandate_id', null);
+        if (mandateIds && mandateIds.length > 0) q = q.in('mandate_id', mandateIds);
+        // else: no mandate filter — return all prospects for this client_id
       } else if (mandate_id) {
         q = q.eq('mandate_id', mandate_id);
       } else {
