@@ -1054,6 +1054,8 @@ body.new-nav { padding-left: 220px; }
   .nav-signout:hover { color:var(--navy); border-color:var(--navy); }
   .hp-btn { font-size:var(--fs-sm);padding:4px 12px;border:1px solid var(--border);border-radius:16px;background:var(--white);color:var(--text);cursor:pointer;font-family:inherit;transition:background .15s,color .15s; }
   .hp-btn.active { background:var(--navy);color:#fff;border-color:var(--navy); }
+  .sig-btn { font-size:var(--fs-sm);padding:4px 12px;border:1px solid var(--border);border-radius:16px;background:var(--white);color:var(--text);cursor:pointer;font-family:inherit;transition:background .15s,color .15s; }
+  .sig-btn.active { background:var(--navy);color:#fff;border-color:var(--navy); }
   .k-j5-badge { position:absolute;bottom:8px;right:8px;font-size:var(--fs-micro);font-weight:600;background:rgba(245,158,11,0.12);color:var(--amber-text);border-radius:var(--radius-badge);padding:2px 6px;cursor:pointer;z-index:3;letter-spacing:.02em; }
   .k-j5-badge:hover { background:rgba(245,158,11,0.22); }
   .k-reply-intel { margin-top:8px;border-top:1px solid rgba(0,0,0,0.07);padding-top:7px; }
@@ -1618,12 +1620,16 @@ body.new-nav { padding-left: 220px; }
       <div class="kpi-card"><span class="kpi-val" id="kpi-highprio">6</span><span class="kpi-label" data-en="High priority" data-fr="Priorité haute">High priority</span></div>
     </div>
 
-    <div id="hp-filter-bar" style="display:flex;gap:8px;padding:10px 0 4px;flex-wrap:wrap;">
+    <div id="hp-filter-bar" style="display:flex;gap:8px;padding:10px 0 4px;flex-wrap:wrap;align-items:center;">
       <button class="hp-btn btn-sm active" onclick="_setHpFilter('all')" id="hp-btn-all">All</button>
       <button class="hp-btn btn-sm" onclick="_setHpFilter('hot')" id="hp-btn-hot">Hot</button>
       <button class="hp-btn btn-sm" onclick="_setHpFilter('warm')" id="hp-btn-warm">Warm</button>
       <button class="hp-btn btn-sm" onclick="_setHpFilter('neutral')" id="hp-btn-neutral">Neutral</button>
       <button class="hp-btn btn-sm" onclick="_setHpFilter('cold')" id="hp-btn-cold">Cold</button>
+      <span style="width:1px;height:18px;background:var(--border);margin:0 2px;"></span>
+      <button class="sig-btn btn-sm active" onclick="_setSigFilter('all')" id="sig-btn-all">Tout</button>
+      <button class="sig-btn btn-sm" onclick="_setSigFilter('signal')" id="sig-btn-signal">Signal</button>
+      <button class="sig-btn btn-sm" onclick="_setSigFilter('queue')" id="sig-btn-queue">File d'attente</button>
     </div>
 
     <div class="kanban-scroll">
@@ -5978,7 +5984,9 @@ async function openDrawer(card, initialTab = 'activity') {
       </button>
       <button class="drawer-close" onclick="closeDrawer()" aria-label="Close prospect drawer">✕</button>
     </div>
-    ${_p.icp_reason ? `<div style="margin:8px 22px 4px;padding:8px 12px;background:var(--navy-light);border-radius:var(--radius-md);font-size:var(--fs-xs);color:var(--text);line-height:1.5;border-left:3px solid var(--blue-brand);">${_esc(_p.icp_reason)}</div>` : ''}
+    ${!!_p.signal_type && !!_p.signal
+      ? `<div style="margin:8px 22px 4px;padding:8px 12px;background:var(--navy-light);border-radius:var(--radius-md);font-size:var(--fs-xs);color:var(--text);line-height:1.5;border-left:3px solid var(--blue-brand);"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--blue-brand);margin-bottom:3px;">${_esc(_p.signal_type)}</div>${_esc((_p.signal||'').length>200?(_p.signal||'').slice(0,200)+'…':(_p.signal||''))}</div>`
+      : (_p.icp_reason ? `<div style="margin:8px 22px 4px;padding:7px 12px;background:#f1f2f4;border-radius:var(--radius-md);font-size:var(--fs-xs);color:var(--dim);line-height:1.5;"><span style="font-weight:700;opacity:0.75;margin-right:3px;">Correspond aux critères ICP :</span>${_esc(_p.icp_reason)}</div>` : '')}
     <div class="drawer-tabs">
       <div class="dtab active" onclick="_switchDTab('activity',this)">Activity</div>
       <div class="dtab" onclick="_switchDTab('profile',this)">Profile</div>
@@ -8187,7 +8195,7 @@ function buildCard(p){
   const _off = (_hs ? _circ * (1 - Math.min(1, Math.max(0, _sv / 10))) : _circ).toFixed(1);
   const _lbl = _hs ? (_isEst ? '~' : '') + (_sv % 1 === 0 ? String(Math.round(_sv)) : _sv.toFixed(1)) : '—';
   const _dial = `<svg width="36" height="36" viewBox="0 0 36 36" style="position:absolute;top:7px;right:7px;${_isEst ? 'opacity:0.72;' : ''}" aria-hidden="true"${_isEst ? ' title="Estimated score"' : ''}><circle cx="18" cy="18" r="13" fill="none" stroke="#e8eaf0" stroke-width="4"/><circle cx="18" cy="18" r="13" fill="none" stroke="${_dc}" stroke-width="4" stroke-dasharray="${_circ}" stroke-dashoffset="${_off}" stroke-linecap="round" transform="rotate(-90 18 18)"/><text x="18" y="22" text-anchor="middle" font-size="9" font-weight="700" fill="${_dc}" font-family="Plus Jakarta Sans,sans-serif">${_lbl}</text></svg>`;
-  return `<div class="k-card" data-id="${_esc(id)}" data-last-contact="${_esc(p.last_contact || '')}" data-reminder-date="${_esc(p.reminder_date || '')}" data-client-id="${CLIENT_ID}" data-linkedin-tag="${_esc(p.linkedin_tag || '')}" data-name="${_esc(p.name || '')}" data-company="${_esc(p.company || '')}" data-sector="${_esc(p.sector || '')}" data-region="${_esc(p.region || '')}" data-stage="${_esc(p.stage || '')}" data-icp-score="${score}" data-country="${_esc(p.country || '')}" data-signal-type="${_esc(p.signal_type || '')}" data-origin="${_esc(p.origin || '')}" data-deal="${Number(p.deal_value) || 0}" data-confidence="${_calcConfidence(p)}" data-job-title="${_esc(p.title || '')}" data-next-action="${p.next_action ? '1' : '0'}" data-next-action-date="${_esc(p.next_action_date || '')}">`
+  return `<div class="k-card" data-id="${_esc(id)}" data-last-contact="${_esc(p.last_contact || '')}" data-reminder-date="${_esc(p.reminder_date || '')}" data-client-id="${CLIENT_ID}" data-linkedin-tag="${_esc(p.linkedin_tag || '')}" data-name="${_esc(p.name || '')}" data-company="${_esc(p.company || '')}" data-sector="${_esc(p.sector || '')}" data-region="${_esc(p.region || '')}" data-stage="${_esc(p.stage || '')}" data-icp-score="${score}" data-country="${_esc(p.country || '')}" data-signal-type="${_esc(p.signal_type || '')}" data-origin="${_esc(p.origin || '')}" data-deal="${Number(p.deal_value) || 0}" data-confidence="${_calcConfidence(p)}" data-job-title="${_esc(p.title || '')}" data-next-action="${p.next_action ? '1' : '0'}" data-next-action-date="${_esc(p.next_action_date || '')}" data-has-signal="${!!(p.signal_type) && !!(p.signal) ? 'true' : 'false'}">`
     + `<input type="checkbox" class="k-card-select" data-pid="${_esc(id)}" onchange="_onCardSelect(this)" onclick="event.stopPropagation()" style="position:absolute;top:10px;left:8px;width:14px;height:14px;cursor:pointer;z-index:2;accent-color:var(--navy);">`
     + _dial
     + `<div class="k-card-name">${_esc(p.name || '—')}</div>`
@@ -8653,7 +8661,11 @@ function _applyKanbanFilters() {
     else if (_hpFilter === 'warm')    matchHp = cardScore >= 6 && cardScore < 8;
     else if (_hpFilter === 'neutral') matchHp = cardScore >= 4 && cardScore < 6;
     else if (_hpFilter === 'cold')    matchHp = cardScore < 4;
-    card.style.display = (matchSearch && matchSector && matchStage && matchCountry && matchSignal && matchOrigin && matchDeal && matchConf && matchNA && matchNADate && matchHp) ? '' : 'none';
+    const cardHasSig = card.dataset.hasSignal === 'true';
+    let matchSig = true;
+    if (_sigFilter === 'signal')      matchSig = cardHasSig;
+    else if (_sigFilter === 'queue')  matchSig = !cardHasSig;
+    card.style.display = (matchSearch && matchSector && matchStage && matchCountry && matchSignal && matchOrigin && matchDeal && matchConf && matchNA && matchNADate && matchHp && matchSig) ? '' : 'none';
   });
   document.querySelectorAll('.kanban-col').forEach(col => {
     if (col.closest('#crm-board')) return;
@@ -8670,6 +8682,7 @@ function _resetKanbanFilters() {
    'kanban-filter-confidence','kanban-filter-next-action','kanban-filter-na-date']
     .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   _resetHpFilter();
+  _resetSigFilter();
   _applyKanbanFilters();
 }
 function _updateKpiCards() {
@@ -8728,6 +8741,20 @@ function _resetHpFilter() {
   _hpFilter = 'all';
   document.querySelectorAll('.hp-btn').forEach(b => b.classList.remove('active'));
   const all = document.getElementById('hp-btn-all');
+  if (all) all.classList.add('active');
+}
+let _sigFilter = 'all';
+function _setSigFilter(val) {
+  _sigFilter = val;
+  document.querySelectorAll('.sig-btn').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById('sig-btn-' + val);
+  if (btn) btn.classList.add('active');
+  _applyKanbanFilters();
+}
+function _resetSigFilter() {
+  _sigFilter = 'all';
+  document.querySelectorAll('.sig-btn').forEach(b => b.classList.remove('active'));
+  const all = document.getElementById('sig-btn-all');
   if (all) all.classList.add('active');
 }
 function _toggleFiltersPanel() {
@@ -9357,7 +9384,7 @@ async function loadKanban(force){
     while (true) {
       let _kQuery = sbClient
         .from('prospects')
-        .select('id, name, company, title, sector, region, country, stage, linkedin, email, phone, deal_value, deal_currency, deal_structure, deal_weighted, notes, last_contact, reminder_date, icp_score, icp_reason, archived, client_id, linkedin_tag, origin, signal, signal_type, signal_interpretation, signal_date, created_at, draft_invite_note, company_size, next_action, next_action_date')
+        .select('id, name, company, title, sector, region, country, stage, linkedin, email, phone, deal_value, deal_currency, deal_structure, deal_weighted, notes, last_contact, reminder_date, icp_score, icp_reason, archived, client_id, linkedin_tag, origin, signal, signal_type, signal_interpretation, signal_date, created_at, draft_invite_note, company_size, next_action, next_action_date, score_signal_strength')
         .eq('client_id', CLIENT_ID);
       _kQuery = _applyMandateFilter(_kQuery);
       const { data: chunk, error } = await _kQuery
