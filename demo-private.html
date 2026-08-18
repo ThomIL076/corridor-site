@@ -628,6 +628,7 @@ footer a { color:var(--navy); text-decoration:none; font-weight:600; }
 .signal-s3 { background:var(--navy-light); color:var(--navy); border-color:var(--blue); }
 .signal-s4 { background:var(--navy-light); color:var(--navy); border-color:var(--blue); }
 .signal-generic { background:#F1F5F9; color:#475569; border-color:#CBD5E1; }
+.signal-activity { background:#F1F5F9; color:#475569; border-color:#CBD5E1; }
 .k-card-signal { margin-top:4px; margin-right:8px; }
 .sig-attr-row { padding:10px 0; border-bottom:1px solid var(--border); }
 .sig-attr-row:last-child { border-bottom:none; }
@@ -4314,7 +4315,7 @@ async function runMorningScan() {
     const pipelineBlock = scored.length
       ? scored.map((p, i) => {
           const sig = p.signal_type ? `[${p.signal_type.toUpperCase()}] ` : '';
-          const sigLine = p.signal ? ` | Signal: ${sig}${p.signal}` : '';
+          const sigLine = p.signal ? ` | Signal: ${sig}${p.signal.replace(/<a\s[^>]*>([^<]*)<\/a>/gi,'$1').replace(/<[^>]*>/g,'').trim()}` : '';
           return `${i + 1}. ${p.name || 'Unknown'} · ${p.company || '—'} · ${p.sector || '—'} · ${p.country || p.region || '—'} · Stage: ${p.stage || 'Identified'} · ICP: ${p.icp_score !== null && p.icp_score !== undefined ? p.icp_score : 'not yet scored'} · Score: ${p.combinedScore}${sigLine}`;
         }).join('\n')
       : 'No active prospects in pipeline.';
@@ -4606,6 +4607,11 @@ function _sanitizeSignal(str) {
   if (!str) return '';
   const SAFE_A = /(<a\s+href=["']https?:\/\/[^"'<>]+["'](?:\s+(?:target|rel|style|class)=["'][^"'<>]*["'])*\s*>[^<]*<\/a>)/gi;
   return str.split(SAFE_A).map((chunk, i) => i % 2 === 0 ? _esc(chunk) : chunk).join('');
+}
+function _extractSigUrl(s) {
+  if (!s) return null;
+  const m = s.match(/<a\s+href=["']([^"']+)["']/i);
+  return m ? m[1] : null;
 }
 
 // ── SEND QUEUE ──
@@ -5054,7 +5060,7 @@ function _interpretSignal(raw) {
   if (raw.startsWith('Lookalike match') || raw.startsWith('Top 5% most active')) {
     return null; // heuristique de scoring interne, pas un evenement reel verifiable
   }
-  return raw; // vrai signal Trigify -- inchange
+  return raw.replace(/<a\s[^>]*>([^<]*)<\/a>/gi, '$1').replace(/<[^>]*>/g, '').trim();
 }
 
 async function _generateSequenceMessage(pid, touch, forceGenerate = false, elPrefix = '') {
@@ -5985,7 +5991,7 @@ async function openDrawer(card, initialTab = 'activity') {
       <button class="drawer-close" onclick="closeDrawer()" aria-label="Close prospect drawer">✕</button>
     </div>
     ${!!_p.signal_type && !!_p.signal
-      ? `<div style="margin:8px 22px 4px;padding:8px 12px;background:var(--navy-light);border-radius:var(--radius-md);font-size:var(--fs-xs);color:var(--text);line-height:1.5;border-left:3px solid var(--blue-brand);"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--blue-brand);margin-bottom:3px;">${_esc(_p.signal_type)}</div>${_esc((_p.signal||'').length>200?(_p.signal||'').slice(0,200)+'…':(_p.signal||''))}</div>`
+      ? `<div style="margin:8px 22px 4px;padding:8px 12px;background:var(--navy-light);border-radius:var(--radius-md);font-size:var(--fs-xs);color:var(--text);line-height:1.5;border-left:3px solid var(--blue-brand);"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--blue-brand);margin-bottom:3px;">${_esc(_p.signal_type)}</div>${_sanitizeSignal((_p.signal||'').length>200?(_p.signal||'').slice(0,200)+'…':(_p.signal||''))}</div>`
       : (_p.icp_reason ? `<div style="margin:8px 22px 4px;padding:7px 12px;background:#f1f2f4;border-radius:var(--radius-md);font-size:var(--fs-xs);color:var(--dim);line-height:1.5;"><span style="font-weight:700;opacity:0.75;margin-right:3px;">Correspond aux critères ICP :</span>${_esc(_p.icp_reason)}</div>` : '')}
     <div class="drawer-tabs">
       <div class="dtab active" onclick="_switchDTab('activity',this)">Activity</div>
@@ -7667,10 +7673,10 @@ function _drawerProfileHTML(id, p, colStage, fb){
     ${card(
       lbl('Signal / Context') +
       `<textarea id="drawer-signal" class="dp-inp" rows="3" placeholder="e.g. New CRO hired from PE-backed SaaS, scaled $4M to $28M ARR" style="font-size:var(--fs-base);min-height:60px;resize:vertical">${v(stripHtml(p.signal))}</textarea>` +
-      `<div id="signal-link-wrap" style="font-size:var(--fs-xs)"></div>` +
+      `<div id="signal-link-wrap" style="font-size:var(--fs-xs)">${(() => { const _u = p.signal_url || _extractSigUrl(p.signal); return _u ? `<a href="${_esc(_u)}" target="_blank" rel="noopener noreferrer" style="color:var(--navy);text-decoration:underline;font-weight:600;">Voir le post →</a>` : ''; })()}</div>` +
       `<select id="drawer-signal-type" style="font-size:var(--fs-sm);padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);color:var(--text)">` +
         `<option value="">-- Signal type --</option>` +
-        `${(_signalTaxonomy && Object.keys(_signalTaxonomy).length ? Object.values(_signalTaxonomy) : [{code:'S1',label:'S1'},{code:'S2',label:'S2'},{code:'S3',label:'S3'},{code:'S4',label:'S4'}]).map(t => `<option value="${_esc(t.code)}"${(p.signal_type||'').toUpperCase()===(t.code||'').toUpperCase()?' selected':''}>${_esc(t.icon||'')} ${_esc(t.code)} — ${_esc(t.label||t.code)}</option>`).join('')}` +
+        `${(_signalTaxonomy && Object.keys(_signalTaxonomy).length ? Object.values(_signalTaxonomy) : [{code:'S1',label:'S1'},{code:'S2',label:'S2'},{code:'S3',label:'S3'},{code:'S4',label:'S4'},{code:'activity',label:'Engagement passif (réaction/commentaire)',icon:'👁'}]).map(t => `<option value="${_esc(t.code)}"${(p.signal_type||'').toUpperCase()===(t.code||'').toUpperCase()?' selected':''}>${_esc(t.icon||'')} ${_esc(t.code)} — ${_esc(t.label||t.code)}</option>`).join('')}` +
       `</select>` +
       (p.signalInterpretation ? `<div style="background:var(--navy-light);border:1px solid var(--blue);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--navy);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:10px;opacity:0.65;display:block;margin-bottom:3px">✦ ${currentLang==='fr'?'Analyse IA':'AI Insight'}</span>${v(stripHtml(p.signalInterpretation))}</div>` : '')
     )}
@@ -9384,7 +9390,7 @@ async function loadKanban(force){
     while (true) {
       let _kQuery = sbClient
         .from('prospects')
-        .select('id, name, company, title, sector, region, country, stage, linkedin, email, phone, deal_value, deal_currency, deal_structure, deal_weighted, notes, last_contact, reminder_date, icp_score, icp_reason, archived, client_id, linkedin_tag, origin, signal, signal_type, signal_interpretation, signal_date, created_at, draft_invite_note, company_size, next_action, next_action_date, score_signal_strength')
+        .select('id, name, company, title, sector, region, country, stage, linkedin, email, phone, deal_value, deal_currency, deal_structure, deal_weighted, notes, last_contact, reminder_date, icp_score, icp_reason, archived, client_id, linkedin_tag, origin, signal, signal_type, signal_interpretation, signal_date, created_at, draft_invite_note, company_size, next_action, next_action_date, score_signal_strength, signal_url')
         .eq('client_id', CLIENT_ID);
       _kQuery = _applyMandateFilter(_kQuery);
       const { data: chunk, error } = await _kQuery
