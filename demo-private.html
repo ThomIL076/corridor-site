@@ -4364,7 +4364,7 @@ RANKING RULE: Always rank and prioritize by combined score = ICP fit + timing si
 
 EXCLUSION RULE: If the source data doesn't give you enough context to write a specific, mandate-relevant why_it_matters for a signal (i.e. you would need to fall back on generic boilerplate like "worth checking headcount" or "confirm employee count"), DO NOT include that signal in the output at all. A thin signal with a placeholder interpretation wastes the reader's time more than omitting it. Only include signals you can genuinely interpret against this mandate's real criteria.
 
-DIVERSITY RULE: If multiple signals share the same tag (e.g. several "S3 senior hire"), each why_it_matters must reference something concrete and distinct about that specific company or person — their stated role, their company's actual sector or stage if known, why this particular signal differs from the others. Never reuse the same reasoning pattern across signals of the same type.
+DIVERSITY RULE: If multiple signals share the same tag (e.g. several "leadership-change"), each why_it_matters must reference something concrete and distinct about that specific company or person — their stated role, their company's actual sector or stage if known, why this particular signal differs from the others. Never reuse the same reasoning pattern across signals of the same type.
 
 NAMED PERSON RULE: If a headline explicitly names a person taking on a role (e.g. "X hires Y as...", "Y joins X as...", "X appoints Y..."), treat Y as new_stakeholder: true with stakeholder_name, stakeholder_company, and stakeholder_title filled in from what the headline states — unless there is a specific reason not to (e.g. Y is already a known contact in the internal pipeline data provided, or the source is too vague to confirm the name safely). Do not leave new_stakeholder: false on a headline that clearly names an individual.
 
@@ -4384,7 +4384,7 @@ ${marketSignals}
 OUTPUT FORMAT (STRICT): Return ONLY a JSON array, no prose before or after, no markdown code fences. Each element is one market signal:
 
 {
-  "tag": one of "S1 fundraise" | "S3 senior hire" | "S7 network move" | "S9 expansion",
+  "tag": one of "fundraising" | "leadership-change" | "activity" | "expansion",
   "headline": short factual headline (who + what happened + date),
   "date": "YYYY-MM-DD" if known, else null,
   "why_it_matters": 1-2 sentences explaining why THIS signal matters for the active mandate's actual criteria below, not generic commentary,
@@ -4428,7 +4428,7 @@ Populate stakeholder_* fields ONLY when new_stakeholder is true; set to null oth
       if (Array.isArray(parsed)) signalsData = parsed;
     } catch (e) { /* signalsData reste null */ }
 
-    const TAG_COLORS = { 'S1 fundraise':'#2568B5', 'S3 senior hire':'#7C3AED', 'S7 network move':'#B45309', 'S9 expansion':'#059669' };
+    const TAG_COLORS = { 'fundraising':'#2568B5', 'leadership-change':'#7C3AED', 'activity':'#B45309', 'expansion':'#059669' };
 
     const signalsHtml = signalsData === null
       ? '<div style="color:var(--muted);font-size:var(--fs-sm);">Signal parsing failed this run — try again or check console.</div>'
