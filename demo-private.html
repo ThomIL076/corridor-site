@@ -6252,7 +6252,7 @@ async function openDrawer(card, initialTab = 'activity') {
     _switchDTab(initialTab, document.querySelector(`.drawer-tabs .dtab[onclick*="'${initialTab}'"]`));
   }
   if (document.getElementById('dv-team')) _restoreDealValue();
-  _renderSignalLink((_prospectsById[prospectId] || {}).signal);
+  _renderSignalLink((_prospectsById[prospectId] || {}).signal, (_prospectsById[prospectId] || {}).signal_url);
 
   if (prospectId) {
     const { data, error } = await sbClient
@@ -7619,12 +7619,13 @@ async function _setOrigin(pid, origin) {
   if (_originErr) { console.error('[_setOrigin] update failed:', _originErr); showToast('Error updating origin'); return; }
   showToast(origin === 'network' ? 'Marked as known contact' : 'Marked as new prospect');
 }
-function _renderSignalLink(signalText) {
+function _renderSignalLink(signalText, signalUrl) {
   const wrap = document.getElementById('signal-link-wrap');
   if (!wrap) return;
-  const match = (signalText || '').match(/\((https?:\/\/[^\s)]+)\)/);
-  wrap.innerHTML = match
-    ? `<a href="${_esc(match[1])}" target="_blank" rel="noopener noreferrer">🔗 Open post</a>`
+  const parenMatch = (signalText || '').match(/\((https?:\/\/[^\s)]+)\)/);
+  const url = signalUrl || _extractSigUrl(signalText) || (parenMatch ? parenMatch[1] : null);
+  wrap.innerHTML = url
+    ? `<a href="${_esc(url)}" target="_blank" rel="noopener noreferrer" style="color:var(--navy);text-decoration:underline;font-weight:600;">Voir le post →</a>`
     : '';
 }
 function _drawerProfileHTML(id, p, colStage, fb){
