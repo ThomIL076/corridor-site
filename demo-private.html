@@ -4385,7 +4385,9 @@ OUTPUT FORMAT (STRICT): Return ONLY a JSON array, no prose before or after, no m
   "new_stakeholder": true if this involves a person not in the internal pipeline worth tracking, false otherwise,
   "stakeholder_name": person's name if identifiable from the signal, else null,
   "stakeholder_company": their company if identifiable, else null,
-  "stakeholder_title": their role/title if mentioned, else null
+  "stakeholder_title": their role/title if mentioned, else null,
+  "stakeholder_linkedin_url": their LinkedIn profile URL ONLY if explicitly present in the source signal text, else null — NEVER guess or construct a LinkedIn URL from a name,
+  "company_website_url": the company's website URL ONLY if explicitly present in the source signal text, else null — NEVER guess or construct a URL from a company name
 }
 
 Populate stakeholder_* fields ONLY when new_stakeholder is true; set to null otherwise. Max 5 signals, only those explicitly present in MARKET SIGNALS. Never invent a signal, date, or source. If nothing is relevant to this mandate, return [].`;
@@ -4432,6 +4434,15 @@ Populate stakeholder_* fields ONLY when new_stakeholder is true; set to null oth
             const addBtnHtml = canAdd
               ? '<button onclick="_addStakeholderToPipeline(' + idx + ', this)" style="margin-top:6px;font-size:var(--fs-xs);font-weight:600;color:var(--fill-accent);background:none;border:1px solid var(--fill-accent);border-radius:var(--radius-sm);padding:3px 10px;cursor:pointer;">+ Add to pipeline</button>'
               : '';
+            const stakeholderNameHtml = (s.stakeholder_name && s.stakeholder_linkedin_url)
+              ? '<a href="' + _esc(s.stakeholder_linkedin_url) + '" target="_blank" style="color:var(--fill-accent);text-decoration:none;">' + _esc(s.stakeholder_name) + '</a>'
+              : _esc(s.stakeholder_name || '');
+            const stakeholderCompanyHtml = (s.stakeholder_company && s.company_website_url)
+              ? '<a href="' + _esc(s.company_website_url) + '" target="_blank" style="color:var(--fill-accent);text-decoration:none;">' + _esc(s.stakeholder_company) + '</a>'
+              : _esc(s.stakeholder_company || '');
+            const stakeholderLine = canAdd
+              ? '<div style="font-size:var(--fs-xs);color:var(--text-secondary);margin-top:3px;">' + stakeholderNameHtml + (stakeholderCompanyHtml ? ' · ' + stakeholderCompanyHtml : '') + '</div>'
+              : '';
             return '<div style="padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);margin-bottom:8px;">' +
               '<div style="display:flex;align-items:center;gap:8px;">' +
                 '<span style="font-size:var(--fs-xs);font-weight:700;color:' + color + ';background:' + color + '1a;border-radius:var(--radius-pill);padding:2px 8px;">' + _esc(s.tag||'') + '</span>' +
@@ -4440,6 +4451,7 @@ Populate stakeholder_* fields ONLY when new_stakeholder is true; set to null oth
               '<div style="font-weight:700;font-size:var(--fs-sm);margin-top:5px;">' + _esc(s.headline||'') + '</div>' +
               '<div style="font-size:var(--fs-xs);color:var(--text-secondary);margin-top:4px;"><span style="font-weight:700;color:var(--text-primary);">Relevance:</span> ' + _esc(s.why_it_matters||'') + '</div>' +
               '<div style="font-size:var(--fs-xs);color:var(--text-secondary);margin-top:3px;"><span style="font-weight:700;color:var(--text-primary);">Action:</span> ' + _esc(s.recommended_action||'') + '</div>' +
+              stakeholderLine +
               addBtnHtml +
             '</div>';
           })).join('');
@@ -4607,6 +4619,7 @@ let _sendSequences = {};
 let _sendJ5Sent = {};
 let _manualPid = null;
 let _manualTouch = null;
+let _drawerSendPid = null;
 
 async function loadSendView() {
   const listEl = document.getElementById('send-list');
@@ -4929,51 +4942,64 @@ function _setManualTouch(touch) {
   _renderManualSection();
 }
 
-function _renderManualSection() {
-  const container = document.getElementById('manual-send-section');
-  if (!container || !_manualPid) return;
-  const p = _sendProspects.find(x => x.id === _manualPid);
+function _setDrawerTouch(touch) {
+  const _dEl = document.getElementById('drawer');
+  if (_dEl) _dEl.dataset.drawerTouch = touch;
+  _renderManualSection('dpanel-send', _drawerSendPid);
+}
+
+function _renderManualSection(containerId = 'manual-send-section', pid = _manualPid) {
+  const container = document.getElementById(containerId);
+  if (!container || !pid) return;
+  const isDrawer = containerId !== 'manual-send-section';
+  const elPrefix = isDrawer ? 'd-' : '';
+  const _dEl = isDrawer ? document.getElementById('drawer') : null;
+  const currentTouch = isDrawer
+    ? (_dEl?.dataset.drawerTouch || _suggestTouch(_prospectsById[pid] || _sendProspects.find(x => x.id === pid)))
+    : _manualTouch;
+  const p = _sendProspects.find(x => x.id === pid) || _prospectsById[pid];
   if (!p) return;
-  const seq = (_sendSequences[_manualPid]||[]).find(s => s.touch === _manualTouch);
+  const seq = (_sendSequences[pid]||[]).find(s => s.touch === currentTouch);
   const isReady = seq && seq.status === 'ready';
   const seqId = seq ? seq.id : null;
   const isConnected = p.linkedin_tag === 'connection-accepted';
-  const sendBlocked = _manualTouch !== 'invite' && !isConnected;
+  const sendBlocked = currentTouch !== 'invite' && !isConnected;
   const sendDisabled = !isReady || sendBlocked;
+  const setTouchFn = isDrawer ? '_setDrawerTouch' : '_setManualTouch';
   const touchBtns = ['invite','j0','j5','ambassador','redirect'].map(t => {
-    const active = t === _manualTouch;
-    return `<button onclick="_setManualTouch('${t}')" style="padding:4px 10px;border-radius:var(--radius-sm);border:1px solid ${active?'var(--navy)':'var(--border)'};background:${active?'var(--navy)':'transparent'};color:${active?'#fff':'var(--text)'};font-size:var(--fs-xs);cursor:pointer;font-weight:${active?'700':'400'}">${TOUCH_LABELS[t]?.label||t}</button>`;
+    const active = t === currentTouch;
+    return `<button onclick="${setTouchFn}('${t}')" style="padding:4px 10px;border-radius:var(--radius-sm);border:1px solid ${active?'var(--navy)':'var(--border)'};background:${active?'var(--navy)':'transparent'};color:${active?'#fff':'var(--text)'};font-size:var(--fs-xs);cursor:pointer;font-weight:${active?'700':'400'}">${TOUCH_LABELS[t]?.label||t}</button>`;
   }).join('');
   container.innerHTML = `
     <div style="margin-bottom:24px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
         <div style="font-size:var(--fs-micro);font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim)">Manual send</div>
-        <button class="btn-sm" onclick="_clearManualSend()" style="border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer">✕ Clear</button>
+        ${!isDrawer ? `<button class="btn-sm" onclick="_clearManualSend()" style="border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer">✕ Clear</button>` : ''}
       </div>
-      <div class="card send-card" id="sc-${p.id}" data-pid="${_esc(p.id)}" data-touch="${_esc(_manualTouch)}" data-seq-id="${_esc(seqId||'')}">
+      <div class="card send-card" id="${elPrefix}sc-${p.id}" data-pid="${_esc(p.id)}" data-touch="${_esc(currentTouch)}" data-seq-id="${_esc(seqId||'')}">
         <div class="send-row">
           <div class="send-avatar" style="background:${_sendAvatarColor(p.name)}">${_esc(_sendInitials(p.name))}</div>
           <div class="send-id">
             <div class="send-name">${_esc(p.name)}</div>
             <div class="send-company">${_esc(p.company)}${p.region?' · '+_esc(p.region):''}</div>
           </div>
-          <span class="send-touch ${TOUCH_LABELS[_manualTouch]?.class||'touch-j0'}">${TOUCH_LABELS[_manualTouch]?.label||_manualTouch}</span>
+          <span class="send-touch ${TOUCH_LABELS[currentTouch]?.class||'touch-j0'}">${TOUCH_LABELS[currentTouch]?.label||currentTouch}</span>
         </div>
         <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">${touchBtns}</div>
         <div style="margin-top:10px">
           <div class="ai-box">
             <div class="ai-box-header">
               <span class="ai-box-label">Message</span>
-              <div class="ai-spinner" id="ss-${p.id}"></div>
+              <div class="ai-spinner" id="${elPrefix}ss-${p.id}"></div>
             </div>
-            <div class="ai-box-body" id="so-${p.id}" contenteditable="true" spellcheck="false" data-pid="${p.id}" oninput="const b=document.getElementById('sv-'+this.dataset.pid);if(b){b.disabled=false;b.style.opacity='1';b.style.cursor='pointer';}" style="min-height:80px;outline:none;cursor:text">${_esc(seq?.body||'')}</div>
+            <div class="ai-box-body" id="${elPrefix}so-${p.id}" contenteditable="true" spellcheck="false" data-pid="${p.id}" data-elprefix="${elPrefix}" oninput="const b=document.getElementById(this.dataset.elprefix+'sv-'+this.dataset.pid);if(b){b.disabled=false;b.style.opacity='1';b.style.cursor='pointer';}" style="min-height:80px;outline:none;cursor:text">${_esc(seq?.body||'')}</div>
           </div>
           <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-            <button class="btn-primary btn-md" onclick="_generateSequenceMessage('${p.id}','${_manualTouch}')" id="sg-${p.id}">▶ Generate</button>
-            <button class="btn-secondary btn-md" onclick="_saveSequenceDraft('${p.id}','${_manualTouch}')" id="sv-${p.id}" disabled style="opacity:0.45;cursor:not-allowed">Save draft</button>
-            <button class="btn-secondary btn-md" onclick="_markReady('${p.id}')" id="sr-${p.id}" ${isReady?'style="border-color:var(--green);color:var(--green)"':''}>${isReady?'✓ Ready':'Mark ready'}</button>
-            <button class="btn-primary btn-md" onclick="_sendViaLinkedIn('${p.id}','${_manualTouch}')" id="sli-${p.id}" ${sendDisabled?'disabled':''} ${sendBlocked?'style="opacity:0.4;cursor:not-allowed" title="Connection not yet accepted"':''}>Send via LinkedIn</button>
-            <button class="btn-secondary btn-md" onclick="_markSent('${p.id}','${_manualTouch}')" id="sms-${p.id}">✓ Mark as sent</button>
+            <button class="btn-primary btn-md" onclick="_generateSequenceMessage('${p.id}','${currentTouch}',false,'${elPrefix}')" id="${elPrefix}sg-${p.id}">▶ Generate</button>
+            <button class="btn-secondary btn-md" onclick="_saveSequenceDraft('${p.id}','${currentTouch}',undefined,'${elPrefix}')" id="${elPrefix}sv-${p.id}" disabled style="opacity:0.45;cursor:not-allowed">Save draft</button>
+            <button class="btn-secondary btn-md" onclick="_markReady('${p.id}','${elPrefix}')" id="${elPrefix}sr-${p.id}" ${isReady?'style="border-color:var(--green);color:var(--green)"':''}>${isReady?'✓ Ready':'Mark ready'}</button>
+            <button class="btn-primary btn-md" onclick="_sendViaLinkedIn('${p.id}','${currentTouch}','${elPrefix}')" id="${elPrefix}sli-${p.id}" ${sendDisabled?'disabled':''} ${sendBlocked?'style="opacity:0.4;cursor:not-allowed" title="Connection not yet accepted"':''}>Send via LinkedIn</button>
+            <button class="btn-secondary btn-md" onclick="_markSent('${p.id}','${currentTouch}',false,'','${elPrefix}')" id="${elPrefix}sms-${p.id}">✓ Mark as sent</button>
           </div>
         </div>
       </div>
@@ -5025,16 +5051,16 @@ function _interpretSignal(raw) {
   return raw; // vrai signal Trigify -- inchange
 }
 
-async function _generateSequenceMessage(pid, touch, forceGenerate = false) {
-  const p = _sendProspects.find(x => x.id === pid);
+async function _generateSequenceMessage(pid, touch, forceGenerate = false, elPrefix = '') {
+  const p = _sendProspects.find(x => x.id === pid) || _prospectsById[pid];
   if (!p) return;
   const lang = document.getElementById('send-filter-lang')?.value || 'EN';
   const langRule = lang === 'FR'
     ? "Write the message in French. Use 'vous' (not 'tu') — professional tone, respectful distance. Use correct French accents (où, é, è, ê, à, etc.) — never write 'ou' without accent when the meaning is 'where/when'. Write natural idiomatic French — avoid calques from English."
     : "Write the message in English.";
-  const btn = document.getElementById('sg-' + pid);
-  const out = document.getElementById('so-' + pid);
-  const spin = document.getElementById('ss-' + pid);
+  const btn = document.getElementById(elPrefix + 'sg-' + pid);
+  const out = document.getElementById(elPrefix + 'so-' + pid);
+  const spin = document.getElementById(elPrefix + 'ss-' + pid);
   if (btn) btn.disabled = true;
   if (spin) spin.classList.add('active');
   const touchDescriptions = {
@@ -5124,7 +5150,9 @@ async function _generateSequenceMessage(pid, touch, forceGenerate = false) {
     const searchQuery = (isJ0Network || touch === 'invite')
       ? `${p.company} ${p.sector || ''} recent news expansion`.trim()
       : `Search for recent news about ${firstName} ${lastName} at ${p.company} — focus on their current market expansion, recent funding, new markets entered, and any geographic focus in 2025-2026. Return only factual findings, max 150 words.`;
+    console.log('[gen] perplexity start. pid:', pid, 'touch:', touch, 'query len:', searchQuery.length);
     liveContext = await _perplexitySearch(searchQuery, 500);
+    console.log('[gen] perplexity done. liveContext chars:', liveContext.length);
     // --- Person search (j0 network + first contact only) ---
     if (isJ0Network && !p.last_contact) {
       personContext = await _perplexitySearch(`${firstName} ${lastName} ${p.company} current role`, 300);
@@ -5266,13 +5294,16 @@ ${intCtx ? 'Recent interactions: ' + intCtx : ''}
 ${_senderBio()}
 ${_activeMandate ? 'ACTIVE MANDATE CONTEXT (defines the purpose of every message; the signal below informs the angle but must not contradict this mandate):' + '\n' + _mandateContext() + '\n---\n' : ''}
 ${liveBlock}${personBlock}${prevMsgBlock}${inviteBlock}${originBlock}${memoryBlock}${touch === 'invite' ? `CRITICAL INVITE RULE (non-negotiable): LinkedIn connection request. STRUCTURE: one factual observation (max 15 words) + one short question (max 10 words) + sign off "Thomas" on its own line. TOTAL under 200 characters. NO greeting. NO Corridor. NO URL. NO closing line. NO "Sent via". Output ONLY the 2-sentence message + Thomas, nothing else.` : ''}\nRules: NEVER use em-dashes (—) in any message, replace with a period or comma. No bullet points. No mention of "Alliance Grid" or "Corridor" in the main message body (sentences 1 and 2 only -- the mandatory closing line appended below is the only exception and must be reproduced exactly as given). ${langRule} Replace every vague claim with something specific and provable. Never write 'I help companies grow' or 'I drive results'. Write what you actually observed about this company and why it is relevant right now.${(touch === 'invite' || touch === 'j0') ? ' Strip all marketing language. No buzzwords, no value propositions, no product claims. Rewrite as a text a peer would send to another peer -- direct, human, zero corporate tone.' : ''} NEVER claim or imply that the prospect asked a question, made a specific statement, or expressed a specific interest unless that exact information is explicitly given in the prompt -- if no such detail is provided, do not invent one. NEVER state or imply a specific niche focus for the sender (e.g. a named industry, a named type of deal) that is not listed in their background above. NEVER use generic AI-sounding filler phrases (e.g. "passionate about", "excited to connect", "love what you're building") -- ground every claim in a real fact from the sender's background above or the prospect's own title/company/signal. Output the message only, no preamble.${touch === 'j5' ? '\n\nFOLLOW-UP TONE RULES (mandatory):\n- NEVER use: "follow up", "following up", "checking in", "touching base", "circling back", "just wanted to", "I wanted to reach out", "hope this finds you well"\n- Do NOT open with a reference to the previous message (e.g. "I sent you a note last week")\n- Write as if continuing a conversation, not tracking an unanswered message\n- Introduce a NEW angle, observation, or question — never repeat the idea from the previous message\n- Conversational tone: peer to peer, not vendor to prospect\n- j5: one specific observation or question that opens a thread — no CTA harder than "thoughts?" or "does this resonate?"\n- The closing question must be different from the J+0 question. Never use "Curious what the growth focus looks like" or any variation of it.\n- Previous message sent: "' + (intCtx || 'not available') + '" — do not repeat its angle, observation, or closing question.' : ''}${j0LinkedInNote}${j0NoContextNote}${stealthBlock}${signalBlock}`);
+  console.log('[gen] calling Anthropic. touch:', touch, 'prompt chars:', prompt.length);
   try {
     const res = await fetch(API_URL, {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ model:'claude-sonnet-5', max_tokens:400, messages:[{role:'user',content:prompt}] })
     });
+    console.log('[gen] Anthropic response status:', res.status);
     if (!res.ok) throw new Error('API error ' + res.status);
     const data = await res.json();
+    if (data.type === 'error') throw new Error(data.error?.message || 'Anthropic API error');
     let text = Array.isArray(data.content)
       ? (data.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim())
       : '';
@@ -5281,20 +5312,21 @@ ${liveBlock}${personBlock}${prevMsgBlock}${inviteBlock}${originBlock}${memoryBlo
       .replace(/\s*\.\s+([a-z])/g, (_, c) => '. ' + c.toUpperCase())
       .replace(/linkedin\.com\/in\/thomas-dratler/g, 'linkedin.com/company/corridor-gtm-system');
     if (out) out.textContent = text || 'Error generating message.';
-    if (text) await _saveSequenceDraft(pid, touch, text);
-    const saveBtn = document.getElementById('sv-' + pid);
+    if (text) await _saveSequenceDraft(pid, touch, text, elPrefix);
+    const saveBtn = document.getElementById(elPrefix + 'sv-' + pid);
     if (saveBtn) { saveBtn.disabled = true; saveBtn.style.opacity = '0.45'; saveBtn.style.cursor = 'not-allowed'; }
   } catch(e) {
-    if (out) out.textContent = 'Error generating message.';
+    console.error('[_generateSequenceMessage] failed:', e);
+    if (out) out.textContent = 'Generate failed — ' + (e.message || 'network error') + '. Click Generate to retry.';
   } finally {
     if (btn) btn.disabled = false;
     if (spin) spin.classList.remove('active');
   }
 }
 
-async function _saveSequenceDraft(pid, touch, bodyOverride) {
-  const seqId = document.getElementById('sc-' + pid)?.dataset.seqId || '';
-  const out = document.getElementById('so-' + pid);
+async function _saveSequenceDraft(pid, touch, bodyOverride, elPrefix = '') {
+  const seqId = document.getElementById(elPrefix + 'sc-' + pid)?.dataset.seqId || '';
+  const out = document.getElementById(elPrefix + 'so-' + pid);
   const body = bodyOverride || out?.textContent?.trim() || '';
   if (!body) return;
   if (seqId) {
@@ -5315,22 +5347,22 @@ async function _saveSequenceDraft(pid, touch, bodyOverride) {
   showToast('Draft saved');
 }
 
-async function _markReady(pid) {
-  const seqId = document.getElementById('sc-' + pid)?.dataset.seqId || '';
+async function _markReady(pid, elPrefix = '') {
+  const seqId = document.getElementById(elPrefix + 'sc-' + pid)?.dataset.seqId || '';
   if (!seqId) { showToast('Save draft first'); return; }
   const { error } = await sbClient.from('sequences').update({ status:'ready' }).eq('id', seqId).eq('client_id', CLIENT_ID);
   if (error) { showToast('Error'); return; }
-  const btn = document.getElementById('sr-' + pid);
+  const btn = document.getElementById(elPrefix + 'sr-' + pid);
   if (btn) { btn.textContent = '✓ Ready'; btn.style.borderColor = 'var(--green)'; btn.style.color = 'var(--green)'; }
-  const sendBtn = document.getElementById('sli-' + pid);
+  const sendBtn = document.getElementById(elPrefix + 'sli-' + pid);
   if (sendBtn) sendBtn.disabled = false;
   showToast('Message ready to send');
 }
 
-async function _sendViaLinkedIn(pid, touch) {
-  const p = _sendProspects.find(x => x.id === pid);
+async function _sendViaLinkedIn(pid, touch, elPrefix = '') {
+  const p = _sendProspects.find(x => x.id === pid) || _prospectsById[pid];
   if (!p) return;
-  const out = document.getElementById('so-' + pid);
+  const out = document.getElementById(elPrefix + 'so-' + pid);
   const body = out?.textContent?.trim() || '';
   if (!body) { showToast('No message to send'); return; }
   if (body.includes('{') || body.includes('}')) {
@@ -5353,7 +5385,7 @@ async function _sendViaLinkedIn(pid, touch) {
     if (_seErr2) console.error('[_sendViaLinkedIn] send_error insert failed:', _seErr2);
     return;
   }
-  const btn = document.getElementById('sli-' + pid);
+  const btn = document.getElementById(elPrefix + 'sli-' + pid);
   if (btn) btn.disabled = true;
   try {
     const res = await fetch('/api/heyreach-send', {
@@ -5362,7 +5394,7 @@ async function _sendViaLinkedIn(pid, touch) {
     });
     const data = await res.json();
     if (data.success) {
-      await _markSent(pid, touch, true, body);
+      await _markSent(pid, touch, true, body, elPrefix);
       showToast('Sent via LinkedIn ✓');
     } else {
       showToast('HeyReach error: ' + (data.error||'unknown'));
@@ -5385,8 +5417,8 @@ function _updateSentCounter() {
   else                            { el.style.color = 'var(--muted)'; }
 }
 
-async function _markSent(pid, touch, auto = false, msgText = '') {
-  const card = document.getElementById('sc-' + pid);
+async function _markSent(pid, touch, auto = false, msgText = '', elPrefix = '') {
+  const card = document.getElementById(elPrefix + 'sc-' + pid);
   const seqId = card?.dataset.seqId || '';
   const now = new Date().toISOString();
   if (seqId) {
@@ -5412,7 +5444,7 @@ async function _markSent(pid, touch, auto = false, msgText = '') {
       .eq('id', pid).eq('client_id', CLIENT_ID));
     if (eLastContact) console.error('_markSent last_contact:', eLastContact);
   }
-  const p = _sendProspects.find(x => x.id === pid);
+  const p = _sendProspects.find(x => x.id === pid) || _prospectsById[pid];
   const newStage = TOUCH_NEXT_STAGE[touch];
   const _curRank = _stageRank[p?.stage] ?? -1;
   const _newRank = _stageRank[newStage] ?? -1;
@@ -5952,6 +5984,7 @@ async function openDrawer(card, initialTab = 'activity') {
       <div class="dtab" onclick="_switchDTab('profile',this)">Profile</div>
       <div class="dtab" onclick="_switchDTab('deal',this)">Deal</div>
       <div class="dtab" onclick="_switchDTab('ai',this)">AI</div>
+      <div class="dtab" onclick="_switchDTab('send',this)">Send</div>
     </div>
     <div class="dtab-panel active" id="dpanel-activity">
       ${_reminderBannerHTML(reminderDate)}
@@ -6189,11 +6222,15 @@ async function openDrawer(card, initialTab = 'activity') {
           </div>
         </div>
       </div>
-    </div>`;
+    </div>
+    <div class="dtab-panel${initialTab==='send'?' active':''}" id="dpanel-send" style="padding:16px 20px"></div>`;
 
   const _dEl = document.getElementById('drawer');
   _dEl.dataset.pid = prospectId || '';
   _dEl.dataset.clientId = clientId || CLIENT_ID;
+  _dEl.dataset.drawerTouch = '';
+  _drawerSendPid = prospectId;
+  _renderManualSection('dpanel-send', prospectId);
   _dEl.classList.add('open');
   document.getElementById('drawer-overlay').classList.add('open');
   document.body.classList.add('drawer-open');
@@ -6505,12 +6542,20 @@ ANTI-HALLUCINATION RULES — strictly enforced:
 2. If no verified context is available, base your output solely on stage, sector, score, and logged interactions. Do not fill gaps with plausible-sounding invented details.
 3. Two calls on the same prospect must produce consistent outputs — never contradict yourself by inventing different facts each time.`;
 
-  const userMsg = `Prospect: ${p.name} at ${p.company||'unknown'} (${p.sector||'unknown sector'}). Stage: ${p.stage||'unknown'}. Score: ${p.score||'not set'}.
+  const userMsg = `Prospect: ${p.name} at ${p.company||'unknown'} (${p.sector||'unknown sector'}). Stage: ${p.stage||'unknown'}. Score: ${p.score||'not set'}.${p.email ? ' Email: ' + p.email + '.' : ''}
 ${ctx ? 'Recent interactions: ' + ctx : 'No interactions logged.'}
 ${rem ? 'Next reminder: ' + rem : ''}
 ${_drMemory ? '\nPROSPECT MEMORY:\n' + _drMemory : ''}
 ${contextBlock}
-Recommend the next action: channel, action, one-line reason it moves the deal. Max 90 words. No em-dashes.
+Recommend the single best next action in exactly this format — use a blank line between each line:
+
+**Channel:** [LinkedIn / Email / Call]
+
+**Action:** [one sentence, max 20 words — what to do and what angle to take${p.email ? '; if Channel is Email include the address verbatim, e.g. "Email ' + p.email + ' referencing..."' : ''}]
+
+**Why:** [one sentence, max 15 words — why this moves this specific deal right now]
+
+No other text. No em-dashes.
 ${typeof _langLine === 'function' ? _langLine() : ''}`;
 
   try {
@@ -6529,7 +6574,14 @@ ${typeof _langLine === 'function' ? _langLine() : ''}`;
     const text = Array.isArray(data.content)
       ? data.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim()
       : 'No response.';
-    if (_drOut) { _drOut.innerHTML = renderMarkdown(text); _drOut.classList.add('loaded'); }
+    if (_drOut) {
+      const _rendered = renderMarkdown(text).replace(
+        /([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})/g,
+        '<a href="mailto:$1" style="color:var(--navy);text-decoration:underline">$1</a>'
+      );
+      _drOut.innerHTML = _rendered;
+      _drOut.classList.add('loaded');
+    }
   } catch(e) {
     if (_drOut) _drOut.textContent = 'Error: ' + e.message;
   } finally {
@@ -7606,11 +7658,11 @@ function _drawerProfileHTML(id, p, colStage, fb){
     )}
     ${card(
       lbl('Signal / Context') +
-      `<textarea id="drawer-signal" class="dp-inp" rows="3" placeholder="e.g. New CRO hired from PE-backed SaaS — scaled $4M to $28M ARR mid-market NA" style="font-size:var(--fs-sm);min-height:60px;resize:vertical">${v(stripHtml(p.signal))}</textarea>` +
+      `<textarea id="drawer-signal" class="dp-inp" rows="3" placeholder="e.g. New CRO hired from PE-backed SaaS — scaled $4M to $28M ARR mid-market NA" style="font-size:var(--fs-base);min-height:60px;resize:vertical">${v(stripHtml(p.signal))}</textarea>` +
       `<div id="signal-link-wrap" style="font-size:var(--fs-xs)"></div>` +
       `<select id="drawer-signal-type" style="font-size:var(--fs-sm);padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);color:var(--text)">` +
         `<option value="">-- Signal type --</option>` +
-        `${(_signalTaxonomy && Object.keys(_signalTaxonomy).length ? Object.values(_signalTaxonomy) : [{code:'S1',label:'S1'},{code:'S2',label:'S2'},{code:'S3',label:'S3'},{code:'S4',label:'S4'}]).map(t => `<option value="${_esc(t.code)}"${p.signal_type===t.code?' selected':''}>${_esc(t.icon||'')} ${_esc(t.code)} — ${_esc(t.label||t.code)}</option>`).join('')}` +
+        `${(_signalTaxonomy && Object.keys(_signalTaxonomy).length ? Object.values(_signalTaxonomy) : [{code:'S1',label:'S1'},{code:'S2',label:'S2'},{code:'S3',label:'S3'},{code:'S4',label:'S4'}]).map(t => `<option value="${_esc(t.code)}"${(p.signal_type||'').toUpperCase()===(t.code||'').toUpperCase()?' selected':''}>${_esc(t.icon||'')} ${_esc(t.code)} — ${_esc(t.label||t.code)}</option>`).join('')}` +
       `</select>` +
       (p.signalInterpretation ? `<div style="background:var(--navy-light);border:1px solid var(--blue);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--navy);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:10px;opacity:0.65;display:block;margin-bottom:3px">✦ ${currentLang==='fr'?'Analyse IA':'AI Insight'}</span>${v(stripHtml(p.signalInterpretation))}</div>` : '')
     )}
