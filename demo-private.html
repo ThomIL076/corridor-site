@@ -3911,9 +3911,7 @@ function _openAskFromMandate() {
   });
 }
 
-function _buildAskSystemPrompt(ctx) {
-  const fr = (typeof currentLang !== 'undefined' && currentLang === 'fr');
-  const lang = fr ? 'French' : 'English';
+function _buildAskSystemPrompt(ctx, pipelineSnapshot) {
   const mandateBlock = (typeof _mandateContext === 'function') ? _mandateContext() : '';
   let ctxBlock = '';
   if (ctx) {
@@ -3943,8 +3941,87 @@ function _buildAskSystemPrompt(ctx) {
       if (ctx.signalInterpretation) parts.push('Signal interpretation: ' + ctx.signalInterpretation);
       ctxBlock = '\n\n' + parts.join('\n');
     }
+  } else if (pipelineSnapshot) {
+    ctxBlock = '\n\n' + pipelineSnapshot;
   }
-  return 'You are Corridor\'s assistant helping with GTM pipeline management.\n' + mandateBlock + ctxBlock + '\n\nBe factual and concise. Never use em-dashes (—) or horizontal rules (---) in your response.\nNever state a fact about a prospect, company, mandate, or signal that is not explicitly present in the context provided or in what the user has told you in this conversation. If you don\'t have enough information to answer accurately, say so directly rather than guessing or inferring plausibly-sounding details. Do not invent URLs, dates, numbers, or attributions. When asked about something outside the provided context (general market knowledge, definitions, how-to questions), you may answer from general knowledge, but never blend invented specifics about THIS prospect/mandate/signal with general knowledge in a way that makes them indistinguishable.\nLanguage instruction: Write your entire response in ' + lang + '. All section headers, bullet points, and analysis must be in that language.';
+  return 'You are Corridor\'s assistant helping with GTM pipeline management.\n' + mandateBlock + ctxBlock + '\n\nBe factual and concise. Never use em-dashes (—) or horizontal rules (---) in your response.\nNever state a fact about a prospect, company, mandate, or signal that is not explicitly present in the context provided or in what the user has told you in this conversation. If you don\'t have enough information to answer accurately, say so directly rather than guessing or inferring plausibly-sounding details. Do not invent URLs, dates, numbers, or attributions. When asked about something outside the provided context (general market knowledge, definitions, how-to questions), you may answer from general knowledge, but never blend invented specifics about THIS prospect/mandate/signal with general knowledge in a way that makes them indistinguishable.\nLanguage instruction: Respond in the same language as the user\'s question. If the question is in French, respond in French. If in English, respond in English. All section headers, bullet points, and analysis must be in that language.';
+}
+
+async function _buildPipelineSnapshot() {
+  try {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const _psDaysSince = (ds) => !ds ? null : Math.floor((Date.now() - new Date(ds)) / 86400000);
+    const _psDaysUntil = (ds) => !ds ? null : Math.floor((new Date(ds) - Date.now()) / 86400000);
+    const { data: { session: _psSess } } = await sbClient.auth.getSession();
+    const _psToken = _psSess?.access_token || '';
+    let _psParam = '';
+    if (activeMandateId === '__ALL__') _psParam = '?mandate_mode=all';
+    else if (activeMandateId) _psParam = '?mandate_id=' + encodeURIComponent(activeMandateId);
+    const _psRes = await fetch('/api/pipeline-prospects' + _psParam, {
+      headers: { 'Authorization': 'Bearer ' + _psToken }
+    });
+    if (!_psRes.ok) return '';
+    const { prospects: _psAll } = await _psRes.json();
+    if (!_psAll || !_psAll.length) return '';
+    const active = _psAll.filter(p => p.stage !== 'Closed');
+    const classify = (p) => {
+      const since = _psDaysSince(p.last_contact);
+      const until = _psDaysUntil(p.reminder_date);
+      const stage = p.stage || 'Identified';
+      const hasContact = !!p.last_contact;
+      if (['Engaged', 'Proposal'].includes(stage) && p.reminder_date && p.reminder_date < todayStr) return 'red';
+      if (stage === 'Engaged'     && since !== null && since > 14) return 'red';
+      if (stage === 'Proposal'    && since !== null && since > 7)  return 'red';
+      if (stage === '1st Contact' && since !== null && since > 21) return 'red';
+      if (until !== null && until >= 0 && until <= 3) return 'amber';
+      if (since !== null && since >= 7 && since <= 14) return 'amber';
+      if (p.linkedin_tag === 'connection-accepted' && !hasContact) return 'amber';
+      return 'green';
+    };
+    const hotness = (p) => {
+      const d = _psDaysSince(p.last_contact);
+      if (d === null) return 'cold';
+      if (d <= 2) return 'hot';
+      if (d <= 7) return 'warm';
+      if (d <= 14) return 'neutral';
+      return 'cold';
+    };
+    const classified = active.map(p => ({ ...p, color: classify(p), heat: hotness(p) }));
+    const red   = classified.filter(p => p.color === 'red');
+    const amber = classified.filter(p => p.color === 'amber');
+    const green = classified.filter(p => p.color === 'green');
+    const stageCounts = {};
+    active.forEach(p => { const s = p.stage || 'Unknown'; stageCounts[s] = (stageCounts[s] || 0) + 1; });
+    const stageLines = Object.entries(stageCounts).map(([s, n]) => '  ' + s + ': ' + n).join('\n');
+    const hot     = classified.filter(p => p.heat === 'hot').length;
+    const warm    = classified.filter(p => p.heat === 'warm').length;
+    const neutral = classified.filter(p => p.heat === 'neutral').length;
+    const cold    = classified.filter(p => p.heat === 'cold').length;
+    const topRed = red
+      .sort((a, b) => (_psDaysSince(b.last_contact) || 0) - (_psDaysSince(a.last_contact) || 0))
+      .slice(0, 5)
+      .map(p => '  - ' + p.name + ' (' + (p.company || '?') + ') | ' + p.stage + ' | last contact: ' + (_psDaysSince(p.last_contact) === null ? 'never' : _psDaysSince(p.last_contact) + 'd ago'));
+    const topSignals = prospects
+      .filter(p => p.score_signal_strength && ['Identified', '1st Contact'].includes(p.stage))
+      .sort((a, b) => (b.score_signal_strength || 0) - (a.score_signal_strength || 0))
+      .slice(0, 5)
+      .map(p => '  - ' + p.name + ' (' + (p.company || '?') + ') | strength: ' + p.score_signal_strength + ' | ' + (p.signal || '?'));
+    const lines = [
+      'PIPELINE SNAPSHOT (live data):',
+      'Total active prospects: ' + active.length,
+      'By stage:\n' + stageLines,
+      'Engagement heat: Hot ' + hot + ' / Warm ' + warm + ' / Neutral ' + neutral + ' / Cold ' + cold,
+      'Health (RED = action required / AMBER = watch / GREEN = healthy):',
+      '  RED: ' + red.length,
+      '  AMBER: ' + amber.length,
+      '  GREEN: ' + green.length,
+    ];
+    if (topRed.length) lines.push('Most urgent RED:\n' + topRed.join('\n'));
+    if (topSignals.length) lines.push('Top unactioned signals (high strength, early stage):\n' + topSignals.join('\n'));
+    return lines.join('\n');
+  } catch(e) {
+    return '';
+  }
 }
 
 async function _sendAskMessage() {
@@ -3961,6 +4038,10 @@ async function _sendAskMessage() {
   const thinkId = 'ask-think-' + Date.now();
   msgs.innerHTML += '<div class="chat-msg assistant" id="' + thinkId + '"><div class="chat-avatar">C</div><div class="chat-bubble" style="color:var(--muted);font-style:italic">' + (fr ? 'En train de réfléchir…' : 'Thinking…') + '</div></div>';
   msgs.scrollTop = msgs.scrollHeight;
+  let _askSnapshot = '';
+  if (!_askCtx) {
+    try { _askSnapshot = await _buildPipelineSnapshot(); } catch(e) {}
+  }
   try {
     const res = await fetch(API_URL, {
       method: 'POST',
@@ -3968,7 +4049,7 @@ async function _sendAskMessage() {
       body: JSON.stringify({
         model: 'claude-sonnet-5',
         max_tokens: 4000,
-        system: _buildAskSystemPrompt(_askCtx),
+        system: _buildAskSystemPrompt(_askCtx, _askSnapshot),
         messages: _askHistory
       })
     });
@@ -4094,33 +4175,16 @@ async function _runPipelineReview() {
   out.innerHTML = '<div style="color:var(--muted);font-size:var(--fs-base);padding:12px 0;">Loading pipeline data...</div>';
 
   try {
-    const { data: { user } } = await _supabase.auth.getUser();
-    const uid = user ? user.id : null;
-    let resolvedClientId = CLIENT_ID;
-    if (uid) {
-      try {
-        const { data: cl } = await _supabase.from('clients').select('client_id').eq('auth_user_id', uid).single();
-        if (cl && cl.client_id) resolvedClientId = cl.client_id;
-      } catch(e) {}
-    }
-
-    let _prAll = [], _prFrom = 0;
-    while (true) {
-      let _prQuery = _supabase
-        .from('prospects')
-        .select('id,name,company,sector,country,stage,last_contact,reminder_date,deal_value,deal_currency,linkedin_tag,created_at')
-        .eq('client_id', resolvedClientId);
-      _prQuery = _applyMandateFilter(_prQuery);
-      const { data: chunk, error } = await _prQuery
-        .eq('archived', false)
-        .order('last_contact', { ascending: false, nullsFirst: false })
-        .range(_prFrom, _prFrom + 999);
-      if (error) throw new Error('Supabase: ' + error.message);
-      _prAll = _prAll.concat(chunk || []);
-      if (!chunk || chunk.length < 1000) break;
-      _prFrom += 1000;
-    }
-    const prospects = _prAll;
+    const { data: { session: _prSess } } = await _supabase.auth.getSession();
+    const _prToken = _prSess?.access_token || '';
+    let _prParam = '';
+    if (activeMandateId === '__ALL__') _prParam = '?mandate_mode=all';
+    else if (activeMandateId) _prParam = '?mandate_id=' + encodeURIComponent(activeMandateId);
+    const _prRes = await fetch('/api/pipeline-prospects' + _prParam, {
+      headers: { 'Authorization': 'Bearer ' + _prToken }
+    });
+    if (!_prRes.ok) throw new Error('pipeline-prospects: HTTP ' + _prRes.status);
+    const { prospects } = await _prRes.json();
 
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0];
@@ -4145,14 +4209,13 @@ async function _runPipelineReview() {
       const until = daysUntil(p.reminder_date);
       const stage = p.stage || 'Identified';
       const hasContact = !!p.last_contact;
-      const connNoJ0 = p.linkedin_tag === 'connection-accepted' && !hasContact;
-      const ageDays = daysSince(p.created_at);
-      if (p.reminder_date && p.reminder_date < todayStr) return 'red';
-      if (since !== null && since > 14) return 'red';
-      if (stage === 'Identified' && ageDays !== null && ageDays > 30 && !hasContact) return 'red';
+      if (['Engaged', 'Proposal'].includes(stage) && p.reminder_date && p.reminder_date < todayStr) return 'red';
+      if (stage === 'Engaged'     && since !== null && since > 14) return 'red';
+      if (stage === 'Proposal'    && since !== null && since > 7)  return 'red';
+      if (stage === '1st Contact' && since !== null && since > 21) return 'red';
       if (until !== null && until >= 0 && until <= 3) return 'amber';
       if (since !== null && since >= 7 && since <= 14) return 'amber';
-      if (connNoJ0) return 'amber';
+      if (p.linkedin_tag === 'connection-accepted' && !hasContact) return 'amber';
       return 'green';
     };
 
@@ -5294,8 +5357,8 @@ ${langRule}
 
   const _sig = _interpretSignal(p.signal);
   const signalBlock = _sig ? (
-    (touch === 'j0' || touch === 'invite') ? `\nLIVE SIGNAL -- USE THIS AS YOUR OPENING HOOK:\n"${_sig}"\nSignal type: ${p.signal_type || 'unclassified'}\n\nBEFORE USING THIS SIGNAL, CLASSIFY IT:\n(a) a specific, dated event with real timing -- funding round, hire, product launch, expansion, explicit decision\n(b) generic activity -- liked/commented/engaged with a post, general posting activity, no specific event or date attached\n\nIf (a): open with this signal as the reason you're reaching out today, the timing is the hook.\nIf (b): do NOT present it as a live trigger or claim you detected something significant today. Use it only as a soft, honest opener at most (e.g. "saw you were active on LinkedIn recently"), and lean on LIVE CONTEXT research below for the real substance of the message. If LIVE CONTEXT is also empty or thin, keep the message short and general rather than manufacturing urgency out of a generic signal.\n\nRULES:\n- Then ground the rest of the message in the LIVE CONTEXT research above (if present) -- what the company actually does, a specific detail about their work\n- Total message under 75 words\n- NO closing line, NO signature, NO Corridor mention, NO URL.\n` :
-    touch === 'j5' ? `\nORIGINAL SIGNAL CONTEXT (do NOT repeat this angle -- build a new one):\nSignal: "${_sig}"\nJ+0 was sent based on this signal. J+5 must introduce a completely different angle.\nUse what you know about the company/person to find a second hook that is equally specific.\nNever use: "following up", "checking in", "touching base", "just wanted to".\n` : ''
+    (touch === 'j0' || touch === 'invite') ? `\nSTORED SIGNAL (detected and saved in database):\n"${_sig}"\nSignal type: ${p.signal_type || 'unclassified'}${p.signal_date ? '\nSignal date: ' + p.signal_date : ' (date unknown)'}\n\nBEFORE USING THIS SIGNAL, CLASSIFY IT:\n(a) a specific, dated event -- funding round, hire, product launch, expansion, explicit decision\n(b) generic activity -- LinkedIn engagement, general posting activity, no specific event or date\n\nPRIORITY RULE -- when both STORED SIGNAL and LIVE CONTEXT (below) are present:\n- Compare their recency: stored signal date vs. events mentioned in LIVE CONTEXT\n- Lead with the MORE RECENT of the two as your opening hook -- do NOT default to either source systematically\n- If LIVE CONTEXT contains a more recent specific event, prefer it even if the stored signal is type (a)\n- If stored signal is more recent, or LIVE CONTEXT is thin/generic, lead with the stored signal\n- If only one source is present, use it\n\nIf (a) and leading with stored signal: use the signal date as timing justification (e.g. "I saw that last [month]...")\nIf (b): use stored signal only as a soft opener; rely on LIVE CONTEXT for substance. If LIVE CONTEXT is also empty, write a short neutral message.\n\nRULES:\n- Total message under 75 words\n- NO closing line, NO signature, NO Corridor mention, NO URL.\n` :
+    touch === 'j5' ? `\nORIGINAL SIGNAL CONTEXT (do NOT repeat this angle -- build a new one):\nSignal: "${_sig}"${p.signal_date ? '\nSignal date: ' + p.signal_date : ''}\nJ+0 was sent based on this signal. J+5 must introduce a completely different angle.\nUse what you know about the company/person to find a second hook that is equally specific.\nNever use: "following up", "checking in", "touching base", "just wanted to".\n` : ''
   ) : '';
   const prompt = ambassadorPrompt || redirectPrompt || (isInvestor && investorPrompts[touch]
     ? investorPrompts[touch]
