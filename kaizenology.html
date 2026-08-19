@@ -4956,54 +4956,69 @@ function _setManualTouch(touch) {
   _renderManualSection();
 }
 
-function _renderManualSection() {
-  const container = document.getElementById('manual-send-section');
-  if (!container || !_manualPid) return;
-  const p = _sendProspects.find(x => x.id === _manualPid);
+let _drawerSendPid = null;
+
+function _setDrawerTouch(touch) {
+  const _dEl = document.getElementById('drawer');
+  if (_dEl) _dEl.dataset.drawerTouch = touch;
+  _renderManualSection('dpanel-send', _drawerSendPid);
+}
+
+function _renderManualSection(containerId = 'manual-send-section', pid = _manualPid) {
+  const container = document.getElementById(containerId);
+  if (!container || !pid) return;
+  const isDrawer = containerId !== 'manual-send-section';
+  const elPrefix = isDrawer ? 'd-' : '';
+  const _dEl = isDrawer ? document.getElementById('drawer') : null;
+  const currentTouch = isDrawer
+    ? (_dEl?.dataset.drawerTouch || _suggestTouch(_prospectsById[pid] || _sendProspects.find(x => x.id === pid)))
+    : _manualTouch;
+  const p = _sendProspects.find(x => x.id === pid) || _prospectsById[pid];
   if (!p) return;
-  const seq = (_sendSequences[_manualPid]||[]).find(s => s.touch === _manualTouch);
+  const seq = (_sendSequences[pid]||[]).find(s => s.touch === currentTouch);
   const isReady = seq && seq.status === 'ready';
   const seqId = seq ? seq.id : null;
   const isConnected = p.linkedin_tag === 'connection-accepted';
-  const sendBlocked = _manualTouch !== 'invite' && !isConnected;
+  const sendBlocked = currentTouch !== 'invite' && !isConnected;
   const sendDisabled = !isReady || sendBlocked;
+  const setTouchFn = isDrawer ? '_setDrawerTouch' : '_setManualTouch';
   const availableTouches = (CLIENT_ID === 'kaizenology')
     ? ['invite','j0','j5','redirect']
     : ['invite','j0','j5','ambassador','redirect'];
   const touchBtns = availableTouches.map(t => {
-    const active = t === _manualTouch;
-    return `<button onclick="_setManualTouch('${t}')" style="padding:4px 10px;border-radius:var(--radius-sm);border:1px solid ${active?'var(--navy)':'var(--border)'};background:${active?'var(--navy)':'transparent'};color:${active?'#fff':'var(--text)'};font-size:var(--fs-xs);cursor:pointer;font-weight:${active?'700':'400'}">${TOUCH_LABELS[t]?.label||t}</button>`;
+    const active = t === currentTouch;
+    return `<button onclick="${setTouchFn}('${t}')" style="padding:4px 10px;border-radius:var(--radius-sm);border:1px solid ${active?'var(--navy)':'var(--border)'};background:${active?'var(--navy)':'transparent'};color:${active?'#fff':'var(--text)'};font-size:var(--fs-xs);cursor:pointer;font-weight:${active?'700':'400'}">${TOUCH_LABELS[t]?.label||t}</button>`;
   }).join('');
   container.innerHTML = `
     <div style="margin-bottom:24px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
         <div style="font-size:var(--fs-micro);font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim)">Manual send</div>
-        <button onclick="_clearManualSend()" style="padding:2px 8px;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:var(--fs-xs);cursor:pointer">✕ Clear</button>
+        ${!isDrawer ? `<button onclick="_clearManualSend()" style="padding:2px 8px;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:var(--fs-xs);cursor:pointer">✕ Clear</button>` : ''}
       </div>
-      <div class="card send-card" id="sc-${p.id}" data-pid="${_esc(p.id)}" data-touch="${_esc(_manualTouch)}" data-seq-id="${_esc(seqId||'')}">
+      <div class="card send-card" id="${elPrefix}sc-${p.id}" data-pid="${_esc(p.id)}" data-touch="${_esc(currentTouch)}" data-seq-id="${_esc(seqId||'')}">
         <div class="send-row">
           <div class="send-avatar" style="background:${_sendAvatarColor(p.name)}">${_esc(_sendInitials(p.name))}</div>
           <div class="send-id">
             <div class="send-name">${_esc(p.name)}</div>
             <div class="send-company">${_esc(p.company)}${p.region?' · '+_esc(p.region):''}</div>
           </div>
-          <span class="send-touch ${TOUCH_LABELS[_manualTouch]?.class||'touch-j0'}">${TOUCH_LABELS[_manualTouch]?.label||_manualTouch}</span>
+          <span class="send-touch ${TOUCH_LABELS[currentTouch]?.class||'touch-j0'}">${TOUCH_LABELS[currentTouch]?.label||currentTouch}</span>
         </div>
         <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">${touchBtns}</div>
         <div style="margin-top:10px">
           <div class="ai-box">
             <div class="ai-box-header">
               <span class="ai-box-label">Message</span>
-              <div class="ai-spinner" id="ss-${p.id}"></div>
+              <div class="ai-spinner" id="${elPrefix}ss-${p.id}"></div>
             </div>
-            <div class="ai-box-body" id="so-${p.id}" contenteditable="true" spellcheck="false" data-pid="${p.id}" oninput="const b=document.getElementById('sv-'+this.dataset.pid);if(b){b.disabled=false;b.style.opacity='1';b.style.cursor='pointer';}" style="min-height:80px;outline:none;cursor:text">${_esc(seq?.body||'')}</div>
+            <div class="ai-box-body" id="${elPrefix}so-${p.id}" contenteditable="true" spellcheck="false" data-pid="${p.id}" data-elprefix="${elPrefix}" oninput="const b=document.getElementById(this.dataset.elprefix+'sv-'+this.dataset.pid);if(b){b.disabled=false;b.style.opacity='1';b.style.cursor='pointer';}" style="min-height:80px;outline:none;cursor:text">${_esc(seq?.body||'')}</div>
           </div>
           <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-            <button class="btn-primary" onclick="_generateSequenceMessage('${p.id}','${_manualTouch}')" id="sg-${p.id}">▶ Generate</button>
-            <button class="btn-secondary" onclick="_saveSequenceDraft('${p.id}','${_manualTouch}')" id="sv-${p.id}" disabled style="opacity:0.45;cursor:not-allowed">Save draft</button>
-            <button class="btn-secondary" onclick="_markReady('${p.id}')" id="sr-${p.id}" ${isReady?'style="border-color:var(--green);color:var(--green)"':''}>${isReady?'✓ Ready':'Mark ready'}</button>
-            <button class="btn-primary" onclick="_sendViaLinkedIn('${p.id}','${_manualTouch}')" id="sli-${p.id}" ${sendDisabled?'disabled':''} ${sendBlocked?'style="opacity:0.4;cursor:not-allowed" title="Connection not yet accepted"':''}>Send via LinkedIn</button>
-            <button class="btn-secondary" onclick="_markSent('${p.id}','${_manualTouch}')" id="sms-${p.id}">✓ Mark as sent</button>
+            <button class="btn-primary" onclick="_generateSequenceMessage('${p.id}','${currentTouch}',false,'${elPrefix}')" id="${elPrefix}sg-${p.id}">▶ Generate</button>
+            <button class="btn-secondary" onclick="_saveSequenceDraft('${p.id}','${currentTouch}',undefined,'${elPrefix}')" id="${elPrefix}sv-${p.id}" disabled style="opacity:0.45;cursor:not-allowed">Save draft</button>
+            <button class="btn-secondary" onclick="_markReady('${p.id}','${elPrefix}')" id="${elPrefix}sr-${p.id}" ${isReady?'style="border-color:var(--green);color:var(--green)"':''}>${isReady?'✓ Ready':'Mark ready'}</button>
+            <button class="btn-primary" onclick="_sendViaLinkedIn('${p.id}','${currentTouch}','${elPrefix}')" id="${elPrefix}sli-${p.id}" ${sendDisabled?'disabled':''} ${sendBlocked?'style="opacity:0.4;cursor:not-allowed" title="Connection not yet accepted"':''}>Send via LinkedIn</button>
+            <button class="btn-secondary" onclick="_markSent('${p.id}','${currentTouch}',false,'','${elPrefix}')" id="${elPrefix}sms-${p.id}">✓ Mark as sent</button>
           </div>
         </div>
       </div>
@@ -5067,16 +5082,16 @@ function _interpretSignal(raw) {
   return raw.replace(/<a\s[^>]*>([^<]*)<\/a>/gi, '$1').replace(/<[^>]*>/g, '').trim();
 }
 
-async function _generateSequenceMessage(pid, touch, forceGenerate = false) {
+async function _generateSequenceMessage(pid, touch, forceGenerate = false, elPrefix = '') {
   const p = _sendProspects.find(x => x.id === pid);
   if (!p) return;
   const lang = document.getElementById('send-filter-lang')?.value || 'EN';
   const langRule = lang === 'FR'
     ? "Write the message in French. Use 'vous' (not 'tu') — professional tone, respectful distance. Use correct French accents (où, é, è, ê, à, etc.) — never write 'ou' without accent when the meaning is 'where/when'. Write natural idiomatic French — avoid calques from English."
     : "Write the message in English.";
-  const btn = document.getElementById('sg-' + pid);
-  const out = document.getElementById('so-' + pid);
-  const spin = document.getElementById('ss-' + pid);
+  const btn = document.getElementById(elPrefix + 'sg-' + pid);
+  const out = document.getElementById(elPrefix + 'so-' + pid);
+  const spin = document.getElementById(elPrefix + 'ss-' + pid);
   if (btn) btn.disabled = true;
   if (spin) spin.classList.add('active');
   const touchDescriptions = {
@@ -5143,8 +5158,8 @@ async function _generateSequenceMessage(pid, touch, forceGenerate = false) {
   if (touch === 'j5' && !isAmbassador && !isRedirect && (p.sector||'').toLowerCase() !== 'investor') {
     const staticMsg = _staticFollowUp(touch, firstName, p.company, lang);
     if (out) out.textContent = staticMsg;
-    await _saveSequenceDraft(pid, touch, staticMsg);
-    const saveBtn = document.getElementById('sv-' + pid);
+    await _saveSequenceDraft(pid, touch, staticMsg, elPrefix);
+    const saveBtn = document.getElementById(elPrefix + 'sv-' + pid);
     if (saveBtn) { saveBtn.disabled = true; saveBtn.style.opacity = '0.45'; saveBtn.style.cursor = 'not-allowed'; }
     if (btn) btn.disabled = false;
     if (spin) spin.classList.remove('active');
@@ -5152,10 +5167,10 @@ async function _generateSequenceMessage(pid, touch, forceGenerate = false) {
   }
 
   if (_needsWebSearch) {
-    let srchEl = document.getElementById('srch-' + pid);
+    let srchEl = document.getElementById(elPrefix + 'srch-' + pid);
     if (!srchEl) {
       srchEl = document.createElement('div');
-      srchEl.id = 'srch-' + pid;
+      srchEl.id = elPrefix + 'srch-' + pid;
       srchEl.style.cssText = 'font-size:var(--fs-sm);color:#8892b0;margin-top:6px;min-height:16px;';
       btn?.parentElement?.insertAdjacentElement('afterend', srchEl);
     }
@@ -5183,7 +5198,7 @@ async function _generateSequenceMessage(pid, touch, forceGenerate = false) {
         const departed = departureSignals.some(sig => pLower.includes(sig));
         if (departed && !forceGenerate) {
           srchEl.textContent = '';
-          if (out) out.innerHTML = `<span style="color:var(--amber)">⚠️ ${firstName} may no longer be at ${p.company}. Verify their current role before sending.</span><br><button onclick="this.parentElement.innerHTML='';_generateSequenceMessage('${pid}','${touch}',true)" style="margin-top:8px;font-size:var(--fs-xs);padding:4px 12px;border:1px solid var(--amber);border-radius:var(--radius-badge);background:transparent;color:var(--amber);cursor:pointer">Generate anyway</button>`;
+          if (out) out.innerHTML = `<span style="color:var(--amber)">⚠️ ${firstName} may no longer be at ${p.company}. Verify their current role before sending.</span><br><button onclick="this.parentElement.innerHTML='';_generateSequenceMessage('${pid}','${touch}',true,'${elPrefix}')" style="margin-top:8px;font-size:var(--fs-xs);padding:4px 12px;border:1px solid var(--amber);border-radius:var(--radius-badge);background:transparent;color:var(--amber);cursor:pointer">Generate anyway</button>`;
           if (btn) btn.disabled = false;
           if (spin) spin.classList.remove('active');
           return;
@@ -5325,8 +5340,8 @@ ${liveBlock}${personBlock}${prevMsgBlock}${inviteBlock}${originBlock}${memoryBlo
       .replace(/\s*\.\s+([a-z])/g, (_, c) => '. ' + c.toUpperCase())
       .replace(/linkedin\.com\/in\/thomas-dratler/g, 'linkedin.com/company/corridor-gtm-system');
     if (out) out.textContent = text || 'Error generating message.';
-    if (text) await _saveSequenceDraft(pid, touch, text);
-    const saveBtn = document.getElementById('sv-' + pid);
+    if (text) await _saveSequenceDraft(pid, touch, text, elPrefix);
+    const saveBtn = document.getElementById(elPrefix + 'sv-' + pid);
     if (saveBtn) { saveBtn.disabled = true; saveBtn.style.opacity = '0.45'; saveBtn.style.cursor = 'not-allowed'; }
   } catch(e) {
     console.error('[_generateSequenceMessage] failed:', e);
@@ -5337,9 +5352,9 @@ ${liveBlock}${personBlock}${prevMsgBlock}${inviteBlock}${originBlock}${memoryBlo
   }
 }
 
-async function _saveSequenceDraft(pid, touch, bodyOverride) {
-  const seqId = document.getElementById('sc-' + pid)?.dataset.seqId || '';
-  const out = document.getElementById('so-' + pid);
+async function _saveSequenceDraft(pid, touch, bodyOverride, elPrefix = '') {
+  const seqId = document.getElementById(elPrefix + 'sc-' + pid)?.dataset.seqId || '';
+  const out = document.getElementById(elPrefix + 'so-' + pid);
   const body = bodyOverride || out?.textContent?.trim() || '';
   if (!body) return;
   if (seqId) {
@@ -5351,7 +5366,7 @@ async function _saveSequenceDraft(pid, touch, bodyOverride) {
       .select('id').single();
     if (_sdInsErr) { console.error('[_saveSequenceDraft] insert failed:', _sdInsErr); showToast('Error saving draft'); return; }
     if (data?.id) {
-      const card = document.getElementById('sc-' + pid);
+      const card = document.getElementById(elPrefix + 'sc-' + pid);
       if (card) card.dataset.seqId = data.id;
       _sendSequences[pid] = _sendSequences[pid] || [];
       _sendSequences[pid].push({ id:data.id, touch, body, status:'draft' });
@@ -5360,22 +5375,22 @@ async function _saveSequenceDraft(pid, touch, bodyOverride) {
   showToast('Draft saved');
 }
 
-async function _markReady(pid) {
-  const seqId = document.getElementById('sc-' + pid)?.dataset.seqId || '';
+async function _markReady(pid, elPrefix = '') {
+  const seqId = document.getElementById(elPrefix + 'sc-' + pid)?.dataset.seqId || '';
   if (!seqId) { showToast('Save draft first'); return; }
   const { error } = await sbClient.from('sequences').update({ status:'ready' }).eq('id', seqId).eq('client_id', CLIENT_ID);
   if (error) { showToast('Error'); return; }
-  const btn = document.getElementById('sr-' + pid);
+  const btn = document.getElementById(elPrefix + 'sr-' + pid);
   if (btn) { btn.textContent = '✓ Ready'; btn.style.borderColor = 'var(--green)'; btn.style.color = 'var(--green)'; }
-  const sendBtn = document.getElementById('sli-' + pid);
+  const sendBtn = document.getElementById(elPrefix + 'sli-' + pid);
   if (sendBtn) sendBtn.disabled = false;
   showToast('Message ready to send');
 }
 
-async function _sendViaLinkedIn(pid, touch) {
+async function _sendViaLinkedIn(pid, touch, elPrefix = '') {
   const p = _sendProspects.find(x => x.id === pid);
   if (!p) return;
-  const out = document.getElementById('so-' + pid);
+  const out = document.getElementById(elPrefix + 'so-' + pid);
   const body = out?.textContent?.trim() || '';
   if (!body) { showToast('No message to send'); return; }
   if (body.includes('{') || body.includes('}')) {
@@ -5398,7 +5413,7 @@ async function _sendViaLinkedIn(pid, touch) {
     if (_seErr2) console.error('[_sendViaLinkedIn] send_error insert failed:', _seErr2);
     return;
   }
-  const btn = document.getElementById('sli-' + pid);
+  const btn = document.getElementById(elPrefix + 'sli-' + pid);
   if (btn) btn.disabled = true;
   try {
     const res = await fetch('/api/heyreach-send', {
@@ -5407,7 +5422,7 @@ async function _sendViaLinkedIn(pid, touch) {
     });
     const data = await res.json();
     if (data.success) {
-      await _markSent(pid, touch, true, body);
+      await _markSent(pid, touch, true, body, elPrefix);
       showToast('Sent via LinkedIn ✓');
     } else {
       showToast('HeyReach error: ' + (data.error||'unknown'));
@@ -5430,8 +5445,8 @@ function _updateSentCounter() {
   else                            { el.style.color = 'var(--muted)'; }
 }
 
-async function _markSent(pid, touch, auto = false, msgText = '') {
-  const card = document.getElementById('sc-' + pid);
+async function _markSent(pid, touch, auto = false, msgText = '', elPrefix = '') {
+  const card = document.getElementById(elPrefix + 'sc-' + pid);
   const seqId = card?.dataset.seqId || '';
   const now = new Date().toISOString();
   if (seqId) {
@@ -6038,6 +6053,7 @@ async function openDrawer(card, initialTab = 'activity') {
       <div class="dtab" onclick="_switchDTab('profile',this)">Profile</div>
       <div class="dtab" onclick="_switchDTab('deal',this)">Deal</div>
       <div class="dtab" onclick="_switchDTab('ai',this)">AI</div>
+      <div class="dtab" onclick="_switchDTab('send',this)">Send</div>
     </div>
     <div class="dtab-panel active" id="dpanel-activity">
       ${_reminderBannerHTML(reminderDate)}
@@ -6440,7 +6456,8 @@ async function openDrawer(card, initialTab = 'activity') {
           </div>
         </div>
       </div>
-    </div>`;
+    </div>
+    <div class="dtab-panel" id="dpanel-send" style="padding:16px 20px"></div>`;
 
   const _dEl = document.getElementById('drawer');
   _dEl.dataset.pid = prospectId || '';
@@ -6453,6 +6470,8 @@ async function openDrawer(card, initialTab = 'activity') {
   }
   if (document.getElementById('dv-deal-type')) _restoreDealValue();
   _renderSignalLink((_prospectsById[prospectId] || {}).signal, (_prospectsById[prospectId] || {}).signal_url);
+  _drawerSendPid = prospectId;
+  _renderManualSection('dpanel-send', prospectId);
 
   if (prospectId) {
     const { data, error } = await sbClient
@@ -6646,6 +6665,7 @@ function _switchDTab(name, el) {
   if (el) el.classList.add('active');
   const p = document.getElementById('dpanel-' + name);
   if (p) p.classList.add('active');
+  if (name === 'send' && _drawerSendPid) _renderManualSection('dpanel-send', _drawerSendPid);
 }
 function _selIntType(btn) {
   document.querySelectorAll('.int-type-btn').forEach(b => b.classList.remove('selected'));
