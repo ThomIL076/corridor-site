@@ -2151,6 +2151,7 @@ async function _resolveMandate(mandateId) {
 
 let _activeMandate = null; // objet mandat résolu, mis en cache après _resolveMandate
 let _clientMandateIds = []; // liste des mandate_id actifs du client courant, pour la vue "Tous mes mandats"
+let _mandatesById = {}; // index mandateId → {id, segment, name}
 
 function _mandateContext() {
   if (!_activeMandate) {
@@ -2185,6 +2186,8 @@ async function _loadMandateOptions() {
       .order('name');
     if (error) throw error;
     _clientMandateIds = (data || []).map(m => m.id);
+    _mandatesById = {};
+    (data || []).forEach(m => { _mandatesById[m.id] = m; });
 
     const sel = document.getElementById('mandate-select');
     const bar = document.getElementById('mandate-bar');
@@ -4478,7 +4481,7 @@ Populate stakeholder_* fields ONLY when new_stakeholder is true; set to null oth
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'claude-sonnet-5',
-        max_tokens: 8000,
+        max_tokens: 1500,
         system: systemPrompt,
         messages: [{ role: 'user', content: userPrompt }]
       })
@@ -4714,7 +4717,7 @@ async function loadSendView() {
     while (true) {
       let _spQuery = sbClient
         .from('prospects')
-        .select('id, name, company, title, sector, region, country, stage, linkedin, last_contact, reminder_date, linkedin_tag, icp_score, client_id, origin, created_at, signal, signal_type')
+        .select('id, name, company, title, sector, region, country, stage, linkedin, last_contact, reminder_date, linkedin_tag, icp_score, client_id, origin, created_at, signal, signal_type, mandate_id')
         .eq('client_id', CLIENT_ID);
       _spQuery = _applyMandateFilter(_spQuery);
       const { data: chunk, error: pErr } = await _spQuery
@@ -4931,7 +4934,7 @@ function _runSendSearch() {
 }
 
 function _selectManualProspect(pid) {
-  const p = _sendProspects.find(x => x.id === pid);
+  const p = _sendProspects.find(x => x.id === pid) || _prospectsById[pid];
   if (!p) return;
   _manualPid = pid;
   _manualTouch = _suggestTouch(p);
@@ -5083,7 +5086,7 @@ function _interpretSignal(raw) {
 }
 
 async function _generateSequenceMessage(pid, touch, forceGenerate = false, elPrefix = '') {
-  const p = _sendProspects.find(x => x.id === pid);
+  const p = _sendProspects.find(x => x.id === pid) || _prospectsById[pid];
   if (!p) return;
   const lang = document.getElementById('send-filter-lang')?.value || 'EN';
   const langRule = lang === 'FR'
@@ -5094,8 +5097,10 @@ async function _generateSequenceMessage(pid, touch, forceGenerate = false, elPre
   const spin = document.getElementById(elPrefix + 'ss-' + pid);
   if (btn) btn.disabled = true;
   if (spin) spin.classList.add('active');
+  const _prospectMandateName = (_mandatesById[p?.mandate_id]?.name) || _activeMandate?.name || '';
+  const _isPartnerBDMandate = /corridor|the vaults/i.test(_prospectMandateName);
   const touchDescriptions = {
-    invite: `a LinkedIn connection request. MANDATORY STRUCTURE: 1 sentence of observation (max 15 words, factual, based on signal) + 1 short question (max 10 words) + sign-off "${CLIENT_ID === 'kaizenology' ? 'Stéphane' : 'Thomas'}" on its own line. Total: under 200 chars. No greeting. No pitch. No ${CLIENT_ID === 'kaizenology' ? 'Kaizenology' : 'Corridor'}. No URL. No closing line. Nothing else.`,
+    invite: `a LinkedIn connection request. MANDATORY STRUCTURE: 1 sentence of observation/context (max 15 words, factual, based on signal or prospect situation) + 1 sentence stating a genuine, affirmative reason for connecting (max 15 words, non-interchangeable, specific to this prospect${_isPartnerBDMandate ? `, may name ${_prospectMandateName} explicitly` : ', no product name, no Kaizenology, no implicit service pitch — the reason must be a peer observation on why this prospect\'s current moment is noteworthy, not a suggestion of what Stéphane could bring'}) + sign-off "Stéphane" on its own line. Total: under 200 chars. No greeting. No question. No URL. No closing line. Nothing else.`,
     j0:     'a first LinkedIn message after connection accepted (open conversation, no pitch, under 75 words)',
     j5:     'a LinkedIn follow-up message (one new angle, soft CTA, under 75 words)',
   };
@@ -5321,7 +5326,7 @@ ${intCtx ? 'Recent interactions: ' + intCtx : ''}
 ${_senderBio()}
 ${KAIZENOLOGY_BASE_CONTEXT}
 ${_activeMandate ? 'ACTIVE MANDATE CONTEXT (defines the purpose of every message; the signal below informs the angle but must not contradict this mandate):' + '\n' + _mandateContext() + '\n---\n' : ''}
-${liveBlock}${personBlock}${prevMsgBlock}${inviteBlock}${originBlock}${memoryBlock}${touch === 'invite' ? `CRITICAL INVITE RULE (non-negotiable): LinkedIn connection request. STRUCTURE: one factual observation (max 15 words) + one short question (max 10 words) + sign off "${_senderName()}" on its own line. TOTAL under 200 characters. NO greeting. NO ${CLIENT_ID === 'kaizenology' ? 'Kaizenology' : 'Corridor'}. NO URL. NO closing line. NO "Sent via". Output ONLY the 2-sentence message + ${_senderName()}, nothing else.` : ''}\nRules: NEVER use em-dashes (—) in any message, replace with a period or comma. No bullet points. No product pitch and no mention of the advisory firm by name in the message body (sentences 1 and 2 only -- the mandatory closing line appended below is the only exception and must be reproduced exactly as given). ${langRule} Replace every vague claim with something specific and provable. Never write 'I help companies grow' or 'I drive results'. Write what you actually observed about this company and why it is relevant right now.${(touch === 'invite' || touch === 'j0') ? ' Strip all marketing language. No buzzwords, no value propositions, no product claims. Rewrite as a text a peer would send to another peer -- direct, human, zero corporate tone.' : ''} NEVER claim or imply that the prospect asked a question, made a specific statement, or expressed a specific interest unless that exact information is explicitly given in the prompt -- if no such detail is provided, do not invent one. NEVER state or imply a specific niche focus for the sender (e.g. a named industry, a named type of deal) that is not listed in their background above. NEVER use generic AI-sounding filler phrases (e.g. "passionate about", "excited to connect", "love what you're building") -- ground every claim in a real fact from the sender's background above or the prospect's own title/company/signal. Output the message only, no preamble.${touch === 'j5' ? '\n\nFOLLOW-UP TONE RULES (mandatory):\n- NEVER use: "follow up", "following up", "checking in", "touching base", "circling back", "just wanted to", "I wanted to reach out", "hope this finds you well"\n- Do NOT open with a reference to the previous message (e.g. "I sent you a note last week")\n- Write as if continuing a conversation, not tracking an unanswered message\n- Introduce a NEW angle, observation, or question — never repeat the idea from the previous message\n- Conversational tone: peer to peer, not vendor to prospect\n- j5: one specific observation or question that opens a thread — no CTA harder than "thoughts?" or "does this resonate?"\n- The closing question must be different from the J+0 question. Never use "Curious what the growth focus looks like" or any variation of it.\n- Previous message sent: "' + (intCtx || 'not available') + '" — do not repeat its angle, observation, or closing question.' : ''}${j0LinkedInNote}${j0NoContextNote}${stealthBlock}${signalBlock}`);
+${liveBlock}${personBlock}${prevMsgBlock}${inviteBlock}${originBlock}${memoryBlock}${touch === 'invite' ? `CRITICAL INVITE RULE (non-negotiable): LinkedIn connection request. STRUCTURE: sentence 1 — one factual observation or context about this prospect (max 15 words, based on signal or their situation). Sentence 2 — one genuine, affirmative reason this connection makes sense (max 15 words), anchored on this prospect's specific signal, sector, or situation${_isPartnerBDMandate ? ` — you MAY name ${_prospectMandateName} explicitly as the basis for the connection` : ' — do NOT name Kaizenology or any product. STRICTLY FORBIDDEN even without naming Kaizenology: any formulation suggesting what Stéphane could offer or bring ("c\'est là où un accompagnement fait la différence", "c\'est le moment où X compte", or any equivalent). The second sentence must be a peer observation on why this prospect\'s current signal or situation is noteworthy — not why Stéphane can help. Correct framing: "Les recrutements DAF à ce stade précèdent souvent une vraie décision sur la suite" (observation on the prospect\'s trajectory, no service implied)'}. Sign off "${_senderName()}" on its own line. TOTAL under 200 characters. NO question. NO greeting. NO URL. NO closing line. NO "Sent via". Output ONLY the 2-sentence message + ${_senderName()}, nothing else.` : ''}\nRules: NEVER use em-dashes (—) in any message, replace with a period or comma. No bullet points. No product pitch and no mention of the advisory firm by name in the message body (sentences 1 and 2 only -- the mandatory closing line appended below is the only exception and must be reproduced exactly as given). ${langRule} Replace every vague claim with something specific and provable. Never write 'I help companies grow' or 'I drive results'. Write what you actually observed about this company and why it is relevant right now.${(touch === 'invite' || touch === 'j0') ? ' Strip all marketing language. No buzzwords, no value propositions, no product claims. Rewrite as a text a peer would send to another peer -- direct, human, zero corporate tone.' : ''} NEVER claim or imply that the prospect asked a question, made a specific statement, or expressed a specific interest unless that exact information is explicitly given in the prompt -- if no such detail is provided, do not invent one. NEVER state or imply a specific niche focus for the sender (e.g. a named industry, a named type of deal) that is not listed in their background above. NEVER use generic AI-sounding filler phrases (e.g. "passionate about", "excited to connect", "love what you're building") -- ground every claim in a real fact from the sender's background above or the prospect's own title/company/signal. Output the message only, no preamble.${touch === 'j5' ? '\n\nFOLLOW-UP TONE RULES (mandatory):\n- NEVER use: "follow up", "following up", "checking in", "touching base", "circling back", "just wanted to", "I wanted to reach out", "hope this finds you well"\n- Do NOT open with a reference to the previous message (e.g. "I sent you a note last week")\n- Write as if continuing a conversation, not tracking an unanswered message\n- Introduce a NEW angle, observation, or question — never repeat the idea from the previous message\n- Conversational tone: peer to peer, not vendor to prospect\n- j5: one specific observation or question that opens a thread — no CTA harder than "thoughts?" or "does this resonate?"\n- The closing question must be different from the J+0 question. Never use "Curious what the growth focus looks like" or any variation of it.\n- Previous message sent: "' + (intCtx || 'not available') + '" — do not repeat its angle, observation, or closing question.' : ''}${j0LinkedInNote}${j0NoContextNote}${stealthBlock}${signalBlock}`);
   console.log('[gen] calling Anthropic. touch:', touch, 'prompt chars:', prompt.length);
   try {
     const res = await fetch(API_URL, {
@@ -5388,7 +5393,7 @@ async function _markReady(pid, elPrefix = '') {
 }
 
 async function _sendViaLinkedIn(pid, touch, elPrefix = '') {
-  const p = _sendProspects.find(x => x.id === pid);
+  const p = _sendProspects.find(x => x.id === pid) || _prospectsById[pid];
   if (!p) return;
   const out = document.getElementById(elPrefix + 'so-' + pid);
   const body = out?.textContent?.trim() || '';
@@ -5472,7 +5477,7 @@ async function _markSent(pid, touch, auto = false, msgText = '', elPrefix = '') 
       .eq('id', pid).eq('client_id', CLIENT_ID));
     if (eLastContact) console.error('_markSent last_contact:', eLastContact);
   }
-  const p = _sendProspects.find(x => x.id === pid);
+  const p = _sendProspects.find(x => x.id === pid) || _prospectsById[pid];
   const newStage = TOUCH_NEXT_STAGE[touch];
   const _curRank = _stageRank[p?.stage] ?? -1;
   const _newRank = _stageRank[newStage] ?? -1;
@@ -9659,7 +9664,7 @@ async function loadKanban(force){
     while (true) {
       let _kQuery = sbClient
         .from('prospects')
-        .select('id, name, company, title, sector, region, country, stage, linkedin, email, phone, deal_value, deal_currency, deal_structure, deal_weighted, notes, last_contact, reminder_date, icp_score, icp_reason, archived, client_id, linkedin_tag, origin, signal, signal_type, signal_interpretation, signal_date, created_at, draft_invite_note, company_size, next_action, next_action_date, score_signal_strength, signal_url')
+        .select('id, name, company, title, sector, region, country, stage, linkedin, email, phone, deal_value, deal_currency, deal_structure, deal_weighted, notes, last_contact, reminder_date, icp_score, icp_reason, archived, client_id, linkedin_tag, origin, signal, signal_type, signal_interpretation, signal_date, created_at, draft_invite_note, company_size, next_action, next_action_date, score_signal_strength, signal_url, mandate_id')
         .eq('client_id', CLIENT_ID);
       _kQuery = _applyMandateFilter(_kQuery);
       const { data: chunk, error } = await _kQuery

@@ -4473,7 +4473,7 @@ Populate stakeholder_* fields ONLY when new_stakeholder is true; set to null oth
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'claude-sonnet-5',
-        max_tokens: 8000,
+        max_tokens: 1500,
         system: systemPrompt,
         messages: [{ role: 'user', content: userPrompt }]
       })
@@ -4997,7 +4997,7 @@ function _runSendSearch() {
 }
 
 function _selectManualProspect(pid) {
-  const p = _sendProspects.find(x => x.id === pid);
+  const p = _sendProspects.find(x => x.id === pid) || _prospectsById[pid];
   if (!p) return;
   _manualPid = pid;
   _manualTouch = _suggestTouch(p);
