@@ -2856,7 +2856,9 @@ Language instruction: Write your entire response in ${currentLang === 'fr' ? 'Fr
     const _sigsLine = sigs.length > 0
       ? '\nDetected buying signals for this company: ' + sigs.map(s => s.label).join(', ') + '. Factor these signals into your score.'
       : '';
-    const _scorePromptText = 'You are an ICP scoring engine for Corridor, a B2B GTM advisory firm. Evaluate this prospect and return 4 sub-scores.\n\nCompany: ' + company + '\nSector: ' + sector + '\nStage: ' + stage + '\n' + fundingStr + urlStr + contextStr + _mandateCriteria + _sigsLine + '\n\nSCORING RULES:\nrole_score (0-10): how well the title matches CEO/Founder/Co-Founder (high), other C-level/VP Sales-Growth-Revenue (moderate), other senior title (low), unclear seniority (very low)\nsize_score: how well the company size fits 11-200 employees. If genuinely unknown, respond with exactly -1 — do NOT guess from sector or name. If known: 11-200=9, 201-500=6, 1-10=4, 500+=3\nsignal_strength_score (0-10): 0 if no buying signal detected. Fundraise/market expansion=9, new CXO/VP hire=7, role posted=5, other=3\nmandate_fit_score (0-10): ' + (_mandateCriteria ? 'score fit against mandate criteria above (sector, geography, decision-makers)' : 'return 5 — no mandate active, score is neutral') + '\n\nReturn ONLY valid JSON, no other text:\n{"role_score":<0-10>,"size_score":<-1 or 0-10>,"signal_strength_score":<0-10>,"mandate_fit_score":<0-10>,"confidence":"<low|medium|high>","rationale":"<one sentence>"}';
+    const _contactIntelTxt = (() => { const t = (document.getElementById('scanner-contact-output')?.textContent || '').trim(); return (person && t && !t.startsWith('Researching')) ? t : ''; })();
+    const _contactIntelLine = _contactIntelTxt ? '\n\nCONTACT INTELLIGENCE (use to inform role_score — title, background, seniority):\n' + _contactIntelTxt.slice(0, 1000) : '';
+    const _scorePromptText = 'You are an ICP scoring engine for Corridor, a B2B GTM advisory firm. Evaluate this prospect and return 4 sub-scores.\n\nCompany: ' + company + '\nSector: ' + sector + '\nStage: ' + stage + '\n' + fundingStr + urlStr + contextStr + _mandateCriteria + _sigsLine + _contactIntelLine + '\n\nSCORING RULES:\nrole_score (0-10): how well the title matches CEO/Founder/Co-Founder (high), other C-level/VP Sales-Growth-Revenue (moderate), other senior title (low), unclear seniority (very low)\nsize_score: how well the company size fits 11-200 employees. If genuinely unknown, respond with exactly -1 — do NOT guess from sector or name. If known: 11-200=9, 201-500=6, 1-10=4, 500+=3\nsignal_strength_score (0-10): 0 if no buying signal detected. Fundraise/market expansion=9, new CXO/VP hire=7, role posted=5, other=3\nmandate_fit_score (0-10): ' + (_mandateCriteria ? 'score fit against mandate criteria above (sector, geography, decision-makers)' : 'return 5 — no mandate active, score is neutral') + '\n\nReturn ONLY valid JSON, no other text:\n{"role_score":<0-10>,"size_score":<-1 or 0-10>,"signal_strength_score":<0-10>,"mandate_fit_score":<0-10>,"confidence":"<low|medium|high>","rationale":"<one sentence>"}';
 
     try {
       const _scoreResp = await fetch(API_URL, {
@@ -2900,7 +2902,9 @@ Language instruction: Write your entire response in ${currentLang === 'fr' ? 'Fr
       _actDiv.style.cssText = 'margin-top:16px;';
       if (_existing) {
         if (_scanScoreVal != null) {
-          const _patchBrief = (document.getElementById('scanner-ai-output')?.textContent || '').slice(0, 3000);
+          const _companyBrief = (document.getElementById('scanner-ai-output')?.textContent || '').trim();
+          const _contactBrief = (() => { const t = (document.getElementById('scanner-contact-output')?.textContent || '').trim(); return (t && !t.startsWith('Researching')) ? t : ''; })();
+          const _patchBrief = [_companyBrief, _contactBrief ? '---\n' + _contactBrief : ''].filter(Boolean).join('\n\n').slice(0, 3000);
           const _patch = { icp_score: Math.round(_scanScoreVal), icp_reason: (_scoreResult?.rationale || '').slice(0, 100) };
           if (_patchBrief) _patch.scan_intelligence = _patchBrief;
           sbClient.from('prospects').update(_patch).eq('id', _existing.id).eq('client_id', CLIENT_ID).then(() => {}).catch(e => console.warn('[scan] patch failed:', e));
@@ -3925,9 +3929,10 @@ function _openAskFromMandate() {
   });
 }
 
-function _buildAskSystemPrompt(ctx, pipelineSnapshot) {
+async function _buildAskSystemPrompt(ctx, pipelineSnapshot) {
   const mandateBlock = (typeof _mandateContext === 'function') ? _mandateContext() : '';
   let ctxBlock = '';
+  let liveSearchCtx = '';
   if (ctx) {
     if (ctx.type === 'prospect') {
       const parts = ['CURRENT PROSPECT CONTEXT:'];
@@ -3938,6 +3943,7 @@ function _buildAskSystemPrompt(ctx, pipelineSnapshot) {
       if (ctx.icp_score != null && ctx.icp_score !== '')  parts.push('ICP score: '             + ctx.icp_score);
       if (ctx.signal)                                     parts.push('Signal: '                + ctx.signal);
       if (ctx.signalInterpretation)                       parts.push('Signal interpretation: ' + ctx.signalInterpretation);
+      if (ctx.scanIntelligence)                          parts.push('Company intelligence (from Scan):\n' + ctx.scanIntelligence);
       ctxBlock = '\n\n' + parts.join('\n');
     } else if (ctx.type === 'mandate') {
       const parts = ['CURRENT MANDATE CONTEXT:'];
@@ -3959,7 +3965,12 @@ function _buildAskSystemPrompt(ctx, pipelineSnapshot) {
   } else if (pipelineSnapshot) {
     ctxBlock = '\n\n' + pipelineSnapshot;
   }
-  return 'You are Corridor\'s assistant helping with GTM pipeline management.\n' + mandateBlock + ctxBlock + '\n\nBe factual and concise. Never use em-dashes (—) or horizontal rules (---) in your response.\nNever state a fact about a prospect, company, mandate, or signal that is not explicitly present in the context provided or in what the user has told you in this conversation. If you don\'t have enough information to answer accurately, say so directly rather than guessing or inferring plausibly-sounding details. Do not invent URLs, dates, numbers, or attributions. When asked about something outside the provided context (general market knowledge, definitions, how-to questions), you may answer from general knowledge, but never blend invented specifics about THIS prospect/mandate/signal with general knowledge in a way that makes them indistinguishable.\nLanguage instruction: Respond in the same language as the user\'s question. If the question is in French, respond in French. If in English, respond in English. All section headers, bullet points, and analysis must be in that language.';
+  if (ctx && !ctx.scanIntelligence && (ctx.type === 'prospect' || ctx.type === 'signal') && (ctx.company || ctx.name || ctx.prospectName)) {
+    const _lsName = ((ctx.name || ctx.prospectName || '') + ' ' + (ctx.company || '')).trim();
+    const _lsResult = await _perplexitySearch(_lsName, 500);
+    if (_lsResult) liveSearchCtx = '\n\nLIVE CONTEXT (from web search, use this as ground truth for facts, do not invent beyond this):\n' + _lsResult;
+  }
+  return 'You are Corridor\'s assistant helping with GTM pipeline management.\n' + mandateBlock + ctxBlock + liveSearchCtx + '\n\nBe factual and concise. Never use em-dashes (—) or horizontal rules (---) in your response.\nNever state a fact about a prospect, company, mandate, or signal that is not explicitly present in the context provided or in what the user has told you in this conversation. If you don\'t have enough information to answer accurately, say so directly rather than guessing or inferring plausibly-sounding details. Do not invent URLs, dates, numbers, or attributions. When asked about something outside the provided context (general market knowledge, definitions, how-to questions), you may answer from general knowledge, but never blend invented specifics about THIS prospect/mandate/signal with general knowledge in a way that makes them indistinguishable.\nLanguage instruction: Respond in the same language as the user\'s question. If the question is in French, respond in French. If in English, respond in English. All section headers, bullet points, and analysis must be in that language.';
 }
 
 async function _buildPipelineSnapshot() {
@@ -4069,7 +4080,7 @@ async function _sendAskMessage() {
       body: JSON.stringify({
         model: 'claude-sonnet-5',
         max_tokens: 4000,
-        system: _buildAskSystemPrompt(_askCtx, _askSnapshot),
+        system: await _buildAskSystemPrompt(_askCtx, _askSnapshot),
         messages: _askHistory
       })
     });
