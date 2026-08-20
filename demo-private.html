@@ -4746,6 +4746,12 @@ async function loadSendView() {
     _sendJ5Sent = {};
     (j5ints || []).forEach(i => { _sendJ5Sent[i.prospect_id] = i; });
 
+    // Aussi: séquences touch='j5' status='sent' (envois via drawer, écrits dans sequences et non interactions)
+    let _j5sQuery = sbClient.from('sequences').select('prospect_id, sent_at, created_at').eq('client_id', CLIENT_ID).eq('touch', 'j5').eq('status', 'sent');
+    if (_j5MandateId) _j5sQuery = _j5sQuery.eq('mandate_id', _j5MandateId);
+    const { data: j5seqs } = await _j5sQuery;
+    (j5seqs || []).forEach(s => { if (!_sendJ5Sent[s.prospect_id]) _sendJ5Sent[s.prospect_id] = { prospect_id: s.prospect_id, created_at: s.sent_at || s.created_at }; });
+
     _sendProspects.forEach(p => { if (!_prospectsById[p.id]) _prospectsById[p.id] = p; });
 
     _applySendFilters();
