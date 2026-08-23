@@ -2146,7 +2146,7 @@ async function _resolveMandate(mandateId) {
   try {
     const { data, error } = await sbClient
       .from('mandates')
-      .select('id, client_id, segment, name, status, icp_criteria, geography, sectors, decision_makers, signals, exclusions, smartlead_campaign_id')
+      .select('id, client_id, segment, name, status, icp_criteria, geography, sectors, decision_makers, signals, exclusions, email_campaign_id')
       .eq('id', mandateId)
       .eq('client_id', CLIENT_ID)
       .single();
@@ -2280,7 +2280,7 @@ async function _onMandateChange() {
   _initHpFilters();
 }
 
-const SMARTLEAD_CAMPAIGN_ID = '3708966'; // per-client deployment: update this value
+const EMAIL_CAMPAIGN_ID = '3708966'; // per-client deployment: update this value
 // PWA : pas de restauration auto du scroll au chargement
 if ('scrollRestoration' in history) { history.scrollRestoration = 'manual'; }
 
@@ -2626,14 +2626,14 @@ async function _getAuthHeaders() {
   } catch(e) { return {}; }
 }
 
-// ── PERPLEXITY SEARCH HELPER ──
-async function _perplexitySearch(query, maxTokens = 500, domain = '') {
+// ── WEB SEARCH HELPER ──
+async function _marketIntelSearch(query, maxTokens = 500, domain = '') {
   const ctrl = new AbortController();
   const tid = setTimeout(() => ctrl.abort(new Error('timeout 20s')), 20000);
   try {
     const _pbody = { max_tokens: maxTokens, messages: [{ role: 'user', content: query }] };
     if (domain) _pbody.search_domain_filter = [domain];
-    const r = await fetch('/api/perplexity-search', {
+    const r = await fetch('/api/web-search', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       signal: ctrl.signal,
@@ -2643,7 +2643,7 @@ async function _perplexitySearch(query, maxTokens = 500, domain = '') {
     const d = await r.json();
     return (d.choices?.[0]?.message?.content || '').trim();
   } catch (e) {
-    console.error('[_perplexitySearch] failed:', e);
+    console.error('[web-search] failed:', e);
     return '';
   } finally {
     clearTimeout(tid);
@@ -2655,7 +2655,7 @@ async function _prefetchWebContext(company, sector, siteUrl) {
   if (!company) return '';
   const _dom = siteUrl ? siteUrl.replace(/^https?:\/\//, '').split('/')[0] : '';
   const q = (company + (_dom ? ' ' + _dom : '') + ' ' + (sector || '') + ' recent news expansion').trim();
-  const ctx = await _perplexitySearch(q, 500, _dom);
+  const ctx = await _marketIntelSearch(q, 500, _dom);
   return ctx
     ? '\nLIVE CONTEXT about ' + company + ' (from web search, today):\n' + ctx + '\nUse this to make the analysis accurate and specific. Never suggest expansion into a market the company is already clearly established in based on the web search.\n'
     : '';
@@ -3784,7 +3784,7 @@ async function sendAgent(agentName) {
     const AGENTS_WITH_LIVE_SEARCH = ['prospect', 'competitive', 'seo'];
     let liveContextBlock = '';
     if (AGENTS_WITH_LIVE_SEARCH.includes(agentName)) {
-      const liveCtx = await _perplexitySearch(msg, 500);
+      const liveCtx = await _marketIntelSearch(msg, 500);
       if (liveCtx) liveContextBlock = '\n\nLIVE CONTEXT (from web search, use this as ground truth for facts, do not invent beyond this):\n' + liveCtx;
     }
     const res = await fetch(API_URL, {
@@ -3958,7 +3958,7 @@ async function _buildAskSystemPrompt(ctx, pipelineSnapshot) {
   }
   if (ctx && !ctx.scanIntelligence && (ctx.type === 'prospect' || ctx.type === 'signal') && (ctx.company || ctx.name || ctx.prospectName)) {
     const _lsName = ((ctx.name || ctx.prospectName || '') + ' ' + (ctx.company || '')).trim();
-    const _lsResult = await _perplexitySearch(_lsName, 500);
+    const _lsResult = await _marketIntelSearch(_lsName, 500);
     if (_lsResult) liveSearchCtx = '\n\nLIVE CONTEXT (from web search, use this as ground truth for facts, do not invent beyond this):\n' + _lsResult;
   }
   return 'You are Corridor\'s assistant helping with GTM pipeline management.\n' + mandateBlock + ctxBlock + liveSearchCtx + '\n\nBe factual and concise. Never use em-dashes (—) or horizontal rules (---) in your response.\nNever state a fact about a prospect, company, mandate, or signal that is not explicitly present in the context provided or in what the user has told you in this conversation. If you don\'t have enough information to answer accurately, say so directly rather than guessing or inferring plausibly-sounding details. Do not invent URLs, dates, numbers, or attributions. When asked about something outside the provided context (general market knowledge, definitions, how-to questions), you may answer from general knowledge, but never blend invented specifics about THIS prospect/mandate/signal with general knowledge in a way that makes them indistinguishable.\nLanguage instruction: Respond in the same language as the user\'s question. If the question is in French, respond in French. If in English, respond in English. All section headers, bullet points, and analysis must be in that language.';
@@ -4405,10 +4405,10 @@ async function runMorningScan() {
         }).join('\n')
       : 'No active prospects in pipeline.';
 
-    // 2. Market signals via Perplexity (single broad call, last 24-48h)
+    // 2. Market signals via web search (single broad call, last 24-48h)
     let marketSignals = 'No market signals retrieved.';
     try {
-      const mktRes = await fetch('/api/perplexity', {
+      const mktRes = await fetch('/api/market-intel', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -4439,7 +4439,7 @@ async function runMorningScan() {
         marketSignals = mktData.choices?.[0]?.message?.content?.trim() || marketSignals;
       }
     } catch (e) {
-      console.warn('[runMorningScan] Perplexity failed:', e.message);
+      console.warn('[runMorningScan] Market intel failed:', e.message);
     }
 
     // 3. Build Claude prompt — system + user separated
@@ -4461,7 +4461,7 @@ ${_langLine()}`;
 ## INTERNAL PIPELINE (top ${scored.length} of ${eligibleTotal} ICP-scored prospects with active signal — ranked by combined score)
 ${pipelineBlock}
 
-## MARKET SIGNALS (last 24-48h, sourced from Perplexity)
+## MARKET SIGNALS (last 24-48h, web-sourced)
 ${marketSignals}
 
 ---
@@ -4484,7 +4484,7 @@ OUTPUT FORMAT (STRICT): Return ONLY a JSON array, no prose before or after, no m
 
 Populate stakeholder_* fields ONLY when new_stakeholder is true; set to null otherwise. Max 5 signals, only those explicitly present in MARKET SIGNALS. Never invent a signal, date, or source. If nothing is relevant to this mandate, return [].`;
 
-    // 4. Call Claude — no web_search, Perplexity already sourced the market data
+    // 4. Call Claude — market data already web-sourced
     const res = await fetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -4638,7 +4638,7 @@ async function runLiveAlert() {
     }
 
     // `name` IS read correctly — "Unknown" means name IS NULL in DB.
-    // Source: company-level signals from external workflow (Trigify/n8n) with no contact assigned.
+    // Source: company-level signals from external workflow (n8n) with no contact assigned.
     // Not the same as the 04/08 fix (wrong field) — structurally no name to read.
     // Filter client-side to keep excluded-count visibility; log if non-zero.
     const _named = signalProspects.filter(p => p.name && p.name.trim());
@@ -5254,12 +5254,12 @@ async function _generateSequenceMessage(pid, touch, forceGenerate = false, elPre
     const searchQuery = (isJ0Network || touch === 'invite')
       ? `${p.company} ${p.sector || ''} recent news expansion`.trim()
       : `Search for recent news about ${firstName} ${lastName} at ${p.company} — focus on their current market expansion, recent funding, new markets entered, and any geographic focus in 2025-2026. Return only factual findings, max 150 words.`;
-    console.log('[gen] perplexity start. pid:', pid, 'touch:', touch, 'query len:', searchQuery.length);
-    liveContext = await _perplexitySearch(searchQuery, 500);
-    console.log('[gen] perplexity done. liveContext chars:', liveContext.length);
+    console.log('[gen] market intel start. pid:', pid, 'touch:', touch, 'query len:', searchQuery.length);
+    liveContext = await _marketIntelSearch(searchQuery, 500);
+    console.log('[gen] market intel done. liveContext chars:', liveContext.length);
     // --- Person search (j0 network + first contact only) ---
     if (isJ0Network && !p.last_contact) {
-      personContext = await _perplexitySearch(`${firstName} ${lastName} ${p.company} current role`, 300);
+      personContext = await _marketIntelSearch(`${firstName} ${lastName} ${p.company} current role`, 300);
       // --- Departure signal detection ---
       if (personContext) {
         const cLower = (p.company || '').toLowerCase();
@@ -5492,7 +5492,7 @@ async function _sendViaLinkedIn(pid, touch, elPrefix = '') {
   const btn = document.getElementById(elPrefix + 'sli-' + pid);
   if (btn) btn.disabled = true;
   try {
-    const res = await fetch('/api/heyreach-send', {
+    const res = await fetch('/api/linkedin-send', {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ linkedinUrl: p.linkedin, message: body, prospectName: p.name, client_id: CLIENT_ID, touch, linkedinTag: p.linkedin_tag })
     });
@@ -5501,7 +5501,7 @@ async function _sendViaLinkedIn(pid, touch, elPrefix = '') {
       await _markSent(pid, touch, true, body, elPrefix);
       showToast('Sent via LinkedIn ✓');
     } else {
-      showToast('HeyReach error: ' + (data.error||'unknown'));
+      showToast('LinkedIn send error:' + (data.error||'unknown'));
       if (btn) btn.disabled = false;
     }
   } catch(e) {
@@ -5533,7 +5533,7 @@ async function _markSent(pid, touch, auto = false, msgText = '', elPrefix = '') 
     ? 'Ambassador programme invitation sent'
     : touch === 'redirect'
     ? 'Redirect request sent'
-    : `${touch} sent${auto ? ' via HeyReach' : ' (manual)'}${msgText ? ' | ' + msgText.slice(0, 300) : ''}`;
+    : `${touch} sent${auto ? ' via LinkedIn automation' : ' (manual)'}${msgText ? ' | ' + msgText.slice(0, 300) : ''}`;
   const _validTouch = ['invite', 'j0', 'j5', 'j12'];
   const { error: _msIntErr } = await sbClient.from('interactions').insert({
     prospect_id: pid, client_id: CLIENT_ID, mandate_id: _prospectsById[pid]?.mandate_id ?? null, type: 'linkedin',
@@ -5568,11 +5568,11 @@ async function _markSent(pid, touch, auto = false, msgText = '', elPrefix = '') 
     if (eLinkedinTag) console.error('_markSent linkedin_tag:', eLinkedinTag);
   }
   if ((touch === 'j0' || touch === 'invite') && p && p.linkedin) {
-    fetch('/api/heyreach-remove', {
+    fetch('/api/linkedin-remove', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ linkedinUrl: p.linkedin, client_id: CLIENT_ID })
-    }).catch(err => console.error('[_markSent] heyreach-remove failed:', err));
+    }).catch(err => console.error('[_markSent] linkedin-remove failed:', err));
   }
   const daysNext = TOUCH_NEXT_REMINDER[touch];
   let eReminder = null;
@@ -5622,9 +5622,9 @@ function sendInitials(name){
 
 function logSentMessage(url, message){
   try {
-    const log = JSON.parse(sessionStorage.getItem('heyreach_sent') || '[]');
+    const log = JSON.parse(sessionStorage.getItem('linkedin_sent') || '[]');
     log.push({ url: url, message: message, at: new Date().toISOString() });
-    sessionStorage.setItem('heyreach_sent', JSON.stringify(log));
+    sessionStorage.setItem('linkedin_sent', JSON.stringify(log));
   } catch(e){}
 }
 // generateSend(i) supprimé — la génération de message vit maintenant dans _generateSequenceMessage() (Phase 3).
@@ -6313,7 +6313,7 @@ async function openDrawer(card, initialTab = 'activity') {
             style="width:100%;justify-content:center;margin-bottom:10px">
             🎙 Generate post-call debrief
           </button>
-          <div id="granola-meeting-select" style="display:none;margin-bottom:10px"></div>
+          <div id="meeting-notes-select" style="display:none;margin-bottom:10px"></div>
           <div id="post-call-output" style="display:none"></div>
           <div style="text-align:center;margin-top:6px">
             <a href="#" style="font-size:var(--fs-xs);color:var(--muted);text-decoration:underline;text-underline-offset:2px"
@@ -6772,7 +6772,7 @@ async function _runPostCallWorkflow(pid, note) {
   const p = _prospectsById[pid] || _drawerProspect || {};
   const pcBox = document.getElementById('post-call-output');
   if (!pcBox) return;
-  const _gsBox = document.getElementById('granola-meeting-select');
+  const _gsBox = document.getElementById('meeting-notes-select');
   if (_gsBox) _gsBox.style.display = 'none';
   pcBox.style.display = 'block';
   pcBox.innerHTML = '<div class="post-call-box" style="color:var(--muted);font-style:italic;font-size:var(--fs-sm);">Analyzing call notes...</div>';
@@ -6898,7 +6898,7 @@ Rules: no em-dashes, no markdown headers, factual only, base everything on the n
   } catch(e) { console.warn('[post-call] persist failed:', e.message); }
 }
 
-let _granolaPickerState = null;
+let _meetingNotesPickerState = null;
 
 function _toggleManualDebrief() {
   const panel = document.getElementById('manual-debrief-panel');
@@ -6920,12 +6920,12 @@ async function _openPostCallDebrief() {
   if (!pid) { showToast('No prospect selected'); return; }
   const p = _prospectsById[pid] || _drawerProspect || {};
   const btn = document.getElementById('btn-postcall-debrief');
-  const selectBox = document.getElementById('granola-meeting-select');
+  const selectBox = document.getElementById('meeting-notes-select');
   const pcBox = document.getElementById('post-call-output');
 
   if (btn) btn.disabled = true;
   if (selectBox) { selectBox.style.display = 'none'; selectBox.innerHTML = ''; }
-  if (pcBox) { pcBox.style.display = 'block'; pcBox.innerHTML = '<div class="post-call-box" style="color:var(--muted);font-style:italic;font-size:var(--fs-sm);">Searching Granola for recent meetings...</div>'; }
+  if (pcBox) { pcBox.style.display = 'block'; pcBox.innerHTML = '<div class="post-call-box" style="color:var(--muted);font-style:italic;font-size:var(--fs-sm);">Searching for recent meetings...</div>'; }
 
   const { data: { session } } = await sbClient.auth.getSession();
   const token = session?.access_token;
@@ -6937,21 +6937,21 @@ async function _openPostCallDebrief() {
 
   let meetings = [];
   try {
-    const r = await fetch('/api/granola', {
+    const r = await fetch('/api/meeting-notes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify({ action: 'list_meetings' })
     });
     const data = await r.json();
     if (data.error) {
-      if (pcBox) pcBox.innerHTML = '<div class="post-call-box" style="color:var(--muted);font-style:italic;font-size:var(--fs-sm);">Granola not connected. Generating debrief from interaction history...</div>';
+      if (pcBox) pcBox.innerHTML = '<div class="post-call-box" style="color:var(--muted);font-style:italic;font-size:var(--fs-sm);">Meeting notes not connected. Generating debrief from interaction history...</div>';
       await _runPostCallWorkflow(pid, null);
       if (btn) btn.disabled = false;
       return;
     }
     meetings = data.meetings || [];
   } catch(e) {
-    if (pcBox) pcBox.innerHTML = '<div class="post-call-box" style="color:var(--muted);font-style:italic;font-size:var(--fs-sm);">Could not reach Granola. Generating debrief from interaction history...</div>';
+    if (pcBox) pcBox.innerHTML = '<div class="post-call-box" style="color:var(--muted);font-style:italic;font-size:var(--fs-sm);">Could not reach meeting notes. Generating debrief from interaction history...</div>';
     await _runPostCallWorkflow(pid, null);
     if (btn) btn.disabled = false;
     return;
@@ -6967,7 +6967,7 @@ async function _openPostCallDebrief() {
   const pCompany = (p.company || '').toLowerCase().trim();
 
   let candidates = [];
-  // branche email : inactive avec l'API REST Granola actuelle (pas de known_participants), conservée pour compatibilité future si l'API évolue.
+  // branche email : inactive avec l'API REST meeting-notes actuelle (pas de known_participants), conservée pour compatibilité future si l'API évolue.
   if (pEmail) {
     candidates = meetings.filter(m =>
       (m.known_participants || []).some(kp => (kp.email || '').toLowerCase() === pEmail)
@@ -6985,55 +6985,55 @@ async function _openPostCallDebrief() {
     return;
   }
 
-  _showGranolaPicker(candidates.length > 1 ? candidates : meetings, pid, token, btn, candidates.length > 1);
+  _showMeetingNotesPicker(candidates.length > 1 ? candidates : meetings, pid, token, btn, candidates.length > 1);
 }
 
-function _showGranolaPicker(meetings, pid, token, btn, hasMatches) {
-  _granolaPickerState = { meetings, pid, token };
-  const selectBox = document.getElementById('granola-meeting-select');
+function _showMeetingNotesPicker(meetings, pid, token, btn, hasMatches) {
+  _meetingNotesPickerState = { meetings, pid, token };
+  const selectBox = document.getElementById('meeting-notes-select');
   const pcBox = document.getElementById('post-call-output');
   if (!selectBox) return;
   if (pcBox) { pcBox.style.display = 'none'; pcBox.innerHTML = ''; }
   const label = hasMatches
     ? 'Multiple matching meetings — select one:'
-    : 'No meeting matched automatically — select from recent Granola meetings:';
+    : 'No meeting matched automatically — select from recent meetings:';
   selectBox.style.display = 'block';
   selectBox.innerHTML = `
     <div style="font-size:var(--fs-sm);color:var(--muted);margin-bottom:6px;">${label}</div>
     <div style="display:flex;flex-direction:column;gap:4px;max-height:200px;overflow-y:auto;margin-bottom:8px;">
-      ${meetings.slice(0, 10).map((m, i) => `<button class="btn-secondary btn-sm" style="text-align:left;display:flex;justify-content:space-between;gap:8px;" onclick="_selectGranolaMeeting(${i})"><span>${_esc(m.title || m.id || 'Untitled')}</span><span style="color:var(--muted);font-size:var(--fs-xs);white-space:nowrap;">${_esc(m.date || '')}</span></button>`).join('')}
+      ${meetings.slice(0, 10).map((m, i) => `<button class="btn-secondary btn-sm" style="text-align:left;display:flex;justify-content:space-between;gap:8px;" onclick="_selectMeetingNote(${i})"><span>${_esc(m.title || m.id || 'Untitled')}</span><span style="color:var(--muted);font-size:var(--fs-xs);white-space:nowrap;">${_esc(m.date || '')}</span></button>`).join('')}
     </div>
     <button class="btn-secondary btn-sm" style="width:100%;justify-content:center;" onclick="_runPostCallWorkflow(${JSON.stringify(pid)}, null)">Skip — use interaction history only</button>
   `;
   if (btn) btn.disabled = false;
 }
 
-async function _selectGranolaMeeting(idx) {
-  if (!_granolaPickerState) return;
-  const { meetings, pid, token } = _granolaPickerState;
+async function _selectMeetingNote(idx) {
+  if (!_meetingNotesPickerState) return;
+  const { meetings, pid, token } = _meetingNotesPickerState;
   const meeting = meetings[idx];
   if (!meeting) return;
   const btn = document.getElementById('btn-postcall-debrief');
   if (btn) btn.disabled = true;
-  const selectBox = document.getElementById('granola-meeting-select');
+  const selectBox = document.getElementById('meeting-notes-select');
   if (selectBox) selectBox.style.display = 'none';
   await _fetchAndRunDebrief(meeting, pid, token, btn);
 }
 
 async function _fetchAndRunDebrief(meeting, pid, token, btn) {
   const pcBox = document.getElementById('post-call-output');
-  if (pcBox) { pcBox.style.display = 'block'; pcBox.innerHTML = '<div class="post-call-box" style="color:var(--muted);font-style:italic;font-size:var(--fs-sm);">Fetching transcript from Granola...</div>'; }
+  if (pcBox) { pcBox.style.display = 'block'; pcBox.innerHTML = '<div class="post-call-box" style="color:var(--muted);font-style:italic;font-size:var(--fs-sm);">Fetching meeting transcript...</div>'; }
 
   let noteText = null;
   try {
-    const r = await fetch('/api/granola', {
+    const r = await fetch('/api/meeting-notes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify({ action: 'get_transcript', id: meeting.id })
     });
     const data = await r.json();
     if (data.error === 'not_yet_available') {
-      if (pcBox) pcBox.innerHTML = '<div class="post-call-box" style="color:var(--amber);font-size:var(--fs-sm);">Transcript not yet ready in Granola (still processing). Try again shortly.</div>';
+      if (pcBox) pcBox.innerHTML = '<div class="post-call-box" style="color:var(--amber);font-size:var(--fs-sm);">Transcript not yet ready (still processing). Try again shortly.</div>';
       if (btn) btn.disabled = false;
       return;
     }
@@ -7043,7 +7043,7 @@ async function _fetchAndRunDebrief(meeting, pid, token, btn) {
       if (data.note.transcript) parts.push('TRANSCRIPT:\n' + (typeof data.note.transcript === 'string' ? data.note.transcript : JSON.stringify(data.note.transcript)));
       noteText = parts.join('\n\n') || null;
     }
-  } catch(e) { console.warn('[granola] get_transcript failed:', e.message); }
+  } catch(e) { console.warn('[meeting-notes] get_transcript failed:', e.message); }
 
   await _runPostCallWorkflow(pid, noteText);
   if (btn) btn.disabled = false;
@@ -7103,8 +7103,8 @@ async function _scannerMapCommittee() {
   if (spin) spin.classList.add('active');
 
   const [ctx1, ctx2] = await Promise.all([
-    _perplexitySearch(company + ' leadership team executives decision makers', 500),
-    _perplexitySearch(company + ' buying process procurement ' + sector, 500)
+    _marketIntelSearch(company + ' leadership team executives decision makers', 500),
+    _marketIntelSearch(company + ' buying process procurement ' + sector, 500)
   ]);
 
   let liveBlock = '';
@@ -7154,8 +7154,8 @@ async function _mapStakeholders() {
   if (spin) spin.classList.add('active');
 
   const [ctx1, ctx2] = await Promise.all([
-    _perplexitySearch(p.company + ' leadership team executives decision makers', 500),
-    _perplexitySearch(p.company + ' buying process procurement ' + (p.sector || ''), 500)
+    _marketIntelSearch(p.company + ' leadership team executives decision makers', 500),
+    _marketIntelSearch(p.company + ' buying process procurement ' + (p.sector || ''), 500)
   ]);
 
   let liveBlock = '';
@@ -7477,7 +7477,7 @@ async function _findEmailDrawer(pid) {
 
   let enrichment_id;
   try {
-    const r = await fetch('/api/fullenrich', {
+    const r = await fetch('/api/enrich', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(fePayload)
     });
@@ -7511,14 +7511,14 @@ async function _findEmailDrawer(pid) {
       return;
     }
     try {
-      const pr = await fetch('/api/fullenrich?enrichment_id=' + encodeURIComponent(enrichment_id));
+      const pr = await fetch('/api/enrich?enrichment_id=' + encodeURIComponent(enrichment_id));
       const pd = await pr.json();
       if (pd.status === 'done') {
         if (done) return;
         done = true;
         clearInterval(_drawerPollInterval); _drawerPollInterval = null;
         if (pd.email) {
-          await _saveEmail(pollPid, pd.email, 'fullenrich');
+          await _saveEmail(pollPid, pd.email, 'enrich');
           if (status) status.textContent = '✓ Email verified';
           if (btn) { btn.style.background = 'var(--green-brand)'; btn.textContent = '✓ Found'; }
           if (siblingBtn) siblingBtn.disabled = false;
@@ -7526,7 +7526,7 @@ async function _findEmailDrawer(pid) {
           if (status) status.textContent = 'Not found';
           reenable();
         }
-        if (pd.phone) { await _savePhone(pollPid, pd.phone, 'fullenrich'); }
+        if (pd.phone) { await _savePhone(pollPid, pd.phone, 'enrich'); }
       }
     } catch(e) {
       // network hiccup — keep polling until timeout
@@ -7554,7 +7554,7 @@ async function _findPhoneDrawer(pid) {
 
   let enrichment_id;
   try {
-    const r = await fetch('/api/fullenrich', {
+    const r = await fetch('/api/enrich', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(fePayload)
     });
@@ -7588,14 +7588,14 @@ async function _findPhoneDrawer(pid) {
       return;
     }
     try {
-      const pr = await fetch('/api/fullenrich?enrichment_id=' + encodeURIComponent(enrichment_id));
+      const pr = await fetch('/api/enrich?enrichment_id=' + encodeURIComponent(enrichment_id));
       const pd = await pr.json();
       if (pd.status === 'done') {
         if (done) return;
         done = true;
         clearInterval(_drawerPollInterval); _drawerPollInterval = null;
         if (pd.phone) {
-          await _savePhone(pollPid, pd.phone, 'fullenrich');
+          await _savePhone(pollPid, pd.phone, 'enrich');
           if (status) status.textContent = '✓ Found';
           if (btn) { btn.style.background = 'var(--green-brand)'; btn.textContent = '✓ Found'; }
           if (siblingBtn) siblingBtn.disabled = false;
@@ -8233,7 +8233,7 @@ async function _bulkStartEmailSeq() {
     if (countEl) countEl.textContent = `Sending ${i + 1}/${toSend.length}...`;
     try {
       const nameParts = (p.name || '').trim().split(/\s+/);
-      const r = await fetch('/api/smartlead', {
+      const r = await fetch('/api/email-send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -8241,7 +8241,7 @@ async function _bulkStartEmailSeq() {
           first_name: nameParts[0] || '',
           last_name: nameParts.slice(1).join(' ') || '',
           company_name: p.company || '',
-          campaign_id: (_activeMandate?.smartlead_campaign_id) || _clientProfile?.smartlead_campaign_id || SMARTLEAD_CAMPAIGN_ID
+          campaign_id: (_activeMandate?.email_campaign_id) || _clientProfile?.email_campaign_id || EMAIL_CAMPAIGN_ID
         })
       });
       const d = await r.json();
@@ -8936,14 +8936,14 @@ async function _startEmailSeq(id) {
   if (statusEl) statusEl.textContent = '';
   try {
     const nameParts = (p.name || '').trim().split(/\s+/);
-    const r = await fetch('/api/smartlead', {
+    const r = await fetch('/api/email-send', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         email: p.email,
         first_name: nameParts[0] || '',
         last_name: nameParts.slice(1).join(' ') || '',
         company_name: p.company || '',
-        campaign_id: _clientProfile?.smartlead_campaign_id || SMARTLEAD_CAMPAIGN_ID
+        campaign_id: _clientProfile?.email_campaign_id || EMAIL_CAMPAIGN_ID
       })
     });
     const data = await r.json();
@@ -9533,7 +9533,7 @@ async function loadClientProfile() {
     if (!user) return false;
     const { data, error } = await _supabase
       .from('clients')
-      .select('client_id, contact_name, company_name, display_name, avatar_url, sender_bio, owner_inbox_email, smartlead_campaign_id, hubspot_api_key, hubspot_stage_mapping, hubspot_last_sync')
+      .select('client_id, contact_name, company_name, display_name, avatar_url, sender_bio, owner_inbox_email, email_campaign_id, hubspot_api_key, hubspot_stage_mapping, hubspot_last_sync')
       .eq('auth_user_id', user.id)
       .single();
     if (error || !data) return false;
