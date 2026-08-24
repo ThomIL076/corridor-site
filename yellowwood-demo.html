@@ -4430,7 +4430,8 @@ async function runMorningScan() {
     const pipelineBlock = scored.length
       ? scored.map((p, i) => {
           const sig = p.signal_type ? `[${p.signal_type.toUpperCase()}] ` : '';
-          const sigLine = p.signal ? ` | Signal: ${sig}${p.signal.replace(/<a\s[^>]*>([^<]*)<\/a>/gi,'$1').replace(/<[^>]*>/g,'').trim()}` : '';
+          const sigRaw = p.signal ? p.signal.replace(/<a\s[^>]*>([^<]*)<\/a>/gi,'$1').replace(/<[^>]*>/g,'').trim() : '';
+          const sigLine = sigRaw ? ` | Signal: ${sig}${sigRaw.slice(0, 120)}${sigRaw.length > 120 ? '…' : ''}` : '';
           return `${i + 1}. ${p.name || 'Unknown'} · ${p.company || '—'} · ${p.sector || '—'} · ${p.country || p.region || '—'} · Stage: ${p.stage || 'Identified'} · ICP: ${p.icp_score !== null && p.icp_score !== undefined ? p.icp_score : 'not yet scored'} · Score: ${p.combinedScore}${sigLine}`;
         }).join('\n')
       : 'No active prospects in pipeline.';
@@ -4520,7 +4521,7 @@ Populate stakeholder_* fields ONLY when new_stakeholder is true; set to null oth
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'claude-sonnet-5',
-        max_tokens: 1500,
+        max_tokens: 2500,
         system: systemPrompt,
         messages: [{ role: 'user', content: userPrompt }]
       })
