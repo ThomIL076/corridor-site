@@ -2067,10 +2067,10 @@ async function _submitSignalFeedback(btn, vote, idx, stableKey) {
         capsule.dataset.fbCid = cid || '';
         capsule.style.cssText = 'margin-top:8px;padding:8px 10px;background:var(--navy-light);border-radius:var(--radius-sm);border:1px solid var(--border);';
         capsule.innerHTML =
-          '<div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">Qu’est-ce qui n’était pas pertinent ? <em style="font-style:normal;opacity:.7">(optionnel)</em></div>' +
-          '<textarea rows="2" maxlength="500" placeholder="Ex. : secteur hors cible, signal trop faible…" style="width:100%;box-sizing:border-box;font-size:12px;padding:6px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-panel);color:var(--text-primary);resize:vertical;"></textarea>' +
+          '<div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">Qu’est-ce qui n’était pas pertinent ? <em style="font-style:normal;opacity:.7">(optional)</em></div>' +
+          '<textarea rows="2" maxlength="500" placeholder="e.g. wrong sector, weak signal..." style="width:100%;box-sizing:border-box;font-size:12px;padding:6px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-panel);color:var(--text-primary);resize:vertical;"></textarea>' +
           '<div style="display:flex;justify-content:flex-end;margin-top:6px;">' +
-          '<button style="font-size:12px;padding:3px 12px;border:none;border-radius:var(--radius-sm);background:var(--blue);color:#fff;cursor:pointer;">Envoyer</button>' +
+          '<button style="font-size:12px;padding:3px 12px;border:none;border-radius:var(--radius-sm);background:var(--blue);color:#fff;cursor:pointer;">Send</button>' +
           '</div>';
         capsule.querySelector('button').addEventListener('click', function() { _sendSignalComment(capsule); });
         card.appendChild(capsule);
@@ -2096,15 +2096,15 @@ function _sendSignalComment(root) {
     body: JSON.stringify({ id: fbId, client_id: root.dataset.fbCid || null, comment }),
   }).then(function(r) { return r.json(); }).then(function(json) {
     if (json.ok) {
-      root.innerHTML = '<div style="font-size:11px;color:var(--text-secondary);padding:4px 0;">Retour enregistré — merci.</div>';
+      root.innerHTML = '<div style="font-size:11px;color:var(--text-secondary);padding:4px 0;">Feedback recorded — thank you.</div>';
     } else {
       console.error('[signal-feedback] comment PATCH failed:', json.error);
-      if (btn) { btn.disabled = false; btn.textContent = 'Envoyer'; }
+      if (btn) { btn.disabled = false; btn.textContent = 'Send'; }
       if (ta) ta.disabled = false;
     }
   }).catch(function(e) {
     console.error('[signal-feedback] comment PATCH error:', e);
-    if (btn) { btn.disabled = false; btn.textContent = 'Envoyer'; }
+    if (btn) { btn.disabled = false; btn.textContent = 'Send'; }
     if (ta) ta.disabled = false;
   });
 }
