@@ -2046,7 +2046,7 @@ function _renderSignalsFeed() {
   }).join('');
 }
 
-function _submitSignalFeedback(btn, vote, idx, stableKey) {
+async function _submitSignalFeedback(btn, vote, idx, stableKey) {
   if (!window._feedVotes) window._feedVotes = {};
   window._feedVotes[stableKey] = vote;
   const row = btn.parentElement;
@@ -2059,19 +2059,70 @@ function _submitSignalFeedback(btn, vote, idx, stableKey) {
   if (row) row.querySelectorAll('button:not([style*="' + (isLike ? '#22c55e' : '#f87171') + '"])').forEach(b => { b.style.opacity = '0.4'; });
   const item = (window._feedItemsById || {})[idx] || {};
   const source = item.type === 'live' ? 'dashboard_live_signal' : 'dashboard_morning_scan';
+  const cid = (typeof CLIENT_ID !== 'undefined' ? CLIENT_ID : null);
+  try {
+    const resp = await fetch('/api/signal-feedback', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        prospect_id: item.prospectId || null,
+        client_id: cid,
+        mandate_id: (typeof activeMandateId !== 'undefined' && activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null,
+        signal_type: item.signalType || null,
+        signal_text: (item.signal || item.label || '').slice(0, 500),
+        vote,
+        source,
+      })
+    });
+    const json = await resp.json();
+    if (!isLike && json.id) {
+      const card = row && row.parentElement;
+      if (card) {
+        const capsule = document.createElement('div');
+        capsule.dataset.fbId = json.id;
+        capsule.dataset.fbCid = cid || '';
+        capsule.style.cssText = 'margin-top:8px;padding:8px 10px;background:var(--navy-light);border-radius:var(--radius-sm);border:1px solid var(--border);';
+        capsule.innerHTML =
+          '<div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">Qu’est-ce qui n’était pas pertinent ? <em style="font-style:normal;opacity:.7">(optionnel)</em></div>' +
+          '<textarea rows="2" maxlength="500" placeholder="Ex. : secteur hors cible, signal trop faible…" style="width:100%;box-sizing:border-box;font-size:12px;padding:6px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-panel);color:var(--text-primary);resize:vertical;"></textarea>' +
+          '<div style="display:flex;justify-content:flex-end;margin-top:6px;">' +
+          '<button style="font-size:12px;padding:3px 12px;border:none;border-radius:var(--radius-sm);background:var(--blue);color:#fff;cursor:pointer;">Envoyer</button>' +
+          '</div>';
+        capsule.querySelector('button').addEventListener('click', function() { _sendSignalComment(capsule); });
+        card.appendChild(capsule);
+      }
+    }
+  } catch(e) {
+    console.error('[signal-feedback]', e);
+  }
+}
+
+function _sendSignalComment(root) {
+  const fbId = root && root.dataset.fbId;
+  if (!fbId) return;
+  const ta = root.querySelector('textarea');
+  const comment = ta ? ta.value.trim() : '';
+  if (!comment) { if (ta) ta.focus(); return; }
+  const btn = root.querySelector('button');
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  if (ta) ta.disabled = true;
   fetch('/api/signal-feedback', {
-    method: 'POST',
+    method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      prospect_id: item.prospectId || null,
-      client_id: (typeof CLIENT_ID !== 'undefined' ? CLIENT_ID : null),
-      mandate_id: (typeof activeMandateId !== 'undefined' && activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null,
-      signal_type: item.signalType || null,
-      signal_text: (item.signal || item.label || '').slice(0, 500),
-      vote,
-      source,
-    })
-  }).catch(e => console.warn('[signal-feedback]', e));
+    body: JSON.stringify({ id: fbId, client_id: root.dataset.fbCid || null, comment }),
+  }).then(function(r) { return r.json(); }).then(function(json) {
+    if (json.ok) {
+      root.innerHTML = '<div style="font-size:11px;color:var(--text-secondary);padding:4px 0;">Retour enregistré — merci.</div>';
+    } else {
+      console.error('[signal-feedback] comment PATCH failed:', json.error);
+      if (btn) { btn.disabled = false; btn.textContent = 'Envoyer'; }
+      if (ta) ta.disabled = false;
+    }
+  }).catch(function(e) {
+    console.error('[signal-feedback] comment PATCH error:', e);
+    if (btn) { btn.disabled = false; btn.textContent = 'Envoyer'; }
+    if (ta) ta.disabled = false;
+  });
 }
 
 function _renderWeeklyList(reports) {
