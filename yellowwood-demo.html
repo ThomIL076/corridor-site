@@ -2189,7 +2189,6 @@ const SENDER_BIO = `ERIC VEST'S BACKGROUND (use only these facts when referencin
 - Serves as a trusted intermediary between allocators and fund managers in the alternatives space
 - Based in the United States`;
 let activeMandateId = null; // null = vue consolidée (tous mandats), sinon uuid du mandat actif
-let _signalsLinkApplied = false;
 
 async function _resolveMandate(mandateId) {
   if (!mandateId) return null;
@@ -2368,6 +2367,10 @@ async function showDemo(){
   await _loadMandateOptions();
   document.getElementById('auth-gate').style.display = 'none';
 
+  const _urlFilterParam = new URLSearchParams(window.location.search).get('filter');
+  if (_urlFilterParam === 'signals' && typeof _setSigFilter === 'function') {
+    _setSigFilter('signal');
+  }
   if (!_kanbanLoaded) loadKanban();
   _initHpFilters();
   // Init unique post-login : Pipeline par défaut + scroll en haut (PWA démarre proprement)
@@ -8498,6 +8501,9 @@ function renderKanban(rows){
   const weighted = rows.reduce((s, p) => s + (parseFloat(p.deal_value) || 0) * _closingProb(p.stage), 0);
   const pipeEl = document.getElementById('kpi-pipeline');
   if (pipeEl) pipeEl.textContent = weighted > 0 ? ('€' + Math.round(weighted / 1000) + 'k') : (currentLang === 'fr' ? 'En construction' : 'Building');
+  if (typeof _applyKanbanFilters === 'function') {
+    try { _applyKanbanFilters(); } catch (e) { console.warn('[renderKanban] _applyKanbanFilters failed:', e); }
+  }
 }
 // Stats live (onglet Stats) — calculés sur _allProspects (dernier fetch loadKanban)
 function renderStats(){
@@ -9584,13 +9590,6 @@ async function loadKanban(force){
     _allProspects = _kAll;
     renderKanban(_kAll);
     _initKanbanFilterOptions();
-    if (!_signalsLinkApplied) {
-      const _urlFilterParam = new URLSearchParams(window.location.search).get('filter');
-      if (_urlFilterParam === 'signals' && typeof _setSigFilter === 'function') {
-        try { _setSigFilter('signal'); } catch (e) { console.warn('[loadKanban] _setSigFilter failed:', e); }
-      }
-      _signalsLinkApplied = true;
-    }
     initKanbanDnD();
     requestAnimationFrame(_fixAcbTop);
     if (document.getElementById('tab-stats')?.classList.contains('active')) renderStats();
