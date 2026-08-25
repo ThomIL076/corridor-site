@@ -4575,7 +4575,11 @@ Populate stakeholder_* fields ONLY when new_stakeholder is true; set to null oth
     const signalsHtml = signalsData === null
       ? '<div style="color:var(--muted);font-size:var(--fs-sm);">Signal parsing failed this run — try again or check console.</div>'
       : signalsData.length === 0
-        ? '<div style="color:var(--muted);font-size:var(--fs-sm);">No market signal relevant to this mandate today.</div>'
+        ? '<div style="color:var(--muted);font-size:var(--fs-sm);">' +
+            (activeMandateId && activeMandateId !== '__ALL__'
+              ? 'No market signal for this mandate today.'
+              : 'No market signal today.') +
+          '</div>'
         : (window._msSigCache = {}, signalsData.map((s, idx) => {
             window._msSigCache[idx] = s;
             const color = TAG_COLORS[s.tag] || 'var(--navy)';
