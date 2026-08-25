@@ -5582,7 +5582,7 @@ ${liveBlock}${personBlock}${prevMsgBlock}${inviteBlock}${originBlock}${memoryBlo
     if (saveBtn) { saveBtn.disabled = true; saveBtn.style.opacity = '0.45'; saveBtn.style.cursor = 'not-allowed'; }
   } catch(e) {
     console.error('[_generateSequenceMessage] failed:', e);
-    if (out) out.textContent = 'Generate failed — ' + (e.message || 'network error') + '. Click Generate to retry.';
+    if (out) out.textContent = 'Generation failed — please retry.';
   } finally {
     if (btn) btn.disabled = false;
     if (spin) spin.classList.remove('active');
@@ -6945,7 +6945,7 @@ async function _runPostCallWorkflow(pid, note) {
       .select('type,note,created_at').eq('prospect_id', pid)
       .order('created_at', { ascending: false }).limit(3);
     if (data?.length) intCtx = data.map(i => `${i.type}${i.note ? ': ' + i.note.slice(0, 80) : ''}`).join(' | ');
-  } catch(e) {}
+  } catch(e) { console.error('[_runPostCallWorkflow]', e); }
 
   const systemPrompt = `You are a GTM advisor analyzing a sales call. Generate a post-call debrief in this exact format:
 VERDICT: [positive/neutral/negative]

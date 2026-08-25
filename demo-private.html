@@ -4567,7 +4567,7 @@ Populate stakeholder_* fields ONLY when new_stakeholder is true; set to null oth
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'claude-sonnet-5',
-        max_tokens: 1500,
+        max_tokens: 6000,
         system: systemPrompt,
         messages: [{ role: 'user', content: userPrompt }]
       })
@@ -5538,7 +5538,7 @@ ${liveBlock}${personBlock}${prevMsgBlock}${inviteBlock}${originBlock}${memoryBlo
     if (saveBtn) { saveBtn.disabled = true; saveBtn.style.opacity = '0.45'; saveBtn.style.cursor = 'not-allowed'; }
   } catch(e) {
     console.error('[_generateSequenceMessage] failed:', e);
-    if (out) out.textContent = 'Generate failed — ' + (e.message || 'network error') + '. Click Generate to retry.';
+    if (out) out.textContent = 'Generation failed — please retry.';
   } finally {
     if (btn) btn.disabled = false;
     if (spin) spin.classList.remove('active');
