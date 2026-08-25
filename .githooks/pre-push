@@ -1,0 +1,21 @@
+#!/usr/bin/env node
+const { execSync } = require('child_process');
+const { loadConfig, scanContent } = require('../scripts/check-vendor-names-core.js');
+
+const { names, targetFiles } = loadConfig();
+let allHits = [];
+for (const f of targetFiles) {
+  let content;
+  try { content = execSync(`git show HEAD:"${f}"`, { encoding: 'utf8' }); }
+  catch { continue; }
+  allHits = allHits.concat(scanContent(content, names, f));
+}
+
+if (allHits.length > 0) {
+  console.error(`\nBLOCKED [pre-push] : ${allHits.length} occurrence(s) fournisseur trouvee(s) dans HEAD.\n`);
+  for (const h of allHits) console.error(`  ${h.file}:${h.line} [${h.name}] ${h.text}`);
+  console.error('\nCorrige et re-commit avant de push.\n');
+  process.exit(1);
+}
+console.log(`[pre-push] check-vendor-names OK sur ${targetFiles.length} fichier(s).`);
+process.exit(0);

@@ -1,5 +1,18 @@
 {
   "enabledPlugins": {
     "paddle@claude-community": true
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/check-vendor-names.js"
+          }
+        ]
+      }
+    ]
   }
 }
