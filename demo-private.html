@@ -2180,6 +2180,7 @@ const SENDER_BIO = `THOMAS'S REAL BACKGROUND (use only these facts when referenc
 - Business Development & Sales Director, Western Europe at Ybrant Digital (AdTech): doubled annual revenue from $1.5M to $3M across Belgium, Netherlands, France, Italy
 - International Sales Manager & Market Leader, Benelux at Hi-Media: grew the Belgian operation from EUR 30K/month to EUR 1M/month from zero`;
 let activeMandateId = null; // null = vue consolidée (tous mandats), sinon uuid du mandat actif
+let _signalsLinkApplied = false;
 
 async function _resolveMandate(mandateId) {
   if (!mandateId) return null;
@@ -9570,6 +9571,13 @@ async function loadKanban(force){
     _allProspects = _kAll;
     renderKanban(_kAll);
     _initKanbanFilterOptions();
+    if (!_signalsLinkApplied) {
+      const _urlFilterParam = new URLSearchParams(window.location.search).get('filter');
+      if (_urlFilterParam === 'signals' && typeof _setSigFilter === 'function') {
+        try { _setSigFilter('signal'); } catch (e) { console.warn('[loadKanban] _setSigFilter failed:', e); }
+      }
+      _signalsLinkApplied = true;
+    }
     initKanbanDnD();
     requestAnimationFrame(_fixAcbTop);
     if (document.getElementById('tab-stats')?.classList.contains('active')) renderStats();

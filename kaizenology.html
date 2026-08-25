@@ -2171,6 +2171,7 @@ const SENDER_BIO = `STEPHANE'S REAL BACKGROUND (use only these facts when refere
 - Built and ran an influencer marketing agency for over a decade in South Africa, chaired industry standards bodies (IAB South Africa, IAB France)
 - CAIA charterholder`;
 let activeMandateId = null; // null = vue consolidée (tous mandats), sinon uuid du mandat actif
+let _signalsLinkApplied = false;
 
 async function _resolveMandate(mandateId) {
   if (!mandateId) return null;
@@ -9770,6 +9771,13 @@ async function loadKanban(force){
     _allProspects = _kAll;
     renderKanban(_kAll);
     _initKanbanFilterOptions();
+    if (!_signalsLinkApplied) {
+      const _urlFilterParam = new URLSearchParams(window.location.search).get('filter');
+      if (_urlFilterParam === 'signals' && typeof _setSigFilter === 'function') {
+        try { _setSigFilter('signal'); } catch (e) { console.warn('[loadKanban] _setSigFilter failed:', e); }
+      }
+      _signalsLinkApplied = true;
+    }
     initKanbanDnD();
     requestAnimationFrame(_fixAcbTop);
     if (document.getElementById('tab-stats')?.classList.contains('active')) renderStats();
