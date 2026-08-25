@@ -2644,6 +2644,7 @@ async function callAI(prompt, outputEl, spinnerId, maxTokens = 1000, renderAsTex
     if (renderAsText) { outputEl.textContent = text; } else { outputEl.innerHTML = renderMarkdown(text); }
     outputEl.classList.add('loaded');
   } catch (e) {
+    console.error('[callAI]', e);
     outputEl.textContent = 'Error: ' + e.message + '. Check API connection.';
   } finally {
     if (spinner) spinner.classList.remove('active');
@@ -3042,6 +3043,7 @@ Write all content in ${currentLang === 'fr' ? 'French' : 'English'} but keep the
     profileEl.innerHTML = profileMatch ? renderMarkdown(profileMatch[1].trim()) : renderMarkdown(text);
     profileEl.classList.add('loaded');
   } catch(e) {
+    console.warn('[runIntelligence]', e);
     pains.textContent = 'Error: ' + e.message;
   } finally {
     document.getElementById('intel-spinner').classList.remove('active');
@@ -3866,6 +3868,7 @@ async function sendAgent(agentName) {
       thinkEl.querySelector('.chat-bubble').style.cssText = '';
     }
   } catch(e) {
+    console.error('[sendAgent]', e);
     const thinkEl = document.getElementById(thinkId);
     if (thinkEl) thinkEl.querySelector('.chat-bubble').textContent = 'Error: ' + e.message;
   } finally {
@@ -4130,6 +4133,7 @@ async function _sendAskMessage() {
     const thinkEl = document.getElementById(thinkId);
     if (thinkEl) thinkEl.querySelector('.chat-bubble').innerHTML = renderMarkdown(reply);
   } catch(e) {
+    console.error('[_sendAskMessage]', e);
     const thinkEl = document.getElementById(thinkId);
     if (thinkEl) thinkEl.querySelector('.chat-bubble').textContent = 'Error: ' + e.message;
   } finally {
@@ -4325,7 +4329,7 @@ async function _runPipelineReview() {
       const rj = await r.json();
       summary = (Array.isArray(rj.content) ? rj.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim() : '') || '';
       summary = summary.replace(/--+/g, ',').trim();
-    } catch(e) {}
+    } catch(e) { console.error('[_runPipelineReview]', e); }
 
     const renderRow = (p, color) => {
       const actionClass = 'pr-prospect-action-' + color;
@@ -4368,6 +4372,7 @@ async function _runPipelineReview() {
       renderGroup(green, 'green', 'GREEN — Healthy',       'GREEN — Sain',         10);
 
   } catch(err) {
+    console.error('[_runPipelineReview]', err);
     out.innerHTML = '<div style="color:var(--red);font-size:var(--fs-base);padding:12px 0;">Error: ' + err.message + '</div>';
   } finally {
     btn.disabled = false;
@@ -4411,7 +4416,11 @@ async function runMorningScan() {
     const _eligible = (_allProspects || [])
       .filter(p => !p.archived && p.icp_score != null && !!(p.signal && p.signal.replace(/<[^>]*>/g,'').trim().length > 0))
       .map(p => {
-        return { ...p, combinedScore: Number(p.icp_score) + 2, hasSignal: true };
+        const icp = Number(p.icp_score) || 0;
+        const signalNorm = (p.score_signal_strength >= 4) ? (p.score_signal_strength - 4) / 6 : 0;
+        const growthNorm = (p.score_growth != null) ? p.score_growth / 10 : 0;
+        const combinedScore = icp + (10 - icp) * (0.7 * signalNorm + 0.3 * growthNorm);
+        return { ...p, combinedScore, hasSignal: true };
       })
       .sort((a, b) => b.combinedScore - a.combinedScore || (b.icp_score || 0) - (a.icp_score || 0));
     const eligibleTotal = _eligible.length;
@@ -4559,7 +4568,7 @@ Populate stakeholder_* fields ONLY when new_stakeholder is true; set to null oth
       let raw = text.trim().replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) signalsData = parsed;
-    } catch (e) { /* signalsData reste null */ }
+    } catch (e) { console.error('[runMorningScan] signals JSON parse failed:', e, text); }
 
     const TAG_COLORS = { 'fundraising':'#2568B5', 'leadership-change':'#7C3AED', 'activity':'#B45309', 'expansion':'#059669' };
 
@@ -4606,10 +4615,11 @@ Populate stakeholder_* fields ONLY when new_stakeholder is true; set to null oth
       const _msLink = window.location.origin + window.location.pathname +
         (activeMandateId && activeMandateId !== '__ALL__' ? '?mandate=' + activeMandateId : '');
       const _lastPItem = _topProspectItems[_topProspectItems.length - 1];
-      if (_lastPItem) _lastPItem.linkHtml = `<div style="margin-top:8px;"><a href="${_msLink}" style="color:var(--navy);font-size:var(--fs-sm);text-decoration:underline;">View full pipeline (${eligibleTotal} prospects) →</a></div>`;
+      if (_lastPItem) _lastPItem.linkHtml = `<div style="margin-top:8px;"><a href="${_msLink}" style="color:var(--navy);font-size:var(--fs-sm);text-decoration:underline;">View prospects with signals (${eligibleTotal}) →</a></div>`;
     }
     _renderSignalsFeed();
   } catch (e) {
+    console.warn('[runMorningScan]', e);
     _morningItems = [{ timestamp: new Date().toISOString(), type: 'morning', label: 'Error', content: e.message }];
     _renderSignalsFeed();
   } finally {
@@ -5500,6 +5510,7 @@ async function _sendViaLinkedIn(pid, touch, elPrefix = '') {
       if (btn) btn.disabled = false;
     }
   } catch(e) {
+    console.error('[_sendViaLinkedIn]', e);
     showToast('Network error — use Mark as sent');
     if (btn) btn.disabled = false;
   }
@@ -7155,6 +7166,7 @@ async function _openPostCallDebrief() {
     }
     meetings = data.meetings || [];
   } catch(e) {
+    console.warn('[_openPostCallDebrief]', e);
     if (pcBox) pcBox.innerHTML = '<div class="post-call-box" style="color:var(--muted);font-style:italic;font-size:var(--fs-sm);">Could not reach meeting notes. Generating debrief from interaction history...</div>';
     await _runPostCallWorkflow(pid, null);
     if (btn) btn.disabled = false;
@@ -7337,6 +7349,7 @@ async function _scannerMapCommittee() {
     text = text.replace(/--/g, '.').replace(/—/g, '.');
     if (out) out.innerHTML = renderMarkdown(text || 'No result.');
   } catch(e) {
+    console.warn('[_scannerMapCommittee]', e);
     if (out) out.textContent = 'Error generating stakeholder map.';
   } finally {
     if (btn)  btn.disabled = false;
@@ -7388,6 +7401,7 @@ async function _mapStakeholders() {
     text = text.replace(/--/g, '.').replace(/—/g, '.');
     if (out) out.innerHTML = renderMarkdown(text || 'No result.');
   } catch(e) {
+    console.warn('[_mapStakeholders]', e);
     if (out) out.textContent = 'Error generating stakeholder map.';
   } finally {
     if (btn) btn.disabled = false;
@@ -7622,7 +7636,7 @@ async function _saveDealToDB(){
     showToast('Deal value saved');
     loadKanban(true);
   } catch(e) {
-    console.warn('_saveDealToDB failed:', e && e.message ? e.message : e);
+    console.error('[_saveDealToDB]', e);
     showToast('Save failed');
   }
 }
@@ -7699,6 +7713,7 @@ async function _findEmailDrawer(pid) {
     const d = await r.json();
     enrichment_id = d.enrichment_id;
   } catch(e) {
+    console.warn('[_findEmailDrawer]', e);
     if (status) status.textContent = 'Error — check connection';
     reenable();
     return;
@@ -7744,6 +7759,7 @@ async function _findEmailDrawer(pid) {
         if (pd.phone) { await _savePhone(pollPid, pd.phone, 'enrich'); }
       }
     } catch(e) {
+      console.warn('[_findEmailDrawer]', e);
       // network hiccup — keep polling until timeout
     }
   }, 4000);
@@ -7776,6 +7792,7 @@ async function _findPhoneDrawer(pid) {
     const d = await r.json();
     enrichment_id = d.enrichment_id;
   } catch(e) {
+    console.warn('[_findPhoneDrawer]', e);
     if (status) status.textContent = 'Error — check connection';
     reenable();
     return;
@@ -7820,6 +7837,7 @@ async function _findPhoneDrawer(pid) {
         }
       }
     } catch(e) {
+      console.warn('[_findPhoneDrawer]', e);
       // network hiccup — keep polling until timeout
     }
   }, 4000);
@@ -7901,6 +7919,7 @@ async function _requestBriefing(pid) {
       if (btn) btn.disabled = false;
     }
   } catch(e) {
+    console.warn('[_requestBriefing]', e);
     if (status) status.textContent = 'Network error';
     if (btn) btn.disabled = false;
   }
@@ -8047,7 +8066,7 @@ async function saveProspectEdit(id){
     if (error) throw error;
     showToast(currentLang === 'fr' ? 'Prospect mis à jour' : 'Prospect updated');
     closeDrawer(); loadKanban(true);
-  } catch(e){ console.warn('saveProspectEdit failed:', e && e.message ? e.message : e); showToast(currentLang === 'fr' ? 'Échec de la sauvegarde' : 'Save failed'); }
+  } catch(e){ console.error('[saveProspectEdit]', e); showToast(currentLang === 'fr' ? 'Échec de la sauvegarde' : 'Save failed'); }
 }
 async function archiveProspect(id){
   if (!id) return;
@@ -8092,7 +8111,7 @@ async function addProspect(){
     ['ap-name','ap-company','ap-title','ap-email','ap-linkedin','ap-country'].forEach(x => { const el = document.getElementById(x); if (el) el.value = ''; });
     showToast(currentLang === 'fr' ? 'Prospect ajouté' : 'Prospect added');
     loadKanban(true);
-  } catch(e){ err.textContent = (e && e.message) ? e.message : 'Error'; err.style.display = 'block'; }
+  } catch(e){ console.error('[addProspect]', e); err.textContent = (e && e.message) ? e.message : 'Error'; err.style.display = 'block'; }
   finally { if (btn) btn.disabled = false; }
 }
 function openAddProspect(){
@@ -8585,6 +8604,7 @@ async function _replyIntel(id) {
     const text = (Array.isArray(data.content) ? data.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim() : '') || (data.error ? 'Error: ' + data.error : 'No response');
     if (resultEl) { resultEl.innerHTML = renderMarkdown(text); resultEl.style.display = 'block'; }
   } catch(e) {
+    console.error('[_replyIntel]', e);
     if (resultEl) { resultEl.textContent = 'Error — check connection and retry.'; resultEl.style.display = 'block'; }
   } finally {
     if (analyzeBtn) { analyzeBtn.disabled = false; analyzeBtn.textContent = 'Analyze'; }
@@ -9211,6 +9231,7 @@ async function _startEmailSeq(id) {
       if (statusEl) statusEl.textContent = '⚠ ' + (data.error || 'Error, retry');
     }
   } catch(e) {
+    console.error('[_startEmailSeq]', e);
     if (btn) { btn.disabled = false; btn.textContent = 'Start Email Sequence'; btn.style.background = 'var(--green-brand)'; }
     if (statusEl) statusEl.textContent = '⚠ Network error, retry';
   }
@@ -9366,9 +9387,10 @@ async function _autoGenerateCsSteps(row) {
     const raw = Array.isArray(data.content) ? data.content.filter(b => b.type === 'text').map(b => b.text).join('').trim() : '';
     let steps;
     try { steps = JSON.parse(raw); } catch(_) {
+      console.error('[_autoGenerateCsSteps] JSON parse failed:', _, raw);
       const m = raw.match(/\[[\s\S]*\]/);
       if (!m) return;
-      try { steps = JSON.parse(m[0]); } catch(_) { return; }
+      try { steps = JSON.parse(m[0]); } catch(_) { console.error('[_autoGenerateCsSteps] fallback parse failed:', _); return; }
     }
     if (!Array.isArray(steps) || steps.length === 0) return;
     const inserts = steps.filter(s => s && s.label).map(s => ({
@@ -9730,7 +9752,7 @@ async function loadKanban(force){
     while (true) {
       let _kQuery = sbClient
         .from('prospects')
-        .select('id, name, company, title, sector, region, country, stage, linkedin, email, phone, deal_value, deal_currency, deal_structure, deal_weighted, notes, last_contact, reminder_date, icp_score, icp_reason, archived, client_id, linkedin_tag, origin, signal, signal_type, signal_interpretation, signal_date, created_at, draft_invite_note, company_size, next_action, next_action_date, score_signal_strength, signal_url, mandate_id')
+        .select('id, name, company, title, sector, region, country, stage, linkedin, email, phone, deal_value, deal_currency, deal_structure, deal_weighted, notes, last_contact, reminder_date, icp_score, icp_reason, archived, client_id, linkedin_tag, origin, signal, signal_type, signal_interpretation, signal_date, created_at, draft_invite_note, company_size, next_action, next_action_date, score_signal_strength, score_growth, signal_url, mandate_id')
         .eq('client_id', CLIENT_ID);
       _kQuery = _applyMandateFilter(_kQuery);
       const { data: chunk, error } = await _kQuery
