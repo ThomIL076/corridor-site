@@ -4449,10 +4449,17 @@ async function runMorningScan() {
         }).join('\n')
       : 'No active prospects in pipeline.';
 
-    // 2. Market signals via web search (single broad call, last 24-48h)
+    // 2. External signals — market intel + SEC EDGAR regulatory filings (parallel)
     let marketSignals = 'No market signals retrieved.';
-    try {
-      const mktRes = await fetch('/api/market-intel', {
+    let secFilings    = 'No relevant filings retrieved.';
+
+    const _secToday = new Date();
+    const _secStart = new Date(_secToday.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const _secEnd   = _secToday.toISOString().split('T')[0];
+    const _secQ     = encodeURIComponent('"family office" OR "REIT" OR "real estate investment"');
+
+    const [_mktResult, _secResult] = await Promise.allSettled([
+      fetch('/api/market-intel', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -4467,7 +4474,6 @@ async function runMorningScan() {
               role: 'user',
               content: (() => {
                 const m = _activeMandate;
-                const sectors = m?.sectors || 'Family Office, Alternative Investments, Private Equity, Private Credit, Real Assets';
                 const geography = m?.geography ? ` in ${m.geography}` : ' in the United States';
                 const signalsFocus = m?.signals ? ` Prioritize signals matching: ${m.signals}.` : ' Prioritize: leadership changes (new CIO, new MD, generational transitions), allocation shifts toward alternatives, AUM growth milestones.';
                 const exclusions = m?.exclusions ? ` Exclude anything related to: ${m.exclusions}.` : '';
@@ -4477,13 +4483,33 @@ async function runMorningScan() {
             }
           ]
         })
-      });
-      if (mktRes.ok) {
-        const mktData = await mktRes.json();
-        marketSignals = mktData.choices?.[0]?.message?.content?.trim() || marketSignals;
+      }).then(r => r.ok ? r.json() : Promise.reject('market-intel HTTP ' + r.status)),
+      fetch(`/api/sec-edgar?q=${_secQ}&forms=13F-HR,SC%2013D,SC%2013G,8-K&startdt=${_secStart}&enddt=${_secEnd}`)
+        .then(r => r.ok ? r.json() : Promise.reject('sec-edgar HTTP ' + r.status))
+    ]);
+
+    if (_mktResult.status === 'fulfilled') {
+      marketSignals = _mktResult.value.choices?.[0]?.message?.content?.trim() || marketSignals;
+    } else {
+      console.error('[runMorningScan] Market intel failed:', _mktResult.reason);
+    }
+
+    if (_secResult.status === 'fulfilled') {
+      const _secHits = _secResult.value?.hits?.hits || [];
+      if (_secHits.length > 0) {
+        secFilings = _secHits.slice(0, 8).map(h => {
+          const s        = h._source;
+          const name     = (Array.isArray(s.display_names) && s.display_names[0]) || 'Unknown entity';
+          const cik      = (Array.isArray(s.ciks) && s.ciks[0]) || '';
+          const formType = (Array.isArray(s.root_forms) && s.root_forms[0]) || s.form || 'unknown form';
+          const link     = `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=${cik}&type=${encodeURIComponent(formType)}&dateb=&owner=include&count=10`;
+          return `- ${name} | Form: ${formType} | Filed: ${s.file_date} | ${link}`;
+        }).join('\n');
+      } else {
+        secFilings = 'No relevant filings in the past 7 days.';
       }
-    } catch (e) {
-      console.warn('[runMorningScan] Market intel failed:', e.message);
+    } else {
+      console.error('[runMorningScan] SEC EDGAR fetch failed:', _secResult.reason);
     }
 
     // 3. Build Claude prompt — system + user separated
@@ -4497,6 +4523,8 @@ DIVERSITY RULE: If multiple signals share the same tag (e.g. several "leadership
 
 NAMED PERSON RULE: If a headline explicitly names a person taking on a role (e.g. "X hires Y as...", "Y joins X as...", "X appoints Y..."), treat Y as new_stakeholder: true with stakeholder_name, stakeholder_company, and stakeholder_title filled in from what the headline states — unless there is a specific reason not to (e.g. Y is already a known contact in the internal pipeline data provided, or the source is too vague to confirm the name safely). Do not leave new_stakeholder: false on a headline that clearly names an individual.
 
+SEC EDGAR RULE: Regulatory filing data (last 7 days) is also provided. Treat it as factual input that may surface ownership changes, leadership transitions, or strategic events relevant to the mandate. Only cite a filing if its content is specific enough to write a genuine why_it_matters — apply the same EXCLUSION RULE as for market signals.
+
 ${_noDash}
 ${_langLine()}`;
 
@@ -4507,6 +4535,9 @@ ${pipelineBlock}
 
 ## MARKET SIGNALS (last 24-48h, web-sourced)
 ${marketSignals}
+
+## SEC EDGAR FILINGS (last 7 days — 13F-HR, SC 13D/13G, 8-K)
+${secFilings}
 
 ---
 
