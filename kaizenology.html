@@ -4620,8 +4620,9 @@ Populate stakeholder_* fields ONLY when new_stakeholder is true; set to null oth
       { timestamp: runTs, type: 'morning', label: 'Signals & Interpretation', htmlContent: signalsHtml }
     ];
     if (eligibleTotal > displayCount) {
-      const _msLink = window.location.origin + window.location.pathname +
-        (activeMandateId && activeMandateId !== '__ALL__' ? '?mandate=' + activeMandateId : '');
+      const _mandateParam = (activeMandateId && activeMandateId !== '__ALL__') ? 'mandate=' + activeMandateId : '';
+      const _params = [_mandateParam, 'filter=signals'].filter(Boolean).join('&');
+      const _msLink = window.location.origin + window.location.pathname + (_params ? '?' + _params : '');
       const _lastPItem = _topProspectItems[_topProspectItems.length - 1];
       if (_lastPItem) _lastPItem.linkHtml = `<div style="margin-top:8px;"><a href="${_msLink}" style="color:var(--navy);font-size:var(--fs-sm);text-decoration:underline;">View prospects with signals (${eligibleTotal}) →</a></div>`;
     }
