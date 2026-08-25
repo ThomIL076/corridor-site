@@ -5560,7 +5560,7 @@ async function _sendViaLinkedIn(pid, touch, elPrefix = '') {
   try {
     const res = await fetch('/api/linkedin-send', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ linkedinUrl: p.linkedin, message: body, prospectName: p.name, client_id: CLIENT_ID, touch, linkedinTag: p.linkedin_tag })
+      body: JSON.stringify({ linkedinUrl: p.linkedin, message: body, prospectName: p.name, client_id: _drawerClientId(), touch, linkedinTag: p.linkedin_tag })
     });
     const data = await res.json();
     if (data.success) {
@@ -5638,7 +5638,7 @@ async function _markSent(pid, touch, auto = false, msgText = '', elPrefix = '') 
     fetch('/api/linkedin-remove', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ linkedinUrl: p.linkedin, client_id: CLIENT_ID })
+      body: JSON.stringify({ linkedinUrl: p.linkedin, client_id: _drawerClientId() })
     }).catch(err => console.error('[_markSent] linkedin-remove failed:', err));
   }
   const daysNext = TOUCH_NEXT_REMINDER[touch];
@@ -6916,7 +6916,7 @@ Rules: no em-dashes, no markdown headers, factual only, base everything on the n
     const remLabel = rem.toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short' });
     const updates = { reminder_date: remIso, updated_at: new Date().toISOString() };
     if (shouldAdvance) updates.stage = 'Proposal';
-    const { error: _pcErr } = await sbClient.from('prospects').update(updates).eq('id', pid).eq('client_id', CLIENT_ID);
+    const { error: _pcErr } = await sbClient.from('prospects').update(updates).eq('id', pid).eq('client_id', _drawerClientId());
     if (_pcErr) console.warn('post-call update failed:', _pcErr);
     if (!_pcErr) {
       if (_drawerProspect) { _drawerProspect.reminder_date = remIso; if (shouldAdvance) _drawerProspect.stage = 'Proposal'; }
