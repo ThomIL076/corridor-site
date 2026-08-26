@@ -2246,7 +2246,7 @@ async function _resolveMandate(mandateId) {
   try {
     const { data, error } = await sbClient
       .from('mandates')
-      .select('id, client_id, segment, name, status, icp_criteria, geography, sectors, decision_makers, signals, exclusions, email_campaign_id')
+      .select('id, client_id, segment, name, status, icp_criteria, geography, sectors, decision_makers, signals, exclusions, email_campaign_id, min_employees, max_employees')
       .eq('id', mandateId)
       .eq('client_id', CLIENT_ID)
       .single();
@@ -2946,10 +2946,11 @@ Language instruction: Write your entire response in ${currentLang === 'fr' ? 'Fr
   // ICP scoring — sequential, informed by detected signals
   if (_scannerMode !== 'free') {
     let _mandateCriteria = '';
+    let _mdMinEmp = null, _mdMaxEmp = null;
     if (activeMandateId && activeMandateId !== '__ALL__') {
       try {
         const { data: _md } = await sbClient.from('mandates')
-          .select('icp_criteria,decision_makers,sectors,geography,signals,exclusions')
+          .select('icp_criteria,decision_makers,sectors,geography,signals,exclusions,min_employees,max_employees')
           .eq('id', activeMandateId).eq('client_id', CLIENT_ID).single();
         if (_md) {
           _mandateCriteria = '\nMANDATE CRITERIA (primary evaluation framework):\n'
@@ -2959,6 +2960,8 @@ Language instruction: Write your entire response in ${currentLang === 'fr' ? 'Fr
             + (_md.geography       ? 'Target geography: '   + _md.geography       + '\n' : '')
             + (_md.signals         ? 'Key buying signals: ' + _md.signals         + '\n' : '')
             + (_md.exclusions      ? 'Exclusions: '         + _md.exclusions      + '\n' : '');
+          _mdMinEmp = _md.min_employees ?? null;
+          _mdMaxEmp = _md.max_employees ?? null;
         }
       } catch(e) { console.warn('[runScanner] mandate fetch failed:', e); }
     }
@@ -2967,7 +2970,10 @@ Language instruction: Write your entire response in ${currentLang === 'fr' ? 'Fr
       : '';
     const _contactIntelTxt = (() => { const t = (document.getElementById('scanner-contact-output')?.textContent || '').trim(); return (person && t && !t.startsWith('Researching')) ? t : ''; })();
     const _contactIntelLine = _contactIntelTxt ? '\n\nCONTACT INTELLIGENCE (use to inform role_score — title, background, seniority):\n' + _contactIntelTxt.slice(0, 1000) : '';
-    const _scorePromptText = 'You are an ICP scoring engine for Corridor, a B2B GTM advisory firm. Evaluate this prospect and return 4 sub-scores.\n\nCompany: ' + company + '\nSector: ' + sector + '\nStage: ' + stage + '\n' + fundingStr + urlStr + contextStr + _mandateCriteria + _sigsLine + _contactIntelLine + '\n\nSCORING RULES:\nrole_score (0-10): how well the title matches CEO/Founder/Co-Founder (high), other C-level/VP Sales-Growth-Revenue (moderate), other senior title (low), unclear seniority (very low)\nsize_score: how well the company size fits 11-200 employees. If genuinely unknown, respond with exactly -1 — do NOT guess from sector or name. If known: 11-200=9, 201-500=6, 1-10=4, 500+=3\nsignal_strength_score (0-10): 0 if no buying signal detected. Fundraise/market expansion=9, new CXO/VP hire=7, role posted=5, other=3\nmandate_fit_score (0-10): ' + (_mandateCriteria ? 'score fit against mandate criteria above (sector, geography, decision-makers)' : 'return 5 — no mandate active, score is neutral') + '\n\nReturn ONLY valid JSON, no other text:\n{"role_score":<0-10>,"size_score":<-1 or 0-10>,"signal_strength_score":<0-10>,"mandate_fit_score":<0-10>,"confidence":"<low|medium|high>","rationale":"<one sentence>"}';
+    const _sizeScoreRule = (_mdMinEmp || _mdMaxEmp)
+      ? (() => { const lo = _mdMinEmp, hi = _mdMaxEmp; const range = lo && hi ? `${lo}-${hi}` : lo ? `${lo}+` : `1-${hi}`; const above = hi ? `${hi + 1}-${Math.round(hi * 2.5)}` : null; const farAbove = hi ? `${Math.round(hi * 2.5) + 1}+` : null; const below = lo && lo > 1 ? `1-${lo - 1}` : null; let r = `size_score: how well the company size fits the target range (${range} employees). If genuinely unknown, respond with exactly -1 — do NOT guess from sector or name. If known: ${range}=9`; if (above) r += `, ${above}=6`; if (below) r += `, ${below}=4`; if (farAbove) r += `, ${farAbove}=3`; return r; })()
+      : 'size_score: how well the company size fits 11-200 employees. If genuinely unknown, respond with exactly -1 — do NOT guess from sector or name. If known: 11-200=9, 201-500=6, 1-10=4, 500+=3';
+    const _scorePromptText = 'You are an ICP scoring engine for Corridor, a B2B GTM advisory firm. Evaluate this prospect and return 4 sub-scores.\n\nCompany: ' + company + '\nSector: ' + sector + '\nStage: ' + stage + '\n' + fundingStr + urlStr + contextStr + _mandateCriteria + _sigsLine + _contactIntelLine + '\n\nSCORING RULES:\nrole_score (0-10): how well the title matches CEO/Founder/Co-Founder (high), other C-level/VP Sales-Growth-Revenue (moderate), other senior title (low), unclear seniority (very low)\n' + _sizeScoreRule + '\nsignal_strength_score (0-10): 0 if no buying signal detected. Fundraise/market expansion=9, new CXO/VP hire=7, role posted=5, other=3\nmandate_fit_score (0-10): ' + (_mandateCriteria ? 'score fit against mandate criteria above (sector, geography, decision-makers)' : 'return 5 — no mandate active, score is neutral') + '\n\nReturn ONLY valid JSON, no other text:\n{"role_score":<0-10>,"size_score":<-1 or 0-10>,"signal_strength_score":<0-10>,"mandate_fit_score":<0-10>,"confidence":"<low|medium|high>","rationale":"<one sentence>"}';
 
     try {
       const _scoreResp = await fetch(API_URL, {
@@ -6561,7 +6567,10 @@ async function _aiScoreProspect(company, title, mandate) {
       + (mandate.signals         ? 'Key buying signals: ' + mandate.signals         + '\n' : '')
       + (mandate.exclusions      ? 'Exclusions: '         + mandate.exclusions      + '\n' : '');
   }
-  const scorePrompt = 'You are an ICP scoring engine for Corridor, a B2B GTM advisory firm. Evaluate this prospect and return 4 sub-scores.\n\nCompany: ' + company + '\nTitle/role known: ' + (title || 'unknown') + '\n' + mandateCriteria + '\n\nSCORING RULES:\nrole_score (0-10): how well the title matches CEO/Founder/Co-Founder (high), other C-level/VP Sales-Growth-Revenue (moderate), other senior title (low), unclear seniority (very low)\nsize_score: how well the company size fits 11-200 employees. If genuinely unknown, respond with exactly -1 — do NOT guess from sector or name. If known: 11-200=9, 201-500=6, 1-10=4, 500+=3\nsignal_strength_score (0-10): 0 if no buying signal detected. Fundraise/market expansion=9, new CXO/VP hire=7, role posted=5, other=3\nmandate_fit_score (0-10): ' + (mandateCriteria ? 'score fit against mandate criteria above (sector, geography, decision-makers)' : 'return 5 — no mandate active, score is neutral') + '\n\nReturn ONLY valid JSON, no other text:\n{"role_score":<0-10>,"size_score":<-1 or 0-10>,"signal_strength_score":<0-10>,"mandate_fit_score":<0-10>,"confidence":"<low|medium|high>","rationale":"<one sentence>"}';
+  const _sizeScoreRule = (mandate && (mandate.min_employees || mandate.max_employees))
+    ? (() => { const lo = mandate.min_employees, hi = mandate.max_employees; const range = lo && hi ? `${lo}-${hi}` : lo ? `${lo}+` : `1-${hi}`; const above = hi ? `${hi + 1}-${Math.round(hi * 2.5)}` : null; const farAbove = hi ? `${Math.round(hi * 2.5) + 1}+` : null; const below = lo && lo > 1 ? `1-${lo - 1}` : null; let r = `size_score: how well the company size fits the target range (${range} employees). If genuinely unknown, respond with exactly -1 — do NOT guess from sector or name. If known: ${range}=9`; if (above) r += `, ${above}=6`; if (below) r += `, ${below}=4`; if (farAbove) r += `, ${farAbove}=3`; return r; })()
+    : 'size_score: how well the company size fits 11-200 employees. If genuinely unknown, respond with exactly -1 — do NOT guess from sector or name. If known: 11-200=9, 201-500=6, 1-10=4, 500+=3';
+  const scorePrompt = 'You are an ICP scoring engine for Corridor, a B2B GTM advisory firm. Evaluate this prospect and return 4 sub-scores.\n\nCompany: ' + company + '\nTitle/role known: ' + (title || 'unknown') + '\n' + mandateCriteria + '\n\nSCORING RULES:\nrole_score (0-10): how well the title matches CEO/Founder/Co-Founder (high), other C-level/VP Sales-Growth-Revenue (moderate), other senior title (low), unclear seniority (very low)\n' + _sizeScoreRule + '\nsignal_strength_score (0-10): 0 if no buying signal detected. Fundraise/market expansion=9, new CXO/VP hire=7, role posted=5, other=3\nmandate_fit_score (0-10): ' + (mandateCriteria ? 'score fit against mandate criteria above (sector, geography, decision-makers)' : 'return 5 — no mandate active, score is neutral') + '\n\nReturn ONLY valid JSON, no other text:\n{"role_score":<0-10>,"size_score":<-1 or 0-10>,"signal_strength_score":<0-10>,"mandate_fit_score":<0-10>,"confidence":"<low|medium|high>","rationale":"<one sentence>"}';
   try {
     const resp = await fetch(API_URL, {
       method: 'POST',
@@ -8183,7 +8192,9 @@ function _calcICP(p) {
   if (p.icp_score && Number(p.icp_score) > 0) return Number(p.icp_score).toFixed(1);
   const t = (p.title || '').toLowerCase();
   let roleScore;
-  if (['ceo','founder','co-founder','chief executive'].some(k => t.includes(k))) roleScore = 10;
+  if (_activeMandate?.target_role_keywords?.length) {
+    roleScore = _activeMandate.target_role_keywords.some(k => t.includes(k.toLowerCase())) ? 10 : 0;
+  } else if (['ceo','founder','co-founder','chief executive'].some(k => t.includes(k))) roleScore = 10;
   else if (
     ['cto','cro','cmo','coo','cpo','vp','vice president'].some(k => t.includes(k)) ||
     ['head of sales','head of growth','head of revenue'].some(k => t.includes(k))
@@ -8193,12 +8204,25 @@ function _calcICP(p) {
   let sizeScore = 5;
   if (p.company_size) {
     const n = parseInt(String(p.company_size)) || 0;
-    if      (n >= 30 && n <= 100)  sizeScore = 10;
-    else if (n >= 11 && n < 30)    sizeScore = 7;
-    else if (n > 100 && n <= 200)  sizeScore = 7;
-    else if (n > 200 && n <= 500)  sizeScore = 4;
-    else if (n > 0   && n < 11)    sizeScore = 3;
-    else if (n > 500)              sizeScore = 2;
+    if (_activeMandate?.min_employees || _activeMandate?.max_employees) {
+      const lo = _activeMandate.min_employees || null;
+      const hi = _activeMandate.max_employees || null;
+      const adjAbove = hi && n > hi && n <= Math.round(hi * 2.5);
+      const farAbove = hi && n > Math.round(hi * 2.5);
+      const adjBelow = lo && n < lo && n >= Math.round(lo / 2.5);
+      const inRange  = (!lo || n >= lo) && (!hi || n <= hi);
+      if      (n > 0 && inRange)                sizeScore = 10;
+      else if (n > 0 && (adjAbove || adjBelow)) sizeScore = 7;
+      else if (n > 0 && farAbove)               sizeScore = 2;
+      else if (n > 0)                           sizeScore = 3;
+    } else {
+      if      (n >= 30 && n <= 100)  sizeScore = 10;
+      else if (n >= 11 && n < 30)    sizeScore = 7;
+      else if (n > 100 && n <= 200)  sizeScore = 7;
+      else if (n > 200 && n <= 500)  sizeScore = 4;
+      else if (n > 0   && n < 11)    sizeScore = 3;
+      else if (n > 500)              sizeScore = 2;
+    }
   }
   const knownCount = [p.title, p.company, p.company_size].filter(Boolean).length;
   const completenessScore = knownCount === 3 ? 10 : knownCount > 0 ? 5 : 0;
