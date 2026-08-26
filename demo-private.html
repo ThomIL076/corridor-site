@@ -4743,7 +4743,7 @@ Populate stakeholder_* fields ONLY when new_stakeholder is true; set to null oth
             return '<div style="padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);margin-bottom:8px;">' +
               '<div style="display:flex;align-items:center;gap:8px;">' +
                 '<span style="font-size:var(--fs-xs);font-weight:700;color:' + color + ';background:' + color + '1a;border-radius:var(--radius-pill);padding:2px 8px;">' + _esc(s.tag||'') + '</span>' +
-                (!hasStakeholderInfo ? '<span style="font-size:var(--fs-xs);font-weight:500;color:var(--muted);border:1px solid var(--border);border-radius:var(--radius-pill);padding:2px 8px;">Décideur à identifier</span>' : '') +
+                (!hasStakeholderInfo ? '<span style="font-size:var(--fs-xs);font-weight:500;color:var(--muted);border:1px solid var(--border);border-radius:var(--radius-pill);padding:2px 8px;">Decision-maker to identify</span>' : '') +
                 (s.date ? '<span style="margin-left:auto;font-size:var(--fs-xs);color:var(--muted);">' + _esc(s.date) + '</span>' : '') +
               '</div>' +
               '<div style="font-weight:700;font-size:var(--fs-sm);margin-top:5px;">' + _esc(s.headline||'') + '</div>' +
@@ -6676,11 +6676,13 @@ async function _generateSignalInterpretation(signalText, company, title) {
   return { interpretation: null, date: null };
 }
 async function _findSignalDecisionMaker(idx, btn) {
+  console.log('[dm] called idx=' + idx + ' cache=', window._msSigCache);
   const s = (window._msSigCache || {})[idx];
-  if (!s || !s.stakeholder_company) return;
+  if (!s || !s.stakeholder_company) { console.log('[dm] early exit: no s or no company', s); return; }
   const company = s.stakeholder_company;
   const resultEl = document.getElementById('ms-dm-result-' + idx);
-  if (!resultEl) return;
+  if (!resultEl) { console.log('[dm] early exit: no resultEl for id="ms-dm-result-' + idx + '"'); return; }
+  console.log('[dm] proceeding — company:', company);
   btn.disabled = true;
   btn.textContent = 'Searching...';
   resultEl.innerHTML = '';
