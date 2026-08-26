@@ -2246,10 +2246,7 @@ let _mandatesById = {}; // index mandateId → {id, segment, name}
 
 function _mandateContext() {
   if (!_activeMandate) {
-    // Aucun mandat actif = comportement legacy, fallback sur
-    // THOMAS_CONTEXT existant (mode "vue consolidée" ou client
-    // sans système de mandats, comme Thomas lui-même aujourd'hui)
-    return (CLIENT_ID === 'kaizenology') ? KAIZENOLOGY_CONTEXT : THOMAS_CONTEXT;
+    return KAIZENOLOGY_CONTEXT;
   }
   const m = _activeMandate;
   const parts = [
@@ -3109,13 +3106,6 @@ Write all content in ${currentLang === 'fr' ? 'French' : 'English'} but keep the
 // ── MODULE 3: OUTREACH GENERATOR ──
 // ── MODULE 4: AI AGENTS ──
 // Real operating context injected into every agent (replaces the fictional demo context)
-const THOMAS_CONTEXT = `Operating context for every answer (this is the real business, not a hypothetical):
-Thomas Dratler, Corridor GTM System.
-Founder of Corridor (corridor.systems), a done-for-you GTM system for B2B companies that need predictable pipeline.
-ICP: CEO or Founder, any industry, any geography, 11-200 employees. Ticket: 1,500 EUR per month retainer. Use case: entering a new market, accelerating on an existing one, or replacing pipeline that depends on too few people.
-Product: Corridor, a done-for-you GTM system.
-Buying signals that matter: fundraising, leadership-change, expansion, activity.
-Stay strictly within this context. Do not invent fictional companies, scores, or metrics.`;
 const KAIZENOLOGY_CONTEXT = `Operating context for every answer (this is the real business, not a hypothetical):
 Stéphane Rogovsky, CAIA — Kaizenology, M&A and strategic advisory, based in Dubai.
 Eight active mandates: Cession/sell-side (UAE-specific geography), Acquisition/buy-side (international — ~20 countries including Europe, US, UK, and more), Fundraising, Strategic Advisory, Live Transactions (existing network/CRM only — no active outreach), Fractional & Interim Roles (Stéphane's own board/advisory/interim mandates), two partner profiles (Corridor GTM system, The Vaults), and two Metals mandates (Material Sourcing and Buyer Search — import corridor to India and Asia).
@@ -4509,7 +4499,7 @@ async function runMorningScan() {
               role: 'user',
               content: (() => {
                 const m = _activeMandate;
-                const sectors = m?.sectors || 'Private Equity, M&A, Wealth Management, Alternative Investments';
+                const sectors = m?.sectors || 'M&A transactions, corporate disposals, acquisition search, fundraising advisory, cross-border deal activity, strategic advisory';
                 const geography = m?.geography ? ` in ${m.geography}` : '';
                 const signalsFocus = m?.signals ? ` Prioritize signals matching: ${m.signals}.` : '';
                 const exclusions = m?.exclusions ? ` Exclude anything related to: ${m.exclusions}.` : '';
@@ -8076,7 +8066,7 @@ function _drawerProfileHTML(id, p, colStage, fb){
       `<div id="signal-link-wrap" style="font-size:var(--fs-xs)"></div>` +
       `<select id="drawer-signal-type" style="font-size:var(--fs-sm);padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);color:var(--text)">` +
         `<option value="">-- Signal type --</option>` +
-        `${(_signalTaxonomy && Object.keys(_signalTaxonomy).length ? Object.values(_signalTaxonomy) : [{code:'S1',label:'S1'},{code:'S2',label:'S2'},{code:'S3',label:'S3'},{code:'S4',label:'S4'}]).map(t => `<option value="${_esc(t.code)}"${(p.signal_type||'').toUpperCase()===(t.code||'').toUpperCase()?' selected':''}>${_esc(t.icon||'')} ${_esc(t.code)} — ${_esc(t.label||t.code)}</option>`).join('')}` +
+        `${(_signalTaxonomy && Object.keys(_signalTaxonomy).length ? Object.values(_signalTaxonomy) : [{code:'S1',label:'S1'},{code:'S2',label:'S2'},{code:'S3',label:'S3'},{code:'S4',label:'S4'},{code:'activity',label:'Engagement passif (réaction/commentaire)',icon:'👁'}]).map(t => `<option value="${_esc(t.code)}"${(p.signal_type||'').toUpperCase()===(t.code||'').toUpperCase()?' selected':''}>${_esc(t.icon||'')} ${_esc(t.code)} — ${_esc(t.label||t.code)}</option>`).join('')}` +
       `</select>` +
       (p.signalInterpretation ? `<div style="background:var(--navy-light);border:1px solid var(--blue);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--navy);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:10px;opacity:0.65;display:block;margin-bottom:3px">✦ ${currentLang==='fr'?'Analyse IA':'AI Insight'}</span>${v(stripHtml(p.signalInterpretation))}</div>` : '')
     )}
@@ -8615,9 +8605,6 @@ function buildCard(p){
     +   (sector ? `<span class="k-badge k-badge-sector">${_esc(sector)}</span>` : '')
     +   (dealBadge ? `<span class="k-badge k-badge-deal">${_esc(dealBadge)}</span>` : '')
     + `</div>`
-    + (p.linkedin_tag === 'connection-accepted' && p.stage === 'Engaged' && parseFloat(p.icp_score) >= 8 && p.last_contact
-        ? `<div class="k-j5-badge" onclick="_j5BadgeClick(event,'${_esc(id)}')">J+5</div>`
-        : '')
     + (_stageKey(p.stage) === 'Replied'
         ? `<div class="k-reply-intel" onclick="event.stopPropagation()">`
           + `<button id="ri-toggle-${_esc(id)}" class="k-ri-toggle" onclick="_toggleReplyIntel('${_esc(id)}')">💬 Triage reply</button>`
@@ -8653,7 +8640,7 @@ async function _replyIntel(id) {
   if (analyzeBtn) { analyzeBtn.disabled = true; analyzeBtn.textContent = '...'; }
   if (statusEl) statusEl.textContent = '';
   if (resultEl) resultEl.style.display = 'none';
-  const prompt = `You are a B2B reply triage specialist. Triage this reply from ${p.name || 'the prospect'} at ${p.company || 'their company'}.\n\nReply received:\n"${replyText}"\n\nContext: outbound LinkedIn sequence (J+0/J+5), Corridor GTM system, B2B companies building predictable commercial pipeline.\n\nProduce:\n1) CATEGORY — one of: positive signal / timing objection / polite decline / bounce / OOO / unclear\n2) INTEREST LIKELIHOOD — % with one-sentence rationale\n3) RECOMMENDED NEXT ACTION — specific, not generic (what to do in the next 2 hours)\n4) DRAFT RESPONSE — under 100 words, direct, human, specific to their reply. No "following up", no "checking in", no em-dashes. End with a question if positive signal or unclear. Do not write a response if category is bounce or polite decline.\n\nFormat output clearly with each section labeled. Be direct.`;
+  const prompt = `You are a B2B reply triage specialist. Triage this reply from ${p.name || 'the prospect'} at ${p.company || 'their company'}.\n\nReply received:\n"${replyText}"\n\nContext: outbound LinkedIn sequence (J+0/J+5), Kaizenology M&A and strategic advisory outreach (Dubai). Prospects are founders, investors, and corporate development leaders in sell-side, buy-side, fundraising, or strategic advisory contexts.\n\nProduce:\n1) CATEGORY — one of: positive signal / timing objection / polite decline / bounce / OOO / unclear\n2) INTEREST LIKELIHOOD — % with one-sentence rationale\n3) RECOMMENDED NEXT ACTION — specific, not generic (what to do in the next 2 hours)\n4) DRAFT RESPONSE — under 100 words, direct, human, specific to their reply. No "following up", no "checking in", no em-dashes. End with a question if positive signal or unclear. Do not write a response if category is bounce or polite decline.\n\nFormat output clearly with each section labeled. Be direct.`;
   try {
     const res = await fetch('/api/generate', {
       method: 'POST',
