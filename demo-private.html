@@ -4719,17 +4719,19 @@ Populate stakeholder_* fields ONLY when new_stakeholder is true; set to null oth
             window._msSigCache[idx] = s;
             const color = TAG_COLORS[s.tag] || 'var(--navy)';
             const canAdd = s.new_stakeholder && s.stakeholder_name && s.stakeholder_company;
+            const hasStakeholderInfo = !!(s.stakeholder_name || s.stakeholder_title);
             const addBtnHtml = canAdd
               ? '<button onclick="_addStakeholderToPipeline(' + idx + ', this)" style="margin-top:6px;font-size:var(--fs-xs);font-weight:600;color:var(--fill-accent);background:none;border:1px solid var(--fill-accent);border-radius:var(--radius-sm);padding:3px 10px;cursor:pointer;">+ Add to pipeline</button>'
               : '';
             const stakeholderNameHtml = (s.stakeholder_name && s.stakeholder_linkedin_url)
               ? '<a href="' + _esc(s.stakeholder_linkedin_url) + '" target="_blank" style="color:var(--fill-accent);text-decoration:none;">' + _esc(s.stakeholder_name) + '</a>'
               : _esc(s.stakeholder_name || '');
+            const stakeholderTitleHtml = _esc(s.stakeholder_title || '');
             const stakeholderCompanyHtml = (s.stakeholder_company && s.company_website_url)
               ? '<a href="' + _esc(s.company_website_url) + '" target="_blank" style="color:var(--fill-accent);text-decoration:none;">' + _esc(s.stakeholder_company) + '</a>'
               : _esc(s.stakeholder_company || '');
-            const stakeholderLine = canAdd
-              ? '<div style="font-size:var(--fs-xs);color:var(--text-secondary);margin-top:3px;">' + stakeholderNameHtml + (stakeholderCompanyHtml ? ' · ' + stakeholderCompanyHtml : '') + '</div>'
+            const stakeholderLine = hasStakeholderInfo
+              ? '<div style="font-size:var(--fs-xs);color:var(--text-secondary);margin-top:3px;">' + stakeholderNameHtml + (stakeholderTitleHtml ? ' · ' + stakeholderTitleHtml : '') + (stakeholderCompanyHtml ? ' · ' + stakeholderCompanyHtml : '') + '</div>'
               : '';
             return '<div style="padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);margin-bottom:8px;">' +
               '<div style="display:flex;align-items:center;gap:8px;">' +
