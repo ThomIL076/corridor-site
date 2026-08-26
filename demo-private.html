@@ -4751,6 +4751,10 @@ Populate stakeholder_* fields ONLY when new_stakeholder is true; set to null oth
               '<div style="font-size:var(--fs-xs);color:var(--text-secondary);margin-top:3px;"><span style="font-weight:700;color:var(--text-primary);">Action:</span> ' + _esc(s.recommended_action||'') + '</div>' +
               stakeholderLine +
               addBtnHtml +
+              (!hasStakeholderInfo && s.stakeholder_company
+                ? '<button onclick="_findSignalDecisionMaker(' + idx + ', this)" style="margin-top:6px;font-size:var(--fs-xs);font-weight:600;color:var(--muted);background:none;border:1px solid var(--border);border-radius:var(--radius-sm);padding:3px 10px;cursor:pointer;">Find decision-maker</button>' +
+                  '<div id="ms-dm-result-' + idx + '" style="margin-top:4px;"></div>'
+                : '') +
             '</div>';
           }).join(''));
 
@@ -6671,6 +6675,53 @@ async function _generateSignalInterpretation(signalText, company, title) {
   } catch(e) { console.warn('[_generateSignalInterpretation] failed:', e); }
   return { interpretation: null, date: null };
 }
+async function _findSignalDecisionMaker(idx, btn) {
+  const s = (window._msSigCache || {})[idx];
+  if (!s || !s.stakeholder_company) return;
+  const company = s.stakeholder_company;
+  const resultEl = document.getElementById('ms-dm-result-' + idx);
+  if (!resultEl) return;
+  btn.disabled = true;
+  btn.textContent = 'Searching...';
+  resultEl.innerHTML = '';
+  try {
+    const liveCtx = await _prefetchWebContext(company, 'GTM decision maker');
+    const prompt = `Based ONLY on the web context below, identify the main decision-maker (founder, CEO, or most senior GTM/BD contact) at ${company}.
+
+WEB CONTEXT:
+${liveCtx || 'No live context available.'}
+
+Return a single JSON object, no prose, no markdown fences:
+{"name": "Full Name" or null, "title": "Title" or null, "linkedin_url": URL only if explicitly stated in the context above else null, "confidence": "high" or "low" or "not_found"}
+
+If no individual is named in the context, set confidence to "not_found" and name to null. Never invent a name or construct a URL from a name.`;
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 300, messages: [{ role: 'user', content: prompt }] })
+    });
+    if (!res.ok) throw new Error('API error ' + res.status);
+    const data = await res.json();
+    const text = Array.isArray(data.content) ? data.content.filter(b => b.type === 'text').map(b => b.text).join('').trim() : '';
+    let result = null;
+    try { result = JSON.parse(text.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim()); } catch(e) {}
+    if (!result || result.confidence === 'not_found') {
+      resultEl.innerHTML = '<span style="font-size:var(--fs-xs);color:var(--muted);">Aucun décideur identifié.</span>';
+    } else if (result.confidence === 'low') {
+      const linkedinHtml = result.linkedin_url ? ' · <a href="' + _esc(result.linkedin_url) + '" target="_blank" style="color:var(--fill-accent);text-decoration:none;">LinkedIn</a>' : '';
+      resultEl.innerHTML = '<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:2px;"><span style="font-weight:600;">Candidat non confirmé :</span> ' + _esc(result.name || '—') + (result.title ? ' · ' + _esc(result.title) : '') + linkedinHtml + '</div>';
+    } else {
+      const linkedinHtml = result.linkedin_url ? ' · <a href="' + _esc(result.linkedin_url) + '" target="_blank" style="color:var(--fill-accent);text-decoration:none;">LinkedIn</a>' : '';
+      resultEl.innerHTML = '<div style="font-size:var(--fs-xs);color:var(--text-secondary);margin-top:2px;"><span style="font-weight:700;color:var(--text-primary);">' + _esc(result.name || '—') + '</span>' + (result.title ? ' · ' + _esc(result.title) : '') + linkedinHtml + '</div>';
+    }
+  } catch(e) {
+    resultEl.innerHTML = '<span style="font-size:var(--fs-xs);color:var(--muted);">Recherche échouée — réessayer.</span>';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Find decision-maker';
+  }
+}
+
 async function _addStakeholderToPipeline(idx, btn) {
   const s = (window._msSigCache || {})[idx];
   if (!s || !s.stakeholder_name || !s.stakeholder_company) return;
