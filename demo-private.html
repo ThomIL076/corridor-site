@@ -4559,6 +4559,18 @@ async function runMorningScan() {
         }).join('\n')
       : 'No active prospects in pipeline.';
 
+    // Step 0 — base ICP sectors (client-level, mandate IS NULL)
+    let _icpSectors = 'B2B technology, SaaS, professional services, financial services';
+    try {
+      const { data: _icpRow } = await sbClient
+        .from('client_icp_params')
+        .select('sectors')
+        .eq('client_id', CLIENT_ID)
+        .is('mandate_id', null)
+        .maybeSingle();
+      if (_icpRow?.sectors) _icpSectors = _icpRow.sectors;
+    } catch(e) { /* keep hardcoded fallback */ }
+
     // 2. Market signals via web search (single broad call, last 24-48h)
     let marketSignals = 'No market signals retrieved.';
     try {
@@ -4577,7 +4589,7 @@ async function runMorningScan() {
               role: 'user',
               content: (() => {
                 const m = _activeMandate;
-                const sectors = m?.sectors || 'Private Equity, M&A, Wealth Management, Alternative Investments';
+                const sectors = m?.sectors || _icpSectors;
                 const geography = m?.geography ? ` in ${m.geography}` : '';
                 const signalsFocus = m?.signals ? ` Prioritize signals matching: ${m.signals}.` : '';
                 const exclusions = m?.exclusions ? ` Exclude anything related to: ${m.exclusions}.` : '';
