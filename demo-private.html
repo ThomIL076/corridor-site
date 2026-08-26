@@ -4715,7 +4715,14 @@ Populate stakeholder_* fields ONLY when new_stakeholder is true; set to null oth
               ? 'No market signal for this mandate today.'
               : 'No market signal today.') +
           '</div>'
-        : (window._msSigCache = {}, signalsData.map((s, idx) => {
+        : (window._msSigCache = {}, signalsData
+            .map((s, idx) => ({ s, idx }))
+            .sort((a, b) => {
+              const aHas = !!(a.s.stakeholder_name || a.s.stakeholder_title) ? 0 : 1;
+              const bHas = !!(b.s.stakeholder_name || b.s.stakeholder_title) ? 0 : 1;
+              return aHas - bHas;
+            })
+            .map(({ s, idx }) => {
             window._msSigCache[idx] = s;
             const color = TAG_COLORS[s.tag] || 'var(--navy)';
             const canAdd = s.new_stakeholder && s.stakeholder_name && s.stakeholder_company;
@@ -4736,6 +4743,7 @@ Populate stakeholder_* fields ONLY when new_stakeholder is true; set to null oth
             return '<div style="padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);margin-bottom:8px;">' +
               '<div style="display:flex;align-items:center;gap:8px;">' +
                 '<span style="font-size:var(--fs-xs);font-weight:700;color:' + color + ';background:' + color + '1a;border-radius:var(--radius-pill);padding:2px 8px;">' + _esc(s.tag||'') + '</span>' +
+                (!hasStakeholderInfo ? '<span style="font-size:var(--fs-xs);font-weight:500;color:var(--muted);border:1px solid var(--border);border-radius:var(--radius-pill);padding:2px 8px;">Décideur à identifier</span>' : '') +
                 (s.date ? '<span style="margin-left:auto;font-size:var(--fs-xs);color:var(--muted);">' + _esc(s.date) + '</span>' : '') +
               '</div>' +
               '<div style="font-weight:700;font-size:var(--fs-sm);margin-top:5px;">' + _esc(s.headline||'') + '</div>' +
@@ -4744,7 +4752,7 @@ Populate stakeholder_* fields ONLY when new_stakeholder is true; set to null oth
               stakeholderLine +
               addBtnHtml +
             '</div>';
-          })).join('');
+          }).join(''));
 
     _morningItems = [
       ...(_topProspectItems.length
