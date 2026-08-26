@@ -5835,7 +5835,7 @@ async function importCSV(e) {
         : 'nc:' + name.toLowerCase().replace(/\s+/g, '') + '|' + company.toLowerCase().replace(/\s+/g, '');
 
       rows.push({
-        client_id: CLIENT_ID, mandate_id: (activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null, external_id,
+        client_id: CLIENT_ID, mandate_id: (activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null, deal_id: activeDealId || null, external_id,
         name, company, sector,
         country: country || null, region: region || null,
         linkedin: linkedin || null, email: email || null,
@@ -6599,6 +6599,7 @@ async function _addStakeholderToPipeline(idx, btn) {
     const { error } = await sbClient.from('prospects').insert({
       client_id: CLIENT_ID,
       mandate_id: _activeMandate?.id || null,
+      deal_id: activeDealId || null,
       name: s.stakeholder_name,
       company: s.stakeholder_company,
       title: s.stakeholder_title || null,
@@ -6632,6 +6633,7 @@ async function _addScannerToPipeline() {
     const row = {
       client_id: CLIENT_ID,
       mandate_id: (activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null,
+      deal_id: activeDealId || null,
       external_id: identityKey(_p),
       name: d.name || d.company,
       company: d.company,
@@ -7983,7 +7985,7 @@ async function addProspect(){
   const stageSel = document.getElementById('ap-stage')?.value || 'Identified';
   const p = { name, company, email: g('ap-email'), linkedin: g('ap-linkedin') };
   const row = {
-    client_id: CLIENT_ID, mandate_id: (activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null, external_id: identityKey(p),
+    client_id: CLIENT_ID, mandate_id: (activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null, deal_id: activeDealId || null, external_id: identityKey(p),
     name, company, title: g('ap-title') || null, email: g('ap-email') || null, linkedin: g('ap-linkedin') || null,
     sector: g('ap-sector') || null, country: g('ap-country') || null, region: document.getElementById('ap-region')?.value || null,
     stage: STAGE_DB[stageSel] || stageSel, archived: false, import_source: 'manual', deal_value: null, deal_currency: null, updated_at: new Date().toISOString()
@@ -8146,10 +8148,16 @@ function _calcCompleteness(p) {
   const fields = [p.name, p.company, p.title, p.email, p.linkedin, p.sector, p.country];
   return Math.round(fields.filter(Boolean).length / fields.length * 10);
 }
-function _calcComposite(role, size, signal, mandateFit, recency, completeness) {
+function _calcComposite(role, size, signal, mandateFit, recency, completeness, dealValue) {
   const s = (size === -1) ? 5 : size;
+  const hasDeal = (dealValue !== undefined && dealValue !== -1);
+  if (!hasDeal) {
+    return Math.min(10, Math.max(0,
+      role * 0.35 + s * 0.20 + signal * 0.20 + mandateFit * 0.10 + recency * 0.10 + completeness * 0.05
+    ));
+  }
   return Math.min(10, Math.max(0,
-    role * 0.35 + s * 0.20 + signal * 0.20 + mandateFit * 0.10 + recency * 0.10 + completeness * 0.05
+    role * 0.30 + s * 0.20 + signal * 0.15 + mandateFit * 0.10 + recency * 0.10 + completeness * 0.05 + dealValue * 0.10
   ));
 }
 function _calcICP(p) {
@@ -8190,7 +8198,21 @@ function _calcICP(p) {
   }
   const knownCount = [p.title, p.company, p.company_size].filter(Boolean).length;
   const completenessScore = knownCount === 3 ? 10 : knownCount > 0 ? 5 : 0;
-  return _calcComposite(roleScore, sizeScore, 0, 5, 5, completenessScore).toFixed(1);
+  let dealValueScore = -1;
+  if (p.deal_value && (_activeMandate?.min_deal_value || _activeMandate?.max_deal_value)) {
+    const dv = parseInt(String(p.deal_value)) || 0;
+    const dvLo = _activeMandate.min_deal_value || null;
+    const dvHi = _activeMandate.max_deal_value || null;
+    const dvInRange  = (!dvLo || dv >= dvLo) && (!dvHi || dv <= dvHi);
+    const dvAdjAbove = dvHi && dv > dvHi && dv <= Math.round(dvHi * 2.5);
+    const dvAdjBelow = dvLo && dv < dvLo && dv >= Math.round(dvLo / 2.5);
+    const dvFarAbove = dvHi && dv > Math.round(dvHi * 2.5);
+    if      (dv > 0 && dvInRange)                  dealValueScore = 10;
+    else if (dv > 0 && (dvAdjAbove || dvAdjBelow)) dealValueScore = 7;
+    else if (dv > 0 && dvFarAbove)                 dealValueScore = 2;
+    else if (dv > 0)                               dealValueScore = 3;
+  }
+  return _calcComposite(roleScore, sizeScore, 0, 5, 5, completenessScore, dealValueScore).toFixed(1);
 }
 function _calcConfidence(p) {
   const icp = parseFloat(_calcICP(p));
