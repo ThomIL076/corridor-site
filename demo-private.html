@@ -4570,6 +4570,7 @@ async function runMorningScan() {
         .maybeSingle();
       if (_icpRow?.sectors) _icpSectors = _icpRow.sectors;
     } catch(e) { /* keep hardcoded fallback */ }
+    console.log('[debug morning scan] icpSectors:', _icpSectors);
 
     // 2. Market signals via web search (single broad call, last 24-48h)
     let marketSignals = 'No market signals retrieved.';
@@ -4602,6 +4603,7 @@ async function runMorningScan() {
       });
       if (mktRes.ok) {
         const mktData = await mktRes.json();
+        console.log('[debug morning scan] market-intel raw response:', mktData);
         marketSignals = mktData.choices?.[0]?.message?.content?.trim() || marketSignals;
       }
     } catch (e) {
@@ -4704,6 +4706,7 @@ Populate stakeholder_* fields ONLY when new_stakeholder is true; set to null oth
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) signalsData = parsed;
     } catch (e) { console.error('[runMorningScan] signals JSON parse failed:', e, text); }
+    console.log('[debug morning scan] claude signalsData:', signalsData);
 
     const TAG_COLORS = { 'fundraising':'#2568B5', 'leadership-change':'#7C3AED', 'activity':'#B45309', 'expansion':'#059669' };
 
