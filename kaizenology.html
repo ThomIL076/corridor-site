@@ -1233,6 +1233,9 @@ body.new-nav { padding-left: 220px; }
   <select class="input-select" id="mandate-select" onchange="_onMandateChange()">
     <option value="">Consolidated view (all)</option>
   </select>
+  <select class="input-select" id="deal-select" style="display:none;" onchange="_onDealChange()">
+    <option value="">No specific deal</option>
+  </select>
   <button onclick="_openAskFromMandate()" style="flex-shrink:0;display:flex;align-items:center;gap:6px;font-size:var(--fs-xs);font-weight:700;padding:4px 12px;border:1px solid var(--blue);border-radius:var(--radius-pill);background:transparent;color:var(--blue);cursor:pointer;height:28px;" data-en="Ask Corridor" data-fr="Demander à Corridor">Ask Corridor</button>
 </div>
 
@@ -2223,17 +2226,36 @@ const SENDER_BIO = `STEPHANE'S REAL BACKGROUND (use only these facts when refere
 - CAIA charterholder`;
 let activeMandateId = null; // null = vue consolidée (tous mandats), sinon uuid du mandat actif
 
-async function _resolveMandate(mandateId) {
+async function _resolveMandate(mandateId, dealId = null) {
   if (!mandateId) return null;
   try {
-    const { data, error } = await sbClient
+    const { data: seg, error: segErr } = await sbClient
       .from('mandates')
-      .select('id, client_id, segment, name, status, icp_criteria, geography, sectors, decision_makers, signals, exclusions, email_campaign_id, min_employees, max_employees')
+      .select('id, client_id, segment, name, status, icp_criteria, geography, sectors, decision_makers, signals, exclusions, email_campaign_id, min_employees, max_employees, target_role_keywords')
       .eq('id', mandateId)
       .eq('client_id', CLIENT_ID)
       .single();
-    if (error) throw error;
-    return data || null;
+    if (segErr) throw segErr;
+    if (!seg) return null;
+    if (!dealId) return seg;
+    try {
+      const { data: deal } = await sbClient
+        .from('mandate_deals')
+        .select('id, name, icp_criteria, sectors, geography, decision_makers, signals, exclusions, email_campaign_id, min_employees, max_employees, target_role_keywords, min_deal_value, max_deal_value')
+        .eq('id', dealId)
+        .eq('segment_id', mandateId)
+        .single();
+      if (!deal) return seg;
+      const ICP_FIELDS = ['icp_criteria','sectors','geography','decision_makers','signals','exclusions','email_campaign_id','min_employees','max_employees','target_role_keywords','min_deal_value','max_deal_value'];
+      const merged = { ...seg };
+      for (const field of ICP_FIELDS) { merged[field] = deal[field] ?? seg[field]; }
+      merged._dealId = deal.id;
+      merged._dealName = deal.name;
+      return merged;
+    } catch(e) {
+      console.warn('[_resolveMandate] deal fetch failed, fallback to segment:', e);
+      return seg;
+    }
   } catch (e) {
     console.error('[_resolveMandate] failed:', e);
     return null;
@@ -2241,6 +2263,7 @@ async function _resolveMandate(mandateId) {
 }
 
 let _activeMandate = null; // objet mandat résolu, mis en cache après _resolveMandate
+let activeDealId = null;   // id du deal actif (mandate_deals), null si aucun
 let _clientMandateIds = []; // liste des mandate_id actifs du client courant, pour la vue "Tous mes mandats"
 let _mandatesById = {}; // index mandateId → {id, segment, name}
 
@@ -2314,11 +2337,48 @@ async function _loadMandateOptions() {
     sel.appendChild(newOpt);
 
     sel.value = activeMandateId || '';
+    const _dealSel = document.getElementById('deal-select');
+    if (_dealSel) await _loadDealOptions(activeMandateId, _dealSel);
     bar.style.display = 'flex';
     _fixAcbTop();
   } catch (e) {
     console.error('[_loadMandateOptions] failed:', e);
   }
+}
+
+async function _loadDealOptions(mandateId, dealSel) {
+  dealSel.innerHTML = '<option value="">No specific deal</option>';
+  dealSel.style.display = 'none';
+  if (!mandateId || mandateId === '__ALL__') return;
+  try {
+    const { data: deals } = await sbClient
+      .from('mandate_deals')
+      .select('id, name')
+      .eq('segment_id', mandateId)
+      .eq('status', 'active')
+      .order('name');
+    if (!deals || !deals.length) return;
+    deals.forEach(d => {
+      const opt = document.createElement('option');
+      opt.value = d.id;
+      opt.textContent = d.name;
+      dealSel.appendChild(opt);
+    });
+    dealSel.value = activeDealId || '';
+    dealSel.style.display = '';
+  } catch(e) {
+    console.warn('[_loadDealOptions] failed or table not yet available:', e);
+  }
+}
+
+async function _onDealChange() {
+  const dealSel = document.getElementById('deal-select');
+  const val = dealSel ? dealSel.value : '';
+  activeDealId = val || null;
+  _activeMandate = await _resolveMandate(activeMandateId, activeDealId);
+  _morningItems = []; _liveAlertItems = []; _renderSignalsFeed();
+  loadKanban(true);
+  _initHpFilters();
 }
 
 function _applyMandateFilter(query) {
@@ -2342,9 +2402,11 @@ async function _onMandateChange() {
   if (val) url.searchParams.set('mandate', val);
   else url.searchParams.delete('mandate');
   history.pushState({ mandate: val || null }, '', url.toString());
+  const _dealSel2 = document.getElementById('deal-select');
   if (val) {
     activeMandateId = val;
-    _activeMandate = await _resolveMandate(val);
+    activeDealId = null;
+    _activeMandate = await _resolveMandate(val, null);
     if (!_activeMandate) {
       console.warn('[_onMandateChange] mandate invalide, retour vue consolidée:', val);
       activeMandateId = '__ALL__';
@@ -2352,10 +2414,15 @@ async function _onMandateChange() {
       const fb = new URL(window.location.href);
       fb.searchParams.delete('mandate');
       history.replaceState({ mandate: null }, '', fb.toString());
+      if (_dealSel2) { _dealSel2.innerHTML = '<option value="">No specific deal</option>'; _dealSel2.style.display = 'none'; }
+    } else if (_dealSel2) {
+      await _loadDealOptions(val, _dealSel2);
     }
   } else {
     activeMandateId = '__ALL__';
+    activeDealId = null;
     _activeMandate = null;
+    if (_dealSel2) { _dealSel2.innerHTML = '<option value="">No specific deal</option>'; _dealSel2.style.display = 'none'; }
   }
   _morningItems = []; _liveAlertItems = []; _renderSignalsFeed();
   loadKanban(true);
@@ -2392,8 +2459,9 @@ async function showDemo(){
   // Résolution du mandat actif (lecture depuis l'URL, à défaut null = vue consolidée)
   const _urlParams = new URLSearchParams(window.location.search);
   activeMandateId = _urlParams.get('mandate') || '__ALL__';
+  activeDealId = _urlParams.get('deal') || null;
   if (activeMandateId && activeMandateId !== '__ALL__') {
-    _activeMandate = await _resolveMandate(activeMandateId);
+    _activeMandate = await _resolveMandate(activeMandateId, activeDealId);
     if (!_activeMandate) {
       console.warn('[init] mandate_id invalide ou introuvable, retour vue consolidée:', activeMandateId);
       activeMandateId = null;
@@ -2505,12 +2573,15 @@ window.addEventListener('popstate', async () => {
   const val = new URLSearchParams(window.location.search).get('mandate') || '';
   const sel = document.getElementById('mandate-select');
   if (sel) sel.value = val;
+  const _dealParam = new URLSearchParams(window.location.search).get('deal') || '';
+  activeDealId = _dealParam || null;
   if (val) {
     activeMandateId = val;
-    _activeMandate = await _resolveMandate(val);
+    _activeMandate = await _resolveMandate(val, activeDealId);
     if (!_activeMandate) activeMandateId = '__ALL__';
   } else {
     activeMandateId = '__ALL__';
+    activeDealId = null;
     _activeMandate = null;
   }
   loadKanban(true);
