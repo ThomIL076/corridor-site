@@ -2390,7 +2390,7 @@ function _applyMandateFilter(query) {
       : query.is('mandate_id', null); // fallback si aucun mandat actif
   }
   if (activeMandateId) return query.eq('mandate_id', activeMandateId);
-  return query.is('mandate_id', null); // vue consolidée = IS NULL explicite
+  return query; // vue consolidée = tous les prospects du client, sans filtre mandate_id
 }
 
 async function _onMandateChange() {
