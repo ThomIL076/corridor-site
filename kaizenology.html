@@ -2007,7 +2007,8 @@ function _signalTypeBanner(st) {
   if (def) return { html: `<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding:4px 10px;background:${def.bg};border-radius:var(--radius-sm);border:1px solid ${def.border};"><span style="font-size:10px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:${def.color};">${def.label}</span></div>`, cardBorder: def.border };
   if (st) { const raw = st.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()); return { html: `<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding:4px 10px;background:var(--chip-bg,#f3f4f6);border-radius:var(--radius-sm);border:1px solid var(--border);"><span style="font-size:10px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted);">${raw}</span></div>`, cardBorder: null }; }
   return { html: '', cardBorder: null };
-}function _renderSignalsFeed() {
+}
+function _renderSignalsFeed() {
   const feed = document.getElementById('signals-feed');
   if (!feed) return;
   const items = [..._morningItems, ..._liveAlertItems]
@@ -4654,27 +4655,53 @@ OUTPUT FORMAT (STRICT): Return ONLY a JSON array, no prose before or after, no m
 
 Populate stakeholder_* fields ONLY when new_stakeholder is true; set to null otherwise. Max 5 signals, only those explicitly present in MARKET SIGNALS. Never invent a signal, date, or source. If nothing is relevant to this mandate, return [].`;
 
-    // 4. Call Claude — market data already web-sourced
+    // 4. Call Claude — market data already web-sourced (streaming)
     const res = await fetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'claude-sonnet-5',
         max_tokens: 6000,
+        stream: true,
         system: systemPrompt,
         messages: [{ role: 'user', content: userPrompt }]
       })
     });
     if (!res.ok) throw new Error('API error ' + res.status);
-    const data = await res.json();
-    if (data.type === 'error') {
-      _morningItems = [{ timestamp: new Date().toISOString(), type: 'morning', label: 'Error', content: 'API error: ' + (data.error?.message || 'please retry') }];
+    const _scanReader = res.body.getReader();
+    const _scanDec = new TextDecoder();
+    let _scanBuf = '', _scanText = '', _scanErr = null, _scanStop = false, _scanSeenStop = false;
+    try {
+      while (!_scanStop) {
+        const { done, value } = await _scanReader.read();
+        if (done) break;
+        _scanBuf += _scanDec.decode(value, { stream: true });
+        const _scanLines = _scanBuf.split('\n');
+        _scanBuf = _scanLines.pop();
+        for (const _scanLine of _scanLines) {
+          if (!_scanLine.startsWith('data: ')) continue;
+          const _scanPayload = _scanLine.slice(6).trim();
+          if (!_scanPayload) continue;
+          try {
+            const _scanEv = JSON.parse(_scanPayload);
+            if (_scanEv.type === 'error') { _scanErr = _scanEv.error?.message || 'stream error'; _scanStop = true; break; }
+            if (_scanEv.type === 'content_block_delta' && _scanEv.delta?.type === 'text_delta') _scanText += _scanEv.delta.text;
+            if (_scanEv.type === 'message_stop') _scanSeenStop = true;
+          } catch (e) { /* ignore partial SSE chunks */ }
+        }
+      }
+    } catch (e) {
+      _scanErr = e.message || 'stream read error';
+    } finally {
+      _scanReader.releaseLock();
+    }
+    if (!_scanErr && !_scanSeenStop) _scanErr = 'stream truncated — response incomplete, retry';
+    if (_scanErr) {
+      _morningItems = [{ timestamp: new Date().toISOString(), type: 'morning', label: 'Error', content: 'API error: ' + _scanErr }];
       _renderSignalsFeed();
       return;
     }
-    const text = Array.isArray(data.content)
-      ? data.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim() || 'No response.'
-      : 'No response.';
+    const text = _scanText.trim() || 'No response.';
     const runTs = new Date().toISOString();
     const _topProspectItems = _topProspectData.map(function(p) {
       const sigText = p.signal_interpretation

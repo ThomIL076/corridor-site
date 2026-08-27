@@ -36,8 +36,104 @@ export default async function handler(req, res) {
   }
 
   const body = req.body || {};
-  const { messages: initialMessages, ...restBody } = { model: 'claude-sonnet-5', max_tokens: 1000, ...body };
+  // Extract `stream` from body before spreading into restBody so it never leaks to Anthropic
+  const { messages: initialMessages, stream: _streamReq, ...restBody } = {
+    model: 'claude-sonnet-5',
+    max_tokens: 1000,
+    ...body,
+  };
+  // Stream only when explicitly requested and no client-side tools are involved
+  const wantsStream = _streamReq === true && !(body.tools && body.tools.length);
 
+  // ── STREAMING PATH ────────────────────────────────────────────────────────────
+  if (wantsStream) {
+    const trace = langfuse.trace({
+      name: 'generate-stream',
+      input: initialMessages,
+      metadata: { model: restBody.model, max_tokens: restBody.max_tokens },
+    });
+
+    try {
+      const upstream = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': process.env.ANTHROPIC_API_KEY,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({ ...restBody, messages: initialMessages, stream: true }),
+      });
+
+      if (!upstream.ok) {
+        // Headers not yet sent — can still return a JSON error
+        const errData = await upstream.json().catch(() => ({}));
+        trace.update({ output: { error: errData } });
+        await langfuse.flushAsync();
+        return res.status(upstream.status).json({
+          type: 'error',
+          error: errData.error || { message: 'Anthropic API error' },
+        });
+      }
+
+      // From here, commit to SSE — no JSON error possible after writeHead
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      });
+
+      const reader = upstream.body.getReader();
+      const decoder = new TextDecoder();
+      let sseBuffer = '', outputText = '', seenMessageStop = false;
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const chunk = decoder.decode(value, { stream: true });
+          res.write(chunk);
+          // Shadow-parse for Langfuse without holding the full body in memory
+          sseBuffer += chunk;
+          const lines = sseBuffer.split('\n');
+          sseBuffer = lines.pop();
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            try {
+              const ev = JSON.parse(line.slice(6));
+              if (ev.type === 'content_block_delta' && ev.delta?.type === 'text_delta') {
+                outputText += ev.delta.text;
+              }
+              if (ev.type === 'message_stop') seenMessageStop = true;
+            } catch (e) { /* ignore partial SSE lines */ }
+          }
+        }
+      } finally {
+        reader.releaseLock();
+      }
+
+      if (!seenMessageStop) {
+        res.write('event: error\ndata: ' + JSON.stringify({
+          type: 'error',
+          error: { type: 'truncated', message: 'Stream ended without message_stop — response may be truncated' },
+        }) + '\n\n');
+      }
+      res.end();
+
+      trace.update({ output: outputText, ...(seenMessageStop ? {} : { statusMessage: 'truncated' }) });
+      await langfuse.flushAsync();
+    } catch (e) {
+      if (!res.headersSent) {
+        res.status(500).json({ type: 'error', error: { message: e.message } });
+      } else {
+        res.end();
+      }
+      trace.update({ output: { error: e.message } });
+      await langfuse.flushAsync();
+    }
+    return;
+  }
+
+  // ── NON-STREAMING PATH (tool use, outreach, ICP scoring, etc.) ───────────────
   const trace = langfuse.trace({
     name: 'generate',
     input: initialMessages,
