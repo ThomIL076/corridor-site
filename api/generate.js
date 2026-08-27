@@ -114,7 +114,9 @@ export default async function handler(req, res) {
         reader.releaseLock();
       }
 
-      if (!seenMessageStop) {
+      // Inject error only if truly truncated (no stop_reason AND no message_stop).
+      // When stop_reason is set, the model completed — message_stop may be lost to buffering.
+      if (!seenMessageStop && stopReason === null) {
         res.write('event: error\ndata: ' + JSON.stringify({
           type: 'error',
           error: { type: 'truncated', message: 'Stream ended without message_stop — response may be truncated' },
@@ -127,7 +129,7 @@ export default async function handler(req, res) {
       }
       res.end();
 
-      trace.update({ output: outputText, ...(!seenMessageStop ? { statusMessage: 'truncated' } : stopReason === 'max_tokens' ? { statusMessage: 'max_tokens' } : {}) });
+      trace.update({ output: outputText, ...(!seenMessageStop && stopReason === null ? { statusMessage: 'truncated' } : stopReason === 'max_tokens' ? { statusMessage: 'max_tokens' } : {}) });
       await langfuse.flushAsync();
     } catch (e) {
       if (!res.headersSent) {

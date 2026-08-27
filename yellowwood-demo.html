@@ -4728,8 +4728,8 @@ Populate stakeholder_* fields ONLY when new_stakeholder is true; set to null oth
     } finally {
       _scanReader.releaseLock();
     }
-    if (!_scanErr && !_scanSeenStop) _scanErr = 'stream truncated — response incomplete, retry';
-    if (!_scanErr && _scanSeenStop && _scanStopReason === 'max_tokens') _scanErr = 'response truncated — token limit reached, dataset too large for a single summary';
+    if (!_scanErr && !_scanSeenStop && _scanStopReason === null) _scanErr = 'stream truncated — response incomplete, retry';
+    if (!_scanErr && _scanStopReason === 'max_tokens') _scanErr = 'response truncated — token limit reached, dataset too large for a single summary';
     if (_scanErr) {
       _morningItems = [{ timestamp: new Date().toISOString(), type: 'morning', label: 'Error', content: 'API error: ' + _scanErr }];
       _renderSignalsFeed();
