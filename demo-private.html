@@ -4683,7 +4683,7 @@ Populate stakeholder_* fields ONLY when new_stakeholder is true; set to null oth
     if (!res.ok) throw new Error('API error ' + res.status);
     const _scanReader = res.body.getReader();
     const _scanDec = new TextDecoder();
-    let _scanBuf = '', _scanText = '', _scanErr = null, _scanStop = false, _scanSeenStop = false;
+    let _scanBuf = '', _scanText = '', _scanErr = null, _scanStop = false, _scanSeenStop = false, _scanStopReason = null;
     try {
       while (!_scanStop) {
         const { done, value } = await _scanReader.read();
@@ -4699,6 +4699,7 @@ Populate stakeholder_* fields ONLY when new_stakeholder is true; set to null oth
             const _scanEv = JSON.parse(_scanPayload);
             if (_scanEv.type === 'error') { _scanErr = _scanEv.error?.message || 'stream error'; _scanStop = true; break; }
             if (_scanEv.type === 'content_block_delta' && _scanEv.delta?.type === 'text_delta') _scanText += _scanEv.delta.text;
+            if (_scanEv.type === 'message_delta' && _scanEv.delta?.stop_reason) _scanStopReason = _scanEv.delta.stop_reason;
             if (_scanEv.type === 'message_stop') _scanSeenStop = true;
           } catch (e) { /* ignore partial SSE chunks */ }
         }
@@ -4709,6 +4710,7 @@ Populate stakeholder_* fields ONLY when new_stakeholder is true; set to null oth
       _scanReader.releaseLock();
     }
     if (!_scanErr && !_scanSeenStop) _scanErr = 'stream truncated — response incomplete, retry';
+    if (!_scanErr && _scanSeenStop && _scanStopReason === 'max_tokens') _scanErr = 'response truncated — token limit reached, dataset too large for a single summary';
     if (_scanErr) {
       _morningItems = [{ timestamp: new Date().toISOString(), type: 'morning', label: 'Error', content: 'API error: ' + _scanErr }];
       _renderSignalsFeed();

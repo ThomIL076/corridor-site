@@ -84,7 +84,7 @@ export default async function handler(req, res) {
 
       const reader = upstream.body.getReader();
       const decoder = new TextDecoder();
-      let sseBuffer = '', outputText = '', seenMessageStop = false;
+      let sseBuffer = '', outputText = '', seenMessageStop = false, stopReason = null;
 
       try {
         while (true) {
@@ -103,6 +103,9 @@ export default async function handler(req, res) {
               if (ev.type === 'content_block_delta' && ev.delta?.type === 'text_delta') {
                 outputText += ev.delta.text;
               }
+              if (ev.type === 'message_delta' && ev.delta?.stop_reason) {
+                stopReason = ev.delta.stop_reason;
+              }
               if (ev.type === 'message_stop') seenMessageStop = true;
             } catch (e) { /* ignore partial SSE lines */ }
           }
@@ -116,10 +119,15 @@ export default async function handler(req, res) {
           type: 'error',
           error: { type: 'truncated', message: 'Stream ended without message_stop — response may be truncated' },
         }) + '\n\n');
+      } else if (stopReason === 'max_tokens') {
+        res.write('event: error\ndata: ' + JSON.stringify({
+          type: 'error',
+          error: { type: 'max_tokens', message: 'response truncated — token limit reached, dataset too large for a single summary' },
+        }) + '\n\n');
       }
       res.end();
 
-      trace.update({ output: outputText, ...(seenMessageStop ? {} : { statusMessage: 'truncated' }) });
+      trace.update({ output: outputText, ...(!seenMessageStop ? { statusMessage: 'truncated' } : stopReason === 'max_tokens' ? { statusMessage: 'max_tokens' } : {}) });
       await langfuse.flushAsync();
     } catch (e) {
       if (!res.headersSent) {
