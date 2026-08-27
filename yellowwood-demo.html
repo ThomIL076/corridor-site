@@ -2008,13 +2008,26 @@ function _newNavActive(key) {
 let _morningItems = [];
 let _liveAlertItems = [];
 
-function _renderSignalsFeed() {
+function _signalTypeBanner(st) {
+  const MAP = {
+    'leadership-change':          { label: 'Leadership Change',          color: '#7C3AED', bg: '#f5f0ff', border: '#c4b5fd' },
+    'expansion':                  { label: 'Expansion',                  color: '#16a34a', bg: '#f0fdf4', border: '#86efac' },
+    'active_hiring':              { label: 'Active Hiring',              color: '#2563eb', bg: '#eff6ff', border: '#93c5fd' },
+    'firmographic-match':         { label: 'Firmographic Match',         color: '#6b7280', bg: '#f9fafb', border: '#d1d5db' },
+    'operating-partner-activity': { label: 'Operating Partner Activity', color: '#d97706', bg: '#fffbeb', border: '#fcd34d' },
+    'pre-deal-signal':            { label: 'Pre-Deal Signal',            color: '#dc2626', bg: '#fef2f2', border: '#fca5a5' },
+    'thought-leadership':         { label: 'Thought Leadership',         color: '#0284c7', bg: '#f0f9ff', border: '#7dd3fc' },
+  };
+  const key = (st || '').toLowerCase().replace(/_/g, '-');
+  const def = MAP[key];
+  if (def) return { html: `<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding:4px 10px;background:${def.bg};border-radius:var(--radius-sm);border:1px solid ${def.border};"><span style="font-size:10px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:${def.color};">${def.label}</span></div>`, cardBorder: def.border };
+  if (st) { const raw = st.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()); return { html: `<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding:4px 10px;background:var(--chip-bg,#f3f4f6);border-radius:var(--radius-sm);border:1px solid var(--border);"><span style="font-size:10px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted);">${raw}</span></div>`, cardBorder: null }; }
+  return { html: '', cardBorder: null };
+}function _renderSignalsFeed() {
   const feed = document.getElementById('signals-feed');
   if (!feed) return;
-  // YELLOWWOOD DEMO: leadership-change signals sorted to top
-  const _lcPriority = item => (item.signalType || '').toLowerCase() === 'leadership-change' ? 0 : 1;
   const items = [..._morningItems, ..._liveAlertItems]
-    .sort((a, b) => _lcPriority(a) - _lcPriority(b) || new Date(b.timestamp) - new Date(a.timestamp));
+    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
   if (!items.length) {
     feed.innerHTML = '<div style="color:var(--text-secondary);font-size:var(--fs-base);padding:16px 0;">Run Morning Scan or Live Alert to populate the feed.</div>';
     return;
@@ -2047,15 +2060,8 @@ function _renderSignalsFeed() {
     const _sfUnlikeStyle = 'font-size:12px;padding:2px 10px;border-radius:12px;border:1px solid ' + (_sfUnlikeActive ? '#f87171;background:#fef2f2;color:#ef4444' : 'var(--border);background:transparent;color:var(--text-secondary)') + ';cursor:' + (_sfVoted ? 'default' : 'pointer') + ';opacity:' + (_sfVoted && !_sfUnlikeActive ? '0.4' : '1') + ';transition:all .15s;';
     const _sfEscKey = _sfKey.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
     const voteBar = '<div style="display:flex;gap:5px;margin-top:10px;padding-top:8px;border-top:1px solid var(--border);"><button' + _sfDisabled + ' onclick="_submitSignalFeedback(this,\'like\',' + idx + ',\'' + _sfEscKey + '\')" style="' + _sfLikeStyle + '">👍</button> <button' + _sfDisabled + ' onclick="_submitSignalFeedback(this,\'unlike\',' + idx + ',\'' + _sfEscKey + '\')" style="' + _sfUnlikeStyle + '">👎</button></div>';
-    // YELLOWWOOD DEMO: leadership-change cards get a purple-tinted border and header banner
-    const isLcSignal = (item.signalType || '').toLowerCase() === 'leadership-change';
-    const lcBanner = isLcSignal
-      ? `<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding:4px 10px;background:#f5f0ff;border-radius:var(--radius-sm);border:1px solid #c4b5fd;"><span style="font-size:10px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:#7C3AED;">Leadership Change</span><span style="font-size:10px;color:#7C3AED;opacity:0.7;">· High-priority signal</span></div>`
-      : '';
-    const cardStyle = isLcSignal
-      ? 'border:1px solid #c4b5fd;border-radius:var(--radius-panel);padding:14px 16px;margin-bottom:12px;background:#fdfcff;'
-      : 'border:1px solid var(--border);border-radius:var(--radius-panel);padding:14px 16px;margin-bottom:12px;';
-    return `<div style="${cardStyle}">${lcBanner}${header}${bodyHtml}${voteBar}</div>`;
+    const _st = _signalTypeBanner(item.signalType);
+    return `<div style="${_st.cardBorder ? 'border:1px solid ' + _st.cardBorder : 'border:1px solid var(--border)'};border-radius:var(--radius-panel);padding:14px 16px;margin-bottom:12px;">${_st.html}${header}${bodyHtml}${voteBar}</div>`;
   }).join('');
 }
 

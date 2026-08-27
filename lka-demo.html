@@ -2008,7 +2008,22 @@ function _newNavActive(key) {
 let _morningItems = [];
 let _liveAlertItems = [];
 
-function _renderSignalsFeed() {
+function _signalTypeBanner(st) {
+  const MAP = {
+    'leadership-change':          { label: 'Leadership Change',          color: '#7C3AED', bg: '#f5f0ff', border: '#c4b5fd' },
+    'expansion':                  { label: 'Expansion',                  color: '#16a34a', bg: '#f0fdf4', border: '#86efac' },
+    'active_hiring':              { label: 'Active Hiring',              color: '#2563eb', bg: '#eff6ff', border: '#93c5fd' },
+    'firmographic-match':         { label: 'Firmographic Match',         color: '#6b7280', bg: '#f9fafb', border: '#d1d5db' },
+    'operating-partner-activity': { label: 'Operating Partner Activity', color: '#d97706', bg: '#fffbeb', border: '#fcd34d' },
+    'pre-deal-signal':            { label: 'Pre-Deal Signal',            color: '#dc2626', bg: '#fef2f2', border: '#fca5a5' },
+    'thought-leadership':         { label: 'Thought Leadership',         color: '#0284c7', bg: '#f0f9ff', border: '#7dd3fc' },
+  };
+  const key = (st || '').toLowerCase().replace(/_/g, '-');
+  const def = MAP[key];
+  if (def) return { html: `<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding:4px 10px;background:${def.bg};border-radius:var(--radius-sm);border:1px solid ${def.border};"><span style="font-size:10px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:${def.color};">${def.label}</span></div>`, cardBorder: def.border };
+  if (st) { const raw = st.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()); return { html: `<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding:4px 10px;background:var(--chip-bg,#f3f4f6);border-radius:var(--radius-sm);border:1px solid var(--border);"><span style="font-size:10px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted);">${raw}</span></div>`, cardBorder: null }; }
+  return { html: '', cardBorder: null };
+}function _renderSignalsFeed() {
   const feed = document.getElementById('signals-feed');
   if (!feed) return;
   const items = [..._morningItems, ..._liveAlertItems]
@@ -2045,7 +2060,8 @@ function _renderSignalsFeed() {
     const _sfUnlikeStyle = 'font-size:12px;padding:2px 10px;border-radius:12px;border:1px solid ' + (_sfUnlikeActive ? '#f87171;background:#fef2f2;color:#ef4444' : 'var(--border);background:transparent;color:var(--text-secondary)') + ';cursor:' + (_sfVoted ? 'default' : 'pointer') + ';opacity:' + (_sfVoted && !_sfUnlikeActive ? '0.4' : '1') + ';transition:all .15s;';
     const _sfEscKey = _sfKey.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
     const voteBar = '<div style="display:flex;gap:5px;margin-top:10px;padding-top:8px;border-top:1px solid var(--border);"><button' + _sfDisabled + ' onclick="_submitSignalFeedback(this,\'like\',' + idx + ',\'' + _sfEscKey + '\')" style="' + _sfLikeStyle + '">👍</button> <button' + _sfDisabled + ' onclick="_submitSignalFeedback(this,\'unlike\',' + idx + ',\'' + _sfEscKey + '\')" style="' + _sfUnlikeStyle + '">👎</button></div>';
-    return `<div style="border:1px solid var(--border);border-radius:var(--radius-panel);padding:14px 16px;margin-bottom:12px;">${header}${bodyHtml}${voteBar}</div>`;
+    const _st = _signalTypeBanner(item.signalType);
+    return `<div style="${_st.cardBorder ? 'border:1px solid ' + _st.cardBorder : 'border:1px solid var(--border)'};border-radius:var(--radius-panel);padding:14px 16px;margin-bottom:12px;">${_st.html}${header}${bodyHtml}${voteBar}</div>`;
   }).join('');
 }
 
@@ -3187,6 +3203,10 @@ Write all content in ${currentLang === 'fr' ? 'French' : 'English'} but keep the
 // LKA DEMO CONTEXT
 const LKA_CONTEXT = `Operating context for every answer (this is the real business, not a hypothetical):
 Wael Khoury, Managing Partner at Lopez Khoury & Associates (LKA), Doha, Qatar.
+Practice: HR transformation and organizational development (OD) advisory for large private-sector organizations in the GCC — workforce restructuring, talent strategy, leadership development, and operating model design.
+Primary markets: Qatar, Saudi Arabia, UAE, wider GCC/MENA region.
+ICP: Chief Human Resources Officer (CHRO), Chief People Officer, Chief Transformation Officer, or equivalent at a large private-sector organization (500+ employees) undergoing growth, M&A integration, or digitization in the GCC/MENA region.
+Relevant signals: senior HR/people leadership appointments, organizational restructuring or workforce transformation announcements, large-scale change-management mandates, GCC private-sector expansion or M&A activity in industries with significant people-transformation needs (energy, financial services, real estate, government-linked entities, retail).
 Stay strictly within this context. Do not invent fictional companies, scores, or metrics.`;
 const _senderBio = () => _clientProfile?.sender_bio || SENDER_BIO;
 const _senderName = () => _clientProfile?.display_name || _clientProfile?.contact_name?.split(' ')[0] || 'Wael';
@@ -4549,7 +4569,7 @@ async function runMorningScan() {
       : 'No active prospects in pipeline.';
 
     // Step 0 — base ICP sectors (client-level, mandate IS NULL)
-    let _icpSectors = 'B2B technology, SaaS, professional services, financial services';
+    let _icpSectors = 'HR transformation, organizational development, talent advisory, management consulting, GCC/MENA private-sector restructuring';
     try {
       const { data: _icpRow } = await sbClient
         .from('client_icp_params')
@@ -4579,7 +4599,7 @@ async function runMorningScan() {
               content: (() => {
                 const m = _activeMandate;
                 const sectors = m?.sectors || _icpSectors;
-                const geography = m?.geography ? ` in ${m.geography}` : '';
+                const geography = m?.geography ? ` in ${m.geography}` : (!m ? ' in GCC, Qatar, and MENA region' : '');
                 const signalsFocus = m?.signals ? ` Prioritize signals matching: ${m.signals}.` : '';
                 const exclusions = m?.exclusions ? ` Exclude anything related to: ${m.exclusions}.` : '';
                 const query = `Recent market signals (last 24-48h) in ${sectors}${geography}: fundraises, senior hires, M&A moves, market expansions.${signalsFocus}${exclusions}`;
