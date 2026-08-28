@@ -31,7 +31,7 @@ export default async function handler(req) {
   let raw;
   try {
     const r = await fetch(
-      `https://api.apollo.io/v1/organizations/enrich?domain=${encodeURIComponent(domain)}`,
+      `https://api.apollo.io/api/v1/organizations/enrich?domain=${encodeURIComponent(domain)}`,
       { headers: { 'X-Api-Key': apiKey, 'Content-Type': 'application/json' } }
     );
     raw = await r.json();
@@ -43,10 +43,13 @@ export default async function handler(req) {
   }
 
   const org = raw?.organization || {};
+  const events = Array.isArray(org.funding_events) ? org.funding_events : [];
+  const latest = events.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))[0] || null;
   return new Response(JSON.stringify({
     employees:     org.estimated_num_employees  || null,
-    funding_stage: org.latest_funding_stage     || null,
-    funding_date:  org.latest_funding_date ? String(org.latest_funding_date).slice(0, 10) : null
+    funding_stage: latest?.type                 || null,
+    funding_date:  latest?.date ? String(latest.date).slice(0, 10) : null,
+    total_funding: org.total_funding_printed    || null
   }), {
     status: 200,
     headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }

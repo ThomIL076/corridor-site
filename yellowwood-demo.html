@@ -7973,7 +7973,7 @@ async function _enrichCompanyDrawer(id) {
     const r = await fetch('/api/company-enrich?domain=' + encodeURIComponent(domain));
     const d = await r.json();
 
-    if (!d.employees && !d.funding_stage && !d.funding_date) {
+    if (!d.employees && !d.funding_stage && !d.funding_date && !d.total_funding) {
       if (status) status.textContent = 'Not found';
       if (btn) btn.disabled = false;
       return;
@@ -7991,11 +7991,16 @@ async function _enrichCompanyDrawer(id) {
       const el = document.getElementById('ed-last-funding-date');
       if (el) el.value = d.funding_date;
     }
+    if (d.total_funding) {
+      const el = document.getElementById('ed-total-funding');
+      if (el) el.value = d.total_funding;
+    }
 
     const update = { updated_at: new Date().toISOString() };
     if (d.employees != null)  update.company_size      = d.employees;
     if (d.funding_stage)      update.funding_stage     = d.funding_stage;
     if (d.funding_date)       update.last_funding_date = d.funding_date;
+    if (d.total_funding)      update.total_funding     = d.total_funding;
 
     const { error } = await sbClient.from('prospects').update(update).eq('client_id', CLIENT_ID).eq('id', id);
     if (!error) {
@@ -8163,6 +8168,7 @@ function _drawerProfileHTML(id, p, colStage, fb){
         `<input id="ed-company-size" class="dp-inp" value="${v(p.company_size)}" placeholder="Headcount" style="flex:1;min-width:0">` +
         `<input id="ed-funding-stage" class="dp-inp" value="${v(p.funding_stage)}" placeholder="Funding stage" style="flex:1;min-width:0">` +
         `<input id="ed-last-funding-date" class="dp-inp" value="${v(p.last_funding_date ? String(p.last_funding_date).slice(0,10) : '')}" placeholder="Funding date" style="flex:1;min-width:0">` +
+        `<input id="ed-total-funding" class="dp-inp" value="${v(p.total_funding)}" placeholder="Total raised" style="flex:1;min-width:0">` +
       `</div>` +
       `<div style="display:flex;gap:8px;align-items:center">` +
         (() => {
@@ -8220,6 +8226,7 @@ async function saveProspectEdit(id){
     company_size: parseInt(g('ed-company-size')) || null,
     funding_stage: g('ed-funding-stage') || null,
     last_funding_date: g('ed-last-funding-date') || null,
+    total_funding: g('ed-total-funding') || null,
     stage: newStage, notes: g('ed-notes') || null,
     signal: signalVal,
     signal_type: document.getElementById('drawer-signal-type')?.value || null,
@@ -9947,7 +9954,7 @@ async function loadKanban(force){
     while (true) {
       let _kQuery = sbClient
         .from('prospects')
-        .select('id, name, company, title, sector, region, country, stage, linkedin, email, phone, deal_value, deal_currency, deal_structure, deal_weighted, notes, last_contact, reminder_date, icp_score, icp_reason, archived, client_id, linkedin_tag, origin, signal, signal_type, signal_interpretation, signal_date, created_at, draft_invite_note, company_size, next_action, next_action_date, score_signal_strength, score_growth, signal_url, website_url, funding_stage, last_funding_date')
+        .select('id, name, company, title, sector, region, country, stage, linkedin, email, phone, deal_value, deal_currency, deal_structure, deal_weighted, notes, last_contact, reminder_date, icp_score, icp_reason, archived, client_id, linkedin_tag, origin, signal, signal_type, signal_interpretation, signal_date, created_at, draft_invite_note, company_size, next_action, next_action_date, score_signal_strength, score_growth, signal_url, website_url, funding_stage, last_funding_date, total_funding')
         .eq('client_id', CLIENT_ID);
       _kQuery = _applyMandateFilter(_kQuery);
       const { data: chunk, error } = await _kQuery
