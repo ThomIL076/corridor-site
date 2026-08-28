@@ -7931,6 +7931,65 @@ async function _findPhoneDrawer(pid) {
     }
   }, 4000);
 }
+async function _enrichCompanyDrawer(id) {
+  const p = _prospectsById[id];
+  if (!p) return;
+  const btn    = document.getElementById('co-enrich-' + id);
+  const status = document.getElementById('co-enrich-status-' + id);
+  if (btn) btn.disabled = true;
+  if (status) status.textContent = 'Searching...';
+
+  const rawUrl = (p.website_url || '').trim();
+  const domain = rawUrl ? rawUrl.replace(/^https?:\/\//i,'').replace(/^www\./i,'').split('/')[0] : null;
+  if (!domain || domain.includes('linkedin.com') || !domain.includes('.')) {
+    if (status) status.textContent = 'No domain on file';
+    if (btn) btn.disabled = false;
+    return;
+  }
+
+  try {
+    const r = await fetch('/api/company-enrich?domain=' + encodeURIComponent(domain));
+    const d = await r.json();
+
+    if (!d.employees && !d.funding_stage && !d.funding_date) {
+      if (status) status.textContent = 'Not found';
+      if (btn) btn.disabled = false;
+      return;
+    }
+
+    if (d.employees != null) {
+      const el = document.getElementById('ed-company-size');
+      if (el) el.value = d.employees;
+    }
+    if (d.funding_stage) {
+      const el = document.getElementById('ed-funding-stage');
+      if (el) el.value = d.funding_stage;
+    }
+    if (d.funding_date) {
+      const el = document.getElementById('ed-last-funding-date');
+      if (el) el.value = d.funding_date;
+    }
+
+    const update = { updated_at: new Date().toISOString() };
+    if (d.employees != null)  update.company_size      = d.employees;
+    if (d.funding_stage)      update.funding_stage     = d.funding_stage;
+    if (d.funding_date)       update.last_funding_date = d.funding_date;
+
+    const { error } = await sbClient.from('prospects').update(update).eq('client_id', CLIENT_ID).eq('id', id);
+    if (!error) {
+      Object.assign(_prospectsById[id], update);
+      if (status) status.textContent = '✓ Updated';
+      if (btn) { btn.style.background = 'var(--green-brand)'; btn.textContent = '✓ Done'; }
+    } else {
+      if (status) status.textContent = 'Save failed';
+      if (btn) btn.disabled = false;
+    }
+  } catch(e) {
+    console.warn('[_enrichCompanyDrawer]', e);
+    if (status) status.textContent = 'Error';
+    if (btn) btn.disabled = false;
+  }
+}
 async function _saveEmail(pid, email, source) {
   const p = _prospectsById[pid];
   if (!p) return;
@@ -8078,6 +8137,22 @@ function _drawerProfileHTML(id, p, colStage, fb){
         `<select id="ed-region" class="dp-inp"><option value=""${rt === '' ? ' selected' : ''}>Select region...</option><option value="EMEA"${rt === 'EMEA' ? ' selected' : ''}>EMEA</option><option value="NA"${rt === 'NA' ? ' selected' : ''}>NA</option><option value="APAC"${rt === 'APAC' ? ' selected' : ''}>APAC</option><option value="LATAM"${rt === 'LATAM' ? ' selected' : ''}>LATAM</option></select>` +
         `<select id="ed-stage" class="dp-inp">${opts}</select>` +
       `</div>` +
+      `<div style="display:flex;gap:8px">` +
+        `<input id="ed-company-size" class="dp-inp" value="${v(p.company_size)}" placeholder="Headcount" style="flex:1;min-width:0">` +
+        `<input id="ed-funding-stage" class="dp-inp" value="${v(p.funding_stage)}" placeholder="Funding stage" style="flex:1;min-width:0">` +
+        `<input id="ed-last-funding-date" class="dp-inp" value="${v(p.last_funding_date ? String(p.last_funding_date).slice(0,10) : '')}" placeholder="Funding date" style="flex:1;min-width:0">` +
+      `</div>` +
+      `<div style="display:flex;gap:8px;align-items:center">` +
+        (() => {
+          const _rawUrl = (p.website_url || '').trim();
+          const _dom = _rawUrl ? _rawUrl.replace(/^https?:\/\//i,'').replace(/^www\./i,'').split('/')[0] : null;
+          const _hasDom = _dom && !_dom.includes('linkedin.com') && _dom.includes('.');
+          return _hasDom
+            ? `<button id="co-enrich-${id}" onclick="_enrichCompanyDrawer('${id}')" style="font-size:var(--fs-sm);white-space:nowrap;padding:6px 12px;background:var(--navy);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer">Enrich Company</button>`
+            : `<button disabled style="font-size:var(--fs-sm);white-space:nowrap;padding:6px 12px;background:var(--border);color:var(--muted);border:none;border-radius:var(--radius-sm);cursor:not-allowed">No domain on file</button>`;
+        })() +
+        `<span id="co-enrich-status-${id}" style="font-size:var(--fs-xs);color:var(--muted)"></span>` +
+      `</div>` +
       `<div>` +
         `<p style="font-size:var(--fs-xs);color:var(--muted);font-weight:600;letter-spacing:0.02em;margin:0 0 6px">Contact type</p>` +
         `<div style="display:flex;gap:8px">` +
@@ -8120,6 +8195,9 @@ async function saveProspectEdit(id){
     name: g('ed-name') || null, company: g('ed-company') || null, title: g('ed-title') || null,
     email: g('ed-email') || null, phone: g('ed-phone') || null, linkedin: g('ed-linkedin') || null, sector: g('ed-sector') || null,
     country: g('ed-country') || null, region: document.getElementById('ed-region')?.value || null,
+    company_size: parseInt(g('ed-company-size')) || null,
+    funding_stage: g('ed-funding-stage') || null,
+    last_funding_date: g('ed-last-funding-date') || null,
     stage: newStage, notes: g('ed-notes') || null,
     signal: signalVal,
     signal_type: document.getElementById('drawer-signal-type')?.value || null,
@@ -9847,7 +9925,7 @@ async function loadKanban(force){
     while (true) {
       let _kQuery = sbClient
         .from('prospects')
-        .select('id, name, company, title, sector, region, country, stage, linkedin, email, phone, deal_value, deal_currency, deal_structure, deal_weighted, notes, last_contact, reminder_date, icp_score, icp_reason, archived, client_id, linkedin_tag, origin, signal, signal_type, signal_interpretation, signal_date, created_at, draft_invite_note, company_size, next_action, next_action_date, score_signal_strength, score_growth, signal_url')
+        .select('id, name, company, title, sector, region, country, stage, linkedin, email, phone, deal_value, deal_currency, deal_structure, deal_weighted, notes, last_contact, reminder_date, icp_score, icp_reason, archived, client_id, linkedin_tag, origin, signal, signal_type, signal_interpretation, signal_date, created_at, draft_invite_note, company_size, next_action, next_action_date, score_signal_strength, score_growth, signal_url, website_url, funding_stage, last_funding_date')
         .eq('client_id', CLIENT_ID);
       _kQuery = _applyMandateFilter(_kQuery);
       const { data: chunk, error } = await _kQuery
