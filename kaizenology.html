@@ -874,7 +874,7 @@ h1, h2, .k-card-name, .k-card-company { overflow-wrap:break-word; word-break:bre
     margin-right: auto;
   }
   .toolbar-filters {
-    display: grid;
+    display: grid !important;
     grid-template-columns: 1fr 1fr;
     gap: 6px;
     width: 100%;
@@ -892,9 +892,10 @@ h1, h2, .k-card-name, .k-card-company { overflow-wrap:break-word; word-break:bre
   }
   .toolbar-filters select {
     padding: 0 8px;
+    max-width: none !important;
   }
   .toolbar-actions {
-    display: grid;
+    display: grid !important;
     grid-template-columns: 1fr 1fr;
     gap: 6px;
     width: 100%;
