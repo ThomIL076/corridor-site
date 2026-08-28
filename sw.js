@@ -1,6 +1,6 @@
 // Corridor PWA service worker — network-first with cache fallback.
 // Data must always be fresh; the cache is only a safety net (offline / flaky network).
-const CACHE = 'corridor-v6';
+const CACHE = 'corridor-v7';
 const PRECACHE = ['/demo-private.html', '/manifest-private.json', '/apple-touch-icon.png'];
 
 self.addEventListener('install', (event) => {
