@@ -887,8 +887,8 @@ h1, h2, .k-card-name, .k-card-company { overflow-wrap:break-word; word-break:bre
     margin-right: auto;
   }
   .toolbar-filters {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: 6px;
     width: 100%;
   }
@@ -899,16 +899,18 @@ h1, h2, .k-card-name, .k-card-company { overflow-wrap:break-word; word-break:bre
     box-sizing: border-box;
   }
   #kanban-search {
+    grid-column: 1 / -1;
     width: 100% !important;
     font-size:var(--fs-md);
   }
+  .toolbar-filters select {
+    padding: 0 8px;
+  }
   .toolbar-actions {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: 6px;
     width: 100%;
-    justify-content: unset;
-    align-items: unset;
   }
   .toolbar-actions > button,
   .toolbar-actions > label {
@@ -921,6 +923,7 @@ h1, h2, .k-card-name, .k-card-company { overflow-wrap:break-word; word-break:bre
     white-space: nowrap;
   }
   #bulk-bar {
+    grid-column: 1 / -1;
     width: 100%;
     box-sizing: border-box;
   }
@@ -2041,13 +2044,14 @@ function _renderSignalsFeed() {
     const badge = item.type === 'live'
       ? '<span style="display:inline-flex;align-items:center;gap:5px;flex-shrink:0;"><span style="width:7px;height:7px;border-radius:50%;background:var(--green-brand);flex-shrink:0;display:inline-block;"></span><span style="font-size:var(--fs-micro);font-weight:700;color:var(--green-brand);letter-spacing:0.05em;text-transform:uppercase;">Live</span></span>'
       : '<span style="display:inline-flex;align-items:center;gap:5px;flex-shrink:0;"><span style="width:7px;height:7px;border-radius:50%;background:var(--blue-brand);flex-shrink:0;display:inline-block;"></span><span style="font-size:var(--fs-micro);font-weight:700;color:var(--blue-brand);letter-spacing:0.05em;text-transform:uppercase;">Morning</span></span>';
-    const labelHtml = item.label
-      ? `<span style="font-weight:600;font-size:var(--fs-sm);color:var(--text-primary);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_esc(item.label)}</span>`
+    // Suppress label for morning prospect cards — name/company is already in the card body
+    const labelHtml = (item.label && !(item.type === 'morning' && item.prospectId))
+      ? `<span style="font-weight:600;font-size:var(--fs-sm);color:var(--text-primary);flex:1;min-width:0;overflow-wrap:break-word;">${_esc(item.label)}</span>`
       : '';
     const linkedinLink = item.linkedinUrl
       ? `<a href="${_esc(item.linkedinUrl)}" target="_blank" rel="noopener" style="flex-shrink:0;color:var(--fill-accent);text-decoration:none;line-height:1;" title="LinkedIn profile"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg></a>`
       : '';
-    const header = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">${badge}${labelHtml}${linkedinLink}<span style="font-size:var(--fs-xs);color:var(--text-secondary);white-space:nowrap;margin-left:auto;">${tsStr}</span></div>`;
+    const header = `<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:10px;">${badge}${labelHtml}${linkedinLink}<span style="font-size:var(--fs-xs);color:var(--text-secondary);white-space:nowrap;margin-left:auto;">${tsStr}</span></div>`;
     const bodyHtml = item.type === 'morning'
       ? `<div>${item.htmlContent || renderMarkdown(item.content)}${item.linkHtml || ''}</div>`
       : `<div style="font-size:var(--fs-base);line-height:1.6;color:var(--text-primary);">${item.signal ? _sanitizeSignal(item.signal) + '<br>' : ''}${_esc(item.content)}<br><button data-ctx="${_esc(JSON.stringify({type:'signal',signal:item.signal||'',signalInterpretation:item.signalInterpretation||'',prospectName:item.prospectName||'',company:item.prospectCompany||''}))}" onclick="_openAskPanel(JSON.parse(this.dataset.ctx))" style="margin-top:8px;font-size:var(--fs-xs);font-weight:700;padding:3px 10px;border:1px solid var(--blue);border-radius:var(--radius-pill);background:transparent;color:var(--blue);cursor:pointer;">${(typeof currentLang!=='undefined'&&currentLang==='fr')?'Demander à Corridor':'Ask Corridor'}</button></div>`;
@@ -4751,8 +4755,8 @@ Populate stakeholder_* fields ONLY when new_stakeholder is true; set to null oth
           '<span onclick="_prOpenProspect(\'' + p.id + '\')" style="font-weight:700;font-size:var(--fs-sm);color:var(--navy);cursor:pointer;" onmouseover="this.style.textDecoration=\'underline\'" onmouseout="this.style.textDecoration=\'none\'">' + _esc(p.name||'') + '</span>' +
           '<span style="margin-left:auto;">' + icpBadge + '</span>' +
         '</div>' +
-        '<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:2px;">' + _esc((p.company||'') + (p.sector?' · '+p.sector:'') + ' · Stage: '+(p.stage||'Identified')) + '</div>' +
-        '<div style="font-size:var(--fs-xs);color:var(--text-secondary);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><span style="font-weight:700;color:var(--text-primary);">Why:</span> ' + _esc(sigText) + '</div>';
+        '<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:2px;">' + (p.company ? '<strong>' + _esc(p.company) + '</strong>' : '') + (p.sector ? _esc(' · ' + p.sector) : '') + _esc(' · Stage: ' + (p.stage||'Identified')) + '</div>' +
+        '<div style="font-size:var(--fs-xs);color:var(--text-secondary);margin-top:3px;overflow-wrap:break-word;"><span style="font-weight:700;color:var(--text-primary);">Why:</span> ' + (function(){ var c = p.company; if (!c) return _esc(sigText); var re = new RegExp('(' + c.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + ')','gi'); return sigText.split(re).map(function(s,i){ return i%2===1 ? '<strong>'+_esc(s)+'</strong>' : _esc(s); }).join(''); })() + '</div>';
       return {
         timestamp: runTs,
         type: 'morning',
@@ -4806,14 +4810,14 @@ Populate stakeholder_* fields ONLY when new_stakeholder is true; set to null oth
               ? '<div style="font-size:var(--fs-xs);color:var(--text-secondary);margin-top:3px;">' + stakeholderNameHtml + (stakeholderTitleHtml ? ' · ' + stakeholderTitleHtml : '') + (stakeholderCompanyHtml ? ' · ' + stakeholderCompanyHtml : '') + '</div>'
               : '';
             return '<div style="padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);margin-bottom:8px;">' +
-              '<div style="display:flex;align-items:center;gap:8px;">' +
-                '<span style="font-size:var(--fs-xs);font-weight:700;color:' + color + ';background:' + color + '1a;border-radius:var(--radius-pill);padding:2px 8px;">' + _esc(s.tag||'') + '</span>' +
-                (!hasStakeholderInfo ? '<span style="font-size:var(--fs-xs);font-weight:500;color:var(--muted);border:1px solid var(--border);border-radius:var(--radius-pill);padding:2px 8px;">Decision-maker to identify</span>' : '') +
-                (s.date ? '<span style="margin-left:auto;font-size:var(--fs-xs);color:var(--muted);">' + _esc(s.date) + '</span>' : '') +
+              '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">' +
+                '<span style="font-size:var(--fs-xs);font-weight:700;color:' + color + ';background:' + color + '1a;border-radius:var(--radius-pill);padding:2px 8px;white-space:nowrap;">' + _esc(s.tag||'') + '</span>' +
+                (!hasStakeholderInfo ? '<span style="font-size:var(--fs-xs);font-weight:500;color:var(--muted);border:1px solid var(--border);border-radius:var(--radius-pill);padding:2px 8px;white-space:nowrap;">Decision-maker to identify</span>' : '') +
+                (s.date ? '<span style="margin-left:auto;font-size:var(--fs-xs);color:var(--muted);white-space:nowrap;">' + _esc(s.date) + '</span>' : '') +
               '</div>' +
               '<div style="font-weight:700;font-size:var(--fs-sm);margin-top:5px;">' + _esc(s.headline||'') + '</div>' +
-              '<div style="font-size:var(--fs-xs);color:var(--text-secondary);margin-top:4px;"><span style="font-weight:700;color:var(--text-primary);">Relevance:</span> ' + _esc(s.why_it_matters||'') + '</div>' +
-              '<div style="font-size:var(--fs-xs);color:var(--text-secondary);margin-top:3px;"><span style="font-weight:700;color:var(--text-primary);">Action:</span> ' + _esc(s.recommended_action||'') + '</div>' +
+              '<div style="font-size:var(--fs-xs);color:var(--text-secondary);margin-top:4px;"><span style="font-weight:700;color:var(--text-primary);">Relevance:</span> ' + (function(){ var c = s.signal_company; var t = s.why_it_matters||''; if (!c) return _esc(t); var re = new RegExp('(' + c.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + ')','gi'); return t.split(re).map(function(p,i){ return i%2===1 ? '<strong>'+_esc(p)+'</strong>' : _esc(p); }).join(''); })() + '</div>' +
+              '<div style="font-size:var(--fs-xs);color:var(--text-secondary);margin-top:3px;"><span style="font-weight:700;color:var(--text-primary);">Action:</span> ' + (function(){ var c = s.signal_company; var t = s.recommended_action||''; if (!c) return _esc(t); var re = new RegExp('(' + c.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + ')','gi'); return t.split(re).map(function(p,i){ return i%2===1 ? '<strong>'+_esc(p)+'</strong>' : _esc(p); }).join(''); })() + '</div>' +
               stakeholderLine +
               addBtnHtml +
               (!hasStakeholderInfo && (s.stakeholder_company || s.signal_company)
