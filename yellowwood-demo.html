@@ -10462,9 +10462,8 @@ async function _hsSaveMapping() {
 
 <script>
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js')
-      .catch(err => console.error('SW error:', err));
+  navigator.serviceWorker.getRegistrations().then(regs => {
+    for (const reg of regs) reg.unregister();
   });
 }
 (function(){
