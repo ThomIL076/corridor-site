@@ -4907,7 +4907,8 @@ async function runLiveAlert() {
     const _named = signalProspects.filter(p => p.name && p.name.trim());
     const _excl = signalProspects.length - _named.length;
     if (_excl > 0) console.warn(`[runLiveAlert] ${_excl} signal(s) excluded — name is null/empty in DB (company-level signals without assigned contact). Review in Supabase if count grows abnormally.`);
-    if (!_named.length) {
+    const _feed = _named.filter(p => !['firmographic-match','active_hiring'].includes(p.signal_type));
+    if (!_feed.length) {
       _liveAlertItems = [{ timestamp: new Date().toISOString(), type: 'live', label: 'No signals', content: 'No new signals with an assigned contact in the past 7 days.' }];
       _renderSignalsFeed();
       if (spin) spin.classList.remove('active');
@@ -4916,7 +4917,7 @@ async function runLiveAlert() {
     }
 
     const runTs = new Date().toISOString();
-    _liveAlertItems = _named.map(p => {
+    _liveAlertItems = _feed.map(p => {
       const sigType = (p.signal_type && p.signal_type.toLowerCase() !== 'activity') ? p.signal_type.toUpperCase() : '';
       const co = p.company || '';
       return {
