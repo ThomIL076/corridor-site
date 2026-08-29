@@ -2011,6 +2011,7 @@ function _newNavActive(key) {
 
 let _morningItems = [];
 let _liveAlertItems = [];
+const _GENERIC_SIGNAL_TYPES = new Set(['firmographic-match','active_hiring']);
 
 function _signalTypeBanner(st) {
   const MAP = {
@@ -4901,7 +4902,8 @@ async function runLiveAlert() {
     const _named = signalProspects.filter(p => p.name && p.name.trim());
     const _excl = signalProspects.length - _named.length;
     if (_excl > 0) console.warn(`[runLiveAlert] ${_excl} signal(s) excluded — name is null/empty in DB (company-level signals without assigned contact). Review in Supabase if count grows abnormally.`);
-    if (!_named.length) {
+    const _feed = _named.filter(p => !_GENERIC_SIGNAL_TYPES.has(p.signal_type));
+    if (!_feed.length) {
       _liveAlertItems = [{ timestamp: new Date().toISOString(), type: 'live', label: 'No signals', content: 'No new signals with an assigned contact in the past 7 days.' }];
       _renderSignalsFeed();
       if (spin) spin.classList.remove('active');
@@ -4910,7 +4912,7 @@ async function runLiveAlert() {
     }
 
     const runTs = new Date().toISOString();
-    _liveAlertItems = _named.map(p => {
+    _liveAlertItems = _feed.map(p => {
       const sigType = (p.signal_type && p.signal_type.toLowerCase() !== 'activity') ? p.signal_type.toUpperCase() : '';
       const co = p.company || '';
       return {
@@ -8738,7 +8740,7 @@ function buildCard(p){
   const _off = (_hs ? _circ * (1 - Math.min(1, Math.max(0, _sv / 10))) : _circ).toFixed(1);
   const _lbl = _hs ? (_isEst ? '~' : '') + (_sv % 1 === 0 ? String(Math.round(_sv)) : _sv.toFixed(1)) : '—';
   const _dial = `<svg width="36" height="36" viewBox="0 0 36 36" style="position:absolute;top:7px;right:7px;${_isEst ? 'opacity:0.72;' : ''}" aria-hidden="true"${_isEst ? ' title="Estimated score"' : ''}><circle cx="18" cy="18" r="13" fill="none" stroke="#e8eaf0" stroke-width="4"/><circle cx="18" cy="18" r="13" fill="none" stroke="${_dc}" stroke-width="4" stroke-dasharray="${_circ}" stroke-dashoffset="${_off}" stroke-linecap="round" transform="rotate(-90 18 18)"/><text x="18" y="22" text-anchor="middle" font-size="9" font-weight="700" fill="${_dc}" font-family="Plus Jakarta Sans,sans-serif">${_lbl}</text></svg>`;
-  return `<div class="k-card" data-id="${_esc(id)}" data-last-contact="${_esc(p.last_contact || '')}" data-reminder-date="${_esc(p.reminder_date || '')}" data-client-id="${CLIENT_ID}" data-linkedin-tag="${_esc(p.linkedin_tag || '')}" data-name="${_esc(p.name || '')}" data-company="${_esc(p.company || '')}" data-sector="${_esc(p.sector || '')}" data-region="${_esc(p.region || '')}" data-stage="${_esc(p.stage || '')}" data-icp-score="${score}" data-country="${_esc(p.country || '')}" data-signal-type="${_esc(p.signal_type || '')}" data-origin="${_esc(p.origin || '')}" data-deal="${Number(p.deal_value) || 0}" data-confidence="${_calcConfidence(p)}" data-job-title="${_esc(p.title || '')}" data-next-action="${p.next_action ? '1' : '0'}" data-next-action-date="${_esc(p.next_action_date || '')}" data-has-signal="${!!(p.signal_type) && !!(p.signal) && !['firmographic-match','active_hiring'].includes(p.signal_type) ? 'true' : 'false'}">`
+  return `<div class="k-card" data-id="${_esc(id)}" data-last-contact="${_esc(p.last_contact || '')}" data-reminder-date="${_esc(p.reminder_date || '')}" data-client-id="${CLIENT_ID}" data-linkedin-tag="${_esc(p.linkedin_tag || '')}" data-name="${_esc(p.name || '')}" data-company="${_esc(p.company || '')}" data-sector="${_esc(p.sector || '')}" data-region="${_esc(p.region || '')}" data-stage="${_esc(p.stage || '')}" data-icp-score="${score}" data-country="${_esc(p.country || '')}" data-signal-type="${_esc(p.signal_type || '')}" data-origin="${_esc(p.origin || '')}" data-deal="${Number(p.deal_value) || 0}" data-confidence="${_calcConfidence(p)}" data-job-title="${_esc(p.title || '')}" data-next-action="${p.next_action ? '1' : '0'}" data-next-action-date="${_esc(p.next_action_date || '')}" data-has-signal="${!!(p.signal_type) && !!(p.signal) && !_GENERIC_SIGNAL_TYPES.has(p.signal_type) ? 'true' : 'false'}">`
     + `<input type="checkbox" class="k-card-select" data-pid="${_esc(id)}" onchange="_onCardSelect(this)" onclick="event.stopPropagation()" style="position:absolute;top:10px;left:8px;width:14px;height:14px;cursor:pointer;z-index:2;accent-color:var(--navy);">`
     + _dial
     + `<div class="k-card-name">${_esc(p.name || '—')}</div>`
