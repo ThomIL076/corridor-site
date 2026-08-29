@@ -1746,6 +1746,12 @@ body.new-nav { padding-left: 220px; }
       <div class="card-header"><span class="card-title">Signal Attribution</span><span class="card-badge badge-auto">LIVE</span></div>
       <div id="stats-signal-attr"></div>
     </div>
+
+    <!-- Section F: Signal Learning -->
+    <div class="card stats-section">
+      <div class="card-header"><span class="card-title">Signal Learning</span><span class="card-badge badge-auto">LIVE</span></div>
+      <div id="stats-signal-learning"></div>
+    </div>
   </div>
 
   <!-- ══ TAB 7: CLIENTS ══ -->
@@ -1879,6 +1885,7 @@ body.new-nav { padding-left: 220px; }
       <button class="btn-primary system-btn system-card-btn" onclick="runPipelineIntel()" id="pipeintel-btn" style="margin-bottom:16px;">
         <span data-en="▶ Scan New Prospects" data-fr="▶ Scanner les nouveaux prospects">▶ Scan New Prospects</span>
       </button>
+      <div id="signal-learning-summary" style="display:none;font-size:var(--fs-sm);color:var(--muted);margin-bottom:12px;padding:10px 12px;background:var(--navy-light);border:1px solid var(--border);border-radius:var(--radius-sm);"></div>
       <div class="ai-box" style="margin-bottom:24px;">
         <div class="ai-box-header">
           <span class="ai-box-label" data-en="New This Week" data-fr="Nouveaux cette semaine">New This Week</span>
@@ -2194,6 +2201,7 @@ function _switchSysTab(key) {
   const sidebarKey = key === 'reports' ? 'weekly' : key;
   _newNavActive('system-' + sidebarKey);
   if (key === 'reports') _loadWeeklyReports();
+  if (key === 'pipeintel') _renderSignalLearningSummary();
 }
 
 function _switchNewNav(tab, sysHint) {
@@ -9078,6 +9086,76 @@ function renderStats(){
   if (naEmeaEl) naEmeaEl.innerHTML = na + '<span class="numsplit"> / </span>' + emea;
   renderStatsRevenue();
   renderStatsSignal();
+  renderStatsLearning();
+}
+let _signalLearningCache = null;
+async function _loadSignalLearning() {
+  if (_signalLearningCache !== null) return _signalLearningCache;
+  const { data, error } = await _supabase
+    .from('signal_outcomes')
+    .select('signal_type, from_stage, to_stage, occurred_at')
+    .eq('client_id', CLIENT_ID);
+  if (error || !data || !data.length) {
+    _signalLearningCache = { total: 0, byType: {}, firstDate: null };
+    return _signalLearningCache;
+  }
+  const REPLY_PLUS = new Set(['Replied', 'Proposal', 'Closed']);
+  const byType = {};
+  let firstDate = null;
+  for (const row of data) {
+    const k = (row.signal_type || 'UNKNOWN').toUpperCase();
+    if (!byType[k]) byType[k] = { tracked: 0, converted: 0 };
+    byType[k].tracked++;
+    if (REPLY_PLUS.has(row.to_stage)) byType[k].converted++;
+    if (row.occurred_at && (!firstDate || row.occurred_at < firstDate)) firstDate = row.occurred_at;
+  }
+  _signalLearningCache = { total: data.length, byType, firstDate };
+  return _signalLearningCache;
+}
+async function renderStatsLearning() {
+  const el = document.getElementById('stats-signal-learning');
+  if (!el) return;
+  el.innerHTML = '<span style="color:var(--muted);font-size:var(--fs-sm)">Loading...</span>';
+  const { total, byType, firstDate } = await _loadSignalLearning();
+  if (total < 10) {
+    const dateStr = firstDate
+      ? 'Tracking started ' + new Date(firstDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) + '. '
+      : '';
+    el.innerHTML = `<div style="color:var(--muted);font-size:var(--fs-sm);padding:8px 0">${_esc(dateStr + total + (total !== 1 ? ' signals' : ' signal') + ' tracked so far -- not enough data yet to show conversion rates.')}</div>`;
+    return;
+  }
+  const taxonomy = await _loadSignalTaxonomy();
+  const rows = Object.entries(byType)
+    .map(([code, d]) => ({ code, tracked: d.tracked, converted: d.converted, rate: d.tracked > 0 ? Math.round(d.converted / d.tracked * 100) : 0 }))
+    .sort((a, b) => b.rate - a.rate);
+  let html = '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:var(--fs-sm)">';
+  html += '<thead><tr style="text-align:left;border-bottom:1px solid var(--border)"><th style="padding:6px 8px;font-weight:600;color:var(--muted)">Signal type</th><th style="padding:6px 8px;font-weight:600;color:var(--muted);text-align:right">Tracked</th><th style="padding:6px 8px;font-weight:600;color:var(--muted);text-align:right">Converted to reply+</th><th style="padding:6px 8px;font-weight:600;color:var(--muted);text-align:right">Rate</th></tr></thead><tbody>';
+  rows.forEach(r => {
+    const t = taxonomy[r.code];
+    const lbl = t ? ((t.icon ? t.icon + ' ' : '') + (t.label || r.code)) : r.code;
+    html += `<tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 8px">${_esc(lbl)}</td><td style="padding:6px 8px;text-align:right">${r.tracked}</td><td style="padding:6px 8px;text-align:right">${r.converted}</td><td style="padding:6px 8px;text-align:right;font-weight:600">${r.rate}%</td></tr>`;
+  });
+  html += '</tbody></table></div>';
+  el.innerHTML = html;
+}
+async function _renderSignalLearningSummary() {
+  const el = document.getElementById('signal-learning-summary');
+  if (!el) return;
+  const { total, byType } = await _loadSignalLearning();
+  if (total < 10) {
+    el.textContent = 'Learning: ' + total + (total !== 1 ? ' signals' : ' signal') + ' tracked so far, not enough data yet.';
+    el.style.display = '';
+    return;
+  }
+  const best = Object.entries(byType)
+    .map(([code, d]) => ({ code, rate: d.tracked > 0 ? Math.round(d.converted / d.tracked * 100) : 0, tracked: d.tracked }))
+    .sort((a, b) => b.rate - a.rate)[0];
+  if (!best) { el.style.display = 'none'; return; }
+  const taxonomy = await _loadSignalTaxonomy();
+  const t = taxonomy[best.code];
+  const lbl = t ? (t.label || best.code) : best.code;
+  el.textContent = 'Learning: ' + lbl + ' converts best (' + best.rate + '%, n=' + best.tracked + ').';
+  el.style.display = '';
 }
 let _signalTaxonomy = null;
 let _signalTaxonomyPromise = null;
