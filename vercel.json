@@ -5,6 +5,7 @@
   },
   "rewrites": [
     { "source": "/demo-private", "destination": "/demo-private.html" },
+    { "source": "/partner-demo", "destination": "/partner-demo.html" },
     { "source": "/legal/sub-processors", "destination": "/legal/sub-processors.html" }
   ],
   "headers": [
