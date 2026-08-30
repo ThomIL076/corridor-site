@@ -4705,7 +4705,7 @@ Populate stakeholder_* fields ONLY when new_stakeholder is true; set to null oth
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'claude-sonnet-5',
-        max_tokens: 6000,
+        max_tokens: 10000,
         stream: true,
         system: systemPrompt,
         messages: [{ role: 'user', content: userPrompt }]
