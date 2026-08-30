@@ -4582,7 +4582,20 @@ async function runMorningScan() {
       })
       .sort((a, b) => b.combinedScore - a.combinedScore || (b.icp_score || 0) - (a.icp_score || 0));
     const eligibleTotal = _eligible.length;
-    const scored = _eligible.slice(0, 20);
+    const _REMINDER_AFTER_DAYS = 3, _MAX_APPEARANCES = 2, _nowMs = Date.now();
+    const _gated = _eligible.filter(p => {
+      const lastSeen = p.last_surfaced_in_scan_at ? new Date(p.last_surfaced_in_scan_at).getTime() : null;
+      const sigDate = p.signal_date ? new Date(p.signal_date).getTime() : null;
+      const isFresh = !lastSeen || (sigDate && sigDate > lastSeen);
+      if (isFresh) { p.isReminder = false; p.isFreshSignal = true; return true; }
+      const daysSince = (_nowMs - lastSeen) / 86400000;
+      const count = Number(p.scan_appearance_count) || 0;
+      if (!p.linkedin_tag && daysSince >= _REMINDER_AFTER_DAYS && count < _MAX_APPEARANCES) {
+        p.isReminder = true; p.isFreshSignal = false; return true;
+      }
+      return false;
+    });
+    const scored = _gated.slice(0, 20);
     const displayCount = Math.min(5, scored.length);
     const _topProspectData = scored.slice(0, displayCount); // items built into _morningItems after runTs below
 
@@ -4745,10 +4758,11 @@ Populate stakeholder_* fields ONLY when new_stakeholder is true; set to null oth
           '<span style="font-size:var(--fs-xs);font-weight:700;background:var(--navy-light);color:var(--navy);border:1px solid var(--blue);border-radius:var(--radius-pill);padding:1px 8px;white-space:nowrap;cursor:default;">ICP ' + p.icp_score + '</span>' +
           '<span class="icp-tt" style="display:none;position:absolute;bottom:100%;right:0;margin-bottom:6px;background:var(--navy);color:#fff;font-size:var(--fs-xs);font-weight:400;padding:6px 10px;border-radius:var(--radius-sm);white-space:normal;width:220px;line-height:1.4;z-index:20;box-shadow:0 2px 8px rgba(0,0,0,0.15);">' + (p.icp_reason ? 'ICP ' + p.icp_score + '/10 — ' + _esc(p.icp_reason) : 'ICP Score: ' + p.icp_score + '/10 — scored by Corridor pipeline: role seniority, sector fit, company size, signal activity, and mandate alignment') + '</span>' +
         '</span>';
+      const _reminderBadge = p.isReminder ? '<span style="font-size:var(--fs-xs);font-weight:700;color:#B45309;background:#FEF3C7;border:1px solid #FCD34D;border-radius:var(--radius-pill);padding:1px 7px;white-space:nowrap;">Rappel</span>' : '';
       const cardHtml =
         '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">' +
           '<span onclick="_prOpenProspect(\'' + p.id + '\')" style="font-weight:700;font-size:var(--fs-sm);color:var(--navy);cursor:pointer;" onmouseover="this.style.textDecoration=\'underline\'" onmouseout="this.style.textDecoration=\'none\'">' + _esc(p.name||'') + '</span>' +
-          '<span style="margin-left:auto;">' + icpBadge + '</span>' +
+          '<span style="margin-left:auto;display:flex;align-items:center;gap:6px;">' + _reminderBadge + icpBadge + '</span>' +
         '</div>' +
         '<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:2px;">' + (p.company ? '<strong>' + _esc(p.company) + '</strong>' : '') + (p.sector ? _esc(' · ' + p.sector) : '') + _esc(' · Stage: ' + (p.stage||'Identified')) + '</div>' +
         '<div style="font-size:var(--fs-xs);color:var(--text-secondary);margin-top:3px;overflow-wrap:break-word;"><span style="font-weight:700;color:var(--text-primary);">Why:</span> ' + (function(){ var c = p.company; if (!c) return _esc(sigText); var re = new RegExp('(' + c.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + ')','gi'); return sigText.split(re).map(function(s,i){ return i%2===1 ? '<strong>'+_esc(s)+'</strong>' : _esc(s); }).join(''); })() + '</div>';
@@ -4836,6 +4850,15 @@ Populate stakeholder_* fields ONLY when new_stakeholder is true; set to null oth
       if (_lastPItem) _lastPItem.linkHtml = `<div style="margin-top:8px;"><a href="${_msLink}" style="color:var(--navy);font-size:var(--fs-sm);text-decoration:underline;">View prospects with signals (${eligibleTotal}) →</a></div>`;
     }
     _renderSignalsFeed();
+    if (_topProspectData.length) {
+      const _wbNow = new Date().toISOString();
+      try {
+        await Promise.all(_topProspectData.map(p => sbClient.from('prospects').update({
+          last_surfaced_in_scan_at: _wbNow,
+          scan_appearance_count: p.isFreshSignal ? 1 : (Number(p.scan_appearance_count) || 0) + 1
+        }).eq('id', p.id).eq('client_id', CLIENT_ID)));
+      } catch (_e) { console.warn('[runMorningScan] write-back failed', _e); }
+    }
   } catch (e) {
     console.warn('[runMorningScan]', e);
     _morningItems = [{ timestamp: new Date().toISOString(), type: 'morning', label: 'Error', content: e.message }];
@@ -5011,7 +5034,7 @@ async function loadSendView() {
     while (true) {
       let _spQuery = sbClient
         .from('prospects')
-        .select('id, name, company, title, sector, region, country, stage, linkedin, last_contact, reminder_date, linkedin_tag, icp_score, client_id, origin, created_at, signal, signal_type, email')
+        .select('id, name, company, title, sector, region, country, stage, linkedin, last_contact, reminder_date, linkedin_tag, icp_score, client_id, origin, created_at, signal, signal_type, signal_date, email, last_surfaced_in_scan_at, scan_appearance_count')
         .eq('client_id', CLIENT_ID);
       _spQuery = _applyMandateFilter(_spQuery);
       const { data: chunk, error: pErr } = await _spQuery
