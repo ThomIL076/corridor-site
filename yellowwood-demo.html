@@ -4981,6 +4981,7 @@ function showToast(msg){
 function _esc(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function _sanitizeSignal(str) {
   if (!str) return '';
+  str = str.replace(/\s*\(mot-cl[ée]:\s*[^)]*\)/gi, '').trim();
   const SAFE_A = /(<a\s+href=["']https?:\/\/[^"'<>]+["'](?:\s+(?:target|rel|style|class)=["'][^"'<>]*["'])*\s*>[^<]*<\/a>)/gi;
   return str.split(SAFE_A).map((chunk, i) => i % 2 === 0 ? _esc(chunk) : chunk).join('');
 }
