@@ -12,8 +12,10 @@ export default async function handler(req) {
   }
 
   const url = new URL(req.url);
-  const domain = (url.searchParams.get('domain') || '').trim().toLowerCase();
-  if (!domain) {
+  const domain      = (url.searchParams.get('domain')      || '').trim().toLowerCase();
+  const emailDomain = (url.searchParams.get('emailDomain') || '').trim().toLowerCase();
+
+  if (!domain && !emailDomain) {
     return new Response(JSON.stringify({ error: 'domain required' }), {
       status: 400,
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
@@ -28,28 +30,43 @@ export default async function handler(req) {
     });
   }
 
-  let raw;
-  try {
-    const r = await fetch(
-      `https://api.apollo.io/api/v1/organizations/enrich?domain=${encodeURIComponent(domain)}`,
-      { headers: { 'X-Api-Key': apiKey, 'Content-Type': 'application/json' } }
-    );
-    raw = await r.json();
-  } catch (e) {
-    return new Response(JSON.stringify({ error: 'Upstream request failed' }), {
-      status: 502,
+  async function tryDomain(d) {
+    try {
+      const r = await fetch(
+        `https://api.apollo.io/api/v1/organizations/enrich?domain=${encodeURIComponent(d)}&allow_fuzzy_url_search=true`,
+        { headers: { 'X-Api-Key': apiKey, 'Content-Type': 'application/json' } }
+      );
+      if (!r.ok) return null;
+      const raw = await r.json();
+      const org = raw?.organization;
+      if (!org || (!org.estimated_num_employees && !org.funding_events?.length && !org.total_funding_printed)) return null;
+      return org;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  const candidates = [domain, emailDomain].filter(Boolean);
+  let org = null;
+  for (const d of candidates) {
+    org = await tryDomain(d);
+    if (org) break;
+  }
+
+  if (!org) {
+    return new Response(JSON.stringify({}), {
+      status: 200,
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
     });
   }
 
-  const org = raw?.organization || {};
   const events = Array.isArray(org.funding_events) ? org.funding_events : [];
   const latest = events.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))[0] || null;
   return new Response(JSON.stringify({
-    employees:     org.estimated_num_employees  || null,
-    funding_stage: latest?.type                 || null,
+    employees:     org.estimated_num_employees || null,
+    funding_stage: latest?.type               || null,
     funding_date:  latest?.date ? String(latest.date).slice(0, 10) : null,
-    total_funding: org.total_funding_printed    || null
+    total_funding: org.total_funding_printed  || null
   }), {
     status: 200,
     headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }

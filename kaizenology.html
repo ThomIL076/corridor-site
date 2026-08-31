@@ -8459,14 +8459,21 @@ async function _enrichCompanyDrawer(id) {
 
   const rawUrl = (p.website_url || '').trim();
   const domain = rawUrl ? rawUrl.replace(/^https?:\/\//i,'').replace(/^www\./i,'').split('/')[0] : null;
-  if (!domain || domain.includes('linkedin.com') || !domain.includes('.')) {
+  const _emailRaw = (p.email || '').trim();
+  const emailDomain = _emailRaw.includes('@') ? _emailRaw.split('@')[1].trim().toLowerCase() : null;
+  const _siteDomOk = domain && !domain.includes('linkedin.com') && domain.includes('.');
+  const _emailDomOk = emailDomain && emailDomain.includes('.');
+  if (!_siteDomOk && !_emailDomOk) {
     if (status) status.textContent = 'No domain on file';
     if (btn) btn.disabled = false;
     return;
   }
 
   try {
-    const r = await fetch('/api/company-enrich?domain=' + encodeURIComponent(domain));
+    const _qp = new URLSearchParams();
+    if (_siteDomOk) _qp.set('domain', domain);
+    if (_emailDomOk) _qp.set('emailDomain', emailDomain);
+    const r = await fetch('/api/company-enrich?' + _qp.toString());
     const d = await r.json();
 
     if (!d.employees && !d.funding_stage && !d.funding_date && !d.total_funding) {
@@ -8697,7 +8704,9 @@ function _drawerProfileHTML(id, p, colStage, fb){
         (() => {
           const _rawUrl = (p.website_url || '').trim();
           const _dom = _rawUrl ? _rawUrl.replace(/^https?:\/\//i,'').replace(/^www\./i,'').split('/')[0] : null;
-          const _hasDom = _dom && !_dom.includes('linkedin.com') && _dom.includes('.');
+          const _emailRaw2 = (p.email || '').trim();
+          const _emailDom2 = _emailRaw2.includes('@') ? _emailRaw2.split('@')[1].trim().toLowerCase() : null;
+          const _hasDom = (_dom && !_dom.includes('linkedin.com') && _dom.includes('.')) || (_emailDom2 && _emailDom2.includes('.'));
           return _hasDom
             ? `<button id="co-enrich-${id}" onclick="_enrichCompanyDrawer('${id}')" style="font-size:var(--fs-sm);white-space:nowrap;padding:6px 12px;background:var(--navy);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer">Enrich Company</button>`
             : `<button disabled style="font-size:var(--fs-sm);white-space:nowrap;padding:6px 12px;background:var(--border);color:var(--muted);border:none;border-radius:var(--radius-sm);cursor:not-allowed">No domain on file</button>`;
