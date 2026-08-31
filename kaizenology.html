@@ -2046,9 +2046,12 @@ function _renderSignalsFeed() {
       ? `<a href="${_esc(item.linkedinUrl)}" target="_blank" rel="noopener" style="flex-shrink:0;color:var(--fill-accent);text-decoration:none;line-height:1;" title="LinkedIn profile"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg></a>`
       : '';
     const header = `<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:10px;">${badge}${labelHtml}${linkedinLink}<span style="font-size:var(--fs-xs);color:var(--text-secondary);white-space:nowrap;margin-left:auto;">${tsStr}</span></div>`;
+    const _liveWaitingBadge = (item.type === 'live' && item.isWaiting)
+      ? '<span style="display:inline-block;font-size:var(--fs-xs);font-weight:700;color:#6B7280;background:#F3F4F6;border:1px solid #D1D5DB;border-radius:var(--radius-pill);padding:1px 8px;white-space:nowrap;margin-bottom:6px;">Waiting for acceptance</span><br>'
+      : '';
     const bodyHtml = item.type === 'morning'
       ? `<div>${item.htmlContent || renderMarkdown(item.content)}${item.linkHtml || ''}</div>`
-      : `<div style="font-size:var(--fs-base);line-height:1.6;color:var(--text-primary);">${item.signal ? _sanitizeSignal(item.signal) + '<br>' : ''}${_esc(item.content)}${item.signalUrl ? '<br><a href="' + _esc(item.signalUrl) + '" target="_blank" rel="noopener" style="font-size:var(--fs-xs);color:var(--fill-accent);text-decoration:none;font-weight:600;">🔗 Voir le post</a>' : ''}<br><button data-ctx="${_esc(JSON.stringify({type:'signal',signal:item.signal||'',signalUrl:item.signalUrl||'',signalInterpretation:item.signalInterpretation||'',prospectName:item.prospectName||'',company:item.prospectCompany||''}))}" onclick="_openAskPanel(JSON.parse(this.dataset.ctx))" style="margin-top:8px;font-size:var(--fs-xs);font-weight:700;padding:3px 10px;border:1px solid var(--blue);border-radius:var(--radius-pill);background:transparent;color:var(--blue);cursor:pointer;">${(typeof currentLang!=='undefined'&&currentLang==='fr')?'Demander à Corridor':'Ask Corridor'}</button></div>`;
+      : `<div style="font-size:var(--fs-base);line-height:1.6;color:var(--text-primary);">${_liveWaitingBadge}${item.signal ? _sanitizeSignal(item.signal) + '<br>' : ''}${_esc(item.content)}${item.signalUrl ? '<br><a href="' + _esc(item.signalUrl) + '" target="_blank" rel="noopener" style="font-size:var(--fs-xs);color:var(--fill-accent);text-decoration:none;font-weight:600;">🔗 Voir le post</a>' : ''}<br><button data-ctx="${_esc(JSON.stringify({type:'signal',signal:item.signal||'',signalUrl:item.signalUrl||'',signalInterpretation:item.signalInterpretation||'',prospectName:item.prospectName||'',company:item.prospectCompany||''}))}" onclick="_openAskPanel(JSON.parse(this.dataset.ctx))" style="margin-top:8px;font-size:var(--fs-xs);font-weight:700;padding:3px 10px;border:1px solid var(--blue);border-radius:var(--radius-pill);background:transparent;color:var(--blue);cursor:pointer;">${(typeof currentLang!=='undefined'&&currentLang==='fr')?'Demander à Corridor':'Ask Corridor'}</button></div>`;
     const _sfKey = item.type + '|' + (item.prospectId || '') + '|' + (item.timestamp || idx);
     window._feedItemsById[idx] = item;
     const _sfVoted = window._feedVotes[_sfKey];
@@ -4586,11 +4589,17 @@ async function runMorningScan() {
       const lastSeen = p.last_surfaced_in_scan_at ? new Date(p.last_surfaced_in_scan_at).getTime() : null;
       const sigDate = p.signal_date ? new Date(p.signal_date).getTime() : null;
       const isFresh = !lastSeen || (sigDate && sigDate > lastSeen);
-      if (isFresh) { p.isReminder = false; p.isFreshSignal = true; return true; }
+      const neverInvited = !p.linkedin_tag;
+      const hasNewerSignal = !!(sigDate && lastSeen && sigDate > lastSeen);
+      if (isFresh) {
+        p.isReminder = false; p.isFreshSignal = true;
+        p.isWaiting = !neverInvited && !hasNewerSignal;
+        return true;
+      }
       const daysSince = (_nowMs - lastSeen) / 86400000;
       const count = Number(p.scan_appearance_count) || 0;
-      if (!p.linkedin_tag && daysSince >= _REMINDER_AFTER_DAYS && count < _MAX_APPEARANCES) {
-        p.isReminder = true; p.isFreshSignal = false; return true;
+      if (neverInvited && daysSince >= _REMINDER_AFTER_DAYS && count < _MAX_APPEARANCES) {
+        p.isReminder = true; p.isFreshSignal = false; p.isWaiting = false; return true;
       }
       return false;
     });
@@ -4747,10 +4756,11 @@ Populate stakeholder_* fields ONLY when new_stakeholder is true; set to null oth
           '<span class="icp-tt" style="display:none;position:absolute;bottom:100%;right:0;margin-bottom:6px;background:var(--navy);color:#fff;font-size:var(--fs-xs);font-weight:400;padding:6px 10px;border-radius:var(--radius-sm);white-space:normal;width:220px;line-height:1.4;z-index:20;box-shadow:0 2px 8px rgba(0,0,0,0.15);">' + (p.icp_reason ? 'ICP ' + p.icp_score + '/10 — ' + _esc(p.icp_reason) : 'ICP Score: ' + p.icp_score + '/10 — scored by Corridor pipeline: role seniority, sector fit, company size, signal activity, and mandate alignment') + '</span>' +
         '</span>';
       const _reminderBadge = p.isReminder ? '<span style="font-size:var(--fs-xs);font-weight:700;color:#B45309;background:#FEF3C7;border:1px solid #FCD34D;border-radius:var(--radius-pill);padding:1px 7px;white-space:nowrap;">Rappel</span>' : '';
+      const _waitingBadge = p.isWaiting ? '<span style="font-size:var(--fs-xs);font-weight:700;color:#6B7280;background:#F3F4F6;border:1px solid #D1D5DB;border-radius:var(--radius-pill);padding:1px 7px;white-space:nowrap;">Waiting for acceptance</span>' : '';
       const cardHtml =
         '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">' +
           '<span onclick="_prOpenProspect(\'' + p.id + '\')" style="font-weight:700;font-size:var(--fs-sm);color:var(--navy);cursor:pointer;" onmouseover="this.style.textDecoration=\'underline\'" onmouseout="this.style.textDecoration=\'none\'">' + _esc(p.name||'') + '</span>' +
-          '<span style="margin-left:auto;display:flex;align-items:center;gap:6px;">' + _reminderBadge + icpBadge + '</span>' +
+          '<span style="margin-left:auto;display:flex;align-items:center;gap:6px;">' + _reminderBadge + _waitingBadge + icpBadge + '</span>' +
         '</div>' +
         '<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:2px;">' + (p.company ? '<strong>' + _esc(p.company) + '</strong>' : '') + (p.sector ? _esc(' · ' + p.sector) : '') + _esc(' · Stage: ' + (p.stage||'Identified')) + '</div>' +
         '<div style="font-size:var(--fs-xs);color:var(--text-secondary);margin-top:3px;overflow-wrap:break-word;"><span style="font-weight:700;color:var(--text-primary);">Why:</span> ' + (function(){ var c = p.company; if (!c) return _esc(sigText); var re = new RegExp('(' + c.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + ')','gi'); return sigText.split(re).map(function(s,i){ return i%2===1 ? '<strong>'+_esc(s)+'</strong>' : _esc(s); }).join(''); })() + '</div>';
@@ -4908,12 +4918,13 @@ async function runLiveAlert() {
   try {
     let _msQuery = sbClient
       .from('prospects')
-      .select('id, name, company, sector, country, region, stage, icp_score, signal, signal_url, signal_type, signal_interpretation, scan_intelligence, updated_at, linkedin')
+      .select('id, name, company, sector, country, region, stage, icp_score, signal, signal_url, signal_type, signal_interpretation, scan_intelligence, updated_at, linkedin, linkedin_tag, last_surfaced_in_scan_at, signal_date')
       .eq('client_id', CLIENT_ID);
     _msQuery = _applyMandateFilter(_msQuery);
     const { data: signalProspects, error } = await _msQuery
       .not('signal', 'is', null)
       .not('signal_type', 'is', null)
+      .eq('archived', false)
       .gte('updated_at', sevenDaysAgo)
       .order('icp_score', { ascending: false })
       .limit(10);
@@ -4945,6 +4956,10 @@ async function runLiveAlert() {
     _liveAlertItems = _feed.map(p => {
       const sigType = (p.signal_type && p.signal_type.toLowerCase() !== 'activity') ? p.signal_type.toUpperCase() : '';
       const co = p.company || '';
+      const _lastSeen = p.last_surfaced_in_scan_at ? new Date(p.last_surfaced_in_scan_at).getTime() : null;
+      const _sigDate = p.signal_date ? new Date(p.signal_date).getTime() : null;
+      const _hasNewerSignal = !!(_sigDate && _lastSeen && _sigDate > _lastSeen);
+      const isWaiting = !!p.linkedin_tag && !_hasNewerSignal;
       return {
         timestamp: p.updated_at || runTs,
         type: 'live',
@@ -4958,6 +4973,7 @@ async function runLiveAlert() {
         prospectName: p.name || '',
         prospectCompany: co,
         linkedinUrl: p.linkedin || '',
+        isWaiting,
         content: `ICP ${p.icp_score || 'N/A'}${p.sector ? ' · ' + p.sector : ''} · ${p.country || p.region || 'Location unknown'} · Stage: ${p.stage || 'Identified'}`
       };
     });
