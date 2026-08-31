@@ -3060,7 +3060,7 @@ Language instruction: Write your entire response in ${currentLang === 'fr' ? 'Fr
       const _scoreResp = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 400, messages: [{ role: 'user', content: _scorePromptText }] })
+        body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 1000, messages: [{ role: 'user', content: _scorePromptText }] })
       });
       const _scoreData = _scoreResp.ok ? await _scoreResp.json() : null;
       if (_scoreData && Array.isArray(_scoreData.content)) {
@@ -3072,11 +3072,12 @@ Language instruction: Write your entire response in ${currentLang === 'fr' ? 'Fr
     if (_scoreResult && _scoreResult.role_score != null) {
       const _composite = _calcComposite(
         _scoreResult.role_score, _scoreResult.size_score, _scoreResult.signal_strength_score,
-        _scoreResult.mandate_fit_score, 0, 0
+        _scoreResult.mandate_fit_score, 5, 5
       );
       document.getElementById('sc-total').textContent = _composite.toFixed(1) + '/10';
     } else {
-      document.getElementById('sc-total').textContent = '—';
+      const _stEl = document.getElementById('sc-total');
+      if (_stEl) { _stEl.textContent = 'Failed'; _stEl.title = 'Scoring failed — check console'; }
     }
   }
   document.getElementById('scanner-btn').disabled = false;
@@ -3088,7 +3089,7 @@ Language instruction: Write your entire response in ${currentLang === 'fr' ? 'Fr
       const _scanPer = (document.getElementById('scanner-person')?.value || '').trim();
       const _scanSec = (document.getElementById('scanner-sector')?.value || '').trim();
       const _scanScoreVal = (_scoreResult && _scoreResult.role_score != null)
-        ? _calcComposite(_scoreResult.role_score, _scoreResult.size_score, _scoreResult.signal_strength_score, _scoreResult.mandate_fit_score, 0, 0)
+        ? _calcComposite(_scoreResult.role_score, _scoreResult.size_score, _scoreResult.signal_strength_score, _scoreResult.mandate_fit_score, 5, 5)
         : null;
       const _scanSummary = (document.getElementById('scanner-ai-output')?.textContent || '').slice(0, 800);
       const { data: _existingArr } = await sbClient.from('prospects').select('id, name, company, stage').eq('client_id', CLIENT_ID).ilike('company', _scanCo).limit(1);
@@ -6329,7 +6330,7 @@ async function openDrawer(card, initialTab = 'activity') {
   const reminderDate = card.dataset.reminderDate || null;
   const clientId     = card.dataset.clientId     || CLIENT_ID;
 
-  _scannerPreFill = { company: (_p.company || '').trim() || company.split('·')[0].trim(), sector };
+  _scannerPreFill = { company: (_p.company || '').trim() || company.split('·')[0].trim(), sector, icp_score: (_p.icp_score != null && Number(_p.icp_score) > 0) ? Number(_p.icp_score) : null };
   _drawerProspect = { id:prospectId, name, company, score, sector, stage,
                       last_contact:lastContact, reminder_date:reminderDate, client_id:clientId };
 
@@ -6655,6 +6656,13 @@ function openScannerPanel(source) {
     const _set = (id, v) => { const el = document.getElementById(id); if (el && v) el.value = v; };
     _set('scanner-company', ctx.company);
     _set('scanner-sector', ctx.sector);
+    if (ctx.icp_score != null) {
+      const _sg = document.getElementById('scanner-score-grid');
+      const _st = document.getElementById('sc-total');
+      if (_sr) _sr.style.display = 'block';
+      if (_sg) _sg.style.display = '';
+      if (_st) { _st.textContent = ctx.icp_score + '/10'; _st.title = 'Score stocké — recalculé au prochain scan'; }
+    }
   }
   document.getElementById('scanner-overlay').classList.add('open');
   document.getElementById('scanner-panel').classList.add('open');
@@ -6684,7 +6692,7 @@ async function _aiScoreProspect(company, title, mandate) {
     const resp = await fetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 400, messages: [{ role: 'user', content: scorePrompt }] })
+      body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 1000, messages: [{ role: 'user', content: scorePrompt }] })
     });
     const data = resp.ok ? await resp.json() : null;
     if (data && Array.isArray(data.content)) {
@@ -6692,7 +6700,7 @@ async function _aiScoreProspect(company, title, mandate) {
       const m = t.match(/\{[\s\S]*\}/);
       const parsed = m ? JSON.parse(m[0]) : null;
       if (parsed && parsed.role_score != null) {
-        const score = _calcComposite(parsed.role_score, parsed.size_score, parsed.signal_strength_score, parsed.mandate_fit_score, 0, 0);
+        const score = _calcComposite(parsed.role_score, parsed.size_score, parsed.signal_strength_score, parsed.mandate_fit_score, 5, 5);
         return { score, reason: parsed.rationale || null };
       }
     }
@@ -6813,6 +6821,89 @@ async function _addStakeholderToPipeline(idx, btn) {
     console.warn('[_addStakeholderToPipeline] failed:', e);
     if (btn) { btn.disabled = false; btn.textContent = '+ Add to pipeline'; }
   }
+}
+async function _addCommitteeStakeholderToPipeline(s, company, sector, icpScore, btn) {
+  if (btn) btn.disabled = true;
+  try {
+    const _p = { name: s.name || company, company, linkedin: s.linkedin_url || null };
+    const _sigInterp = await _generateSignalInterpretation('', company, s.name || '');
+    const row = {
+      client_id: CLIENT_ID,
+      mandate_id: (activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null,
+      deal_id: activeDealId || null,
+      external_id: identityKey(_p),
+      name: s.name || company, company,
+      title: s.title || null, linkedin: s.linkedin_url || null,
+      sector: sector || null, stage: 'Identified',
+      icp_score: icpScore != null ? icpScore : null, signal: null,
+      signal_interpretation: _sigInterp?.interpretation || null,
+      signal_date: _sigInterp?.date || null,
+      origin: 'outbound', import_source: 'scanner',
+      archived: false, updated_at: new Date().toISOString()
+    };
+    const { error } = await sbClient.from('prospects').insert(row);
+    if (error) throw error;
+    if (btn) {
+      btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg> Added';
+      btn.style.background = 'var(--green-brand)';
+      btn.style.pointerEvents = 'none';
+    }
+    loadKanban(true);
+  } catch(e) {
+    console.warn('[_addCommitteeStakeholderToPipeline]', e);
+    if (btn) btn.disabled = false;
+  }
+}
+function _renderCommitteeCards(stakeholders, out, company, sector, icpScore) {
+  if (!out) return;
+  const roleColor = r => r === 'Sign' ? 'var(--red-soft,#b91c1c)' : r === 'Approve' ? '#b45309' : 'var(--navy)';
+  out.innerHTML = stakeholders.map((s, i) => {
+    const liHtml = s.linkedin_url
+      ? `<a href="${s.linkedin_url}" target="_blank" rel="noopener" style="margin-left:5px;color:var(--fill-accent);text-decoration:none;line-height:1;" title="LinkedIn profile"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg></a>`
+      : '';
+    return `<div style="border:1px solid var(--border);border-radius:var(--radius-md);padding:12px 14px;margin-bottom:10px;background:var(--surface);">
+  <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+    <span style="font-weight:700;font-size:var(--fs-sm);">${s.name ? _esc(s.name) : '<span style="color:var(--muted);">Unknown</span>'}</span>
+    ${liHtml}
+    <span style="margin-left:auto;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;color:#fff;background:${roleColor(s.role)};">${_esc(s.role||'')}</span>
+  </div>
+  <div style="font-size:var(--fs-xs);color:var(--text-secondary);margin-bottom:6px;">${_esc(s.title||'')}</div>
+  <div style="font-size:var(--fs-xs);color:var(--text);margin-bottom:3px;"><strong>Concern:</strong> ${_esc(s.concern||'')}</div>
+  <div style="font-size:var(--fs-xs);color:var(--text);margin-bottom:8px;"><strong>Approach:</strong> ${_esc(s.approach||'')}</div>
+  <button class="sh-add-btn" data-idx="${i}" style="font-size:var(--fs-xs);padding:5px 10px;border-radius:var(--radius-sm);background:var(--navy);color:#fff;border:none;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:5px;">
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg> Add to pipeline
+  </button>
+</div>`;
+  }).join('');
+  out.querySelectorAll('.sh-add-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const s = stakeholders[+btn.dataset.idx];
+      _addCommitteeStakeholderToPipeline(s, company, sector, icpScore, btn);
+    });
+  });
+}
+async function _resolveLinkedInUrls(stakeholders, company) {
+  const _liRx = /https?:\/\/[^\s"']*linkedin\.com\/in\/[^"'\s<>]+/i;
+  await Promise.all(stakeholders.map(async s => {
+    if (s.linkedin_url) return;
+    const q = (s.name || '') + ' ' + company + ' linkedin profile';
+    try {
+      const r = await fetch('/api/web-search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ max_tokens: 200, messages: [{ role: 'user', content: q }] })
+      });
+      if (!r.ok) return;
+      const d = await r.json();
+      const fromCitations = Array.isArray(d.citations)
+        ? d.citations.find(u => _liRx.test(u))
+        : null;
+      if (fromCitations) { s.linkedin_url = fromCitations.replace(/[.,;)>]+$/, ''); return; }
+      const text = d.choices?.[0]?.message?.content || '';
+      const m = text.match(_liRx);
+      if (m) s.linkedin_url = m[0].replace(/[.,;)>]+$/, '');
+    } catch (_) {}
+  }));
 }
 async function _addScannerToPipeline() {
   const d = window._scannerAddData;
@@ -7416,7 +7507,6 @@ async function _scannerMapCommittee() {
   const company = (document.getElementById('scanner-company')?.value || '').trim();
   const sector  = (document.getElementById('scanner-sector')?.value  || 'unspecified sector').trim();
   if (!company) { showToast('Enter a company name in Scanner first'); return; }
-  const p = { company, sector, country: '', region: '', title: '' };
   const btn  = document.getElementById('scanner-committee-btn');
   const out  = document.getElementById('scanner-committee-output');
   const spin = document.getElementById('scanner-committee-spinner');
@@ -7443,7 +7533,8 @@ async function _scannerMapCommittee() {
 
   if (out) out.textContent = 'Mapping committee...';
 
-  const stakeholderPrompt = liveBlock + '\nYou are a B2B sales strategist.\nMap the typical buying committee for ' + company + ' (' + sector + ', EMEA), a company that operates in B2B.\n\nPRIORITY: if the LIVE CONTEXT names real executives (CEO, CRO, VP, Head of, etc.), use their actual names. Fall back to typical roles ONLY if no named individuals appear in the live context. Never use generic corporate titles.\n\nIdentify 3 to 5 stakeholders involved in a GTM decision. Format each as a ## section header (e.g. ## Jean Martin - VP of Revenue, or ## VP of Revenue if no name found), followed by:\n- Concern: their main concern in this decision\n- Role: Influence, Approve, or Sign\n- Approach: one sentence on how to engage them\n\nBe specific to ' + sector + ' and ' + company + ' size. No generic corporate language.';
+  const _icpScore = (() => { const el = document.getElementById('sc-total'); const t = el?.textContent || ''; const n = parseFloat(t); return isNaN(n) ? null : n; })();
+  const stakeholderPrompt = liveBlock + '\nYou are a B2B sales strategist mapping the buying committee for ' + company + ' (' + sector + ').\n\nReturn a JSON array of 3-5 stakeholders. Each object must have exactly these fields:\n- "name": real name from live context, or null if not found\n- "title": job title\n- "concern": their main concern in a GTM decision\n- "role": exactly one of "Influence", "Approve", or "Sign"\n- "approach": one sentence on how to engage them\n- "linkedin_url": their LinkedIn URL if found in context, else null\n\nPRIORITY: use real names from LIVE CONTEXT if available. Return ONLY valid JSON array, no other text:\n[{"name":"...","title":"...","concern":"...","role":"Influence|Approve|Sign","approach":"...","linkedin_url":"...or null"}]';
 
   try {
     const res = await fetch(API_URL, {
@@ -7453,10 +7544,18 @@ async function _scannerMapCommittee() {
     if (!res.ok) throw new Error('API error ' + res.status);
     const data = await res.json();
     let text = Array.isArray(data.content)
-      ? data.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim()
+      ? data.content.filter(b => b.type === 'text').map(b => b.text).join('').trim()
       : '';
-    text = text.replace(/--/g, '.').replace(/—/g, '.');
-    if (out) out.innerHTML = renderMarkdown(text || 'No result.');
+    text = text.replace(/```json\s*/i, '').replace(/```\s*$/, '').trim();
+    const _m = text.match(/\[[\s\S]*\]/);
+    let stakeholders = [];
+    try { stakeholders = _m ? JSON.parse(_m[0]) : []; } catch(e) {}
+    if (!Array.isArray(stakeholders) || stakeholders.length === 0) {
+      if (out) out.textContent = 'Could not parse committee response. Try again.';
+    } else {
+      await _resolveLinkedInUrls(stakeholders, company);
+      _renderCommitteeCards(stakeholders, out, company, sector, _icpScore);
+    }
   } catch(e) {
     console.warn('[_scannerMapCommittee]', e);
     if (out) out.textContent = 'Error generating stakeholder map.';
@@ -7495,7 +7594,7 @@ async function _mapStakeholders() {
 
   if (out) out.textContent = 'Mapping committee...';
 
-  const stakeholderPrompt = liveBlock + '\nYou are a B2B sales strategist.\nMap the typical buying committee for ' + p.company + ' (' + (p.sector||'B2B') + ', ' + (p.country||p.region||'EMEA') + '), a company that ' + (p.title ? 'is led by a ' + p.title : 'operates in B2B') + '.\n\nPRIORITY: if the LIVE CONTEXT names real executives (CEO, CRO, VP, Head of, etc.), use their actual names. Fall back to typical roles ONLY if no named individuals appear in the live context. Never use generic corporate titles.\n\nIdentify 3 to 5 stakeholders involved in a GTM decision. Format each as a ## section header (e.g. ## Jean Martin - VP of Revenue, or ## VP of Revenue if no name found), followed by:\n- Concern: their main concern in this decision\n- Role: Influence, Approve, or Sign\n- Approach: one sentence on how to engage them\n\nBe specific to ' + (p.sector||'B2B') + ' and ' + p.company + ' size. No generic corporate language.';
+  const stakeholderPrompt = liveBlock + '\nYou are a B2B sales strategist mapping the buying committee for ' + p.company + ' (' + (p.sector||'B2B') + ', ' + (p.country||p.region||'EMEA') + ').\n\nReturn a JSON array of 3-5 stakeholders. Each object must have exactly these fields:\n- "name": real name from live context, or null if not found\n- "title": job title\n- "concern": their main concern in a GTM decision\n- "role": exactly one of "Influence", "Approve", or "Sign"\n- "approach": one sentence on how to engage them\n- "linkedin_url": their LinkedIn URL if found in context, else null\n\nPRIORITY: use real names from LIVE CONTEXT if available. Return ONLY valid JSON array, no other text:\n[{"name":"...","title":"...","concern":"...","role":"Influence|Approve|Sign","approach":"...","linkedin_url":"...or null"}]';
 
   try {
     const res = await fetch(API_URL, {
@@ -7505,10 +7604,18 @@ async function _mapStakeholders() {
     if (!res.ok) throw new Error('API error ' + res.status);
     const data = await res.json();
     let text = Array.isArray(data.content)
-      ? data.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim()
+      ? data.content.filter(b => b.type === 'text').map(b => b.text).join('').trim()
       : '';
-    text = text.replace(/--/g, '.').replace(/—/g, '.');
-    if (out) out.innerHTML = renderMarkdown(text || 'No result.');
+    text = text.replace(/```json\s*/i, '').replace(/```\s*$/, '').trim();
+    const _m = text.match(/\[[\s\S]*\]/);
+    let stakeholders = [];
+    try { stakeholders = _m ? JSON.parse(_m[0]) : []; } catch(e) {}
+    if (!Array.isArray(stakeholders) || stakeholders.length === 0) {
+      if (out) out.textContent = 'Could not parse committee response. Try again.';
+    } else {
+      await _resolveLinkedInUrls(stakeholders, p.company);
+      _renderCommitteeCards(stakeholders, out, p.company, p.sector||'B2B', p.icp_score||null);
+    }
   } catch(e) {
     console.warn('[_mapStakeholders]', e);
     if (out) out.textContent = 'Error generating stakeholder map.';
