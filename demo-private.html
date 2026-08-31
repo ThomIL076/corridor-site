@@ -5039,6 +5039,8 @@ const TOUCH_NEXT_STAGE = { invite:'1st Contact', j0:'Engaged', j5:'Engaged' };
 let _sendProspects = [];
 let _sendSequences = {};
 let _sendJ5Sent = {};
+let _refProfileCache = null;
+let _refProfileFetched = false;
 let _manualPid = null;
 let _manualTouch = null;
 let _drawerSendPid = null;
@@ -5479,6 +5481,35 @@ function _interpretSignal(raw) {
   return raw.replace(/<a\s[^>]*>([^<]*)<\/a>/gi, '$1').replace(/<[^>]*>/g, '').trim();
 }
 
+async function _humanConnectionPoint(prospect) {
+  if (!_refProfileFetched) {
+    const { data: ref } = await sbClient.from('reference_profiles')
+      .select('languages,companies,country').eq('client_id', CLIENT_ID)
+      .maybeSingle();
+    _refProfileCache = ref || null;
+    _refProfileFetched = true;
+  }
+  const ref = _refProfileCache;
+  if (!ref) return null;
+
+  const pLangs = (prospect.languages || []).map(l => l.trim().toLowerCase());
+  const rLangs = (ref.languages || []).map(l => l.trim().toLowerCase());
+  const sharedLang = pLangs.find(l => l !== 'english' && rLangs.includes(l));
+  if (sharedLang) return { type: 'language', value: sharedLang.charAt(0).toUpperCase() + sharedLang.slice(1) };
+
+  const pCompanies = (prospect.past_companies || []).map(c => c.trim().toLowerCase());
+  const rCompanies = (ref.companies || []).map(c => c.trim().toLowerCase());
+  const sharedCoIdx = pCompanies.findIndex(c => rCompanies.includes(c));
+  if (sharedCoIdx !== -1) return { type: 'company', value: (prospect.past_companies || [])[sharedCoIdx].trim() };
+
+  if (prospect.country && ref.country &&
+      prospect.country.trim().toLowerCase() === ref.country.trim().toLowerCase()) {
+    return { type: 'country', value: prospect.country.trim() };
+  }
+
+  return null;
+}
+
 async function _generateSequenceMessage(pid, touch, forceGenerate = false, elPrefix = '') {
   const p = _sendProspects.find(x => x.id === pid) || _prospectsById[pid];
   if (!p) return;
@@ -5717,6 +5748,14 @@ ${langRule}
     (touch === 'j0' || touch === 'invite') ? `\nSTORED SIGNAL (detected and saved in database):\n"${_sig}"\nSignal type: ${p.signal_type || 'unclassified'}${p.signal_date ? '\nSignal date: ' + p.signal_date : ' (date unknown)'}\n\nBEFORE USING THIS SIGNAL, CLASSIFY IT:\n(a) a specific, dated event -- funding round, hire, product launch, expansion, explicit decision\n(b) generic activity -- LinkedIn engagement, general posting activity, no specific event or date\n\nPRIORITY RULE -- when both STORED SIGNAL and LIVE CONTEXT (below) are present:\n- Compare their recency: stored signal date vs. events mentioned in LIVE CONTEXT\n- Lead with the MORE RECENT of the two as your opening hook -- do NOT default to either source systematically\n- If LIVE CONTEXT contains a more recent specific event, prefer it even if the stored signal is type (a)\n- If stored signal is more recent, or LIVE CONTEXT is thin/generic, lead with the stored signal\n- If only one source is present, use it\n\nIf (a) and leading with stored signal: use the signal date as timing justification (e.g. "I saw that last [month]...")\nIf (b): use stored signal only as a soft opener; rely on LIVE CONTEXT for substance. If LIVE CONTEXT is also empty, write a short neutral message.\n\nRULES:\n- Total message under 75 words\n- NO closing line, NO signature, NO Corridor mention, NO URL.\n` :
     touch === 'j5' ? `\nORIGINAL SIGNAL CONTEXT (do NOT repeat this angle -- build a new one):\nSignal: "${_sig}"${p.signal_date ? '\nSignal date: ' + p.signal_date : ''}\nJ+0 was sent based on this signal. J+5 must introduce a completely different angle.\nUse what you know about the company/person to find a second hook that is equally specific.\nNever use: "following up", "checking in", "touching base", "just wanted to".\n` : ''
   ) : '';
+  const _hcp = (touch === 'invite') ? await _humanConnectionPoint(p) : null;
+  const hcpBlock = _hcp
+    ? (_hcp.type === 'language'
+        ? `\nOPTIONAL HUMAN CONNECTION POINT (use ONLY if it fits naturally in one of your two sentences without forcing it — otherwise ignore completely): You and the sender both speak ${_hcp.value}.\n`
+      : _hcp.type === 'company'
+        ? `\nOPTIONAL HUMAN CONNECTION POINT (use ONLY if it fits naturally in one of your two sentences without forcing it — otherwise ignore completely): You and the sender both have a background at ${_hcp.value}.\n`
+        : `\nOPTIONAL HUMAN CONNECTION POINT (use ONLY if it fits naturally in one of your two sentences without forcing it — otherwise ignore completely): You and the sender are both based in ${_hcp.value}.\n`)
+    : '';
   const prompt = ambassadorPrompt || redirectPrompt || (isInvestor && investorPrompts[touch]
     ? investorPrompts[touch]
     : `Write ${touchDescriptions[touch]||'a LinkedIn outreach message'} for this prospect.
@@ -5725,7 +5764,7 @@ Prospect: ${p.name}, ${p.title||'unknown title'} at ${p.company}${(p.sector || p
 ${intCtx ? 'Recent interactions: ' + intCtx : ''}
 ${_senderBio()}
 ${_activeMandate ? 'ACTIVE MANDATE CONTEXT (defines the purpose of every message; the signal below informs the angle but must not contradict this mandate):' + '\n' + _mandateContext() + '\n---\n' : ''}
-${liveBlock}${personBlock}${prevMsgBlock}${inviteBlock}${originBlock}${memoryBlock}${touch === 'invite' ? `CRITICAL INVITE RULE (non-negotiable): LinkedIn connection request. STRUCTURE: one factual observation (max 15 words) + one short question (max 10 words) + sign off "Thomas" on its own line. TOTAL under 200 characters. NO greeting. NO Corridor. NO URL. NO closing line. NO "Sent via". Output ONLY the 2-sentence message + Thomas, nothing else.` : ''}\nRules: NEVER use em-dashes (—) in any message, replace with a period or comma. No bullet points. No mention of "Alliance Grid" or "Corridor" in the main message body (sentences 1 and 2 only -- the mandatory closing line appended below is the only exception and must be reproduced exactly as given). ${langRule} Replace every vague claim with something specific and provable. Never write 'I help companies grow' or 'I drive results'. Write what you actually observed about this company and why it is relevant right now.${(touch === 'invite' || touch === 'j0') ? ' Strip all marketing language. No buzzwords, no value propositions, no product claims. Rewrite as a text a peer would send to another peer -- direct, human, zero corporate tone.' : ''} NEVER claim or imply that the prospect asked a question, made a specific statement, or expressed a specific interest unless that exact information is explicitly given in the prompt -- if no such detail is provided, do not invent one. NEVER state or imply a specific niche focus for the sender (e.g. a named industry, a named type of deal) that is not listed in their background above. NEVER use generic AI-sounding filler phrases (e.g. "passionate about", "excited to connect", "love what you're building") -- ground every claim in a real fact from the sender's background above or the prospect's own title/company/signal. NEVER open with false familiarity — "I've been following your work", "I've been following your journey", "I came across your profile", "I noticed your work", and all variants are prohibited: they imply sustained prior attention that did not exist and collapse under any verification question from the prospect. Output the message only, no preamble.${touch === 'j5' ? '\n\nFOLLOW-UP TONE RULES (mandatory):\n- NEVER use: "follow up", "following up", "checking in", "touching base", "circling back", "just wanted to", "I wanted to reach out", "hope this finds you well"\n- Do NOT open with a reference to the previous message (e.g. "I sent you a note last week")\n- Write as if continuing a conversation, not tracking an unanswered message\n- Introduce a NEW angle, observation, or question — never repeat the idea from the previous message\n- Conversational tone: peer to peer, not vendor to prospect\n- j5: one specific observation or question that opens a thread — no CTA harder than "thoughts?" or "does this resonate?"\n- The closing question must be different from the J+0 question. Never use "Curious what the growth focus looks like" or any variation of it.\n- Previous message sent: "' + (intCtx || 'not available') + '" — do not repeat its angle, observation, or closing question.' : ''}${j0LinkedInNote}${j0CtaNote}${j0NoContextNote}${stealthBlock}${signalBlock}`);
+${liveBlock}${personBlock}${prevMsgBlock}${inviteBlock}${originBlock}${memoryBlock}${touch === 'invite' ? `CRITICAL INVITE RULE (non-negotiable): LinkedIn connection request. STRUCTURE: one factual observation (max 15 words) + one short question (max 10 words) + sign off "Thomas" on its own line. TOTAL under 200 characters. NO greeting. NO Corridor. NO URL. NO closing line. NO "Sent via". Output ONLY the 2-sentence message + Thomas, nothing else.` : ''}\nRules: NEVER use em-dashes (—) in any message, replace with a period or comma. No bullet points. No mention of "Alliance Grid" or "Corridor" in the main message body (sentences 1 and 2 only -- the mandatory closing line appended below is the only exception and must be reproduced exactly as given). ${langRule} Replace every vague claim with something specific and provable. Never write 'I help companies grow' or 'I drive results'. Write what you actually observed about this company and why it is relevant right now.${(touch === 'invite' || touch === 'j0') ? ' Strip all marketing language. No buzzwords, no value propositions, no product claims. Rewrite as a text a peer would send to another peer -- direct, human, zero corporate tone.' : ''} NEVER claim or imply that the prospect asked a question, made a specific statement, or expressed a specific interest unless that exact information is explicitly given in the prompt -- if no such detail is provided, do not invent one. NEVER state or imply a specific niche focus for the sender (e.g. a named industry, a named type of deal) that is not listed in their background above. NEVER use generic AI-sounding filler phrases (e.g. "passionate about", "excited to connect", "love what you're building") -- ground every claim in a real fact from the sender's background above or the prospect's own title/company/signal. NEVER open with false familiarity — "I've been following your work", "I've been following your journey", "I came across your profile", "I noticed your work", and all variants are prohibited: they imply sustained prior attention that did not exist and collapse under any verification question from the prospect. Output the message only, no preamble.${touch === 'j5' ? '\n\nFOLLOW-UP TONE RULES (mandatory):\n- NEVER use: "follow up", "following up", "checking in", "touching base", "circling back", "just wanted to", "I wanted to reach out", "hope this finds you well"\n- Do NOT open with a reference to the previous message (e.g. "I sent you a note last week")\n- Write as if continuing a conversation, not tracking an unanswered message\n- Introduce a NEW angle, observation, or question — never repeat the idea from the previous message\n- Conversational tone: peer to peer, not vendor to prospect\n- j5: one specific observation or question that opens a thread — no CTA harder than "thoughts?" or "does this resonate?"\n- The closing question must be different from the J+0 question. Never use "Curious what the growth focus looks like" or any variation of it.\n- Previous message sent: "' + (intCtx || 'not available') + '" — do not repeat its angle, observation, or closing question.' : ''}${j0LinkedInNote}${j0CtaNote}${j0NoContextNote}${stealthBlock}${signalBlock}${hcpBlock}`);
   console.log('[gen] calling Anthropic. touch:', touch, 'prompt chars:', prompt.length);
   try {
     const res = await fetch(API_URL, {
