@@ -3115,21 +3115,13 @@ Language instruction: Write your entire response in ${currentLang === 'fr' ? 'Fr
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 1000, messages: [{ role: 'user', content: _scorePromptText }] })
       });
-      if (!_scoreResp.ok) {
-        const _errBody = await _scoreResp.text().catch(() => '(unreadable)');
-        console.error('[runScanner] score HTTP error', _scoreResp.status, _errBody);
-      }
       const _scoreData = _scoreResp.ok ? await _scoreResp.json() : null;
-      console.error('[runScanner] score raw response:', JSON.stringify(_scoreData));
       if (_scoreData && Array.isArray(_scoreData.content)) {
         const _t = _scoreData.content.filter(b => b.type === 'text').map(b => b.text).join('').trim();
         const _m = _t.match(/\{[\s\S]*\}/);
-        try { _scoreResult = _m ? JSON.parse(_m[0]) : null; } catch(e) { console.error('[runScanner] JSON.parse failed:', e.message, '| raw text:', _t); }
-        if (!_scoreResult) console.error('[runScanner] no match in text:', _t);
-      } else if (_scoreData) {
-        console.error('[runScanner] unexpected structure:', JSON.stringify(_scoreData));
+        try { _scoreResult = _m ? JSON.parse(_m[0]) : null; } catch(e) {}
       }
-    } catch(e) { console.error('[runScanner] score failed (exception):', e); }
+    } catch(e) { console.warn('[runScanner] score failed:', e); }
     if (_scoreResult && _scoreResult.role_score != null) {
       const _composite = _calcComposite(
         _scoreResult.role_score, _scoreResult.size_score, _scoreResult.signal_strength_score,
