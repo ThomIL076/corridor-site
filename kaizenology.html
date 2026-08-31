@@ -2423,12 +2423,37 @@ async function _loadDealOptions(mandateId, dealSel) {
   }
 }
 
+async function _saveFeedCache() {
+  const _sfcId = (activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null;
+  try {
+    await sbClient.from('signals_feed_cache').upsert(
+      { client_id: CLIENT_ID, mandate_id: _sfcId,
+        morning_items: _morningItems, live_items: _liveAlertItems,
+        updated_at: new Date().toISOString() },
+      { onConflict: 'client_id,mandate_id' }
+    );
+  } catch(e) { console.warn('[_saveFeedCache]', e); }
+}
+
+async function _loadFeedCache(mandateId) {
+  try {
+    const _sfcId = (mandateId && mandateId !== '__ALL__') ? mandateId : null;
+    let q = sbClient.from('signals_feed_cache')
+      .select('morning_items, live_items')
+      .eq('client_id', CLIENT_ID);
+    q = _sfcId ? q.eq('mandate_id', _sfcId) : q.is('mandate_id', null);
+    const { data } = await q.maybeSingle();
+    return data || null;
+  } catch(e) { return null; }
+}
+
 async function _onDealChange() {
   const dealSel = document.getElementById('deal-select');
   const val = dealSel ? dealSel.value : '';
   activeDealId = val || null;
   _activeMandate = await _resolveMandate(activeMandateId, activeDealId);
-  _morningItems = []; _liveAlertItems = []; _renderSignalsFeed();
+  { const _fc = await _loadFeedCache(activeMandateId); _morningItems = _fc?.morning_items || []; _liveAlertItems = _fc?.live_items || []; }
+  _renderSignalsFeed();
   loadKanban(true);
   _initHpFilters();
 }
@@ -2476,7 +2501,8 @@ async function _onMandateChange() {
     _activeMandate = null;
     if (_dealSel2) { _dealSel2.innerHTML = '<option value="">No specific deal</option>'; _dealSel2.style.display = 'none'; }
   }
-  _morningItems = []; _liveAlertItems = []; _renderSignalsFeed();
+  { const _fc = await _loadFeedCache(activeMandateId); _morningItems = _fc?.morning_items || []; _liveAlertItems = _fc?.live_items || []; }
+  _renderSignalsFeed();
   loadKanban(true);
   _initHpFilters();
 }
@@ -4866,6 +4892,7 @@ Populate stakeholder_* fields ONLY when new_stakeholder is true; set to null oth
       if (_lastPItem) _lastPItem.linkHtml = `<div style="margin-top:8px;"><a href="${_msLink}" style="color:var(--navy);font-size:var(--fs-sm);text-decoration:underline;">View prospects with signals (${eligibleTotal}) →</a></div>`;
     }
     _renderSignalsFeed();
+    _saveFeedCache();
     if (_topProspectData.length) {
       const _wbNow = new Date().toISOString();
       try {
@@ -4996,6 +5023,7 @@ async function runLiveAlert() {
       };
     });
     _renderSignalsFeed();
+    _saveFeedCache();
   } catch(e) {
     _liveAlertItems = [{ timestamp: new Date().toISOString(), type: 'live', label: 'Error', content: 'Error loading signals.' }];
     _renderSignalsFeed();
@@ -6156,9 +6184,14 @@ async function runWeeklyReport(){
       .from('interactions')
       .select('prospect_id, type, note, created_at')
       .eq('client_id', _wrClientId);
-    _wrIntQuery = _applyMandateFilter(_wrIntQuery);
+    if (activeMandateId === '__ALL__') {
+      if (_clientMandateIds.length > 0)
+        _wrIntQuery = _wrIntQuery.or(`mandate_id.in.(${_clientMandateIds.join(',')}),mandate_id.is.null`);
+    } else if (activeMandateId) {
+      _wrIntQuery = _wrIntQuery.or(`mandate_id.eq.${activeMandateId},mandate_id.is.null`);
+    }
     const { data: ints, error } = await _wrIntQuery
-      .in('type', ['linkedin', 'LinkedIn', 'email', 'call', 'meeting', 'email_j5'])
+      .in('type', ['linkedin', 'LinkedIn', 'email', 'call', 'meeting', 'email_j5', 'note'])
       .gte('created_at', weekStart)
       .order('created_at', { ascending: false })
       .limit(500);
