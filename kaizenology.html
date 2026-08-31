@@ -6358,6 +6358,10 @@ async function openDrawer(card, initialTab = 'activity') {
 
   await _loadSignalTaxonomy();
   const lcStr = lastContact ? _relDate(lastContact) : null;
+  const _hasCachedAction = !!(_p.next_action_cache);
+  const _cachedRendered = _p.next_action_cache
+    ? renderMarkdown(_p.next_action_cache).replace(/([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})/g, '<a href="mailto:$1" style="color:var(--navy);text-decoration:underline">$1</a>')
+    : null;
   document.getElementById('drawer').innerHTML = `
     <div class="drawer-head">
       <div style="flex:1;min-width:0">
@@ -6723,7 +6727,7 @@ async function openDrawer(card, initialTab = 'activity') {
     <div class="dtab-panel" id="dpanel-ai">
       <div class="drawer-section-title" style="margin-bottom:10px">Next action</div>
       <button class="btn-accent" style="width:100%;justify-content:center;margin-bottom:12px"
-        onclick="_drawerAI()" id="drawer-next-btn">▶ Next recommended action</button>
+        onclick="_drawerAI()" id="drawer-next-btn">${_hasCachedAction ? '🔄 Regenerate' : '▶ Next recommended action'}</button>
       <button class="btn-secondary" style="width:100%;justify-content:center;margin-bottom:12px" onclick="_escalateProspect()" id="drawer-escalate-btn">Escalation Handler</button>
   <button class="btn-secondary" style="width:100%;justify-content:center;margin-bottom:12px" onclick="_sendDiscoveryBrief()" id="drawer-discovery-btn">Prepare discovery call</button>
       <div class="ai-box" id="escalate-box" style="display:none">
@@ -6738,7 +6742,7 @@ async function openDrawer(card, initialTab = 'activity') {
           <span class="ai-box-label">Recommended Action</span>
           <div class="ai-spinner" id="drawer-spinner"></div>
         </div>
-        <div class="ai-box-body" id="drawer-output">Click to generate the next step...</div>
+        <div class="ai-box-body${_cachedRendered ? ' loaded' : ''}" id="drawer-output">${_cachedRendered || 'Click to generate the next step...'}</div>
       </div>
       <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--border)">
         <div class="drawer-section-title" style="margin-bottom:14px">Call prep and debrief</div>
@@ -7145,6 +7149,10 @@ async function _drawerAI() {
     .map(i => `${i.type}${i.note ? ': '+i.note.slice(0,80) : ''} (${_relDate(i.created_at)||'recent'})`)
     .join(' | ');
   const rem = p.reminder_date ? _fmtReminder(p.reminder_date)?.label : null;
+  const _fullP = _prospectsById[p.id] || {};
+  const _mandateName = _mandatesById[_fullP.mandate_id]?.name || null;
+  const _signal = _fullP.signal || null;
+  const _signalType = _fullP.signal_type || null;
 
   const [_drLive, _drMemory] = await Promise.all([
     _prefetchWebContext(p.company, p.sector),
@@ -7163,6 +7171,8 @@ ANTI-HALLUCINATION RULES — strictly enforced:
 3. Two calls on the same prospect must produce consistent outputs — never contradict yourself by inventing different facts each time.`;
 
   const userMsg = `Prospect: ${p.name} at ${p.company||'unknown'} (${p.sector||'unknown sector'}). Stage: ${p.stage||'unknown'}. Score: ${p.score||'not set'}.${p.email ? ' Email: ' + p.email + '.' : ''}
+${_mandateName ? 'Mandate: ' + _mandateName + '.' : ''}
+${(_signalType || _signal) ? 'Signal: ' + (_signalType ? '[' + _signalType + '] ' : '') + (_signal ? _signal.replace(/<[^>]*>/g,'').slice(0, 200) : '') : ''}
 ${ctx ? 'Recent interactions: ' + ctx : 'No interactions logged.'}
 ${rem ? 'Next reminder: ' + rem : ''}
 ${_drMemory ? '\nPROSPECT MEMORY:\n' + _drMemory : ''}
@@ -7202,6 +7212,14 @@ ${typeof _langLine === 'function' ? _langLine() : ''}`;
       _drOut.innerHTML = _rendered;
       _drOut.classList.add('loaded');
     }
+    sbClient.from('prospects').update({
+      next_action_cache: text,
+      next_action_generated_at: new Date().toISOString()
+    }).eq('id', p.id).eq('client_id', CLIENT_ID).catch(console.error);
+    p.next_action_cache = text;
+    p.next_action_generated_at = new Date().toISOString();
+    const _memP = _prospectsById[p.id];
+    if (_memP) { _memP.next_action_cache = text; _memP.next_action_generated_at = new Date().toISOString(); }
   } catch(e) {
     if (_drOut) _drOut.textContent = 'Error: ' + e.message;
   } finally {
@@ -10333,7 +10351,7 @@ async function loadKanban(force){
     while (true) {
       let _kQuery = sbClient
         .from('prospects')
-        .select('id, name, company, title, sector, region, country, stage, linkedin, email, phone, deal_value, deal_currency, deal_structure, deal_weighted, notes, last_contact, reminder_date, icp_score, icp_reason, archived, client_id, linkedin_tag, origin, signal, signal_type, signal_interpretation, signal_date, created_at, draft_invite_note, company_size, next_action, next_action_date, score_signal_strength, score_growth, signal_url, mandate_id, website_url, funding_stage, last_funding_date, total_funding, additional_contacts, import_source')
+        .select('id, name, company, title, sector, region, country, stage, linkedin, email, phone, deal_value, deal_currency, deal_structure, deal_weighted, notes, last_contact, reminder_date, icp_score, icp_reason, archived, client_id, linkedin_tag, origin, signal, signal_type, signal_interpretation, signal_date, created_at, draft_invite_note, company_size, next_action, next_action_date, score_signal_strength, score_growth, signal_url, mandate_id, website_url, funding_stage, last_funding_date, total_funding, additional_contacts, import_source, next_action_cache, next_action_generated_at')
         .eq('client_id', CLIENT_ID);
       _kQuery = _applyMandateFilter(_kQuery);
       const { data: chunk, error } = await _kQuery
