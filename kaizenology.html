@@ -1124,6 +1124,9 @@ body.new-nav { padding-left: 220px; }
     <span class="snav-logo-text">CORRIDOR</span>
   </div>
   <div class="snav-section">
+    <button class="snav-item" data-nav="priorities" onclick="_switchNewNav('priorities')">
+      <span class="snav-icon">⭐</span> Priorities
+    </button>
     <button class="snav-item" data-nav="pipeline" onclick="_switchNewNav('pipeline')">
       <span class="snav-icon">📊</span> Pipeline
     </button>
@@ -1488,6 +1491,20 @@ body.new-nav { padding-left: 220px; }
           <button class="btn-primary" onclick="sendAgent('objection')" id="btn-objection">Send</button>
         </div><button onclick="clearAgent('objection')" style="font-size:var(--fs-micro);color:var(--muted);background:none;border:none;cursor:pointer;text-decoration:underline;margin:6px 0 0 2px">Clear conversation</button>
       </div>
+    </div>
+  </div>
+
+  <!-- ══ TAB: PRIORITIES VIEW ══ -->
+  <div class="tab-panel" id="tab-priorities">
+    <div style="padding:24px 16px 0;max-width:800px;margin:0 auto;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+        <h2 style="font-size:var(--fs-lg);font-weight:700;color:var(--navy);margin:0;">Today's Priorities</h2>
+        <button id="priorities-next-btn" onclick="_prioritiesNext()" disabled
+          style="padding:8px 18px;border-radius:var(--radius-pill);background:var(--navy);color:#fff;border:none;font-size:var(--fs-sm);font-weight:600;cursor:pointer;opacity:0.4;">
+          Next batch →
+        </button>
+      </div>
+      <div id="priorities-container"></div>
     </div>
   </div>
 
@@ -2237,8 +2254,8 @@ function _closeSnav() {
 
 document.addEventListener('DOMContentLoaded', function() {
   document.body.classList.add('new-nav');
-  switchTab('pipeline');
-  _newNavActive('pipeline');
+  switchTab('priorities');
+  _newNavActive('priorities');
 });
 
 function _syncNavHeight() {
@@ -2691,6 +2708,7 @@ function switchTab(name, fromClick = false) {
   if (btn && btn.scrollIntoView) btn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
   if (name === 'pipeline') { const sh = document.getElementById('kanban-swipe-hint'); if (sh) { sh.style.opacity = '1'; setTimeout(() => { sh.style.opacity = '0'; }, 3000); } }
   if (name === 'send') loadSendView();
+  if (name === 'priorities') loadDailyPriorities();
   if (name === 'stats') { if (!_kanbanLoaded) { loadKanban().then(() => renderStats()); } else { renderStats(); } }
   if (name === 'clients') loadClientsKanban();
   if (name === 'integrations') loadIntegrationsTab();
@@ -7233,6 +7251,231 @@ async function _drawerAI() {
     if (spinner) spinner.classList.remove('active');
     if (btn) btn.disabled = false;
   }
+}
+
+let _priorityCurrentBatch = 1;
+let _priorityShownProspects = [];
+
+async function loadDailyPriorities() {
+  const container = document.getElementById('priorities-container');
+  if (!container) return;
+  container.innerHTML = '<div style="padding:32px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">Loading priorities…</div>';
+
+  try {
+    const _pbMandateId = (activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null;
+    let batchQ = sbClient.from('priority_batches').select('current_batch').eq('client_id', CLIENT_ID);
+    batchQ = _pbMandateId ? batchQ.eq('mandate_id', _pbMandateId) : batchQ.is('mandate_id', null);
+    const { data: batchData } = await batchQ.maybeSingle();
+    _priorityCurrentBatch = batchData ? Math.max(batchData.current_batch, 1) : 1;
+
+    let N = 10;
+    if (activeMandateId && activeMandateId !== '__ALL__') {
+      const { data: mdata } = await sbClient
+        .from('mandates').select('daily_priority_count')
+        .eq('id', activeMandateId).single();
+      if (mdata?.daily_priority_count) N = mdata.daily_priority_count;
+    }
+
+    const COLS = 'id,name,company,sector,icp_score,score_signal_strength,signal,signal_type,signal_date,mandate_id,stage,next_action_cache,next_action_generated_at,priority_batch_number,last_priority_shown_at,email,reminder_date,last_contact';
+
+    let qA = sbClient.from('prospects').select(COLS)
+      .eq('client_id', CLIENT_ID).eq('archived', false)
+      .neq('stage', 'Proposal').neq('stage', 'Closed').neq('stage', 'Archived')
+      .order('icp_score', { ascending: false }).limit(75);
+    qA = _applyMandateFilter(qA);
+
+    let qB = sbClient.from('prospects').select(COLS)
+      .eq('client_id', CLIENT_ID).eq('archived', false)
+      .neq('stage', 'Proposal').neq('stage', 'Closed').neq('stage', 'Archived')
+      .order('score_signal_strength', { ascending: false }).limit(75);
+    qB = _applyMandateFilter(qB);
+
+    const [{ data: rowsA, error: errA }, { data: rowsB, error: errB }] = await Promise.all([qA, qB]);
+    if (errA) throw errA;
+    if (errB) throw errB;
+
+    const seen = new Set();
+    const merged = [];
+    for (const p of [...(rowsA || []), ...(rowsB || [])]) {
+      if (!seen.has(p.id)) { seen.add(p.id); merged.push(p); }
+    }
+
+    function _priDecay(d) {
+      if (!d) return 0.05;
+      const days = (Date.now() - new Date(d).getTime()) / 86400000;
+      if (days <= 2) return 1.0;
+      if (days <= 7) return 0.8;
+      if (days <= 14) return 0.5;
+      if (days <= 30) return 0.2;
+      return 0.05;
+    }
+    merged.forEach(p => {
+      p._combinedScore = (p.icp_score || 0) * 0.7
+        + ((p.score_signal_strength || 0) * _priDecay(p.signal_date)) * 0.3;
+    });
+    merged.sort((a, b) => b._combinedScore - a._combinedScore);
+
+    const eligible = merged.filter(p => (p.priority_batch_number || 0) === 0);
+    _priorityShownProspects = eligible.slice(0, N);
+    _priorityShownProspects.forEach(p => { if (!_prospectsById[p.id]) _prospectsById[p.id] = p; });
+
+    _renderPriorityCards(_priorityShownProspects);
+    _updatePrioritiesNextBtn();
+
+  } catch(e) {
+    if (container) container.innerHTML =
+      `<div style="padding:32px;text-align:center;color:var(--muted);">Error: ${e.message}</div>`;
+  }
+}
+
+function _renderPriorityCards(prospects) {
+  const container = document.getElementById('priorities-container');
+  if (!container) return;
+
+  if (!prospects.length) {
+    container.innerHTML =
+      '<div style="padding:40px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">' +
+      'No eligible prospects in this batch. Click "Next batch" to continue.</div>';
+    const btn = document.getElementById('priorities-next-btn');
+    if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+    return;
+  }
+
+  container.innerHTML = prospects.map(p => {
+    const scoreVal = (p.icp_score || 0).toFixed(1);
+    const signalHtml = p.signal
+      ? `<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:4px;line-height:1.4;">`
+        + (p.signal_type ? `<span style="font-weight:600;color:var(--indigo);">[${_esc(p.signal_type)}]</span> ` : '')
+        + _esc(p.signal.replace(/<[^>]*>/g, '').slice(0, 160))
+        + `</div>`
+      : '';
+    const cachedRendered = p.next_action_cache
+      ? renderMarkdown(p.next_action_cache).replace(
+          /([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})/g,
+          '<a href="mailto:$1" style="color:var(--navy);text-decoration:underline">$1</a>'
+        )
+      : null;
+    const actionHtml = cachedRendered
+      ? `<div class="pri-action loaded" id="pri-action-${p.id}"
+           style="margin-top:12px;font-size:var(--fs-sm);line-height:1.65;color:var(--navy);">${cachedRendered}</div>`
+      : `<div class="pri-action" id="pri-action-${p.id}" style="margin-top:12px;">
+           <button id="pri-gen-${p.id}" onclick="_priorityGenerate('${p.id}')"
+             style="padding:6px 14px;font-size:var(--fs-xs);border-radius:var(--radius-pill);
+                    background:var(--navy);color:#fff;border:none;cursor:pointer;font-weight:600;">
+             Generate
+           </button>
+         </div>`;
+
+    return `<div class="priority-card" data-id="${p.id}"
+        style="background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius-md);
+               padding:18px 20px;margin-bottom:12px;">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+        <div style="min-width:0;flex:1;">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <button onclick="_openDrawerFromPriority('${p.id}')"
+              style="background:none;border:none;padding:0;cursor:pointer;font-weight:700;
+                     font-size:var(--fs-base);color:var(--navy);text-decoration:underline;text-align:left;">
+              ${_esc(p.name || '—')}
+            </button>
+            <span style="font-size:var(--fs-sm);color:var(--muted);">${_esc(p.company || '—')}</span>
+            ${p.sector ? `<span style="font-size:var(--fs-xs);font-weight:600;padding:2px 8px;
+              background:var(--chip-bg);border-radius:var(--radius-pill);color:var(--indigo);">
+              ${_esc(p.sector)}</span>` : ''}
+          </div>
+          ${signalHtml}
+        </div>
+        <div style="text-align:right;flex-shrink:0;">
+          <div style="font-size:var(--fs-base);font-weight:700;color:var(--navy);">${scoreVal}</div>
+          <div style="font-size:var(--fs-xs);color:var(--muted);">ICP</div>
+        </div>
+      </div>
+      ${actionHtml}
+    </div>`;
+  }).join('');
+}
+
+async function _priorityGenerate(prospectId) {
+  const btn = document.getElementById('pri-gen-' + prospectId);
+  const actionDiv = document.getElementById('pri-action-' + prospectId);
+  const p = _prospectsById[prospectId];
+  if (!p || !actionDiv) return;
+  if (btn) { btn.disabled = true; btn.textContent = 'Generating…'; }
+
+  try {
+    const { data: ints } = await sbClient.from('interactions')
+      .select('id,type,note,created_at').eq('prospect_id', prospectId)
+      .order('created_at', { ascending: false }).limit(30);
+    _drawerInteractions = ints || [];
+  } catch(_) { _drawerInteractions = []; }
+
+  try {
+    const text = await _generateNextAction({ ...p, score: p.icp_score });
+    const rendered = renderMarkdown(text).replace(
+      /([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})/g,
+      '<a href="mailto:$1" style="color:var(--navy);text-decoration:underline">$1</a>'
+    );
+    actionDiv.innerHTML = rendered;
+    actionDiv.classList.add('loaded');
+    if (_prospectsById[prospectId]) _prospectsById[prospectId].next_action_cache = text;
+    const sp = _priorityShownProspects.find(x => x.id === prospectId);
+    if (sp) sp.next_action_cache = text;
+    _updatePrioritiesNextBtn();
+  } catch(e) {
+    actionDiv.innerHTML = `<span style="color:var(--muted);font-size:var(--fs-xs);">Error: ${e.message}</span>`;
+    if (btn) { btn.disabled = false; btn.textContent = 'Generate'; }
+  }
+}
+
+function _openDrawerFromPriority(prospectId) {
+  const p = _prospectsById[prospectId];
+  if (!p) return;
+  const fakeCard = document.createElement('div');
+  fakeCard.dataset.id = p.id;
+  fakeCard.dataset.lastContact = p.last_contact || '';
+  fakeCard.dataset.reminderDate = p.reminder_date || '';
+  fakeCard.dataset.clientId = CLIENT_ID;
+  fakeCard.innerHTML =
+    `<span class="k-card-name">${_esc(p.name || '')}</span>` +
+    `<span class="k-card-company">${_esc(p.company || '')}</span>`;
+  openDrawer(fakeCard, 'activity');
+}
+
+function _updatePrioritiesNextBtn() {
+  const btn = document.getElementById('priorities-next-btn');
+  if (!btn) return;
+  if (!_priorityShownProspects.length) {
+    btn.disabled = false; btn.style.opacity = '1'; return;
+  }
+  const allActionable = _priorityShownProspects.every(p =>
+    (p.stage && p.stage !== 'Identified') || !!p.last_contact
+  );
+  btn.disabled = !allActionable;
+  btn.style.opacity = allActionable ? '1' : '0.4';
+}
+
+async function _prioritiesNext() {
+  const btn = document.getElementById('priorities-next-btn');
+  if (btn) { btn.disabled = true; btn.style.opacity = '0.4'; }
+
+  const newBatch = _priorityCurrentBatch + 1;
+  const shownIds = _priorityShownProspects.map(p => p.id);
+  const _pbMandateId = (activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null;
+
+  try {
+    if (shownIds.length) {
+      await sbClient.from('prospects')
+        .update({ priority_batch_number: newBatch })
+        .in('id', shownIds).eq('client_id', CLIENT_ID);
+    }
+    await sbClient.from('priority_batches').upsert(
+      { client_id: CLIENT_ID, mandate_id: _pbMandateId, current_batch: newBatch, updated_at: new Date().toISOString() },
+      { onConflict: 'client_id,mandate_id' }
+    );
+  } catch(e) {
+    console.error('[_prioritiesNext] batch advance failed:', e.message);
+  }
+
+  await loadDailyPriorities();
 }
 
 async function _sendDiscoveryBrief() {
