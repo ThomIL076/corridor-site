@@ -3129,7 +3129,8 @@ Language instruction: Write your entire response in ${currentLang === 'fr' ? 'Fr
       );
       document.getElementById('sc-total').textContent = _composite.toFixed(1) + '/10';
     } else {
-      document.getElementById('sc-total').textContent = '—';
+      const _stEl = document.getElementById('sc-total');
+      if (_stEl) { _stEl.textContent = 'Failed'; _stEl.title = 'Scoring failed — check console'; }
     }
   }
   document.getElementById('scanner-btn').disabled = false;
@@ -6442,7 +6443,8 @@ async function openDrawer(card, initialTab = 'activity') {
   const reminderDate = card.dataset.reminderDate || null;
   const clientId     = card.dataset.clientId     || CLIENT_ID;
 
-  _scannerPreFill = { company: (_p.company || '').trim() || company.split('·')[0].trim(), sector };
+  _scannerPreFill = { company: (_p.company || '').trim() || company.split('·')[0].trim(), sector,
+                     icp_score: (_p.icp_score != null && Number(_p.icp_score) > 0) ? Number(_p.icp_score) : null };
   _drawerProspect = { id:prospectId, name, company, score, sector, stage,
                       last_contact:lastContact, reminder_date:reminderDate, client_id:clientId };
 
@@ -6936,6 +6938,13 @@ function openScannerPanel(source) {
     const _set = (id, v) => { const el = document.getElementById(id); if (el && v) el.value = v; };
     _set('scanner-company', ctx.company);
     _set('scanner-sector', ctx.sector);
+    if (ctx.icp_score != null) {
+      const _sg = document.getElementById('scanner-score-grid');
+      const _st = document.getElementById('sc-total');
+      if (_sr) _sr.style.display = 'block';
+      if (_sg) _sg.style.display = '';
+      if (_st) { _st.textContent = ctx.icp_score + '/10'; _st.title = 'Score stocké — recalculé au prochain scan'; }
+    }
   }
   document.getElementById('scanner-overlay').classList.add('open');
   document.getElementById('scanner-panel').classList.add('open');
@@ -7194,6 +7203,18 @@ function _renderCommitteeCards(stakeholders, out, company, sector, icpScore) {
     const s = stakeholders[parseInt(btn.dataset.idx)];
     btn.addEventListener('click', () => _addStakeholderToPipeline(s, company, sector, icpScore, btn));
   });
+}
+async function _resolveLinkedInUrls(stakeholders, company) {
+  const _liRx = /https?:\/\/[^\s"']*linkedin\.com\/in\/[^"'\s<>]+/i;
+  await Promise.all(
+    stakeholders.map(async s => {
+      if (s.linkedin_url) return;
+      const q = (s.name || '') + ' ' + company + ' linkedin';
+      const snippet = await _marketIntelSearch(q, 300);
+      const m = snippet && snippet.match(_liRx);
+      if (m) s.linkedin_url = m[0].replace(/[.,;)>]+$/, '');
+    })
+  );
 }
 function _viewInPipeline(prospectId) {
   closeScannerPanel();
@@ -8065,8 +8086,10 @@ async function _scannerMapCommittee() {
       if (!Array.isArray(stakeholders) || stakeholders.length === 0) throw new Error('empty');
     } catch(_) {}
     if (out) {
-      if (stakeholders) _renderCommitteeCards(stakeholders, out, company, sector, null);
-      else out.textContent = text || 'No result.';
+      if (stakeholders) {
+        await _resolveLinkedInUrls(stakeholders, company);
+        _renderCommitteeCards(stakeholders, out, company, sector, null);
+      } else out.textContent = text || 'No result.';
     }
   } catch(e) {
     console.warn('[_scannerMapCommittee]', e);
@@ -8132,8 +8155,10 @@ async function _mapStakeholders() {
       if (!Array.isArray(stakeholders) || stakeholders.length === 0) throw new Error('empty');
     } catch(_) {}
     if (out) {
-      if (stakeholders) _renderCommitteeCards(stakeholders, out, p.company, p.sector||'B2B', p.icp_score||null);
-      else out.textContent = text || 'No result.';
+      if (stakeholders) {
+        await _resolveLinkedInUrls(stakeholders, p.company);
+        _renderCommitteeCards(stakeholders, out, p.company, p.sector||'B2B', p.icp_score||null);
+      } else out.textContent = text || 'No result.';
     }
   } catch(e) {
     console.warn('[_mapStakeholders]', e);
