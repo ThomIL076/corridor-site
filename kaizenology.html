@@ -2528,10 +2528,10 @@ async function showDemo(){
   }
   if (!_kanbanLoaded) loadKanban();
   _initHpFilters();
-  // Init unique post-login : onglet Scanner par défaut + scroll en haut (PWA démarre proprement)
+  // Init unique post-login : onglet Priorities par défaut + scroll en haut (PWA démarre proprement)
   if (!_demoStarted) {
     _demoStarted = true;
-    switchTab('pipeline');
+    switchTab('priorities');
     window.scrollTo({ top: 0, behavior: 'instant' });
     document.documentElement.scrollTop = 0;
     document.body.scrollTop = 0;
@@ -7416,6 +7416,7 @@ async function _priorityGenerate(prospectId) {
     );
     actionDiv.innerHTML = rendered;
     actionDiv.classList.add('loaded');
+    if (btn) { btn.disabled = false; btn.textContent = 'Regenerate'; }
     if (_prospectsById[prospectId]) _prospectsById[prospectId].next_action_cache = text;
     const sp = _priorityShownProspects.find(x => x.id === prospectId);
     if (sp) sp.next_action_cache = text;
