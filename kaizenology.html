@@ -2068,7 +2068,7 @@ function _renderSignalsFeed() {
       : '';
     const bodyHtml = item.type === 'morning'
       ? `<div>${item.htmlContent || renderMarkdown(item.content)}${item.linkHtml || ''}</div>`
-      : `<div style="font-size:var(--fs-base);line-height:1.6;color:var(--text-primary);">${_liveWaitingBadge}${item.signal ? _sanitizeSignal(item.signal) + '<br>' : ''}${_esc(item.content)}${item.signalUrl ? '<br><a href="' + _esc(item.signalUrl) + '" target="_blank" rel="noopener" style="font-size:var(--fs-xs);color:var(--fill-accent);text-decoration:none;font-weight:600;">🔗 Voir le post</a>' : ''}<br><button data-ctx="${_esc(JSON.stringify({type:'signal',signal:item.signal||'',signalUrl:item.signalUrl||'',signalInterpretation:item.signalInterpretation||'',prospectName:item.prospectName||'',company:item.prospectCompany||''}))}" onclick="_openAskPanel(JSON.parse(this.dataset.ctx))" style="margin-top:8px;font-size:var(--fs-xs);font-weight:700;padding:3px 10px;border:1px solid var(--blue);border-radius:var(--radius-pill);background:transparent;color:var(--blue);cursor:pointer;">${(typeof currentLang!=='undefined'&&currentLang==='fr')?'Demander à Corridor':'Ask Corridor'}</button></div>`;
+      : `<div style="font-size:var(--fs-base);line-height:1.6;color:var(--text-primary);">${_liveWaitingBadge}${item.signal ? _sanitizeSignal(item.signal) + '<br>' : ''}${_esc(item.content)}${item.signalUrl ? '<br><a href="' + _esc(item.signalUrl) + '" target="_blank" rel="noopener" style="font-size:var(--fs-xs);color:var(--fill-accent);text-decoration:none;font-weight:600;">🔗 ' + ((typeof currentLang!=='undefined'&&currentLang==='fr')?'Voir le post':'View post') + '</a>' : ''}<br><button data-ctx="${_esc(JSON.stringify({type:'signal',signal:item.signal||'',signalUrl:item.signalUrl||'',signalInterpretation:item.signalInterpretation||'',prospectName:item.prospectName||'',company:item.prospectCompany||''}))}" onclick="_openAskPanel(JSON.parse(this.dataset.ctx))" style="margin-top:8px;font-size:var(--fs-xs);font-weight:700;padding:3px 10px;border:1px solid var(--blue);border-radius:var(--radius-pill);background:transparent;color:var(--blue);cursor:pointer;">${(typeof currentLang!=='undefined'&&currentLang==='fr')?'Demander à Corridor':'Ask Corridor'}</button></div>`;
     const _sfKey = item.type + '|' + (item.prospectId || '') + '|' + (item.timestamp || idx);
     window._feedItemsById[idx] = item;
     const _sfVoted = window._feedVotes[_sfKey];
@@ -6320,8 +6320,8 @@ function _relDate(iso) {
   if (days === 0) return 'today';
   if (days === 1) return 'yesterday';
   if (days < 7)  return days + ' days ago';
-  if (days < 30) return Math.floor(days/7) + ' weeks ago';
-  return Math.floor(days/30) + ' months ago';
+  const w = Math.floor(days/7);  if (days < 30) return w + (w===1?' week':' weeks') + ' ago';
+  const m = Math.floor(days/30); return m + (m===1?' month':' months') + ' ago';
 }
 function _fmtReminder(iso) {
   if (!iso) return null;
@@ -8675,7 +8675,7 @@ function _renderSignalLink(signalText, signalUrl) {
   const parenMatch = (signalText || '').match(/\((https?:\/\/[^\s)]+)\)/);
   const url = signalUrl || _extractSigUrl(signalText) || (parenMatch ? parenMatch[1] : null);
   wrap.innerHTML = url
-    ? `<a href="${_esc(url)}" target="_blank" rel="noopener noreferrer" style="color:var(--navy);text-decoration:underline;font-weight:600;">Voir le post →</a>`
+    ? `<a href="${_esc(url)}" target="_blank" rel="noopener noreferrer" style="color:var(--navy);text-decoration:underline;font-weight:600;">${(typeof currentLang!=='undefined'&&currentLang==='fr')?'Voir le post →':'View post →'}</a>`
     : '';
 }
 function _drawerProfileHTML(id, p, colStage, fb){
