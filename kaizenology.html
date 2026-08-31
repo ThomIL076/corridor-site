@@ -8339,6 +8339,20 @@ function _drawerProfileHTML(id, p, colStage, fb){
   const rt = p.region ? _regionTag(p.region) : '';
   const lbl = t => `<div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);letter-spacing:0.02em">${t}</div>`;
   const card = c => `<div style="border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:14px 16px;display:flex;flex-direction:column;gap:8px">${c}</div>`;
+  const _ac = Array.isArray(p.additional_contacts) ? p.additional_contacts : [];
+  const _acSection = _ac.length > 0 ? card(
+    lbl('Autres décideurs chez ' + (p.company ? _esc(p.company) : 'cette société')) +
+    _ac.map((c, i) => `
+      <div onclick="_showContactAction('${v(id)}',${i})" style="padding:8px 0;border-bottom:0.5px solid var(--border);cursor:pointer;user-select:none">
+        <div style="font-size:var(--fs-sm);font-weight:600;color:var(--text)">${c.name ? _esc(c.name) : ''}</div>
+        <div style="font-size:var(--fs-xs);color:var(--muted)">${c.title ? _esc(c.title) : ''}</div>
+        ${c.linkedin ? `<a href="${_esc(c.linkedin)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" style="font-size:var(--fs-xs);color:var(--blue-brand)">${_esc(c.linkedin.replace(/^https?:\/\/(www\.)?linkedin\.com\//,'linkedin.com/'))}</a>` : ''}
+        <div id="ac-action-${v(id)}-${i}" style="display:none;margin-top:6px;padding:8px 10px;background:var(--navy-light);border-radius:var(--radius-sm);border:1px solid var(--border)">
+          <button onclick="event.stopPropagation();_promoteContact('${v(id)}',${i})" style="font-size:var(--fs-sm);padding:6px 12px;background:var(--navy);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer;width:100%">Promouvoir en prospect &amp; préparer l'invitation</button>
+        </div>
+      </div>
+    `).join('')
+  ) : '';
   return `<div class="dp-edit">
     ${card(
       lbl('Contact') +
@@ -8401,6 +8415,7 @@ function _drawerProfileHTML(id, p, colStage, fb){
       (p.signalInterpretation ? `<div style="background:var(--navy-light);border:1px solid var(--blue);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--navy);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:10px;opacity:0.65;display:block;margin-bottom:3px">✦ ${currentLang==='fr'?'Analyse IA':'AI Insight'}</span>${v(stripHtml(p.signalInterpretation))}</div>` : '')
     )}
     <textarea id="ed-notes" class="dp-inp" placeholder="Notes" style="min-height:60px;resize:vertical">${v(p.notes)}</textarea>
+    ${_acSection}
     <button class="btn-primary" style="width:100%;justify-content:center" onclick="saveProspectEdit('${v(id)}')"><span data-en="Save changes" data-fr="Enregistrer les modifications">Save changes</span></button>
     <div style="display:flex;gap:8px;margin-top:4px">
       <button class="btn-secondary" style="flex:1;justify-content:center" onclick="archiveProspect('${v(id)}')"><span data-en="Archive" data-fr="Archiver">Archive</span></button>
@@ -8408,6 +8423,81 @@ function _drawerProfileHTML(id, p, colStage, fb){
     </div>
   </div>`;
 }
+function _showContactAction(pid, cIdx) {
+  document.querySelectorAll('[id^="ac-action-"]').forEach(el => {
+    if (el.id !== 'ac-action-' + pid + '-' + cIdx) el.style.display = 'none';
+  });
+  const panel = document.getElementById('ac-action-' + pid + '-' + cIdx);
+  if (panel) panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+
+async function _promoteContact(primaryPid, cIdx) {
+  const primary = _prospectsById[primaryPid];
+  if (!primary) return;
+  const _ac = Array.isArray(primary.additional_contacts) ? primary.additional_contacts : [];
+  const contact = _ac[cIdx];
+  if (!contact) return;
+
+  const btn = document.querySelector('#ac-action-' + primaryPid + '-' + cIdx + ' button');
+  if (btn) { btn.disabled = true; btn.textContent = '...'; }
+
+  try {
+    const newRow = {
+      client_id: primary.client_id || CLIENT_ID,
+      mandate_id: primary.mandate_id || null,
+      name: contact.name || null,
+      title: contact.title || null,
+      linkedin: contact.linkedin || null,
+      company: primary.company || null,
+      sector: primary.sector || null,
+      country: primary.country || null,
+      region: primary.region || null,
+      signal: primary.signal || null,
+      signal_type: primary.signal_type || null,
+      signal_date: primary.signal_date || null,
+      origin: primary.origin || 'outbound',
+      import_source: primary.import_source || null,
+      stage: 'Identified',
+      archived: false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data: newProspect, error: insErr } = await sbClient.from('prospects').insert(newRow).select().single();
+    if (insErr) throw insErr;
+
+    const updatedAc = _ac.filter((_, i) => i !== cIdx);
+    const { error: updErr } = await sbClient.from('prospects')
+      .update({ additional_contacts: updatedAc.length > 0 ? updatedAc : null, updated_at: new Date().toISOString() })
+      .eq('id', primaryPid).eq('client_id', CLIENT_ID);
+    if (updErr) {
+      console.error('[_promoteContact] INSERT succeeded (new id:', newProspect.id, ') but additional_contacts UPDATE failed — risk of duplicate on next click. Primary pid:', primaryPid, updErr);
+      throw updErr;
+    }
+
+    primary.additional_contacts = updatedAc.length > 0 ? updatedAc : null;
+    _prospectsById[newProspect.id] = newProspect;
+
+    showToast('Prospect créé');
+
+    const fakeCard = document.createElement('div');
+    fakeCard.dataset.id = newProspect.id;
+    fakeCard.dataset.lastContact = '';
+    fakeCard.dataset.reminderDate = '';
+    fakeCard.dataset.clientId = CLIENT_ID;
+    fakeCard.innerHTML = '<span class="k-card-name">' + _esc(newProspect.name || '') + '</span>'
+      + '<span class="k-card-company">' + _esc(newProspect.company || '') + '</span>';
+    await openDrawer(fakeCard, 'send');
+    setTimeout(() => _generateSequenceMessage(newProspect.id, 'invite', true, 'd-'), 400);
+
+    loadKanban(true);
+  } catch(e) {
+    console.error('[_promoteContact]', e);
+    showToast('Erreur — promotion échouée');
+    if (btn) { btn.disabled = false; btn.textContent = 'Promouvoir en prospect & préparer l\'invitation'; }
+  }
+}
+
 async function saveProspectEdit(id){
   if (!id) return;
   const g = x => (document.getElementById(x)?.value || '').trim();
@@ -8955,6 +9045,7 @@ function buildCard(p){
   const dv = Number(p.deal_value) || 0;
   const _dvCur = p.deal_currency || 'EUR';
   const dealBadge = dv > 0 ? (_dvCur + ' ' + (dv >= 1000 ? Math.round(dv/1000) + 'k' : Math.round(dv))) : '';
+  const _ac = Array.isArray(p.additional_contacts) ? p.additional_contacts : [];
   const _isEst = !(p.icp_score && Number(p.icp_score) > 0);
   const _sv = parseFloat(score);
   const _hs = !isNaN(_sv);
@@ -8973,6 +9064,7 @@ function buildCard(p){
     +   (regionTag ? `<span class="k-badge">${_esc(regionTag)}</span>` : '')
     +   (sector ? `<span class="k-badge k-badge-sector">${_esc(sector)}</span>` : '')
     +   (dealBadge ? `<span class="k-badge k-badge-deal">${_esc(dealBadge)}</span>` : '')
+    +   (_ac.length > 0 ? `<span class="k-badge">+${_ac.length} contacts</span>` : '')
     + `</div>`
     + (_stageKey(p.stage) === 'Replied'
         ? `<div class="k-reply-intel" onclick="event.stopPropagation()">`
@@ -10241,7 +10333,7 @@ async function loadKanban(force){
     while (true) {
       let _kQuery = sbClient
         .from('prospects')
-        .select('id, name, company, title, sector, region, country, stage, linkedin, email, phone, deal_value, deal_currency, deal_structure, deal_weighted, notes, last_contact, reminder_date, icp_score, icp_reason, archived, client_id, linkedin_tag, origin, signal, signal_type, signal_interpretation, signal_date, created_at, draft_invite_note, company_size, next_action, next_action_date, score_signal_strength, score_growth, signal_url, mandate_id, website_url, funding_stage, last_funding_date, total_funding')
+        .select('id, name, company, title, sector, region, country, stage, linkedin, email, phone, deal_value, deal_currency, deal_structure, deal_weighted, notes, last_contact, reminder_date, icp_score, icp_reason, archived, client_id, linkedin_tag, origin, signal, signal_type, signal_interpretation, signal_date, created_at, draft_invite_note, company_size, next_action, next_action_date, score_signal_strength, score_growth, signal_url, mandate_id, website_url, funding_stage, last_funding_date, total_funding, additional_contacts, import_source')
         .eq('client_id', CLIENT_ID);
       _kQuery = _applyMandateFilter(_kQuery);
       const { data: chunk, error } = await _kQuery
