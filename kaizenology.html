@@ -7130,6 +7130,71 @@ async function _addScannerToPipeline() {
     if (btn) { btn.disabled = false; }
   }
 }
+async function _addStakeholderToPipeline(s, company, sector, icpScore, btn) {
+  if (btn) btn.disabled = true;
+  try {
+    const _p = { name: s.name || company, company, linkedin: s.linkedin_url || null };
+    const _sigInterp = await _generateSignalInterpretation('', company, s.name || '');
+    const row = {
+      client_id: CLIENT_ID,
+      mandate_id: (activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null,
+      deal_id: activeDealId || null,
+      external_id: identityKey(_p),
+      name: s.name || company,
+      company,
+      title: s.title || null,
+      linkedin: s.linkedin_url || null,
+      sector: sector || null,
+      stage: 'Identified',
+      icp_score: icpScore != null ? icpScore : null,
+      signal: null,
+      signal_interpretation: _sigInterp?.interpretation || null,
+      signal_date: _sigInterp?.date || null,
+      origin: 'outbound',
+      import_source: 'scanner',
+      archived: false,
+      updated_at: new Date().toISOString()
+    };
+    const { error } = await sbClient.from('prospects').insert(row);
+    if (error) throw error;
+    if (btn) {
+      btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg> Added';
+      btn.style.background = 'var(--green-brand)';
+      btn.style.pointerEvents = 'none';
+    }
+    loadKanban(true);
+  } catch(e) {
+    console.warn('[_addStakeholderToPipeline]', e);
+    if (btn) btn.disabled = false;
+  }
+}
+function _renderCommitteeCards(stakeholders, out, company, sector, icpScore) {
+  const _li = url => url
+    ? `<a href="${_esc(url)}" target="_blank" rel="noopener" style="margin-left:5px;color:var(--fill-accent);line-height:1;vertical-align:middle;" title="LinkedIn"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg></a>`
+    : '';
+  const _roleBg = role => role === 'Sign' ? 'background:#fee2e2;color:#b91c1c' : role === 'Approve' ? 'background:#fef3c7;color:#92400e' : 'background:var(--navy-light);color:var(--navy)';
+  let html = '<div style="display:flex;flex-direction:column;gap:10px;padding-top:4px">';
+  stakeholders.forEach((s, i) => {
+    html += `<div style="border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:13px 15px;display:flex;flex-direction:column;gap:5px">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;flex-wrap:wrap;gap:0">
+          <span style="font-weight:700;font-size:var(--fs-sm);color:var(--text)">${_esc(s.name||'—')}</span>${_li(s.linkedin_url)}
+          ${s.title ? `<span style="font-size:var(--fs-xs);color:var(--muted);margin-left:8px">${_esc(s.title)}</span>` : ''}
+        </div>
+        <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 8px;border-radius:var(--radius-pill);white-space:nowrap;${_roleBg(s.role)}">${_esc(s.role||'Influence')}</span>
+      </div>
+      ${s.concern ? `<div style="font-size:var(--fs-xs);color:var(--text-secondary)"><span style="font-weight:600;text-transform:uppercase;font-size:9px;letter-spacing:0.05em;color:var(--muted);margin-right:4px">Concern</span>${_esc(s.concern)}</div>` : ''}
+      ${s.approach ? `<div style="font-size:var(--fs-xs);color:var(--text-secondary)"><span style="font-weight:600;text-transform:uppercase;font-size:9px;letter-spacing:0.05em;color:var(--muted);margin-right:4px">Approach</span>${_esc(s.approach)}</div>` : ''}
+      <button class="sh-add-btn" data-idx="${i}" style="align-self:flex-end;margin-top:4px;font-size:var(--fs-xs);padding:4px 11px;background:var(--navy);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer">+ Add to pipeline</button>
+    </div>`;
+  });
+  html += '</div>';
+  out.innerHTML = html;
+  out.querySelectorAll('.sh-add-btn').forEach(btn => {
+    const s = stakeholders[parseInt(btn.dataset.idx)];
+    btn.addEventListener('click', () => _addStakeholderToPipeline(s, company, sector, icpScore, btn));
+  });
+}
 function _viewInPipeline(prospectId) {
   closeScannerPanel();
   _prOpenProspect(prospectId);
@@ -7974,7 +8039,14 @@ async function _scannerMapCommittee() {
 
   if (out) out.textContent = 'Mapping committee...';
 
-  const stakeholderPrompt = liveBlock + '\nYou are a B2B sales strategist.\nMap the typical buying committee for ' + company + ' (' + sector + ', EMEA), a company that operates in B2B.\n\nPRIORITY: if the LIVE CONTEXT names real executives (CEO, CRO, VP, Head of, etc.), use their actual names. Fall back to typical roles ONLY if no named individuals appear in the live context. Never use generic corporate titles.\n\nIdentify 3 to 5 stakeholders involved in a GTM decision. Format each as a ## section header (e.g. ## Jean Martin - VP of Revenue, or ## VP of Revenue if no name found), followed by:\n- Concern: their main concern in this decision\n- Role: Influence, Approve, or Sign\n- Approach: one sentence on how to engage them\n\nBe specific to ' + sector + ' and ' + company + ' size. No generic corporate language.';
+  const stakeholderPrompt = liveBlock +
+    '\nYou are a B2B sales strategist.' +
+    '\nMap the typical buying committee for ' + company + ' (' + sector + ', EMEA), a company that operates in B2B.' +
+    '\n\nPRIORITY: if the LIVE CONTEXT names real executives (CEO, CRO, VP, Head of, etc.), use their actual names and include their LinkedIn URL only if it explicitly appears in the LIVE CONTEXT. Fall back to typical role titles only if no named individuals appear. Never invent a LinkedIn URL.' +
+    '\n\nIdentify 3 to 5 stakeholders involved in a GTM decision.' +
+    '\n\nRespond ONLY with a valid JSON array — no markdown, no code fences, no text before or after. Each object must have exactly these fields:' +
+    '\n[{"name":"Full Name or Role Title","title":"Job title","concern":"main concern in this decision","role":"Influence|Approve|Sign","approach":"one sentence on how to engage","linkedin_url":"https://linkedin.com/in/... or null"}]' +
+    '\n\nrole must be exactly one of: Influence, Approve, Sign. linkedin_url must be null if not found in LIVE CONTEXT. Be specific to ' + sector + ' and ' + company + ' size. No generic corporate language.';
 
   try {
     const res = await fetch(API_URL, {
@@ -7983,11 +8055,19 @@ async function _scannerMapCommittee() {
     });
     if (!res.ok) throw new Error('API error ' + res.status);
     const data = await res.json();
-    let text = Array.isArray(data.content)
+    const text = Array.isArray(data.content)
       ? data.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim()
       : '';
-    text = text.replace(/--/g, '.').replace(/—/g, '.');
-    if (out) out.innerHTML = renderMarkdown(text || 'No result.');
+    let stakeholders = null;
+    try {
+      const clean = text.replace(/^```json\s*/i,'').replace(/^```\s*/i,'').replace(/```\s*$/,'').trim();
+      stakeholders = JSON.parse(clean);
+      if (!Array.isArray(stakeholders) || stakeholders.length === 0) throw new Error('empty');
+    } catch(_) {}
+    if (out) {
+      if (stakeholders) _renderCommitteeCards(stakeholders, out, company, sector, null);
+      else out.textContent = text || 'No result.';
+    }
   } catch(e) {
     console.warn('[_scannerMapCommittee]', e);
     if (out) out.textContent = 'Error generating stakeholder map.';
@@ -8026,7 +8106,14 @@ async function _mapStakeholders() {
 
   if (out) out.textContent = 'Mapping committee...';
 
-  const stakeholderPrompt = liveBlock + '\nYou are a B2B sales strategist.\nMap the typical buying committee for ' + p.company + ' (' + (p.sector||'B2B') + ', ' + (p.country||p.region||'EMEA') + '), a company that ' + (p.title ? 'is led by a ' + p.title : 'operates in B2B') + '.\n\nPRIORITY: if the LIVE CONTEXT names real executives (CEO, CRO, VP, Head of, etc.), use their actual names. Fall back to typical roles ONLY if no named individuals appear in the live context. Never use generic corporate titles.\n\nIdentify 3 to 5 stakeholders involved in a GTM decision. Format each as a ## section header (e.g. ## Jean Martin - VP of Revenue, or ## VP of Revenue if no name found), followed by:\n- Concern: their main concern in this decision\n- Role: Influence, Approve, or Sign\n- Approach: one sentence on how to engage them\n\nBe specific to ' + (p.sector||'B2B') + ' and ' + p.company + ' size. No generic corporate language.';
+  const stakeholderPrompt = liveBlock +
+    '\nYou are a B2B sales strategist.' +
+    '\nMap the typical buying committee for ' + p.company + ' (' + (p.sector||'B2B') + ', ' + (p.country||p.region||'EMEA') + '), a company that ' + (p.title ? 'is led by a ' + p.title : 'operates in B2B') + '.' +
+    '\n\nPRIORITY: if the LIVE CONTEXT names real executives (CEO, CRO, VP, Head of, etc.), use their actual names and include their LinkedIn URL only if it explicitly appears in the LIVE CONTEXT. Fall back to typical role titles only if no named individuals appear. Never invent a LinkedIn URL.' +
+    '\n\nIdentify 3 to 5 stakeholders involved in a GTM decision.' +
+    '\n\nRespond ONLY with a valid JSON array — no markdown, no code fences, no text before or after. Each object must have exactly these fields:' +
+    '\n[{"name":"Full Name or Role Title","title":"Job title","concern":"main concern in this decision","role":"Influence|Approve|Sign","approach":"one sentence on how to engage","linkedin_url":"https://linkedin.com/in/... or null"}]' +
+    '\n\nrole must be exactly one of: Influence, Approve, Sign. linkedin_url must be null if not found in LIVE CONTEXT. Be specific to ' + (p.sector||'B2B') + ' and ' + p.company + ' size. No generic corporate language.';
 
   try {
     const res = await fetch(API_URL, {
@@ -8035,11 +8122,19 @@ async function _mapStakeholders() {
     });
     if (!res.ok) throw new Error('API error ' + res.status);
     const data = await res.json();
-    let text = Array.isArray(data.content)
+    const text = Array.isArray(data.content)
       ? data.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim()
       : '';
-    text = text.replace(/--/g, '.').replace(/—/g, '.');
-    if (out) out.innerHTML = renderMarkdown(text || 'No result.');
+    let stakeholders = null;
+    try {
+      const clean = text.replace(/^```json\s*/i,'').replace(/^```\s*/i,'').replace(/```\s*$/,'').trim();
+      stakeholders = JSON.parse(clean);
+      if (!Array.isArray(stakeholders) || stakeholders.length === 0) throw new Error('empty');
+    } catch(_) {}
+    if (out) {
+      if (stakeholders) _renderCommitteeCards(stakeholders, out, p.company, p.sector||'B2B', p.icp_score||null);
+      else out.textContent = text || 'No result.';
+    }
   } catch(e) {
     console.warn('[_mapStakeholders]', e);
     if (out) out.textContent = 'Error generating stakeholder map.';
