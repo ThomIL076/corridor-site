@@ -3133,7 +3133,7 @@ Language instruction: Write your entire response in ${currentLang === 'fr' ? 'Fr
     if (_scoreResult && _scoreResult.role_score != null) {
       const _composite = _calcComposite(
         _scoreResult.role_score, _scoreResult.size_score, _scoreResult.signal_strength_score,
-        _scoreResult.mandate_fit_score, 0, 0
+        _scoreResult.mandate_fit_score, 5, 5
       );
       document.getElementById('sc-total').textContent = _composite.toFixed(1) + '/10';
     } else {
@@ -3150,7 +3150,7 @@ Language instruction: Write your entire response in ${currentLang === 'fr' ? 'Fr
       const _scanPer = (document.getElementById('scanner-person')?.value || '').trim();
       const _scanSec = (document.getElementById('scanner-sector')?.value || '').trim();
       const _scanScoreVal = (_scoreResult && _scoreResult.role_score != null)
-        ? _calcComposite(_scoreResult.role_score, _scoreResult.size_score, _scoreResult.signal_strength_score, _scoreResult.mandate_fit_score, 0, 0)
+        ? _calcComposite(_scoreResult.role_score, _scoreResult.size_score, _scoreResult.signal_strength_score, _scoreResult.mandate_fit_score, 5, 5)
         : null;
       const _scanSummary = (document.getElementById('scanner-ai-output')?.textContent || '').slice(0, 800);
       const { data: _existingArr } = await sbClient.from('prospects').select('id, name, company, stage').eq('client_id', CLIENT_ID).ilike('company', _scanCo).limit(1);
@@ -6990,7 +6990,7 @@ async function _aiScoreProspect(company, title, mandate) {
       const m = t.match(/\{[\s\S]*\}/);
       const parsed = m ? JSON.parse(m[0]) : null;
       if (parsed && parsed.role_score != null) {
-        const score = _calcComposite(parsed.role_score, parsed.size_score, parsed.signal_strength_score, parsed.mandate_fit_score, 0, 0);
+        const score = _calcComposite(parsed.role_score, parsed.size_score, parsed.signal_strength_score, parsed.mandate_fit_score, 5, 5);
         return { score, reason: parsed.rationale || null };
       }
     }
@@ -7214,15 +7214,26 @@ function _renderCommitteeCards(stakeholders, out, company, sector, icpScore) {
 }
 async function _resolveLinkedInUrls(stakeholders, company) {
   const _liRx = /https?:\/\/[^\s"']*linkedin\.com\/in\/[^"'\s<>]+/i;
-  await Promise.all(
-    stakeholders.map(async s => {
-      if (s.linkedin_url) return;
-      const q = (s.name || '') + ' ' + company + ' linkedin';
-      const snippet = await _marketIntelSearch(q, 300);
-      const m = snippet && snippet.match(_liRx);
+  await Promise.all(stakeholders.map(async s => {
+    if (s.linkedin_url) return;
+    const q = (s.name || '') + ' ' + company + ' linkedin profile';
+    try {
+      const r = await fetch('/api/web-search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ max_tokens: 200, messages: [{ role: 'user', content: q }] })
+      });
+      if (!r.ok) return;
+      const d = await r.json();
+      const fromCitations = Array.isArray(d.citations)
+        ? d.citations.find(u => _liRx.test(u))
+        : null;
+      if (fromCitations) { s.linkedin_url = fromCitations.replace(/[.,;)>]+$/, ''); return; }
+      const text = d.choices?.[0]?.message?.content || '';
+      const m = text.match(_liRx);
       if (m) s.linkedin_url = m[0].replace(/[.,;)>]+$/, '');
-    })
-  );
+    } catch (_) {}
+  }));
 }
 function _viewInPipeline(prospectId) {
   closeScannerPanel();
