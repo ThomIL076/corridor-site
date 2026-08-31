@@ -7059,10 +7059,11 @@ ${typeof _langLine === 'function' ? _langLine() : ''}`;
       _drOut.innerHTML = _rendered;
       _drOut.classList.add('loaded');
     }
-    sbClient.from('prospects').update({
+    const { error: _cacheErr } = await sbClient.from('prospects').update({
       next_action_cache: text,
       next_action_generated_at: new Date().toISOString()
-    }).eq('id', p.id).eq('client_id', CLIENT_ID).catch(console.error);
+    }).eq('id', p.id).eq('client_id', CLIENT_ID);
+    if (_cacheErr) console.error('[_drawerAI] cache write failed:', _cacheErr);
     p.next_action_cache = text;
     p.next_action_generated_at = new Date().toISOString();
     const _memP = _prospectsById[p.id];
