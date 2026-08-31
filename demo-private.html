@@ -2134,7 +2134,7 @@ async function _submitSignalFeedback(btn, vote, idx, stableKey) {
         capsule.dataset.fbCid = cid || '';
         capsule.style.cssText = 'margin-top:8px;padding:8px 10px;background:var(--navy-light);border-radius:var(--radius-sm);border:1px solid var(--border);';
         capsule.innerHTML =
-          '<div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">Qu’est-ce qui n’était pas pertinent ? <em style="font-style:normal;opacity:.7">(optional)</em></div>' +
+          '<div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">' + (currentLang==="fr" ? 'Qu’est-ce qui n’était pas pertinent ?' : "What wasn't relevant?") + ' <em style="font-style:normal;opacity:.7">(optional)</em></div>' +
           '<textarea rows="2" maxlength="500" placeholder="e.g. wrong sector, weak signal..." style="width:100%;box-sizing:border-box;font-size:12px;padding:6px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-panel);color:var(--text-primary);resize:vertical;"></textarea>' +
           '<div style="display:flex;justify-content:flex-end;margin-top:6px;">' +
           '<button style="font-size:12px;padding:3px 12px;border:none;border-radius:var(--radius-sm);background:var(--blue);color:#fff;cursor:pointer;">Send</button>' +
@@ -5194,10 +5194,10 @@ function _applySendFilters() {
 
   let html = '';
   if (readyInvite.length) {
-    html += _renderSendSection('Invitations à envoyer', readyInvite, 'invite');
+    html += _renderSendSection(currentLang==='fr' ? 'Invitations à envoyer' : 'Invitations to send', readyInvite, 'invite');
     if (totalInvite > 25) html += `<div style="text-align:center;font-size:var(--fs-sm);color:var(--muted);padding:8px 0 16px">${totalInvite - 25} more invitation${totalInvite - 25 > 1 ? 's' : ''} not shown -- raise ICP filter or mark some as sent to see the next batch.</div>`;
   }
-  if (readyJ0.length) html += _renderSendSection('Connexions acceptées — J+0', readyJ0, 'j0');
+  if (readyJ0.length) html += _renderSendSection(currentLang==='fr' ? 'Connexions acceptées — J+0' : 'Accepted connections — J+0', readyJ0, 'j0');
   if (readyJ5High.length || readyJ5Low.length) html += _renderJ5Section(readyJ5High, readyJ5Low);
   if (!totalDue && !readyJ5Low.length) {
     html = '<div style="padding:32px 0;text-align:center;color:var(--muted);font-size:var(--fs-base)">Nothing due. Adjust filters or check back tomorrow.</div>';
@@ -6857,16 +6857,16 @@ If no individual is named in the context, set confidence to "not_found" and name
     let result = null;
     try { result = JSON.parse(text.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim()); } catch(e) {}
     if (!result || result.confidence === 'not_found') {
-      resultEl.innerHTML = '<span style="font-size:var(--fs-xs);color:var(--muted);">Aucun décideur identifié.</span>';
+      resultEl.innerHTML = '<span style="font-size:var(--fs-xs);color:var(--muted);">' + (currentLang==='fr' ? 'Aucun décideur identifié.' : 'No decision-maker found.') + '</span>';
     } else if (result.confidence === 'low') {
       const linkedinHtml = result.linkedin_url ? ' · <a href="' + _esc(result.linkedin_url) + '" target="_blank" rel="noopener" style="margin-left:4px;color:var(--fill-accent);text-decoration:none;line-height:1;" title="LinkedIn profile"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg></a>' : '';
-      resultEl.innerHTML = '<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:2px;"><span style="font-weight:600;">Candidat non confirmé :</span> ' + _esc(result.name || '—') + (result.title ? ' · ' + _esc(result.title) : '') + linkedinHtml + '</div>';
+      resultEl.innerHTML = '<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:2px;"><span style="font-weight:600;">' + (currentLang==='fr' ? 'Candidat non confirmé :' : 'Unconfirmed candidate:') + '</span> ' + _esc(result.name || '—') + (result.title ? ' · ' + _esc(result.title) : '') + linkedinHtml + '</div>';
     } else {
       const linkedinHtml = result.linkedin_url ? ' · <a href="' + _esc(result.linkedin_url) + '" target="_blank" rel="noopener" style="margin-left:4px;color:var(--fill-accent);text-decoration:none;line-height:1;" title="LinkedIn profile"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg></a>' : '';
       resultEl.innerHTML = '<div style="font-size:var(--fs-xs);color:var(--text-secondary);margin-top:2px;"><span style="font-weight:700;color:var(--text-primary);">' + _esc(result.name || '—') + '</span>' + (result.title ? ' · ' + _esc(result.title) : '') + linkedinHtml + '</div>';
     }
   } catch(e) {
-    resultEl.innerHTML = '<span style="font-size:var(--fs-xs);color:var(--muted);">Recherche échouée — réessayer.</span>';
+    resultEl.innerHTML = '<span style="font-size:var(--fs-xs);color:var(--muted);">' + (currentLang==='fr' ? 'Recherche échouée — réessayer.' : 'Search failed — please retry.') + '</span>';
   } finally {
     btn.disabled = false;
     btn.textContent = 'Find decision-maker';
@@ -8479,14 +8479,14 @@ function _drawerProfileHTML(id, p, colStage, fb){
   const card = c => `<div style="border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:14px 16px;display:flex;flex-direction:column;gap:8px">${c}</div>`;
   const _ac = Array.isArray(p.additional_contacts) ? p.additional_contacts : [];
   const _acSection = _ac.length > 0 ? card(
-    lbl('Autres décideurs chez ' + (p.company ? _esc(p.company) : 'cette société')) +
+    lbl((currentLang==='fr' ? 'Autres décideurs chez ' : 'Other decision-makers at ') + (p.company ? _esc(p.company) : (currentLang==='fr' ? 'cette société' : 'this company'))) +
     _ac.map((c, i) => `
       <div onclick="_showContactAction('${v(id)}',${i})" style="padding:8px 0;border-bottom:0.5px solid var(--border);cursor:pointer;user-select:none">
         <div style="font-size:var(--fs-sm);font-weight:600;color:var(--text)">${c.name ? _esc(c.name) : ''}</div>
         <div style="font-size:var(--fs-xs);color:var(--muted)">${c.title ? _esc(c.title) : ''}</div>
         ${c.linkedin ? `<a href="${_esc(c.linkedin)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" style="font-size:var(--fs-xs);color:var(--blue-brand)">${_esc(c.linkedin.replace(/^https?:\/\/(www\.)?linkedin\.com\//,'linkedin.com/'))}</a>` : ''}
         <div id="ac-action-${v(id)}-${i}" style="display:none;margin-top:6px;padding:8px 10px;background:var(--navy-light);border-radius:var(--radius-sm);border:1px solid var(--border)">
-          <button onclick="event.stopPropagation();_promoteContact('${v(id)}',${i})" style="font-size:var(--fs-sm);padding:6px 12px;background:var(--navy);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer;width:100%">Promouvoir en prospect &amp; préparer l'invitation</button>
+          <button onclick="event.stopPropagation();_promoteContact('${v(id)}',${i})" style="font-size:var(--fs-sm);padding:6px 12px;background:var(--navy);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer;width:100%">${currentLang==='fr' ? 'Promouvoir en prospect &amp; préparer l\'invitation' : 'Promote to prospect &amp; prepare invite'}</button>
         </div>
       </div>
     `).join('')
@@ -8551,7 +8551,7 @@ function _drawerProfileHTML(id, p, colStage, fb){
       (p.signal_date && _relDate(p.signal_date) ? `<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:2px">Signal: ${_esc(_relDate(p.signal_date))}</div>` : '') +
       `<select id="drawer-signal-type" style="font-size:var(--fs-sm);padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);color:var(--text)">` +
         `<option value="">-- Signal type --</option>` +
-        `${(_signalTaxonomy && Object.keys(_signalTaxonomy).length ? Object.values(_signalTaxonomy) : [{code:'S1',label:'S1'},{code:'S2',label:'S2'},{code:'S3',label:'S3'},{code:'S4',label:'S4'},{code:'activity',label:'Engagement passif (réaction/commentaire)',icon:'👁'}]).map(t => `<option value="${_esc(t.code)}"${(p.signal_type||'').toUpperCase()===(t.code||'').toUpperCase()?' selected':''}>${_esc(t.icon||'')} ${_esc(t.code)} — ${_esc(t.label||t.code)}</option>`).join('')}` +
+        `${(_signalTaxonomy && Object.keys(_signalTaxonomy).length ? Object.values(_signalTaxonomy) : [{code:'S1',label:'S1'},{code:'S2',label:'S2'},{code:'S3',label:'S3'},{code:'S4',label:'S4'},{code:'activity',label:currentLang==='fr'?'Engagement passif (réaction/commentaire)':'Passive engagement (reaction/comment)',icon:'👁'}]).map(t => `<option value="${_esc(t.code)}"${(p.signal_type||'').toUpperCase()===(t.code||'').toUpperCase()?' selected':''}>${_esc(t.icon||'')} ${_esc(t.code)} — ${_esc(t.label||t.code)}</option>`).join('')}` +
       `</select>` +
       (p.signalInterpretation ? `<div style="background:var(--navy-light);border:1px solid var(--blue);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--navy);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:10px;opacity:0.65;display:block;margin-bottom:3px">✦ ${currentLang==='fr'?'Analyse IA':'AI Insight'}</span>${v(stripHtml(p.signalInterpretation))}</div>` : '')
     )}
@@ -8619,7 +8619,7 @@ async function _promoteContact(primaryPid, cIdx) {
     primary.additional_contacts = updatedAc.length > 0 ? updatedAc : null;
     _prospectsById[newProspect.id] = newProspect;
 
-    showToast('Prospect créé');
+    showToast(currentLang==='fr' ? 'Prospect créé' : 'Prospect created');
 
     const fakeCard = document.createElement('div');
     fakeCard.dataset.id = newProspect.id;
@@ -8634,8 +8634,8 @@ async function _promoteContact(primaryPid, cIdx) {
     loadKanban(true);
   } catch(e) {
     console.error('[_promoteContact]', e);
-    showToast('Erreur — promotion échouée');
-    if (btn) { btn.disabled = false; btn.textContent = 'Promouvoir en prospect & préparer l\'invitation'; }
+    showToast(currentLang==='fr' ? 'Erreur — promotion échouée' : 'Error — promotion failed');
+    if (btn) { btn.disabled = false; btn.textContent = currentLang==='fr' ? 'Promouvoir en prospect & préparer l\'invitation' : 'Promote to prospect & prepare invite'; }
   }
 }
 
@@ -9108,7 +9108,7 @@ async function _bulkStartEmailSeq() {
   }
 
   if (toSend.length === 0) {
-    showToast(`0 à envoyer — ${alreadyCount} déjà en séquence, ${noEmail} sans email`);
+    showToast(currentLang==='fr' ? `0 à envoyer — ${alreadyCount} déjà en séquence, ${noEmail} sans email` : `0 to send — ${alreadyCount} already in sequence, ${noEmail} no email`);
     if (btn) { btn.disabled = false; btn.textContent = 'Email Sequence'; }
     return;
   }
@@ -9118,7 +9118,7 @@ async function _bulkStartEmailSeq() {
     return;
   }
 
-  if (capped > 0) showToast(`Limite 40/jour : ${capped} prospects non envoyés aujourd'hui`);
+  if (capped > 0) showToast(currentLang==='fr' ? `Limite 40/jour : ${capped} prospects non envoyés aujourd'hui` : `Daily limit 40: ${capped} prospects not sent today`);
 
   // Envois séquentiels avec délai 700ms
   const successRows = [];
@@ -9154,7 +9154,7 @@ async function _bulkStartEmailSeq() {
     const { error: _bulkInsErr } = await sbClient.from('interactions').insert(successRows);
     if (_bulkInsErr) {
       console.error('[_bulkStartEmailSeq] Supabase insert failed:', _bulkInsErr);
-      showToast('⚠ Séquences envoyées mais non tracées — ' + _bulkInsErr.message);
+      showToast((currentLang==='fr' ? '⚠ Séquences envoyées mais non tracées — ' : '⚠ Sequences sent but not tracked — ') + _bulkInsErr.message);
       _bulkClear();
       await loadKanban(true);
       return;
@@ -9162,11 +9162,11 @@ async function _bulkStartEmailSeq() {
   }
 
   // Résumé
-  const parts = [`${successRows.length} séquences démarrées`];
-  if (alreadyCount > 0) parts.push(`${alreadyCount} ignorés (déjà envoyé)`);
-  if (noEmail > 0) parts.push(`${noEmail} sans email`);
-  if (failed > 0) parts.push(`${failed} échoués`);
-  if (capped > 0) parts.push(`${capped} non envoyés (quota)`);
+  const parts = [`${successRows.length} ${currentLang==='fr' ? 'séquences démarrées' : 'sequences started'}`];
+  if (alreadyCount > 0) parts.push(`${alreadyCount} ${currentLang==='fr' ? 'ignorés (déjà envoyé)' : 'skipped (already sent)'}`);
+  if (noEmail > 0) parts.push(`${noEmail} ${currentLang==='fr' ? 'sans email' : 'no email'}`);
+  if (failed > 0) parts.push(`${failed} ${currentLang==='fr' ? 'échoués' : 'failed'}`);
+  if (capped > 0) parts.push(`${capped} ${currentLang==='fr' ? 'non envoyés (quota)' : 'not sent (quota)'}`);
   showToast(parts.join(', '));
 
   _bulkClear();
