@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -8716,6 +8716,7 @@ function _drawerProfileHTML(id, p, colStage, fb){
       lbl('Signal / Context') +
       `<textarea id="drawer-signal" class="dp-inp" rows="3" placeholder="e.g. New CRO hired from PE-backed SaaS, scaled $4M to $28M ARR" style="font-size:var(--fs-base);min-height:60px;resize:vertical">${v(stripHtml(p.signal))}</textarea>` +
       `<div id="signal-link-wrap" style="font-size:var(--fs-xs)"></div>` +
+      (p.signal_date && _relDate(p.signal_date) ? `<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:2px">Signal: ${_esc(_relDate(p.signal_date))}</div>` : '') +
       `<select id="drawer-signal-type" style="font-size:var(--fs-sm);padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);color:var(--text)">` +
         `<option value="">-- Signal type --</option>` +
         `${(_signalTaxonomy && Object.keys(_signalTaxonomy).length ? Object.values(_signalTaxonomy) : [{code:'S1',label:'S1'},{code:'S2',label:'S2'},{code:'S3',label:'S3'},{code:'S4',label:'S4'},{code:'activity',label:'Engagement passif (réaction/commentaire)',icon:'👁'}]).map(t => `<option value="${_esc(t.code)}"${(p.signal_type||'').toUpperCase()===(t.code||'').toUpperCase()?' selected':''}>${_esc(t.icon||'')} ${_esc(t.code)} — ${_esc(t.label||t.code)}</option>`).join('')}` +
@@ -9373,6 +9374,7 @@ function buildCard(p){
     +   (sector ? `<span class="k-badge k-badge-sector">${_esc(sector)}</span>` : '')
     +   (dealBadge ? `<span class="k-badge k-badge-deal">${_esc(dealBadge)}</span>` : '')
     +   (_ac.length > 0 ? `<span class="k-badge">+${_ac.length} contacts</span>` : '')
+    +   (p.mandate_id && _mandatesById[p.mandate_id]?.name ? `<span class="k-badge">${_esc(_mandatesById[p.mandate_id].name)}</span>` : '')
     + `</div>`
     + (_stageKey(p.stage) === 'Replied'
         ? `<div class="k-reply-intel" onclick="event.stopPropagation()">`
