@@ -6540,14 +6540,22 @@ async function openDrawer(card, initialTab = 'activity') {
   const name         = (card.querySelector('.k-card-name')?.textContent    || '').trim();
   const company      = (card.querySelector('.k-card-company')?.textContent || '').trim();
   const _p           = _prospectsById[prospectId] || {};
+  const { data: iqRow } = await sbClient
+    .from('investor_qualifications')
+    .select('fit_total')
+    .eq('prospect_id', prospectId)
+    .eq('is_current', true)
+    .maybeSingle();
+  const _investorFit = (iqRow && typeof iqRow.fit_total === 'number') ? iqRow.fit_total : null;
   const score        = 'ICP ' + _calcICP(_p);
-  const icpVal       = parseFloat(_calcICP(_p));
+  const icpVal       = (_investorFit !== null) ? (_investorFit / 10) : parseFloat(_calcICP(_p));
   const icpColor     = icpVal >= 8 ? 'var(--blue-brand)' : icpVal >= 5 ? '#EF9F27' : '#888780';
   const icpC         = +(2 * Math.PI * 22).toFixed(2);
   const icpDash      = +((icpVal / 10) * icpC).toFixed(2);
-  const _isEstDrawer = !((_p.icp_score || 0) > 0);
-  const _icpLbl      = _isEstDrawer ? '~' + icpVal.toFixed(1) : icpVal.toFixed(1);
-  const icpDial      = `<svg width="54" height="54" viewBox="0 0 52 52" style="flex-shrink:0;${_isEstDrawer ? 'opacity:0.72;' : ''}"${_isEstDrawer ? ' title="Estimated score"' : ''}><circle cx="26" cy="26" r="22" fill="none" stroke="var(--border)" stroke-width="4.5"/><circle cx="26" cy="26" r="22" fill="none" stroke="${icpColor}" stroke-width="4.5" stroke-dasharray="${icpDash} ${icpC}" stroke-linecap="round" transform="rotate(-90 26 26)"/><text x="26" y="30" text-anchor="middle" font-family="'Plus Jakarta Sans',sans-serif" font-size="12" font-weight="700" fill="${icpColor}">${_icpLbl}</text></svg>`;
+  const _isEstDrawer = (_investorFit === null) && !((_p.icp_score || 0) > 0);
+  const _icpLbl      = (_investorFit !== null) ? _investorFit.toFixed(1) : (_isEstDrawer ? '~' + icpVal.toFixed(1) : icpVal.toFixed(1));
+  const _dialTitle   = _investorFit !== null ? ' title="Investor fit"' : (_isEstDrawer ? ' title="Estimated score"' : '');
+  const icpDial      = `<svg width="54" height="54" viewBox="0 0 52 52" style="flex-shrink:0;${_isEstDrawer ? 'opacity:0.72;' : ''}"${_dialTitle}><circle cx="26" cy="26" r="22" fill="none" stroke="var(--border)" stroke-width="4.5"/><circle cx="26" cy="26" r="22" fill="none" stroke="${icpColor}" stroke-width="4.5" stroke-dasharray="${icpDash} ${icpC}" stroke-linecap="round" transform="rotate(-90 26 26)"/><text x="26" y="30" text-anchor="middle" font-family="'Plus Jakarta Sans',sans-serif" font-size="12" font-weight="700" fill="${icpColor}">${_icpLbl}</text></svg>`;
   const sector       = (_p.sector && _p.sector.trim()) ? _p.sector.trim() : '';
   const head         = card.closest('.kanban-col')?.querySelector('.kanban-col-head span');
   const stage        = head ? (head.dataset.en || head.textContent.trim()) : 'Identified';
