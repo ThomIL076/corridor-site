@@ -1138,6 +1138,9 @@ body.new-nav { padding-left: 220px; }
     <span class="snav-logo-text">CORRIDOR</span>
   </div>
   <div class="snav-section">
+    <button class="snav-item" data-nav="investors" onclick="_switchNewNav('investors')">
+      <span class="snav-icon">🏦</span> Investors
+    </button>
     <button class="snav-item" data-nav="pipeline" onclick="_switchNewNav('pipeline')">
       <span class="snav-icon">📊</span> Pipeline
     </button>
@@ -1499,6 +1502,20 @@ body.new-nav { padding-left: 220px; }
           <button class="btn-primary btn-lg" onclick="sendAgent('objection')" id="btn-objection">Send</button>
         </div><button onclick="clearAgent('objection')" style="font-size:var(--fs-micro);color:var(--muted);background:none;border:none;cursor:pointer;text-decoration:underline;margin:6px 0 0 2px">Clear conversation</button>
       </div>
+    </div>
+  </div>
+
+  <!-- ══ TAB: INVESTOR QUALIFICATION ══ -->
+  <div class="tab-panel" id="tab-investors">
+    <div style="padding:24px 16px 0;max-width:860px;margin:0 auto;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+        <h2 style="font-size:var(--fs-lg);font-weight:700;color:var(--navy);margin:0;">Investor Candidates</h2>
+        <button onclick="loadInvestorQualifications()"
+          style="padding:6px 16px;border-radius:var(--radius-pill);background:var(--navy);color:#fff;border:none;font-size:var(--fs-sm);font-weight:600;cursor:pointer;">
+          ↻ Refresh
+        </button>
+      </div>
+      <div id="investors-container"></div>
     </div>
   </div>
 
@@ -2152,6 +2169,159 @@ function _sendSignalComment(root) {
   });
 }
 
+// ── INVESTOR QUALIFICATION ────────────────────────────────────────────────────
+
+async function loadInvestorQualifications() {
+  const container = document.getElementById('investors-container');
+  if (!container) return;
+  container.innerHTML = '<div style="padding:32px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">Loading candidates…</div>';
+  try {
+    const { data, error } = await sbClient
+      .from('investor_qualifications')
+      .select(`
+        id, prospect_id, archetype, fit_total,
+        capital_gate, deal_flow_gate, capacity_pressure_gate,
+        recommended_route, created_at,
+        prospects ( name, company, linkedin )
+      `)
+      .eq('client_id', CLIENT_ID)
+      .eq('is_current', true)
+      .order('fit_total', { ascending: false });
+    if (error) throw error;
+    _renderInvestorCards(data || []);
+  } catch(e) {
+    container.innerHTML = `<div style="padding:32px;text-align:center;color:var(--muted);">Error: ${e.message}</div>`;
+  }
+}
+
+function _renderInvestorCards(rows) {
+  const container = document.getElementById('investors-container');
+  if (!container) return;
+  if (!rows.length) {
+    container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">No investor candidates found for this mandate.</div>';
+    return;
+  }
+
+  function _gateChip(label, value) {
+    if (value === 'pass')  return `<span style="display:inline-flex;align-items:center;gap:4px;font-size:var(--fs-xs);font-weight:600;padding:2px 9px;border-radius:var(--radius-pill);background:#dcfce7;color:#16a34a;">✓ ${_esc(label)}</span>`;
+    if (value === 'fail') return `<span style="display:inline-flex;align-items:center;gap:4px;font-size:var(--fs-xs);font-weight:600;padding:2px 9px;border-radius:var(--radius-pill);background:#fef2f2;color:#ef4444;">✗ ${_esc(label)}</span>`;
+    return `<span style="display:inline-flex;align-items:center;gap:4px;font-size:var(--fs-xs);font-weight:600;padding:2px 9px;border-radius:var(--radius-pill);background:var(--chip-bg);color:var(--muted);">? ${_esc(label)}</span>`;
+  }
+
+  container.innerHTML = rows.map(q => {
+    const p = q.prospects || {};
+    const scoreVal = typeof q.fit_total === 'number' ? q.fit_total.toFixed(1) : '—';
+    const linkedinHtml = p.linkedin
+      ? `<a href="${_esc(p.linkedin)}" target="_blank" rel="noopener" style="flex-shrink:0;color:var(--fill-accent);text-decoration:none;line-height:1;" title="LinkedIn"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg></a>`
+      : '';
+    const archetypeHtml = q.archetype
+      ? `<span style="font-size:var(--fs-xs);font-weight:600;padding:2px 9px;border-radius:var(--radius-pill);background:var(--navy-light);color:var(--indigo);">${_esc(q.archetype)}</span>`
+      : '';
+    const routeHtml = q.recommended_route
+      ? `<div style="font-size:var(--fs-sm);color:var(--muted);margin-top:10px;"><span style="font-weight:600;color:var(--navy);">Recommended route:</span> ${_esc(q.recommended_route)}</div>`
+      : '';
+
+    return `<div id="iq-card-${q.id}" data-prospect-id="${_esc(q.prospect_id || '')}" style="background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius-md);padding:18px 20px;margin-bottom:12px;">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+        <div style="min-width:0;flex:1;">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+            <span style="font-weight:700;font-size:var(--fs-base);color:var(--navy);">${_esc(p.name || '—')}</span>
+            <span style="font-size:var(--fs-sm);color:var(--muted);">${_esc(p.company || '—')}</span>
+            ${archetypeHtml}
+            ${linkedinHtml}
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            ${_gateChip('Capital control', q.capital_gate)}
+            ${_gateChip('Deal flow', q.deal_flow_gate)}
+            ${_gateChip('Capacity pressure', q.capacity_pressure_gate)}
+          </div>
+          ${routeHtml}
+        </div>
+        <div style="text-align:right;flex-shrink:0;">
+          <div style="font-size:var(--fs-lg);font-weight:700;color:var(--navy);">${scoreVal}</div>
+          <div style="font-size:var(--fs-xs);color:var(--muted);">Fit</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:5px;margin-top:12px;padding-top:10px;border-top:1px solid var(--border);" id="iq-vote-row-${q.id}">
+        <button onclick="_submitInvestorVote(this,'${q.id}','like')"
+          style="font-size:12px;padding:2px 10px;border-radius:12px;border:1px solid var(--border);background:transparent;color:var(--text-secondary);cursor:pointer;transition:all .15s;">👍</button>
+        <button onclick="_submitInvestorVote(this,'${q.id}','unlike')"
+          style="font-size:12px;padding:2px 10px;border-radius:12px;border:1px solid var(--border);background:transparent;color:var(--text-secondary);cursor:pointer;transition:all .15s;">👎</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function _submitInvestorVote(btn, qualId, vote) {
+  const row = document.getElementById('iq-vote-row-' + qualId);
+  if (row) row.querySelectorAll('button').forEach(b => { b.disabled = true; b.style.cursor = 'default'; });
+  const isLike = vote === 'like';
+  btn.style.borderColor = isLike ? '#22c55e' : '#f87171';
+  btn.style.background   = isLike ? 'var(--green-bg)' : '#fef2f2';
+  btn.style.color        = isLike ? 'var(--green)' : '#ef4444';
+  btn.style.opacity = '1';
+  if (row) row.querySelectorAll('button:not([style*="' + (isLike ? '#22c55e' : '#f87171') + '"])').forEach(b => { b.style.opacity = '0.4'; });
+
+  const cid = (typeof CLIENT_ID !== 'undefined' ? CLIENT_ID : null);
+  const card = document.getElementById('iq-card-' + qualId);
+  const prospectId = (card && card.dataset.prospectId) || null;
+  try {
+    const { data, error } = await sbClient
+      .from('investor_qualification_feedback')
+      .insert({
+        qualification_id: qualId,
+        prospect_id: prospectId,
+        client_id: cid,
+        vote,
+        feedback_text: null,
+      })
+      .select('id')
+      .single();
+    if (error) throw error;
+
+    if (card && data && data.id) {
+      const capsule = document.createElement('div');
+      capsule.dataset.fbId  = data.id;
+      capsule.dataset.fbQid = qualId;
+      capsule.style.cssText = 'margin-top:8px;padding:8px 10px;background:var(--navy-light);border-radius:var(--radius-sm);border:1px solid var(--border);';
+      capsule.innerHTML =
+        '<div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">Notes <em style="font-style:normal;opacity:.7">(optional)</em></div>' +
+        '<textarea rows="2" maxlength="500" placeholder="e.g. good fit but too early stage..." style="width:100%;box-sizing:border-box;font-size:12px;padding:6px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-panel);color:var(--text-primary);resize:vertical;"></textarea>' +
+        '<div style="display:flex;justify-content:flex-end;margin-top:6px;">' +
+        '<button style="font-size:12px;padding:3px 12px;border:none;border-radius:var(--radius-sm);background:var(--blue);color:#fff;cursor:pointer;">Send</button>' +
+        '</div>';
+      capsule.querySelector('button').addEventListener('click', function() { _sendInvestorComment(capsule, qualId); });
+      card.appendChild(capsule);
+    }
+  } catch(e) {
+    console.error('[investor-vote]', e);
+  }
+}
+
+async function _sendInvestorComment(root, qualId) {
+  const fbId = root && root.dataset.fbId;
+  if (!fbId) return;
+  const ta  = root.querySelector('textarea');
+  const btn = root.querySelector('button');
+  const note = ta ? ta.value.trim() : '';
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  if (ta)  ta.disabled = true;
+  try {
+    const { error } = await sbClient
+      .from('investor_qualification_feedback')
+      .update({ feedback_text: note })
+      .eq('id', fbId);
+    if (error) throw error;
+    root.innerHTML = '<div style="font-size:11px;color:var(--text-secondary);padding:4px 0;">Feedback recorded — thank you.</div>';
+  } catch(e) {
+    console.error('[investor-comment]', e);
+    if (btn) { btn.disabled = false; btn.textContent = 'Send'; }
+    if (ta)  ta.disabled = false;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 function _renderWeeklyList(reports) {
   const list = document.getElementById('weekly-reports-list');
   if (!list) return;
@@ -2685,6 +2855,7 @@ function switchTab(name, fromClick = false) {
   if (btn && btn.classList) btn.classList.add('active');
   if (btn && btn.scrollIntoView) btn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
   if (name === 'pipeline') { const sh = document.getElementById('kanban-swipe-hint'); if (sh) { sh.style.opacity = '1'; setTimeout(() => { sh.style.opacity = '0'; }, 3000); } }
+  if (name === 'investors') loadInvestorQualifications();
   if (name === 'send') loadSendView();
   if (name === 'stats') { if (!_kanbanLoaded) { loadKanban().then(() => renderStats()); } else { renderStats(); } }
   if (name === 'clients') loadClientsKanban();
