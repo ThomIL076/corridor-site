@@ -5099,6 +5099,7 @@ async function loadSendView() {
 
     _sendProspects.forEach(p => { if (!_prospectsById[p.id]) _prospectsById[p.id] = p; });
 
+    _fetchTodaySendCounts().catch(err => console.error('_fetchTodaySendCounts:', err));
     _applySendFilters();
 
   } catch(e) {
@@ -5879,15 +5880,33 @@ async function _sendViaLinkedIn(pid, touch, elPrefix = '') {
   }
 }
 
-let _sentTodayCount = 0;
-const DAILY_SEND_QUOTA = 40;
+const INVITE_DAILY_LIMIT  = 30;
+const MESSAGE_DAILY_LIMIT = 40;
+const EMAIL_DAILY_LIMIT   = 40;
+let _todaySendCounts = { invitesSent: 0, messagesSent: 0, emailsSent: 0 };
+
 function _updateSentCounter() {
   const el = document.getElementById('sent-counter');
   if (!el) return;
-  el.textContent = 'Sent today: ' + _sentTodayCount + ' / ' + DAILY_SEND_QUOTA;
-  if (_sentTodayCount >= 38)      { el.style.color = 'var(--red)'; }
-  else if (_sentTodayCount >= 30) { el.style.color = '#ea580c'; }
-  else                            { el.style.color = 'var(--muted)'; }
+  const { invitesSent: inv, messagesSent: msg, emailsSent: em } = _todaySendCounts;
+  el.textContent = `Invites: ${inv}/${INVITE_DAILY_LIMIT} · LinkedIn: ${msg}/${MESSAGE_DAILY_LIMIT} · Emails: ${em}/${EMAIL_DAILY_LIMIT}`;
+  if (inv >= 28 || msg >= 38 || em >= 38)      { el.style.color = 'var(--red)'; }
+  else if (inv >= 25 || msg >= 35 || em >= 35) { el.style.color = '#ea580c'; }
+  else                                          { el.style.color = 'var(--muted)'; }
+}
+
+async function _fetchTodaySendCounts() {
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const isToday = d => d && d.slice(0, 10) === todayStr;
+  const [{ data: invRows }, { data: msgRows }, { data: emRows }] = await Promise.all([
+    sbClient.from('sequences').select('sent_at,created_at').eq('client_id', CLIENT_ID).eq('touch', 'invite').eq('status', 'sent'),
+    sbClient.from('sequences').select('sent_at,created_at').eq('client_id', CLIENT_ID).neq('touch', 'invite').eq('status', 'sent'),
+    sbClient.from('interactions').select('created_at').eq('client_id', CLIENT_ID).eq('type', 'email_j5'),
+  ]);
+  _todaySendCounts.invitesSent  = (invRows || []).filter(r => isToday(r.sent_at || r.created_at)).length;
+  _todaySendCounts.messagesSent = (msgRows || []).filter(r => isToday(r.sent_at || r.created_at)).length;
+  _todaySendCounts.emailsSent   = (emRows  || []).filter(r => isToday(r.created_at)).length;
+  _updateSentCounter();
 }
 
 async function _markSent(pid, touch, auto = false, msgText = '', elPrefix = '') {
@@ -5962,7 +5981,8 @@ async function _markSent(pid, touch, auto = false, msgText = '', elPrefix = '') 
   } else if (!auto) {
     showToast('Marked as sent ✓');
   }
-  _sentTodayCount++;
+  if (touch === 'invite') { _todaySendCounts.invitesSent++; }
+  else { _todaySendCounts.messagesSent++; }
   _updateSentCounter();
 }
 
@@ -9201,7 +9221,7 @@ async function _bulkArchive() {
   await loadKanban();
 }
 async function _bulkStartEmailSeq() {
-  const DAILY_LIMIT = 40;
+  const _emailRemaining = Math.max(0, EMAIL_DAILY_LIMIT - _todaySendCounts.emailsSent);
   if (_selectedPids.size === 0) return;
 
   const btn = document.getElementById('bulk-email-seq-btn');
@@ -9235,11 +9255,11 @@ async function _bulkStartEmailSeq() {
   let toSend = withEmail.filter(pid => !alreadySentSet.has(String(pid)));
   const alreadyCount = withEmail.length - toSend.length;
 
-  // Garde quota 40/jour
+  // Garde quota email restant
   let capped = 0;
-  if (toSend.length > DAILY_LIMIT) {
-    capped = toSend.length - DAILY_LIMIT;
-    toSend = toSend.slice(0, DAILY_LIMIT);
+  if (toSend.length > _emailRemaining) {
+    capped = toSend.length - _emailRemaining;
+    toSend = toSend.slice(0, _emailRemaining);
   }
 
   if (toSend.length === 0) {
@@ -9253,7 +9273,7 @@ async function _bulkStartEmailSeq() {
     return;
   }
 
-  if (capped > 0) showToast(currentLang==='fr' ? `Limite 40/jour : ${capped} prospects non envoyés aujourd'hui` : `Daily limit 40: ${capped} prospects not sent today`);
+  if (capped > 0) showToast(currentLang==='fr' ? `Limite ${EMAIL_DAILY_LIMIT}/jour : ${capped} prospects non envoyés aujourd'hui` : `Daily limit ${EMAIL_DAILY_LIMIT}: ${capped} prospects not sent today`);
 
   // Envois séquentiels avec délai 700ms
   const successRows = [];
@@ -9294,6 +9314,8 @@ async function _bulkStartEmailSeq() {
       await loadKanban(true);
       return;
     }
+    _todaySendCounts.emailsSent += successRows.length;
+    _updateSentCounter();
   }
 
   // Résumé
@@ -10065,6 +10087,8 @@ async function _startEmailSeq(id) {
         console.error('[_startEmailSeq] Supabase insert failed:', _seqInsErr);
         if (statusEl) statusEl.textContent = '⚠ Sent but not tracked — ' + _seqInsErr.message;
       } else {
+        _todaySendCounts.emailsSent++;
+        _updateSentCounter();
         if (btn) { btn.disabled = true; btn.textContent = '✓ Sequence started'; btn.style.background = 'var(--green-brand)'; }
         if (statusEl) statusEl.textContent = '';
       }
