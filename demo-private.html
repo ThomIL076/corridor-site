@@ -5587,8 +5587,8 @@ async function _generateSequenceMessage(pid, touch, forceGenerate = false, elPre
   if (touch === 'j5' && !isAmbassador && !isRedirect && (p.sector||'').toLowerCase() !== 'investor') {
     const staticMsg = _staticFollowUp(touch, firstName, p.company, lang);
     if (out) out.textContent = staticMsg;
-    await _saveSequenceDraft(pid, touch, staticMsg);
-    const saveBtn = document.getElementById('sv-' + pid);
+    await _saveSequenceDraft(pid, touch, staticMsg, elPrefix);
+    const saveBtn = document.getElementById(elPrefix + 'sv-' + pid);
     if (saveBtn) { saveBtn.disabled = true; saveBtn.style.opacity = '0.45'; saveBtn.style.cursor = 'not-allowed'; }
     if (btn) btn.disabled = false;
     if (spin) spin.classList.remove('active');
