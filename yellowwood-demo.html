@@ -8091,6 +8091,7 @@ applyDealBadges();
 let _kanbanLoaded = false;
 let _prospectsById = {}; // index id(uuid) -> ligne Supabase complète, pour l'édition dans le drawer
 let _allProspects = []; // dernier fetch loadKanban complet, pour renderStats()
+let _fitTotalById = {}; // map prospect_id → fit_total (investor_qualifications), chargée par loadKanban
 const KANBAN_STAGES = ['Identified','1st Contact','Engaged','Replied','Proposal','Negotiation','Closed'];
 const _stageRank = { 'Identified':0, '1st Contact':1, 'Engaged':2, 'Replied':2.5, 'Proposal':3, 'Negotiation':4, 'Closed':5 };
 // Mapping colonne kanban → valeur `stage` canonique en base (libellé kanban = valeur DB depuis le renommage Discovery Call→Engaged).
@@ -9069,7 +9070,8 @@ async function _bulkStartEmailSeq() {
 
 function buildCard(p){
   const momentum = getMomentumClass(p);
-  const score = _calcICP(p);
+  const _cardFit = typeof _fitTotalById[p.id] === 'number' ? _fitTotalById[p.id] : null;
+  const score = (_cardFit !== null) ? (_cardFit / 10).toFixed(1) : _calcICP(p);
   const sector = p.sector ? p.sector.trim() : '';
   const regionTag = p.region ? _regionTag(p.region) : '';
   const id = (p.id != null) ? p.id : '';
@@ -9077,13 +9079,14 @@ function buildCard(p){
   const dv = Number(p.deal_value) || 0;
   const _dvCur = p.deal_currency || 'EUR';
   const dealBadge = dv > 0 ? (_dvCur + ' ' + (dv >= 1000 ? Math.round(dv/1000) + 'k' : Math.round(dv))) : '';
-  const _isEst = !(p.icp_score && Number(p.icp_score) > 0);
+  const _isEst = (_cardFit === null) && !(p.icp_score && Number(p.icp_score) > 0);
   const _sv = parseFloat(score);
   const _hs = !isNaN(_sv);
   const _dc = _hs && _sv >= 8 ? 'var(--blue-brand)' : _hs && _sv >= 5 ? '#EF9F27' : '#888780';
   const _circ = 75.4;
   const _off = (_hs ? _circ * (1 - Math.min(1, Math.max(0, _sv / 10))) : _circ).toFixed(1);
-  const _lbl = _hs ? (_isEst ? '~' : '') + (_sv % 1 === 0 ? String(Math.round(_sv)) : _sv.toFixed(1)) : '—';
+  const _svd = Math.max(0, _sv);
+  const _lbl = _hs ? (_isEst ? '~' : '') + (_svd % 1 === 0 ? String(Math.round(_svd)) : _svd.toFixed(1)) : '—';
   const _dial = `<svg width="36" height="36" viewBox="0 0 36 36" style="position:absolute;top:7px;right:7px;${_isEst ? 'opacity:0.72;' : ''}" aria-hidden="true"${_isEst ? ' title="Estimated score"' : ''}><circle cx="18" cy="18" r="13" fill="none" stroke="#e8eaf0" stroke-width="4"/><circle cx="18" cy="18" r="13" fill="none" stroke="${_dc}" stroke-width="4" stroke-dasharray="${_circ}" stroke-dashoffset="${_off}" stroke-linecap="round" transform="rotate(-90 18 18)"/><text x="18" y="22" text-anchor="middle" font-size="9" font-weight="700" fill="${_dc}" font-family="Plus Jakarta Sans,sans-serif">${_lbl}</text></svg>`;
   return `<div class="k-card" data-id="${_esc(id)}" data-last-contact="${_esc(p.last_contact || '')}" data-reminder-date="${_esc(p.reminder_date || '')}" data-client-id="${CLIENT_ID}" data-linkedin-tag="${_esc(p.linkedin_tag || '')}" data-name="${_esc(p.name || '')}" data-company="${_esc(p.company || '')}" data-sector="${_esc(p.sector || '')}" data-region="${_esc(p.region || '')}" data-stage="${_esc(p.stage || '')}" data-icp-score="${score}" data-country="${_esc(p.country || '')}" data-signal-type="${_esc(p.signal_type || '')}" data-origin="${_esc(p.origin || '')}" data-deal="${Number(p.deal_value) || 0}" data-confidence="${_calcConfidence(p)}" data-job-title="${_esc(p.title || '')}" data-next-action="${p.next_action ? '1' : '0'}" data-next-action-date="${_esc(p.next_action_date || '')}" data-has-signal="${!!(p.signal_type) && !!(p.signal) ? 'true' : 'false'}">`
     + `<input type="checkbox" class="k-card-select" data-pid="${_esc(id)}" onchange="_onCardSelect(this)" onclick="event.stopPropagation()" style="position:absolute;top:10px;left:8px;width:14px;height:14px;cursor:pointer;z-index:2;accent-color:var(--navy);">`
@@ -10292,6 +10295,17 @@ async function loadKanban(force){
       _kFrom += 1000;
     }
     _allProspects = _kAll;
+    const _iqIds = _kAll.map(p => p.id).filter(Boolean);
+    if (_iqIds.length > 0) {
+      const { data: _iqRows } = await sbClient.from('investor_qualifications')
+        .select('prospect_id,fit_total')
+        .in('prospect_id', _iqIds)
+        .eq('is_current', true);
+      _fitTotalById = {};
+      (_iqRows || []).forEach(r => {
+        if (typeof r.fit_total === 'number') _fitTotalById[r.prospect_id] = r.fit_total;
+      });
+    }
     renderKanban(_kAll);
     _initKanbanFilterOptions();
     initKanbanDnD();
