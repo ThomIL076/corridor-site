@@ -6444,7 +6444,8 @@ async function openDrawer(card, initialTab = 'activity') {
   const clientId     = card.dataset.clientId     || CLIENT_ID;
 
   _scannerPreFill = { company: (_p.company || '').trim() || company.split('·')[0].trim(), sector,
-                     icp_score: (_p.icp_score != null && Number(_p.icp_score) > 0) ? Number(_p.icp_score) : null };
+                     icp_score: (_p.icp_score != null && Number(_p.icp_score) > 0) ? Number(_p.icp_score) : null,
+                     person: name || null };
   _drawerProspect = { id:prospectId, name, company, score, sector, stage,
                       last_contact:lastContact, reminder_date:reminderDate, client_id:clientId };
 
@@ -6938,6 +6939,7 @@ function openScannerPanel(source) {
     const _set = (id, v) => { const el = document.getElementById(id); if (el && v) el.value = v; };
     _set('scanner-company', ctx.company);
     _set('scanner-sector', ctx.sector);
+    _set('scanner-person', ctx.person);
     if (ctx.icp_score != null) {
       const _sg = document.getElementById('scanner-score-grid');
       const _st = document.getElementById('sc-total');
