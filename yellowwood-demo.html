@@ -9071,7 +9071,10 @@ async function _bulkStartEmailSeq() {
 function buildCard(p){
   const momentum = getMomentumClass(p);
   const _cardFit = typeof _fitTotalById[p.id] === 'number' ? _fitTotalById[p.id] : null;
-  const score = (_cardFit !== null) ? (_cardFit / 10).toFixed(1) : _calcICP(p);
+  const _isInvestorSourced = p.import_source === 'structured_search';
+  const score = (_cardFit !== null)
+    ? (_cardFit / 10).toFixed(1)
+    : (_isInvestorSourced ? NaN : _calcICP(p));
   const sector = p.sector ? p.sector.trim() : '';
   const regionTag = p.region ? _regionTag(p.region) : '';
   const id = (p.id != null) ? p.id : '';
@@ -9079,7 +9082,7 @@ function buildCard(p){
   const dv = Number(p.deal_value) || 0;
   const _dvCur = p.deal_currency || 'EUR';
   const dealBadge = dv > 0 ? (_dvCur + ' ' + (dv >= 1000 ? Math.round(dv/1000) + 'k' : Math.round(dv))) : '';
-  const _isEst = (_cardFit === null) && !(p.icp_score && Number(p.icp_score) > 0);
+  const _isEst = (_cardFit === null) && !_isInvestorSourced && !(p.icp_score && Number(p.icp_score) > 0);
   const _sv = parseFloat(score);
   const _hs = !isNaN(_sv);
   const _dc = _hs && _sv >= 8 ? 'var(--blue-brand)' : _hs && _sv >= 5 ? '#EF9F27' : '#888780';
