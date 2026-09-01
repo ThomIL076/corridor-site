@@ -5810,7 +5810,7 @@ async function _saveSequenceDraft(pid, touch, bodyOverride, elPrefix = '') {
       .select('id').single();
     if (_sdInsErr) { console.error('[_saveSequenceDraft] insert failed:', _sdInsErr); showToast('Error saving draft'); return; }
     if (data?.id) {
-      const card = document.getElementById('sc-' + pid);
+      const card = document.getElementById(elPrefix + 'sc-' + pid);
       if (card) card.dataset.seqId = data.id;
       _sendSequences[pid] = _sendSequences[pid] || [];
       _sendSequences[pid].push({ id:data.id, touch, body, status:'draft' });
