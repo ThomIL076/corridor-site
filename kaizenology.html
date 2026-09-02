@@ -8105,13 +8105,7 @@ async function _scannerMapCommittee() {
     : '\nDISAMBIGUATION: Only include executives explicitly attributed to this specific company in the LIVE CONTEXT. Additionally, only include people whose LinkedIn URL appears in the LIVE CONTEXT — if linkedin_url would be null, exclude the person entirely rather than using a generic title. Return fewer people if needed.\n';
   const stakeholderPrompt = liveBlock +
     _urlBlock +
-    '\nYou are a B2B sales strategist.' +
-    '\nMap the typical buying committee for ' + company + (siteUrl ? ' (' + siteUrl + ')' : '') + ' (' + sector + ', EMEA), a company that operates in B2B.' +
-    '\n\nPRIORITY: if the LIVE CONTEXT names real executives (CEO, CRO, VP, Head of, etc.), use their actual names and include their LinkedIn URL only if it explicitly appears in the LIVE CONTEXT. Fall back to typical role titles only if no named individuals appear. Never invent a LinkedIn URL.' +
-    '\n\nIdentify 3 to 5 stakeholders involved in a GTM decision.' +
-    '\n\nRespond ONLY with a valid JSON array — no markdown, no code fences, no text before or after. Each object must have exactly these fields:' +
-    '\n[{"name":"Full Name or Role Title","title":"Job title","concern":"main concern in this decision","role":"Influence|Approve|Sign","approach":"one sentence on how to engage","linkedin_url":"https://linkedin.com/in/... or null"}]' +
-    '\n\nrole must be exactly one of: Influence, Approve, Sign. linkedin_url must be null if not found in LIVE CONTEXT. Be specific to ' + sector + ' and ' + company + ' size. No generic corporate language.';
+    '\nYou are a B2B sales strategist mapping the buying committee for ' + company + (siteUrl ? ' (' + siteUrl + ')' : '') + ' (' + sector + ', EMEA).\n\nReturn a JSON array of 3-5 stakeholders. Each object must have exactly these fields:\n- "name": real name from live context, or null if not found\n- "title": job title\n- "concern": their main concern in a GTM decision\n- "role": exactly one of "Influence", "Approve", or "Sign"\n- "approach": one sentence on how to engage them\n- "linkedin_url": their LinkedIn URL if found in context, else null\n\nPRIORITY: use real names from LIVE CONTEXT if available. Never invent a LinkedIn URL — use only what appears in the LIVE CONTEXT. Be specific to ' + sector + ' and ' + company + ' size. No generic corporate language.\nReturn ONLY valid JSON array, no other text:\n[{"name":"...","title":"...","concern":"...","role":"Influence|Approve|Sign","approach":"...","linkedin_url":"...or null"}]';
 
   try {
     const res = await fetch(API_URL, {
@@ -8137,7 +8131,8 @@ async function _scannerMapCommittee() {
           if ((s.name || '').trim().toLowerCase() === _anchorN) { s.linkedin_url = _anchorLI; break; }
         }
       }
-      stakeholders = Array.isArray(_rawParsed) ? _rawParsed.filter(s => s.name && s.linkedin_url) : null;
+      const _genericRolePattern = /^(chief|vp|head|director|president|officer|co-founder|founder|managing|general)\b/i;
+      stakeholders = Array.isArray(_rawParsed) ? _rawParsed.filter(s => s.name && s.linkedin_url && !_genericRolePattern.test(s.name.trim())) : null;
       console.log('[sm:filtered]', stakeholders?.length, JSON.stringify(stakeholders));
       if (!Array.isArray(stakeholders) || stakeholders.length === 0) throw new Error('empty');
     } catch(_) {}

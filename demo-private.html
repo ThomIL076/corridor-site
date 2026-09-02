@@ -7975,7 +7975,8 @@ async function _scannerMapCommittee() {
           if ((s.name || '').trim().toLowerCase() === _anchorN) { s.linkedin_url = _anchorLI; break; }
         }
       }
-      stakeholders = Array.isArray(_rawParsed) ? _rawParsed.filter(s => s.name && s.linkedin_url) : null;
+      const _genericRolePattern = /^(chief|vp|head|director|president|officer|co-founder|founder|managing|general)\b/i;
+      stakeholders = Array.isArray(_rawParsed) ? _rawParsed.filter(s => s.name && s.linkedin_url && !_genericRolePattern.test(s.name.trim())) : null;
       console.log('[sm:scanner:filtered]', stakeholders?.length, JSON.stringify(stakeholders));
       if (!Array.isArray(stakeholders) || stakeholders.length === 0) throw new Error('empty');
     } catch(e) { console.log('[sm:scanner:catch]', e.message); stakeholders = null; }

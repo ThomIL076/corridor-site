@@ -7840,7 +7840,8 @@ async function _scannerMapCommittee() {
         if ((s.name || '').trim().toLowerCase() === _anchorN) { s.linkedin_url = _anchorLI; break; }
       }
     }
-    stakeholders = stakeholders.filter(s => s.name && s.linkedin_url);
+    const _genericRolePattern = /^(chief|vp|head|director|president|officer|co-founder|founder|managing|general)\b/i;
+    stakeholders = stakeholders.filter(s => s.name && s.linkedin_url && !_genericRolePattern.test(s.name.trim()));
     console.log('[sm:filtered]', stakeholders.length, JSON.stringify(stakeholders));
     if (!Array.isArray(stakeholders) || stakeholders.length === 0) {
       if (out) out.textContent = 'No verified stakeholders found with confirmed LinkedIn profiles.';
