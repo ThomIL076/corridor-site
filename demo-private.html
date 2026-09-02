@@ -7915,6 +7915,26 @@ function _markPostCallSent() {
   if (noteEl) noteEl.value = '';
 }
 
+async function _resolveViaApollo(name, company) {
+  try {
+    const parts = (name || '').trim().split(/\s+/);
+    if (parts.length < 2) return null;
+    const first_name = parts[0];
+    const last_name = parts.slice(1).join(' ');
+    const r = await fetch('/api/enrich-contact', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ first_name, last_name, organization_name: company, reveal_personal_emails: false })
+    });
+    if (!r.ok) return null;
+    const d = await r.json();
+    const url = d?.person?.linkedin_url || null;
+    return url && /^https?:\/\/(www\.)?linkedin\.com\/in\//i.test(url) ? url : null;
+  } catch (e) {
+    return null;
+  }
+}
+
 async function _scannerMapCommittee() {
   const company = (document.getElementById('scanner-company')?.value || '').trim();
   const sector  = (document.getElementById('scanner-sector')?.value  || 'unspecified sector').trim();
@@ -7959,7 +7979,7 @@ async function _scannerMapCommittee() {
 
   const _urlBlock = siteUrl
     ? '\nCOMPANY WEBSITE (authoritative identifier): ' + siteUrl + '\nVerify each person individually against the LIVE CONTEXT. Include a person only if BOTH conditions hold:\n1. They are explicitly mentioned in the LIVE CONTEXT as affiliated with ' + siteUrl + ' — not a company with a similar name.\n2. Their LinkedIn URL appears explicitly in the LIVE CONTEXT.\nIf a person fails either condition, omit that person — include others who pass both. NEVER use a job title as the "name" value ("CEO", "CTO", "Co-Founder" are forbidden — use the real first+last name). If no one passes both conditions, return [].\n'
-    : '\nDISAMBIGUATION: Only include executives explicitly attributed to this specific company in the LIVE CONTEXT. Additionally, only include people whose LinkedIn URL appears in the LIVE CONTEXT — if linkedin_url would be null, exclude the person entirely rather than using a generic title. Return fewer people if needed.\n';
+    : '\nDISAMBIGUATION: The company you are researching is exactly "' + company + '" (as provided) — not a similarly-named but distinct company that may appear in the search results (e.g. a different entity sharing part of the name). Only use information explicitly tied to "' + company + '" as named. If search results mention multiple entities with similar names, do not discard the entire result set due to that ambiguity — evaluate each candidate individually: include those clearly attributed to "' + company + '" specifically, exclude only the ones you cannot confidently attribute to it. Never return an empty list solely because the search results contain a mix of entities; return an empty list only if none of the candidates can be confidently attributed to "' + company + '".\n';
   console.log('[sm:liveContext]', liveBlock);
   const stakeholderPrompt = liveBlock +
     _urlBlock +
@@ -7967,8 +7987,10 @@ async function _scannerMapCommittee() {
     '\nMap the typical buying committee for ' + company + (siteUrl ? ' (' + siteUrl + ')' : '') + ' (' + sector + ', EMEA), a company that operates in B2B.' +
     '\n\nPRIORITY: if the LIVE CONTEXT names real executives (CEO, CRO, VP, Head of, etc.), use their actual names and include their LinkedIn URL only if it explicitly appears in the LIVE CONTEXT. Fall back to typical role titles only if no named individuals appear. Never invent a LinkedIn URL.' +
     '\n\nIdentify 3 to 5 stakeholders involved in a GTM decision.' +
-    '\n\nRespond ONLY with a valid JSON array — no markdown, no code fences, no text before or after. Each object must have exactly these fields:' +
-    '\n[{"name":"Full Name or Role Title","title":"Job title","concern":"main concern in this decision","role":"Influence|Approve|Sign","approach":"one sentence on how to engage","linkedin_url":"https://linkedin.com/in/... or null"}]' +
+    '\n\nCITATIONS (numbered, for LinkedIn attribution):\n' +
+    (_stakeholderCitations.length ? _stakeholderCitations.map((c, i) => '[' + (i + 1) + '] ' + c).join('\n') : '(none)') +
+    '\n\nFor each stakeholder, if one of the citations above is their LinkedIn profile, set "linkedin_citation_index" to that number. If none matches, set it to null. Do not guess — only use an index if you are confident it is that specific person\'s profile.\n\nRespond ONLY with a valid JSON array — no markdown, no code fences, no text before or after. Each object must have exactly these fields:' +
+    '\n[{"name":"Full Name or Role Title","title":"Job title","concern":"main concern in this decision","role":"Influence|Approve|Sign","approach":"one sentence on how to engage","linkedin_url":"https://linkedin.com/in/... or null","linkedin_citation_index":<number or null>}]' +
     '\n\nrole must be exactly one of: Influence, Approve, Sign. linkedin_url must be null if not found in LIVE CONTEXT. Be specific to ' + sector + ' and ' + company + ' size. No generic corporate language.';
 
   try {
@@ -7996,6 +8018,20 @@ async function _scannerMapCommittee() {
         }
       }
       const _liUrlPattern = /^https?:\/\/(www\.)?linkedin\.com\/in\/[^\s"'<>]+/i;
+      const _validLinkedInUrl = /^https?:\/\/(www\.)?linkedin\.com\/in\/[^\s]+$/i;
+      for (const s of (Array.isArray(_rawParsed) ? _rawParsed : [])) {
+        if (_validLinkedInUrl.test((s.linkedin_url || '').trim())) continue;
+        const idx = s.linkedin_citation_index;
+        if (typeof idx === 'number' && idx >= 1 && idx <= _stakeholderCitations.length) {
+          const cited = _stakeholderCitations[idx - 1];
+          if (_liUrlPattern.test(cited)) s.linkedin_url = cited;
+        }
+      }
+      await Promise.all((Array.isArray(_rawParsed) ? _rawParsed : []).map(async s => {
+        if (!s.name || _validLinkedInUrl.test((s.linkedin_url || '').trim())) return;
+        const apolloUrl = await _resolveViaApollo(s.name, company);
+        if (apolloUrl) s.linkedin_url = apolloUrl;
+      }));
       const _normFM = s => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
       const _citationLinkedInUrls = [...new Set(_stakeholderCitations.filter(u => _liUrlPattern.test(u)))];
       for (const s of (Array.isArray(_rawParsed) ? _rawParsed : [])) {
@@ -8007,10 +8043,9 @@ async function _scannerMapCommittee() {
           return _nameTokens.every(t => _slug.includes(t))
               || (_nameTokens.length >= 2 && _nameTokens.slice(-2).every(t => _slug.includes(t)));
         });
-        if (_match) s.linkedin_url = _match;
+        if (_match && !_validLinkedInUrl.test((s.linkedin_url || '').trim())) s.linkedin_url = _match;
       }
       const _genericRolePattern = /^(chief|vp|head|director|president|officer|co-founder|founder|managing|general)\b/i;
-      const _validLinkedInUrl = /^https?:\/\/(www\.)?linkedin\.com\/in\/[^\s]+$/i;
       stakeholders = Array.isArray(_rawParsed) ? _rawParsed.filter(s => s.name && s.linkedin_url && !_genericRolePattern.test(s.name.trim()) && _validLinkedInUrl.test(s.linkedin_url.trim())) : null;
       console.log('[sm:scanner:filtered]', stakeholders?.length, JSON.stringify(stakeholders));
       if (!Array.isArray(stakeholders) || stakeholders.length === 0) throw new Error('empty');
