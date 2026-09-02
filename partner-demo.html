@@ -7508,11 +7508,17 @@ async function _scannerMapCommittee() {
   if (spin) spin.classList.add('active');
 
   const _searchQ = _siteDomain ? company + ' ' + _siteDomain : company;
+  const _smOut1 = {}, _smOut2 = {}, _smOut3 = {};
   const [ctx1, ctx2, ctx3] = await Promise.all([
-    _marketIntelSearch(_searchQ + ' leadership team executives decision makers', 500),
-    _marketIntelSearch(_searchQ + ' buying process procurement ' + sector, 500),
-    _marketIntelSearch(_searchQ + ' executives linkedin profiles', 300)
+    _marketIntelSearch(_searchQ + ' leadership team executives decision makers', 500, '', _smOut1),
+    _marketIntelSearch(_searchQ + ' buying process procurement ' + sector, 500, '', _smOut2),
+    _marketIntelSearch(_searchQ + ' executives linkedin profiles', 300, '', _smOut3)
   ]);
+  const _stakeholderCitations = [
+    ...(_smOut1.citations || []),
+    ...(_smOut2.citations || []),
+    ...(_smOut3.citations || [])
+  ];
 
   let liveBlock = '';
   if (ctx1 || ctx2 || ctx3) {
@@ -7558,6 +7564,20 @@ async function _scannerMapCommittee() {
       for (const s of stakeholders) {
         if ((s.name || '').trim().toLowerCase() === _anchorN) { s.linkedin_url = _anchorLI; break; }
       }
+    }
+    const _liUrlPattern = /^https?:\/\/(www\.)?linkedin\.com\/in\/[^\s"'<>]+/i;
+    const _normFM = s => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+    const _citationLinkedInUrls = [...new Set(_stakeholderCitations.filter(u => _liUrlPattern.test(u)))];
+    for (const s of stakeholders) {
+      if (!s.name) continue;
+      const _nameTokens = _normFM(s.name).split(' ').filter(t => t.length > 1);
+      if (_nameTokens.length === 0) continue;
+      const _match = _citationLinkedInUrls.find(url => {
+        const _slug = _normFM(decodeURIComponent(url.split('/in/')[1] || '').replace(/\?.*$/, ''));
+        return _nameTokens.every(t => _slug.includes(t))
+            || (_nameTokens.length >= 2 && _nameTokens.slice(-2).every(t => _slug.includes(t)));
+      });
+      if (_match) s.linkedin_url = _match;
     }
     const _genericRolePattern = /^(chief|vp|head|director|president|officer|co-founder|founder|managing|general)\b/i;
     const _validLinkedInUrl = /^https?:\/\/(www\.)?linkedin\.com\/in\/[^\s]+$/i;
