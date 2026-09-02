@@ -7281,6 +7281,7 @@ function _renderPriorityCards(prospects) {
             ${p.identity_confidence === 'low' ? `<span style="font-size:10px;font-weight:700;color:#6b7280;background:#f3f4f6;border:1px solid #d1d5db;border-radius:20px;padding:1px 6px;white-space:nowrap;" title="Identité non confirmée">? Identité à vérifier</span>` : ''}
           </div>
           ${signalHtml}
+          ${p.email ? `<div style="font-size:var(--fs-xs);margin-top:3px;"><a href="mailto:${_esc(p.email)}" style="color:var(--navy);text-decoration:none;">${_esc(p.email)}</a></div>` : ''}
         </div>
         <div style="text-align:right;flex-shrink:0;">
           <div style="font-size:var(--fs-base);font-weight:700;color:var(--navy);">${scoreVal}</div>
@@ -7308,6 +7309,12 @@ async function _priorityGenerate(prospectId) {
 
   try {
     const text = await _generateNextAction({ ...p, score: p.icp_score });
+    if (!text.trim()) {
+      console.error('[_priorityGenerate] empty response for', p.name, p.company);
+      actionDiv.innerHTML = `<span style="color:var(--muted);font-size:var(--fs-xs);">No response from AI — try again.</span>`;
+      if (btn) { btn.disabled = false; btn.textContent = 'Generate'; }
+      return;
+    }
     const rendered = renderMarkdown(text).replace(
       /([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})/g,
       '<a href="mailto:$1" style="color:var(--navy);text-decoration:underline">$1</a>'
@@ -7320,6 +7327,7 @@ async function _priorityGenerate(prospectId) {
     if (sp) sp.next_action_cache = text;
     _updatePrioritiesNextBtn();
   } catch(e) {
+    console.error('[_priorityGenerate] error:', e);
     actionDiv.innerHTML = `<span style="color:var(--muted);font-size:var(--fs-xs);">Error: ${e.message}</span>`;
     if (btn) { btn.disabled = false; btn.textContent = 'Generate'; }
   }
@@ -7776,6 +7784,8 @@ async function _scannerMapCommittee() {
   const company = (document.getElementById('scanner-company')?.value || '').trim();
   const sector  = (document.getElementById('scanner-sector')?.value  || 'unspecified sector').trim();
   if (!company) { showToast('Enter a company name in Scanner first'); return; }
+  const siteUrl = (document.getElementById('scanner-url')?.value || '').trim();
+  const _siteDomain = siteUrl ? siteUrl.replace(/^https?:\/\//, '').replace(/\/.*$/, '') : '';
   const btn  = document.getElementById('scanner-committee-btn');
   const out  = document.getElementById('scanner-committee-output');
   const spin = document.getElementById('scanner-committee-spinner');
@@ -7783,9 +7793,10 @@ async function _scannerMapCommittee() {
   if (out)  out.textContent = 'Researching ' + company + '...';
   if (spin) spin.classList.add('active');
 
+  const _searchQ = _siteDomain ? company + ' ' + _siteDomain : company;
   const [ctx1, ctx2] = await Promise.all([
-    _marketIntelSearch(company + ' leadership team executives decision makers', 500),
-    _marketIntelSearch(company + ' buying process procurement ' + sector, 500)
+    _marketIntelSearch(_searchQ + ' leadership team executives decision makers', 500),
+    _marketIntelSearch(_searchQ + ' buying process procurement ' + sector, 500)
   ]);
 
   let liveBlock = '';
@@ -7803,7 +7814,10 @@ async function _scannerMapCommittee() {
   if (out) out.textContent = 'Mapping committee...';
 
   const _icpScore = (() => { const el = document.getElementById('sc-total'); const t = el?.textContent || ''; const n = parseFloat(t); return isNaN(n) ? null : n; })();
-  const stakeholderPrompt = liveBlock + '\nYou are a B2B sales strategist mapping the buying committee for ' + company + ' (' + sector + ').\n\nReturn a JSON array of 3-5 stakeholders. Each object must have exactly these fields:\n- "name": real name from live context, or null if not found\n- "title": job title\n- "concern": their main concern in a GTM decision\n- "role": exactly one of "Influence", "Approve", or "Sign"\n- "approach": one sentence on how to engage them\n- "linkedin_url": their LinkedIn URL if found in context, else null\n\nPRIORITY: use real names from LIVE CONTEXT if available. Return ONLY valid JSON array, no other text:\n[{"name":"...","title":"...","concern":"...","role":"Influence|Approve|Sign","approach":"...","linkedin_url":"...or null"}]';
+  const _urlBlock = siteUrl
+    ? '\nCOMPANY WEBSITE (authoritative identifier): ' + siteUrl + ' — Every named executive must be verifiably associated with this specific company and domain, not a different company sharing a similar name. If you cannot confirm affiliation with high confidence, use a generic role title instead of a real name.\n'
+    : '\nDISAMBIGUATION: If multiple companies share the name "' + company + '", only include executives you can confidently attribute to this specific company from the LIVE CONTEXT above. When in doubt, use a generic role title instead of a real name.\n';
+  const stakeholderPrompt = liveBlock + _urlBlock + '\nYou are a B2B sales strategist mapping the buying committee for ' + company + (siteUrl ? ' (' + siteUrl + ')' : '') + ' (' + sector + ').\n\nReturn a JSON array of 3-5 stakeholders. Each object must have exactly these fields:\n- "name": real name from live context, or null if not found\n- "title": job title\n- "concern": their main concern in a GTM decision\n- "role": exactly one of "Influence", "Approve", or "Sign"\n- "approach": one sentence on how to engage them\n- "linkedin_url": their LinkedIn URL if found in context, else null\n\nPRIORITY: use real names from LIVE CONTEXT if available. Return ONLY valid JSON array, no other text:\n[{"name":"...","title":"...","concern":"...","role":"Influence|Approve|Sign","approach":"...","linkedin_url":"...or null"}]';
 
   try {
     const res = await fetch(API_URL, {
