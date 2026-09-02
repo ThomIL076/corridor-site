@@ -7838,8 +7838,11 @@ async function _scannerMapCommittee() {
     const _m = text.match(/\[[\s\S]*\]/);
     let stakeholders = [];
     try { stakeholders = _m ? JSON.parse(_m[0]) : []; } catch(e) {}
+    console.log('[sm:raw]', JSON.stringify(stakeholders));
+    stakeholders = stakeholders.filter(s => s.name && s.linkedin_url);
+    console.log('[sm:filtered]', stakeholders.length, JSON.stringify(stakeholders));
     if (!Array.isArray(stakeholders) || stakeholders.length === 0) {
-      if (out) out.textContent = 'Could not parse committee response. Try again.';
+      if (out) out.textContent = 'No verified stakeholders found with confirmed LinkedIn profiles.';
     } else {
       await _resolveLinkedInUrls(stakeholders, company);
       _renderCommitteeCards(stakeholders, out, company, sector, _icpScore);
@@ -7900,8 +7903,11 @@ async function _mapStakeholders() {
     const _m = text.match(/\[[\s\S]*\]/);
     let stakeholders = [];
     try { stakeholders = _m ? JSON.parse(_m[0]) : []; } catch(e) {}
+    console.log('[sm:raw]', JSON.stringify(stakeholders));
+    stakeholders = stakeholders.filter(s => s.name && s.linkedin_url);
+    console.log('[sm:filtered]', stakeholders.length, JSON.stringify(stakeholders));
     if (!Array.isArray(stakeholders) || stakeholders.length === 0) {
-      if (out) out.textContent = 'Could not parse committee response. Try again.';
+      if (out) out.textContent = 'No verified stakeholders found with confirmed LinkedIn profiles.';
     } else {
       await _resolveLinkedInUrls(stakeholders, p.company);
       _renderCommitteeCards(stakeholders, out, p.company, p.sector||'B2B', p.icp_score||null);
