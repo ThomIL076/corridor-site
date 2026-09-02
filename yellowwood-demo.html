@@ -1139,7 +1139,7 @@ body.new-nav { padding-left: 220px; }
   </div>
   <div class="snav-section">
     <button class="snav-item" data-nav="investors" onclick="_switchNewNav('investors')">
-      <span class="snav-icon">🏦</span> Investors
+      <span class="snav-icon">⭐</span> Priorities
     </button>
     <button class="snav-item" data-nav="pipeline" onclick="_switchNewNav('pipeline')">
       <span class="snav-icon">📊</span> Pipeline
@@ -2179,7 +2179,7 @@ async function loadInvestorQualifications() {
     const { data, error } = await sbClient
       .from('investor_qualifications')
       .select(`
-        id, prospect_id, archetype, fit_total,
+        id, prospect_id, archetype, fit_total, priority,
         capital_gate, deal_flow_gate, capacity_pressure_gate,
         recommended_route, why_this_person, why_now,
         access, access_path, missing_validation, created_at,
@@ -2188,6 +2188,7 @@ async function loadInvestorQualifications() {
       .eq('client_id', CLIENT_ID)
       .eq('is_current', true)
       .neq('recommended_route', 'exclude')
+      .neq('priority', 'X')
       .order('fit_total', { ascending: false });
     if (error) throw error;
     _renderInvestorCards(data || []);
@@ -2210,7 +2211,11 @@ function _renderInvestorCards(rows) {
     return `<span style="display:inline-flex;align-items:center;gap:4px;font-size:var(--fs-xs);font-weight:600;padding:2px 9px;border-radius:var(--radius-pill);background:var(--chip-bg);color:var(--muted);">? ${_esc(label)}</span>`;
   }
 
-  container.innerHTML = rows.map(q => {
+  const _actionable = rows.filter(q => q.priority === 'A' || q.priority === 'B');
+  const _deepen     = rows.filter(q => q.priority === 'C');
+  const _rest       = rows.filter(q => !['A','B','C'].includes(q.priority));
+
+  function _toCard(q) {
     const p = q.prospects || {};
     const scoreVal = typeof q.fit_total === 'number' ? q.fit_total.toFixed(1) : '—';
     const linkedinHtml = p.linkedin
@@ -2265,7 +2270,13 @@ function _renderInvestorCards(rows) {
           style="font-size:12px;padding:2px 10px;border-radius:12px;border:1px solid var(--border);background:transparent;color:var(--text-secondary);cursor:pointer;transition:all .15s;margin-left:auto;">+ Add to pipeline</button>
       </div>
     </div>`;
-  }).join('');
+  }
+
+  const _deepenHeader = '<div style="margin:24px 0 12px;border-top:1px solid var(--border);padding-top:16px;"><p style="font-size:var(--fs-sm);font-weight:700;color:var(--navy);margin:0 0 2px;">À approfondir avant contact</p><p style="font-size:var(--fs-xs);color:var(--muted);margin:0 0 14px;">Critères non encore évalués — pas exclus, à qualifier avant contact.</p></div>';
+
+  container.innerHTML =
+    [..._actionable, ..._rest].map(_toCard).join('')
+    + (_deepen.length ? _deepenHeader + _deepen.map(_toCard).join('') : '');
 }
 
 async function _submitInvestorVote(btn, qualId, vote) {
@@ -2709,10 +2720,11 @@ async function showDemo(){
   }
   if (!_kanbanLoaded) loadKanban();
   _initHpFilters();
-  // Init unique post-login : Pipeline par défaut + scroll en haut (PWA démarre proprement)
+  // Init unique post-login : Priorities par défaut + scroll en haut (PWA démarre proprement)
   if (!_demoStarted) {
     _demoStarted = true;
-    switchTab('pipeline');
+    switchTab('investors');
+    _newNavActive('investors');
     window.scrollTo({ top: 0, behavior: 'instant' });
     document.documentElement.scrollTop = 0;
     document.body.scrollTop = 0;
