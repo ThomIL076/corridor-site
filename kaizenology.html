@@ -2864,7 +2864,7 @@ async function _getAuthHeaders() {
 }
 
 // ── WEB SEARCH HELPER ──
-async function _marketIntelSearch(query, maxTokens = 500, domain = '') {
+async function _marketIntelSearch(query, maxTokens = 500, domain = '', _out = null) {
   const ctrl = new AbortController();
   const tid = setTimeout(() => ctrl.abort(new Error('timeout 20s')), 20000);
   try {
@@ -2878,6 +2878,7 @@ async function _marketIntelSearch(query, maxTokens = 500, domain = '') {
     });
     if (!r.ok) return '';
     const d = await r.json();
+    if (_out) _out.citations = d.citations || [];
     console.log('[upstream:raw]', JSON.stringify({ text: d.choices?.[0]?.message?.content, citations: d.citations }));
     return (d.choices?.[0]?.message?.content || '').trim();
   } catch (e) {
@@ -2889,11 +2890,11 @@ async function _marketIntelSearch(query, maxTokens = 500, domain = '') {
 }
 
 // ── SHARED WEB SEARCH PRE-FETCH (Scanner, Intelligence, DrawerAI, Pipeline Coach) ──
-async function _prefetchWebContext(company, sector, siteUrl) {
+async function _prefetchWebContext(company, sector, siteUrl, _out = null) {
   if (!company) return '';
   const _dom = siteUrl ? siteUrl.replace(/^https?:\/\//, '').split('/')[0] : '';
   const q = (company + (_dom ? ' ' + _dom : '') + ' ' + (sector || '') + ' recent news expansion').trim();
-  const ctx = await _marketIntelSearch(q, 500, _dom);
+  const ctx = await _marketIntelSearch(q, 500, _dom, _out);
   return ctx
     ? '\nLIVE CONTEXT about ' + company + ' (from web search, today):\n' + ctx + '\nUse this to make the analysis accurate and specific. Never suggest expansion into a market the company is already clearly established in based on the web search.\n'
     : '';
@@ -2958,13 +2959,19 @@ async function _runContactIntelligence(company, person, linkedin = null) {
   const out = document.getElementById('scanner-contact-output');
   if (!out) return;
   out.textContent = 'Researching ' + person + '...';
-  const liveBio = await _prefetchWebContext(person + ' ' + company, 'contact brief');
+  const _bioCit = {};
+  const liveBio = await _prefetchWebContext(person + ' ' + company, 'contact brief', null, _bioCit);
   const liveNote = liveBio ? `\nPublic context found:\n${liveBio}\n` : '';
+  const _liCitPattern = /^https?:\/\/(www\.)?linkedin\.com\/in\//i;
+  const _resolvedFromWeb = !linkedin ? ((_bioCit.citations || []).find(u => _liCitPattern.test(u)) || null) : null;
+  const resolvedNote = _resolvedFromWeb
+    ? '\nWeb search found this LinkedIn URL for this person: ' + _resolvedFromWeb + ' — state it as confirmed in ONLINE PRESENCE.\n'
+    : '';
   const knownLinkedIn = linkedin
     ? `\nIMPORTANT: This person's LinkedIn is already verified in our database: ${linkedin} — state it as confirmed in the ONLINE PRESENCE section, do not claim it could not be found.\n`
     : '';
   const contactPrompt = `Research ${person} at ${company} and return a structured briefing with exactly four ## section headers as shown below.
-${liveNote}${knownLinkedIn}
+${liveNote}${resolvedNote}${knownLinkedIn}
 ## WHO THEY ARE
 Current role, background, how long at the company, previous relevant experience. 3-4 lines max.
 
@@ -8139,7 +8146,8 @@ async function _scannerMapCommittee() {
         }
       }
       const _genericRolePattern = /^(chief|vp|head|director|president|officer|co-founder|founder|managing|general)\b/i;
-      stakeholders = Array.isArray(_rawParsed) ? _rawParsed.filter(s => s.name && s.linkedin_url && !_genericRolePattern.test(s.name.trim())) : null;
+      const _validLinkedInUrl = /^https?:\/\/(www\.)?linkedin\.com\/in\/[^\s]+$/i;
+      stakeholders = Array.isArray(_rawParsed) ? _rawParsed.filter(s => s.name && s.linkedin_url && !_genericRolePattern.test(s.name.trim()) && _validLinkedInUrl.test(s.linkedin_url.trim())) : null;
       console.log('[sm:filtered]', stakeholders?.length, JSON.stringify(stakeholders));
       if (!Array.isArray(stakeholders) || stakeholders.length === 0) throw new Error('empty');
     } catch(_) {}
