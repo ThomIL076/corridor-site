@@ -7934,6 +7934,7 @@ async function _scannerMapCommittee() {
   const _urlBlock = siteUrl
     ? '\nCOMPANY WEBSITE (authoritative identifier): ' + siteUrl + '\nVerify each person individually against the LIVE CONTEXT. Include a person only if BOTH conditions hold:\n1. They are explicitly mentioned in the LIVE CONTEXT as affiliated with ' + siteUrl + ' — not a company with a similar name.\n2. Their LinkedIn URL appears explicitly in the LIVE CONTEXT.\nIf a person fails either condition, omit that person — include others who pass both. NEVER use a job title as the "name" value ("CEO", "CTO", "Co-Founder" are forbidden — use the real first+last name). If no one passes both conditions, return [].\n'
     : '\nDISAMBIGUATION: Only include executives explicitly attributed to this specific company in the LIVE CONTEXT. Additionally, only include people whose LinkedIn URL appears in the LIVE CONTEXT — if linkedin_url would be null, exclude the person entirely rather than using a generic title. Return fewer people if needed.\n';
+  console.log('[sm:liveContext]', liveBlock);
   const stakeholderPrompt = liveBlock +
     _urlBlock +
     '\nYou are a B2B sales strategist.' +
@@ -8007,6 +8008,7 @@ async function _mapStakeholders() {
 
   if (out) out.textContent = 'Mapping committee...';
 
+  console.log('[sm:liveContext:drawer]', liveBlock);
   const stakeholderPrompt = liveBlock +
     '\nYou are a B2B sales strategist.' +
     '\nMap the typical buying committee for ' + p.company + ' (' + (p.sector||'B2B') + ', ' + (p.country||p.region||'EMEA') + '), a company that ' + (p.title ? 'is led by a ' + p.title : 'operates in B2B') + '.' +
