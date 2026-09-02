@@ -8112,7 +8112,7 @@ async function _scannerMapCommittee() {
   try {
     const res = await fetch(API_URL, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 2000, messages: [{ role: 'user', content: stakeholderPrompt }] })
+      body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 4000, messages: [{ role: 'user', content: stakeholderPrompt }] })
     });
     if (!res.ok) throw new Error('API error ' + res.status);
     const data = await res.json();
@@ -8186,7 +8186,7 @@ async function _mapStakeholders() {
   try {
     const res = await fetch(API_URL, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 2000, messages: [{ role: 'user', content: stakeholderPrompt }] })
+      body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 4000, messages: [{ role: 'user', content: stakeholderPrompt }] })
     });
     if (!res.ok) throw new Error('API error ' + res.status);
     const data = await res.json();
