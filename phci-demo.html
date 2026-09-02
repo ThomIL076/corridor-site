@@ -2918,14 +2918,17 @@ function _updateIntelRowLayout(person) {
   if (contactCard) contactCard.style.display = hasPerson ? '' : 'none';
 }
 
-async function _runContactIntelligence(company, person) {
+async function _runContactIntelligence(company, person, linkedin = null) {
   const out = document.getElementById('scanner-contact-output');
   if (!out) return;
   out.textContent = 'Researching ' + person + '...';
   const liveBio = await _prefetchWebContext(person + ' ' + company, 'contact brief');
   const liveNote = liveBio ? `\nPublic context found:\n${liveBio}\n` : '';
+  const knownLinkedIn = linkedin
+    ? `\nIMPORTANT: This person's LinkedIn is already verified in our database: ${linkedin} — state it as confirmed in the ONLINE PRESENCE section, do not claim it could not be found.\n`
+    : '';
   const contactPrompt = `Research ${person} at ${company} and return a structured briefing with exactly four ## section headers as shown below.
-${liveNote}
+${liveNote}${knownLinkedIn}
 ## WHO THEY ARE
 Current role, background, how long at the company, previous relevant experience. 3-4 lines max.
 
@@ -3024,7 +3027,7 @@ Language instruction: Write your entire response in ${currentLang === 'fr' ? 'Fr
   const _scanLive = await _prefetchWebContext(company, sector, siteUrl);
   const _scanNoCtx = _scanLive ? '' : '\nNO LIVE CONTEXT AVAILABLE: Do not invent company-specific facts, figures, or events. If no verified data is found, state so explicitly.\n';
   const _sp1 = callAI(_scanLive + _scanNoCtx + prompt, _scanEl, 'scanner-spinner');
-  const _sp2 = person ? _runContactIntelligence(company, person) : Promise.resolve();
+  const _sp2 = person ? _runContactIntelligence(company, person, _drawerProspect?.linkedin || null) : Promise.resolve();
   await Promise.all([_sp1, _sp2]);
   // Extract buying signals from the completed brief
   const _scanAiOut = document.getElementById('scanner-ai-output');
@@ -6346,7 +6349,8 @@ async function openDrawer(card, initialTab = 'activity') {
 
   _scannerPreFill = { company: (_p.company || '').trim() || company.split('·')[0].trim(), sector, icp_score: (_p.icp_score != null && Number(_p.icp_score) > 0) ? Number(_p.icp_score) : null, person: name || null };
   _drawerProspect = { id:prospectId, name, company, score, sector, stage,
-                      last_contact:lastContact, reminder_date:reminderDate, client_id:clientId };
+                      last_contact:lastContact, reminder_date:reminderDate, client_id:clientId,
+                      linkedin: _p.linkedin || null };
 
   await _loadSignalTaxonomy();
   const lcStr = lastContact ? _relDate(lastContact) : null;
@@ -7834,6 +7838,15 @@ async function _scannerMapCommittee() {
     let stakeholders = [];
     try { stakeholders = _m ? JSON.parse(_m[0]) : []; } catch(e) {}
     console.log('[sm:raw]', JSON.stringify(stakeholders));
+    // Pre-fill anchor prospect's linkedin_url from DB before filter (strict: name + company must match)
+    const _anchorLI = _drawerProspect?.linkedin || null;
+    const _anchorN  = (_drawerProspect?.name    || '').trim().toLowerCase();
+    const _anchorC  = (_drawerProspect?.company || '').trim().toLowerCase();
+    if (_anchorLI && _anchorN && _anchorC === company.trim().toLowerCase() && Array.isArray(stakeholders)) {
+      for (const s of stakeholders) {
+        if ((s.name || '').trim().toLowerCase() === _anchorN) { s.linkedin_url = _anchorLI; break; }
+      }
+    }
     stakeholders = stakeholders.filter(s => s.name && s.linkedin_url);
     console.log('[sm:filtered]', stakeholders.length, JSON.stringify(stakeholders));
     if (!Array.isArray(stakeholders) || stakeholders.length === 0) {
@@ -7899,6 +7912,15 @@ async function _mapStakeholders() {
     let stakeholders = [];
     try { stakeholders = _m ? JSON.parse(_m[0]) : []; } catch(e) {}
     console.log('[sm:raw]', JSON.stringify(stakeholders));
+    // Pre-fill anchor prospect's linkedin_url from DB before filter (strict: name + company)
+    const _anchorLI = p.linkedin || null;
+    const _anchorN  = (p.name    || '').trim().toLowerCase();
+    const _anchorC  = (p.company || '').trim().toLowerCase();
+    if (_anchorLI && _anchorN && _anchorC && Array.isArray(stakeholders)) {
+      for (const s of stakeholders) {
+        if ((s.name || '').trim().toLowerCase() === _anchorN) { s.linkedin_url = _anchorLI; break; }
+      }
+    }
     stakeholders = stakeholders.filter(s => s.name && s.linkedin_url);
     console.log('[sm:filtered]', stakeholders.length, JSON.stringify(stakeholders));
     if (!Array.isArray(stakeholders) || stakeholders.length === 0) {
