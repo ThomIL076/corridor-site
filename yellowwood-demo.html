@@ -2272,7 +2272,7 @@ function _renderInvestorCards(rows) {
     </div>`;
   }
 
-  const _deepenHeader = '<div style="margin:24px 0 12px;border-top:1px solid var(--border);padding-top:16px;"><p style="font-size:var(--fs-sm);font-weight:700;color:var(--navy);margin:0 0 2px;">À approfondir avant contact</p><p style="font-size:var(--fs-xs);color:var(--muted);margin:0 0 14px;">Critères non encore évalués — pas exclus, à qualifier avant contact.</p></div>';
+  const _deepenHeader = '<div style="margin:24px 0 12px;border-top:1px solid var(--border);padding-top:16px;"><p style="font-size:var(--fs-sm);font-weight:700;color:var(--navy);margin:0 0 2px;">Needs deeper review</p><p style="font-size:var(--fs-xs);color:var(--muted);margin:0 0 14px;">Criteria not yet evaluated — not excluded, to qualify before contact.</p></div>';
 
   container.innerHTML =
     [..._actionable, ..._rest].map(_toCard).join('')
