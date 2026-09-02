@@ -7434,6 +7434,9 @@ async function _priorityGenerate(prospectId) {
       '<a href="mailto:$1" style="color:var(--navy);text-decoration:underline">$1</a>'
     );
     actionDiv.innerHTML = rendered;
+    actionDiv.style.fontSize = 'var(--fs-sm)';
+    actionDiv.style.lineHeight = '1.65';
+    actionDiv.style.color = 'var(--navy)';
     actionDiv.classList.add('loaded');
     if (btn) { btn.disabled = false; btn.textContent = 'Regenerate'; }
     if (_prospectsById[prospectId]) _prospectsById[prospectId].next_action_cache = text;
@@ -7929,8 +7932,8 @@ async function _scannerMapCommittee() {
   if (out) out.textContent = 'Mapping committee...';
 
   const _urlBlock = siteUrl
-    ? '\nCOMPANY WEBSITE (authoritative identifier): ' + siteUrl + ' — Verify EACH person individually before naming them: they must be explicitly mentioned in the LIVE CONTEXT above as affiliated with this exact domain. If a person does not appear in the LIVE CONTEXT as working at ' + siteUrl + ', exclude them entirely — do not use a real name from memory or general knowledge. Return fewer than 5 people if needed. It is better to have 3 verified names than 5 with even one wrong.\n'
-    : '\nDISAMBIGUATION: If multiple companies share the name "' + company + '", only include executives you can confidently attribute to this specific company from the LIVE CONTEXT above. When in doubt, use a generic role title instead of a real name.\n';
+    ? '\nCOMPANY WEBSITE (authoritative identifier): ' + siteUrl + ' — Verify EACH person individually before naming them. They must pass BOTH conditions or be excluded entirely:\n1. Explicitly mentioned in the LIVE CONTEXT as affiliated with ' + siteUrl + ' — not just a company with a similar name.\n2. Their LinkedIn URL appears in the LIVE CONTEXT — if linkedin_url would be null for a named individual, exclude them entirely. Do not include a person without a verifiable LinkedIn.\nReturn fewer than 5 people if needed. It is better to have 2 verified names than 5 with even one unverifiable.\n'
+    : '\nDISAMBIGUATION: Only include executives explicitly attributed to this specific company in the LIVE CONTEXT. Additionally, only include people whose LinkedIn URL appears in the LIVE CONTEXT — if linkedin_url would be null, exclude the person entirely rather than using a generic title. Return fewer people if needed.\n';
   const stakeholderPrompt = liveBlock +
     _urlBlock +
     '\nYou are a B2B sales strategist.' +
