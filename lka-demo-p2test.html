@@ -7049,20 +7049,14 @@ async function _clearReminder() {
   showToast('Reminder cleared');
 }
 
-async function _drawerAI() {
-  if (!_drawerProspect) return;
-  const p = _drawerProspect;
-  const btn = document.getElementById('drawer-next-btn');
-  const spinner = document.getElementById('drawer-spinner');
-  const _drOut = document.getElementById('drawer-output');
-  if (btn) btn.disabled = true;
-  if (spinner) spinner.classList.add('active');
-  if (_drOut) { _drOut.textContent = 'Researching ' + (p.company || '') + '...'; _drOut.classList.remove('loaded'); }
-
+async function _generateNextAction(p) {
   const ctx = _drawerInteractions.slice(0,3)
     .map(i => `${i.type}${i.note ? ': '+i.note.slice(0,80) : ''} (${_relDate(i.created_at)||'recent'})`)
     .join(' | ');
   const rem = p.reminder_date ? _fmtReminder(p.reminder_date)?.label : null;
+  const _fullP = _prospectsById[p.id] || {};
+  const _signal = _fullP.signal || null;
+  const _signalType = _fullP.signal_type || null;
 
   const [_drLive, _drMemory] = await Promise.all([
     _prefetchWebContext(p.company, p.sector),
@@ -7081,6 +7075,7 @@ ANTI-HALLUCINATION RULES — strictly enforced:
 3. Two calls on the same prospect must produce consistent outputs — never contradict yourself by inventing different facts each time.`;
 
   const userMsg = `Prospect: ${p.name} at ${p.company||'unknown'} (${p.sector||'unknown sector'}). Stage: ${p.stage||'unknown'}. Score: ${p.score||'not set'}.${p.email ? ' Email: ' + p.email + '.' : ''}
+${(_signalType || _signal) ? 'Signal: ' + (_signalType ? '[' + _signalType + '] ' : '') + (_signal ? _signal.replace(/<[^>]*>/g,'').slice(0, 200) : '') : ''}
 ${ctx ? 'Recent interactions: ' + ctx : 'No interactions logged.'}
 ${rem ? 'Next reminder: ' + rem : ''}
 ${_drMemory ? '\nPROSPECT MEMORY:\n' + _drMemory : ''}
@@ -7096,22 +7091,46 @@ Recommend the single best next action in exactly this format — use a blank lin
 No other text. No em-dashes.
 ${typeof _langLine === 'function' ? _langLine() : ''}`;
 
+  const res = await fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-5',
+      max_tokens: 400,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userMsg }]
+    })
+  });
+  if (!res.ok) throw new Error('API error ' + res.status);
+  const data = await res.json();
+  const text = Array.isArray(data.content)
+    ? data.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim()
+    : 'No response.';
+
+  const { error: _cacheErr } = await sbClient.from('prospects').update({
+    next_action_cache: text,
+    next_action_generated_at: new Date().toISOString()
+  }).eq('id', p.id).eq('client_id', CLIENT_ID);
+  if (_cacheErr) console.error('[_generateNextAction] cache write failed:', _cacheErr);
+  p.next_action_cache = text;
+  p.next_action_generated_at = new Date().toISOString();
+  const _memP = _prospectsById[p.id];
+  if (_memP) { _memP.next_action_cache = text; _memP.next_action_generated_at = new Date().toISOString(); }
+
+  return text;
+}
+
+async function _drawerAI() {
+  if (!_drawerProspect) return;
+  const p = _drawerProspect;
+  const btn = document.getElementById('drawer-next-btn');
+  const spinner = document.getElementById('drawer-spinner');
+  const _drOut = document.getElementById('drawer-output');
+  if (btn) btn.disabled = true;
+  if (spinner) spinner.classList.add('active');
+  if (_drOut) { _drOut.textContent = 'Researching ' + (p.company || '') + '...'; _drOut.classList.remove('loaded'); }
   try {
-    const res = await fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-5',
-        max_tokens: 400,
-        system: systemPrompt,
-        messages: [{ role: 'user', content: userMsg }]
-      })
-    });
-    if (!res.ok) throw new Error('API error ' + res.status);
-    const data = await res.json();
-    const text = Array.isArray(data.content)
-      ? data.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim()
-      : 'No response.';
+    const text = await _generateNextAction(p);
     if (_drOut) {
       const _rendered = renderMarkdown(text).replace(
         /([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})/g,
