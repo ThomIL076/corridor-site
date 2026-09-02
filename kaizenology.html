@@ -7561,7 +7561,7 @@ function _renderPriorityCards(prospects) {
             ${p.identity_confidence === 'low' ? `<span style="font-size:10px;font-weight:700;color:#6b7280;background:#f3f4f6;border:1px solid #d1d5db;border-radius:20px;padding:1px 6px;white-space:nowrap;" title="Identité non confirmée">? Identité à vérifier</span>` : ''}
           </div>
           ${signalHtml}
-          ${p.email ? `<div style="font-size:var(--fs-xs);margin-top:3px;"><a href="mailto:${_esc(p.email)}" style="color:var(--navy);text-decoration:none;">${_esc(p.email)}</a></div>` : ''}
+          ${p.email ? `<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:3px;"><a href="mailto:${_esc(p.email)}" style="color:inherit;text-decoration:underline;">${_esc(p.email)}</a></div>` : ''}
         </div>
         <div style="text-align:right;flex-shrink:0;">
           <div style="font-size:var(--fs-base);font-weight:700;color:var(--navy);">${scoreVal}</div>
@@ -8092,7 +8092,7 @@ async function _scannerMapCommittee() {
   if (out) out.textContent = 'Mapping committee...';
 
   const _urlBlock = siteUrl
-    ? '\nCOMPANY WEBSITE (authoritative identifier): ' + siteUrl + ' — Every named executive must be verifiably associated with this specific company and domain, not a different company sharing a similar name. If you cannot confirm affiliation with high confidence, use a generic role title instead of a real name.\n'
+    ? '\nCOMPANY WEBSITE (authoritative identifier): ' + siteUrl + ' — Verify EACH person individually before naming them: they must be explicitly mentioned in the LIVE CONTEXT above as affiliated with this exact domain. If a person does not appear in the LIVE CONTEXT as working at ' + siteUrl + ', exclude them entirely — do not use a real name from memory or general knowledge. Return fewer than 5 people if needed. It is better to have 3 verified names than 5 with even one wrong.\n'
     : '\nDISAMBIGUATION: If multiple companies share the name "' + company + '", only include executives you can confidently attribute to this specific company from the LIVE CONTEXT above. When in doubt, use a generic role title instead of a real name.\n';
   const stakeholderPrompt = liveBlock +
     _urlBlock +
