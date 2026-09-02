@@ -1,4 +1,4 @@
-// POST /api/heyreach-send
+// POST /api/linkedin-send
 // Body: { linkedinUrl, message, prospectName, client_id, touch, linkedinTag }
 // Resolves HeyReach credentials from Supabase clients table.
 // Fallback to env vars ONLY for client_id === 'thomas'. All other clients must have

@@ -1147,6 +1147,9 @@ body.new-nav { padding-left: 220px; }
     <button class="snav-item" data-nav="send" onclick="_switchNewNav('send')">
       <span class="snav-icon">📤</span><span data-en="Send" data-fr="Envoyer">Send</span>
     </button>
+    <button class="snav-item" data-nav="inbox" onclick="_switchNewNav('inbox')">
+      <span class="snav-icon">📩</span><span data-en="Inbox" data-fr="Boîte de réception">Inbox</span>
+    </button>
   </div>
   <div class="snav-section">
     <span class="snav-section-label">Intelligence</span>
@@ -1516,6 +1519,14 @@ body.new-nav { padding-left: 220px; }
         </button>
       </div>
       <div id="priorities-container"></div>
+    </div>
+  </div>
+
+  <!-- ══ TAB: INBOX ══ -->
+  <div class="tab-panel" id="tab-inbox">
+    <div style="padding:24px 16px 0;max-width:800px;margin:0 auto;">
+      <h2 style="font-size:var(--fs-lg);font-weight:700;color:var(--navy);margin:0 0 20px;">Inbox</h2>
+      <div id="inbox-container"></div>
     </div>
   </div>
 
@@ -2715,6 +2726,7 @@ function switchTab(name, fromClick = false) {
   if (name === 'pipeline') { const sh = document.getElementById('kanban-swipe-hint'); if (sh) { sh.style.opacity = '1'; setTimeout(() => { sh.style.opacity = '0'; }, 3000); } }
   if (name === 'send') loadSendView();
   if (name === 'priorities') loadDailyPriorities();
+  if (name === 'inbox') loadInboxDrafts();
   if (name === 'stats') { if (!_kanbanLoaded) { loadKanban().then(() => renderStats()); } else { renderStats(); } }
   if (name === 'clients') loadClientsKanban();
   if (name === 'integrations') loadIntegrationsTab();
@@ -7481,6 +7493,179 @@ function _openDrawerFromPriority(prospectId) {
     `<span class="k-card-company">${_esc(p.company || '')}</span>`;
   openDrawer(fakeCard, 'activity');
 }
+
+// ── INBOX ─────────────────────────────────────────────────────────────────────
+const _inboxProspectsById = {};
+const _inboxDraftOriginals = {};
+const _inboxRawPayloads = {};
+
+async function loadInboxDrafts() {
+  const container = document.getElementById('inbox-container');
+  if (!container) return;
+  container.innerHTML = '<div style="padding:32px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">Loading…</div>';
+  try {
+    const { data: drafts, error } = await sbClient.from('reply_drafts')
+      .select('id,prospect_id,mandate_id,incoming_message,suggested_reply,raw_payload,status,created_at')
+      .eq('client_id', CLIENT_ID)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    if (!drafts || !drafts.length) {
+      container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">No pending replies.</div>';
+      return;
+    }
+    const prospectIds = [...new Set(drafts.map(d => d.prospect_id).filter(Boolean))];
+    if (prospectIds.length) {
+      const { data: pRows } = await sbClient.from('prospects')
+        .select('id,name,company,linkedin,photo_url,linkedin_tag,mandate_id')
+        .in('id', prospectIds);
+      (pRows || []).forEach(p => {
+        _inboxProspectsById[p.id] = p;
+        if (!_prospectsById[p.id]) _prospectsById[p.id] = p;
+      });
+    }
+    drafts.forEach(d => {
+      _inboxDraftOriginals[d.id] = d.suggested_reply || '';
+      if (d.raw_payload) _inboxRawPayloads[d.id] = d.raw_payload;
+    });
+    _renderInboxCards(drafts);
+  } catch(e) {
+    if (container) container.innerHTML = `<div style="padding:32px;text-align:center;color:var(--muted);">Error: ${_esc(e.message)}</div>`;
+  }
+}
+
+function _renderInboxCards(drafts) {
+  const container = document.getElementById('inbox-container');
+  if (!container) return;
+  const _liSvg = `<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>`;
+  container.innerHTML = drafts.map(draft => {
+    const p = (draft.prospect_id && _inboxProspectsById[draft.prospect_id]) || null;
+    const photoHtml = p?.photo_url
+      ? `<img src="${_esc(p.photo_url)}" alt="" style="width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none'">`
+      : '';
+    const nameHtml = p
+      ? `${photoHtml}<button onclick="_openDrawerFromPriority('${draft.prospect_id}')"
+           style="background:none;border:none;padding:0;cursor:pointer;font-weight:700;font-size:var(--fs-base);color:var(--navy);text-decoration:underline;text-align:left;"
+         >${_esc(p.name || '—')}</button>
+         ${p.linkedin ? `<a href="${_esc(p.linkedin)}" target="_blank" rel="noopener" style="color:var(--fill-accent);text-decoration:none;line-height:1;" title="LinkedIn">${_liSvg}</a>` : ''}
+         <span style="font-size:var(--fs-sm);color:var(--muted);">${_esc(p.company || '—')}</span>`
+      : `<span style="font-size:var(--fs-sm);font-weight:600;padding:2px 8px;background:#fef3c7;border:1px solid #fde68a;border-radius:var(--radius-pill);color:#b45309;">Prospect non identifié</span>`;
+    const replyHtml = draft.suggested_reply
+      ? `<div style="margin-top:12px;">
+           <div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);margin-bottom:4px;">Suggested reply</div>
+           <textarea id="inbox-reply-${draft.id}"
+             style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:var(--fs-sm);font-family:inherit;color:var(--text);background:var(--card-bg);resize:vertical;min-height:80px;line-height:1.5;"
+             onfocus="this.style.borderColor='var(--navy)'" onblur="this.style.borderColor='var(--border)'"
+           >${_esc(draft.suggested_reply)}</textarea>
+         </div>`
+      : `<div style="margin-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+           <span style="font-size:var(--fs-xs);font-style:italic;color:var(--muted);">Brouillon non généré — message source non reconnu</span>
+           ${draft.raw_payload ? `<button onclick="_inboxShowRaw('${draft.id}')" style="font-size:var(--fs-xs);padding:3px 8px;border-radius:var(--radius-pill);border:1px solid var(--border);background:none;color:var(--text);cursor:pointer;">Voir raw_payload</button>` : ''}
+         </div>`;
+    const actionBtns = `<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+        ${draft.suggested_reply && draft.prospect_id ? `<button id="inbox-send-${draft.id}" onclick="_inboxSend('${draft.id}','${draft.prospect_id}')"
+          style="padding:7px 16px;border-radius:var(--radius-pill);background:var(--navy);color:#fff;border:none;font-size:var(--fs-sm);font-weight:600;cursor:pointer;">Send</button>` : ''}
+        <button id="inbox-dismiss-${draft.id}" onclick="_inboxDismiss('${draft.id}')"
+          style="padding:7px 16px;border-radius:var(--radius-pill);background:none;border:1px solid var(--border);color:var(--text);font-size:var(--fs-sm);cursor:pointer;">Dismiss</button>
+      </div>`;
+    return `<div class="priority-card" id="inbox-card-${draft.id}"
+        style="background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius-md);padding:18px 20px;margin-bottom:12px;">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;">${nameHtml}</div>
+      ${draft.incoming_message ? `<div style="font-size:var(--fs-sm);color:var(--muted);border-left:3px solid var(--border);padding-left:10px;line-height:1.5;">${_esc(draft.incoming_message)}</div>` : ''}
+      ${replyHtml}
+      ${actionBtns}
+    </div>`;
+  }).join('');
+}
+
+async function _inboxSend(draftId, prospectId) {
+  const textarea = document.getElementById('inbox-reply-' + draftId);
+  const sendBtn  = document.getElementById('inbox-send-' + draftId);
+  const dismissBtn = document.getElementById('inbox-dismiss-' + draftId);
+  if (!textarea) return;
+  const body = textarea.value.trim();
+  if (!body) { showToast('No message to send'); return; }
+  if (body.includes('{') || body.includes('}')) { showToast('Blocked: message contains literal braces {}'); return; }
+  const p = _inboxProspectsById[prospectId] || _prospectsById[prospectId];
+  if (!p?.linkedin) { showToast('No LinkedIn URL for this prospect'); return; }
+  if (sendBtn) sendBtn.disabled = true;
+  if (dismissBtn) dismissBtn.disabled = true;
+  try {
+    const res = await fetch('/api/linkedin-send', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ linkedinUrl: p.linkedin, message: body, prospectName: p.name, client_id: CLIENT_ID, touch: 'j0', linkedinTag: p.linkedin_tag })
+    });
+    const data = await res.json();
+    if (!data.success) {
+      const _errMsg = (data.error || '').toLowerCase().includes('not connected')
+        ? 'This prospect isn\'t marked as connected — check linkedin_tag before sending'
+        : 'LinkedIn send error: ' + (data.error || 'unknown');
+      showToast(_errMsg);
+      if (sendBtn) sendBtn.disabled = false;
+      if (dismissBtn) dismissBtn.disabled = false;
+      return;
+    }
+    const now = new Date().toISOString();
+    const { error: rdErr } = await sbClient.from('reply_drafts')
+      .update({ status: 'sent', updated_at: now }).eq('id', draftId);
+    if (rdErr) console.error('[_inboxSend] reply_drafts update failed:', rdErr);
+    const original = _inboxDraftOriginals[draftId] || '';
+    const edited = body !== original;
+    const { error: afErr } = await sbClient.from('agent_feedback').insert({
+      agent_name: 'inbox_reply', client_id: CLIENT_ID, mandate_id: null,
+      item_id: draftId, item_type: 'reply_draft', item_text: body,
+      vote: edited ? 'unlike' : 'like',
+      comment: edited ? 'Edited before sending' : null
+    });
+    if (afErr) console.error('[_inboxSend] agent_feedback insert failed:', afErr);
+    const { error: intErr } = await sbClient.from('interactions').insert({
+      prospect_id: prospectId, client_id: CLIENT_ID,
+      mandate_id: _prospectsById[prospectId]?.mandate_id ?? null,
+      type: 'linkedin', note: 'j0 sent via inbox reply', touch: 'j0'
+    });
+    if (intErr) console.error('[_inboxSend] interactions insert failed:', intErr);
+    showToast('Sent via LinkedIn ✓');
+    const card = document.getElementById('inbox-card-' + draftId);
+    if (card) card.remove();
+  } catch(e) {
+    console.error('[_inboxSend]', e);
+    showToast('Network error');
+    if (sendBtn) sendBtn.disabled = false;
+    if (dismissBtn) dismissBtn.disabled = false;
+  }
+}
+
+async function _inboxDismiss(draftId) {
+  const btn = document.getElementById('inbox-dismiss-' + draftId);
+  if (btn) btn.disabled = true;
+  const { error: rdErr } = await sbClient.from('reply_drafts')
+    .update({ status: 'dismissed', updated_at: new Date().toISOString() }).eq('id', draftId);
+  if (rdErr) { showToast('Error dismissing draft'); if (btn) btn.disabled = false; return; }
+  const { error: afErr } = await sbClient.from('agent_feedback').insert({
+    agent_name: 'inbox_reply', client_id: CLIENT_ID, mandate_id: null,
+    item_id: draftId, item_type: 'reply_draft',
+    item_text: _inboxDraftOriginals[draftId] || '',
+    vote: 'unlike', comment: 'Dismissed without sending'
+  });
+  if (afErr) console.error('[_inboxDismiss] agent_feedback insert failed:', afErr);
+  const card = document.getElementById('inbox-card-' + draftId);
+  if (card) card.remove();
+}
+
+function _inboxShowRaw(draftId) {
+  const existing = document.getElementById('inbox-raw-' + draftId);
+  if (existing) { existing.hidden = !existing.hidden; return; }
+  const payload = _inboxRawPayloads[draftId];
+  if (!payload) return;
+  const card = document.getElementById('inbox-card-' + draftId);
+  if (!card) return;
+  const el = document.createElement('pre');
+  el.id = 'inbox-raw-' + draftId;
+  el.style.cssText = 'margin-top:8px;padding:10px;background:var(--chip-bg);border-radius:var(--radius-sm);font-size:11px;overflow-x:auto;white-space:pre-wrap;word-break:break-all;';
+  el.textContent = JSON.stringify(payload, null, 2);
+  card.appendChild(el);
+}
+// ──────────────────────────────────────────────────────────────────────────────
 
 function _updatePrioritiesNextBtn() {
   const btn = document.getElementById('priorities-next-btn');
