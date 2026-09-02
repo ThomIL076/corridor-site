@@ -2858,6 +2858,7 @@ async function _marketIntelSearch(query, maxTokens = 500, domain = '') {
     });
     if (!r.ok) return '';
     const d = await r.json();
+    console.log('[upstream:raw]', JSON.stringify({ text: d.choices?.[0]?.message?.content, citations: d.citations }));
     return (d.choices?.[0]?.message?.content || '').trim();
   } catch (e) {
     console.error('[web-search] failed:', e);
@@ -2962,6 +2963,12 @@ Rules: Never use em-dashes or horizontal rules (---) in your response.
 
 Language: Write your entire response in ${typeof currentLang !== 'undefined' && currentLang === 'fr' ? 'French' : 'English'}.`;
   await callAI(contactPrompt, out, 'scanner-contact-spinner');
+  const _liSvg13 = '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>';
+  const _li2icon = u => '<a href="' + u + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:3px;color:var(--fill-accent);text-decoration:none;font-weight:600" title="LinkedIn profile">' + _liSvg13 + '<span style="font-size:var(--fs-xs);vertical-align:middle">LinkedIn</span></a>';
+  out.innerHTML = out.innerHTML.replace(
+    /<a\s[^>]*href="(https?:\/\/(www\.)?linkedin\.com\/in\/[^"]+)"[^>]*>[^<]*<\/a>|https?:\/\/(www\.)?linkedin\.com\/in\/[^\s<>&"']+/gi,
+    (match, hrefUrl) => _li2icon((hrefUrl || match).replace(/[.,;)>]+$/, ''))
+  );
 }
 
 async function _runFreeSearch(company) {
