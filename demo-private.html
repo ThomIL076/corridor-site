@@ -7912,16 +7912,18 @@ async function _scannerMapCommittee() {
   if (spin) spin.classList.add('active');
 
   const _searchQ = _siteDomain ? company + ' ' + _siteDomain : company;
-  const [ctx1, ctx2] = await Promise.all([
+  const [ctx1, ctx2, ctx3] = await Promise.all([
     _marketIntelSearch(_searchQ + ' leadership team executives decision makers', 500),
-    _marketIntelSearch(_searchQ + ' buying process procurement ' + sector, 500)
+    _marketIntelSearch(_searchQ + ' buying process procurement ' + sector, 500),
+    _marketIntelSearch(_searchQ + ' executives linkedin profiles', 300)
   ]);
 
   let liveBlock = '';
-  if (ctx1 || ctx2) {
+  if (ctx1 || ctx2 || ctx3) {
     liveBlock = '\nLIVE CONTEXT about ' + company + ' (from web search, today):\n';
     if (ctx1) liveBlock += ctx1 + '\n';
     if (ctx2) liveBlock += ctx2 + '\n';
+    if (ctx3) liveBlock += ctx3 + '\n';
   } else {
     if (out) out.textContent = 'Insufficient data: no public information found for ' + company + '. Try a well-documented company or add context manually.';
     if (btn) btn.disabled = false;
@@ -7989,16 +7991,18 @@ async function _mapStakeholders() {
   if (out) out.textContent = 'Researching ' + (p.company || 'company') + '...';
   if (spin) spin.classList.add('active');
 
-  const [ctx1, ctx2] = await Promise.all([
+  const [ctx1, ctx2, ctx3] = await Promise.all([
     _marketIntelSearch(p.company + ' leadership team executives decision makers', 500),
-    _marketIntelSearch(p.company + ' buying process procurement ' + (p.sector || ''), 500)
+    _marketIntelSearch(p.company + ' buying process procurement ' + (p.sector || ''), 500),
+    _marketIntelSearch(p.company + ' executives linkedin profiles', 300)
   ]);
 
   let liveBlock = '';
-  if (ctx1 || ctx2) {
+  if (ctx1 || ctx2 || ctx3) {
     liveBlock = '\nLIVE CONTEXT about ' + p.company + ' (from web search, today):\n';
     if (ctx1) liveBlock += ctx1 + '\n';
     if (ctx2) liveBlock += ctx2 + '\n';
+    if (ctx3) liveBlock += ctx3 + '\n';
   } else {
     if (out) out.textContent = 'Insufficient data: no public information found for ' + p.company + '. Add context or try after enriching the prospect.';
     if (btn) btn.disabled = false;
