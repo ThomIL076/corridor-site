@@ -8120,15 +8120,17 @@ async function _scannerMapCommittee() {
     let stakeholders = null;
     try {
       const clean = text.replace(/^```json\s*/i,'').replace(/^```\s*/i,'').replace(/```\s*$/,'').trim();
-      stakeholders = JSON.parse(clean);
-      if (Array.isArray(stakeholders)) stakeholders = stakeholders.filter(s => s.name && s.linkedin_url);
+      const _rawParsed = JSON.parse(clean);
+      console.log('[sm:raw]', JSON.stringify(_rawParsed));
+      stakeholders = Array.isArray(_rawParsed) ? _rawParsed.filter(s => s.name && s.linkedin_url) : null;
+      console.log('[sm:filtered]', stakeholders?.length, JSON.stringify(stakeholders));
       if (!Array.isArray(stakeholders) || stakeholders.length === 0) throw new Error('empty');
     } catch(_) {}
     if (out) {
-      if (stakeholders) {
+      if (stakeholders && stakeholders.length) {
         await _resolveLinkedInUrls(stakeholders, company);
         _renderCommitteeCards(stakeholders, out, company, sector, null);
-      } else out.textContent = text || 'No result.';
+      } else out.textContent = 'No verified stakeholders found with confirmed LinkedIn profiles.';
     }
   } catch(e) {
     console.warn('[_scannerMapCommittee]', e);
@@ -8190,15 +8192,17 @@ async function _mapStakeholders() {
     let stakeholders = null;
     try {
       const clean = text.replace(/^```json\s*/i,'').replace(/^```\s*/i,'').replace(/```\s*$/,'').trim();
-      stakeholders = JSON.parse(clean);
-      if (Array.isArray(stakeholders)) stakeholders = stakeholders.filter(s => s.name && s.linkedin_url);
+      const _rawParsed = JSON.parse(clean);
+      console.log('[sm:raw]', JSON.stringify(_rawParsed));
+      stakeholders = Array.isArray(_rawParsed) ? _rawParsed.filter(s => s.name && s.linkedin_url) : null;
+      console.log('[sm:filtered]', stakeholders?.length, JSON.stringify(stakeholders));
       if (!Array.isArray(stakeholders) || stakeholders.length === 0) throw new Error('empty');
     } catch(_) {}
     if (out) {
-      if (stakeholders) {
+      if (stakeholders && stakeholders.length) {
         await _resolveLinkedInUrls(stakeholders, p.company);
         _renderCommitteeCards(stakeholders, out, p.company, p.sector||'B2B', p.icp_score||null);
-      } else out.textContent = text || 'No result.';
+      } else out.textContent = 'No verified stakeholders found with confirmed LinkedIn profiles.';
     }
   } catch(e) {
     console.warn('[_mapStakeholders]', e);

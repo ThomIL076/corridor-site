@@ -7529,7 +7529,9 @@ async function _scannerMapCommittee() {
     const _m = text.match(/\[[\s\S]*\]/);
     let stakeholders = [];
     try { stakeholders = _m ? JSON.parse(_m[0]) : []; } catch(e) {}
+    console.log('[sm:raw]', JSON.stringify(stakeholders));
     stakeholders = stakeholders.filter(s => s.name && s.linkedin_url);
+    console.log('[sm:filtered]', stakeholders.length, JSON.stringify(stakeholders));
     if (!Array.isArray(stakeholders) || stakeholders.length === 0) {
       if (out) out.textContent = 'No verified stakeholders found with confirmed LinkedIn profiles.';
     } else {
@@ -7590,7 +7592,9 @@ async function _mapStakeholders() {
     const _m = text.match(/\[[\s\S]*\]/);
     let stakeholders = [];
     try { stakeholders = _m ? JSON.parse(_m[0]) : []; } catch(e) {}
+    console.log('[sm:raw]', JSON.stringify(stakeholders));
     stakeholders = stakeholders.filter(s => s.name && s.linkedin_url);
+    console.log('[sm:filtered]', stakeholders.length, JSON.stringify(stakeholders));
     if (!Array.isArray(stakeholders) || stakeholders.length === 0) {
       if (out) out.textContent = 'No verified stakeholders found with confirmed LinkedIn profiles.';
     } else {
