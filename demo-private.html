@@ -7932,7 +7932,7 @@ async function _scannerMapCommittee() {
   if (out) out.textContent = 'Mapping committee...';
 
   const _urlBlock = siteUrl
-    ? '\nCOMPANY WEBSITE (authoritative identifier): ' + siteUrl + ' — Verify EACH person individually before naming them. They must pass BOTH conditions or be excluded entirely:\n1. Explicitly mentioned in the LIVE CONTEXT as affiliated with ' + siteUrl + ' — not just a company with a similar name.\n2. Their LinkedIn URL appears in the LIVE CONTEXT — if linkedin_url would be null for a named individual, exclude them entirely. Do not include a person without a verifiable LinkedIn.\nReturn fewer than 5 people if needed. It is better to have 2 verified names than 5 with even one unverifiable.\n'
+    ? '\nCOMPANY WEBSITE (authoritative identifier): ' + siteUrl + ' — Verify EACH person individually. They must pass BOTH conditions or the ENTIRE entry is absent from the JSON output:\n1. Explicitly mentioned in the LIVE CONTEXT as affiliated with ' + siteUrl + ' — not a company sharing a similar name.\n2. Their LinkedIn URL appears in the LIVE CONTEXT — if linkedin_url would be null, the entry is absent, not degraded.\nCRITICAL: NEVER use a job title or role as the value for the "name" field (e.g. "CEO / Co-Founder", "CTO", "Chief Customer Officer" are forbidden as name values). If you do not have a real person name AND a real LinkedIn URL for an entry, omit the entire JSON object — no placeholder, no generic title, no null. Return an empty array [] if no one qualifies. It is better to return [] than to include a single entry that fails either condition.\n'
     : '\nDISAMBIGUATION: Only include executives explicitly attributed to this specific company in the LIVE CONTEXT. Additionally, only include people whose LinkedIn URL appears in the LIVE CONTEXT — if linkedin_url would be null, exclude the person entirely rather than using a generic title. Return fewer people if needed.\n';
   const stakeholderPrompt = liveBlock +
     _urlBlock +
@@ -7958,6 +7958,7 @@ async function _scannerMapCommittee() {
     try {
       const clean = text.replace(/^```json\s*/i,'').replace(/^```\s*/i,'').replace(/```\s*$/,'').trim();
       stakeholders = JSON.parse(clean);
+      if (Array.isArray(stakeholders)) stakeholders = stakeholders.filter(s => s.name && s.linkedin_url);
       if (!Array.isArray(stakeholders) || stakeholders.length === 0) throw new Error('empty');
     } catch(_) {}
     if (out) {
@@ -8027,6 +8028,7 @@ async function _mapStakeholders() {
     try {
       const clean = text.replace(/^```json\s*/i,'').replace(/^```\s*/i,'').replace(/```\s*$/,'').trim();
       stakeholders = JSON.parse(clean);
+      if (Array.isArray(stakeholders)) stakeholders = stakeholders.filter(s => s.name && s.linkedin_url);
       if (!Array.isArray(stakeholders) || stakeholders.length === 0) throw new Error('empty');
     } catch(_) {}
     if (out) {

@@ -7511,7 +7511,7 @@ async function _scannerMapCommittee() {
 
   const _icpScore = (() => { const el = document.getElementById('sc-total'); const t = el?.textContent || ''; const n = parseFloat(t); return isNaN(n) ? null : n; })();
   const _urlBlock = siteUrl
-    ? '\nCOMPANY WEBSITE (authoritative identifier): ' + siteUrl + ' — Verify EACH person individually before naming them. They must pass BOTH conditions or be excluded entirely:\n1. Explicitly mentioned in the LIVE CONTEXT as affiliated with ' + siteUrl + ' — not just a company with a similar name.\n2. Their LinkedIn URL appears in the LIVE CONTEXT — if linkedin_url would be null for a named individual, exclude them entirely. Do not include a person without a verifiable LinkedIn.\nReturn fewer than 5 people if needed. It is better to have 2 verified names than 5 with even one unverifiable.\n'
+    ? '\nCOMPANY WEBSITE (authoritative identifier): ' + siteUrl + ' — Verify EACH person individually. They must pass BOTH conditions or the ENTIRE entry is absent from the JSON output:\n1. Explicitly mentioned in the LIVE CONTEXT as affiliated with ' + siteUrl + ' — not a company sharing a similar name.\n2. Their LinkedIn URL appears in the LIVE CONTEXT — if linkedin_url would be null, the entry is absent, not degraded.\nCRITICAL: NEVER use a job title or role as the value for the "name" field (e.g. "CEO / Co-Founder", "CTO", "Chief Customer Officer" are forbidden as name values). If you do not have a real person name AND a real LinkedIn URL for an entry, omit the entire JSON object — no placeholder, no generic title, no null. Return an empty array [] if no one qualifies. It is better to return [] than to include a single entry that fails either condition.\n'
     : '\nDISAMBIGUATION: Only include executives explicitly attributed to this specific company in the LIVE CONTEXT. Additionally, only include people whose LinkedIn URL appears in the LIVE CONTEXT — if linkedin_url would be null, exclude the person entirely rather than using a generic title. Return fewer people if needed.\n';
   const stakeholderPrompt = liveBlock + _urlBlock + '\nYou are a B2B sales strategist mapping the buying committee for ' + company + (siteUrl ? ' (' + siteUrl + ')' : '') + ' (' + sector + ').\n\nReturn a JSON array of 3-5 stakeholders. Each object must have exactly these fields:\n- "name": real name from live context, or null if not found\n- "title": job title\n- "concern": their main concern in a GTM decision\n- "role": exactly one of "Influence", "Approve", or "Sign"\n- "approach": one sentence on how to engage them\n- "linkedin_url": their LinkedIn URL if found in context, else null\n\nPRIORITY: use real names from LIVE CONTEXT if available. Return ONLY valid JSON array, no other text:\n[{"name":"...","title":"...","concern":"...","role":"Influence|Approve|Sign","approach":"...","linkedin_url":"...or null"}]';
 
@@ -7529,8 +7529,9 @@ async function _scannerMapCommittee() {
     const _m = text.match(/\[[\s\S]*\]/);
     let stakeholders = [];
     try { stakeholders = _m ? JSON.parse(_m[0]) : []; } catch(e) {}
+    stakeholders = stakeholders.filter(s => s.name && s.linkedin_url);
     if (!Array.isArray(stakeholders) || stakeholders.length === 0) {
-      if (out) out.textContent = 'Could not parse committee response. Try again.';
+      if (out) out.textContent = 'No verified stakeholders found with confirmed LinkedIn profiles.';
     } else {
       await _resolveLinkedInUrls(stakeholders, company);
       _renderCommitteeCards(stakeholders, out, company, sector, _icpScore);
@@ -7589,8 +7590,9 @@ async function _mapStakeholders() {
     const _m = text.match(/\[[\s\S]*\]/);
     let stakeholders = [];
     try { stakeholders = _m ? JSON.parse(_m[0]) : []; } catch(e) {}
+    stakeholders = stakeholders.filter(s => s.name && s.linkedin_url);
     if (!Array.isArray(stakeholders) || stakeholders.length === 0) {
-      if (out) out.textContent = 'Could not parse committee response. Try again.';
+      if (out) out.textContent = 'No verified stakeholders found with confirmed LinkedIn profiles.';
     } else {
       await _resolveLinkedInUrls(stakeholders, p.company);
       _renderCommitteeCards(stakeholders, out, p.company, p.sector||'B2B', p.icp_score||null);
