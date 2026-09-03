@@ -594,6 +594,16 @@ footer a { color:var(--navy); text-decoration:none; font-weight:600; }
 .sys-tab.active { background:var(--white); color:var(--navy); box-shadow:0 1px 3px rgba(26,43,94,0.12); }
 .sys-live-badge { display:inline-block; background:#d1fae5; color:var(--green-brand); font-size:var(--fs-micro); font-weight:700; letter-spacing:0.8px; text-transform:uppercase; padding:2px 7px; border-radius:var(--radius-panel); vertical-align:middle; }
 .system-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; align-items:stretch; }
+/* ── Report sub-tabs (Weekly / Daily) ── */
+.rpt-subtab-bar { display:flex; gap:6px; margin-bottom:18px; }
+.rpt-subtab { font-size:var(--fs-xs); font-weight:700; letter-spacing:0.4px; padding:6px 14px; border-radius:var(--radius-sm); border:1.5px solid var(--border); background:var(--white); color:var(--muted); cursor:pointer; transition:all 0.15s; }
+.rpt-subtab:hover { color:var(--navy); border-color:var(--navy); }
+.rpt-subtab.active { background:var(--navy); border-color:var(--navy); color:#fff; }
+.rpt-metric-badge { font-size:10px; font-weight:700; border-radius:var(--radius-pill); padding:2px 9px; white-space:nowrap; border:1px solid transparent; }
+.rpt-vote-btn { font-size:15px; line-height:1; padding:4px 8px; border-radius:var(--radius-sm); border:1.5px solid var(--border); background:var(--white); cursor:pointer; transition:background 0.12s,border-color 0.12s; }
+.rpt-vote-btn.active-like { background:#d1fae5; border-color:#6ee7b7; }
+.rpt-vote-btn.active-unlike { background:#fee2e2; border-color:#fca5a5; }
+.rpt-vote-btn:hover { border-color:var(--navy); }
 @media(max-width:1100px){ .system-grid { grid-template-columns:repeat(2,1fr); } }
 @media(max-width:560px){ .system-grid { grid-template-columns:1fr; } }
 .system-card { display:flex; flex-direction:column; height:100%; }
@@ -2075,13 +2085,24 @@ body.new-nav { padding-left: 220px; }
 
     <!-- ── Reports ── -->
     <div class="sys-panel" id="syspanel-reports" style="display:none;">
-      <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;">
-        <button class="btn-primary system-btn system-card-btn" onclick="runWeeklyReport()" id="weekly-btn" style="margin-bottom:0;">
-          <span data-en="▶ Generate Report" data-fr="▶ Générer le rapport">▶ Generate Report</span>
-        </button>
-        <div class="ai-spinner" id="weekly-spinner"></div>
+      <div class="rpt-subtab-bar">
+        <button class="rpt-subtab active" id="rpt-tab-weekly" onclick="_switchRptTab('weekly')">Weekly</button>
+        <button class="rpt-subtab" id="rpt-tab-daily" onclick="_switchRptTab('daily')">Daily</button>
       </div>
-      <div id="weekly-reports-list"></div>
+      <!-- Weekly panel -->
+      <div id="rpt-panel-weekly">
+        <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;">
+          <button class="btn-primary system-btn system-card-btn" onclick="runWeeklyReport()" id="weekly-btn" style="margin-bottom:0;">
+            <span data-en="▶ Generate Report" data-fr="▶ Générer le rapport">▶ Generate Report</span>
+          </button>
+          <div class="ai-spinner" id="weekly-spinner"></div>
+        </div>
+        <div id="weekly-reports-list"></div>
+      </div>
+      <!-- Daily panel -->
+      <div id="rpt-panel-daily" style="display:none;">
+        <div id="daily-reports-list"></div>
+      </div>
     </div>
 
   </div>
@@ -2307,7 +2328,7 @@ function _sendSignalComment(root) {
   });
 }
 
-function _renderWeeklyList(reports) {
+function _renderWeeklyList(reports, voteMap) {
   const list = document.getElementById('weekly-reports-list');
   if (!list) return;
   if (!reports || !reports.length) {
@@ -2315,6 +2336,7 @@ function _renderWeeklyList(reports) {
     return;
   }
   const _isAll = activeMandateId === '__ALL__';
+  const vm = voteMap || {};
   list.innerHTML = reports.map((r, idx) => {
     const d = new Date(r.week_start || r.created_at);
     const mon = new Date(d);
@@ -2324,6 +2346,17 @@ function _renderWeeklyList(reports) {
     const mandateLabel = (_isAll && r.mandates && r.mandates.name)
       ? `<span style="font-size:var(--fs-micro);font-weight:700;color:var(--blue);background:var(--navy-light);padding:2px 7px;border-radius:var(--radius-panel);white-space:nowrap;flex-shrink:0;">${_esc(r.mandates.name)}</span>`
       : '';
+    const existingVote = vm[r.id] || null;
+    const recs = r.recommendations_text ? `
+      <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:14px;">
+        <div style="font-size:var(--fs-xs);font-weight:700;color:var(--muted);letter-spacing:0.5px;text-transform:uppercase;margin-bottom:8px;">Recommendations</div>
+        <div style="font-size:var(--fs-base);line-height:1.6;">${r.recommendations_text}</div>
+        <div style="display:flex;gap:8px;margin-top:10px;align-items:center;">
+          <button class="rpt-vote-btn ${existingVote === 'like' ? 'active-like' : ''}" id="vote-like-${_esc(r.id)}" onclick="_weeklyVote('${_esc(r.id)}','like')" title="Useful">👍</button>
+          <button class="rpt-vote-btn ${existingVote === 'unlike' ? 'active-unlike' : ''}" id="vote-unlike-${_esc(r.id)}" onclick="_weeklyVote('${_esc(r.id)}','unlike')" title="Not useful">👎</button>
+          <span id="vote-status-${_esc(r.id)}" style="font-size:var(--fs-xs);color:var(--muted);">${existingVote ? (existingVote === 'like' ? 'Marked useful' : 'Marked not useful') : ''}</span>
+        </div>
+      </div>` : '';
     return `<div style="border:1px solid var(--border);border-radius:var(--radius-panel);padding:14px 16px;margin-bottom:10px;">
       <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:0;">
         <span style="font-size:var(--fs-xs);font-weight:700;color:var(--text-secondary);white-space:nowrap;">${_esc(weekLabel)}</span>
@@ -2332,6 +2365,7 @@ function _renderWeeklyList(reports) {
         <button onclick="_toggleWeeklyView('${rowId}',this)" style="font-size:var(--fs-xs);font-weight:700;padding:4px 12px;background:var(--border);color:var(--text-primary);border:none;border-radius:var(--radius-sm);cursor:pointer;white-space:nowrap;flex-shrink:0;">View</button>
       </div>
       <div id="${rowId}" style="display:none;margin-top:14px;border-top:1px solid var(--border);padding-top:14px;font-size:var(--fs-base);line-height:1.6;">${r.full_report || ''}</div>
+      ${recs}
     </div>`;
   }).join('');
 }
@@ -2346,17 +2380,112 @@ async function _loadWeeklyReports() {
   const list = document.getElementById('weekly-reports-list');
   if (!list) return;
   try {
-    let q = sbClient.from('weekly_reports')
-      .select('id, week_start, summary, full_report, mandate_id, created_at, mandates(name)')
+    const { data, error } = await sbClient.from('weekly_reports')
+      .select('id, week_start, summary, full_report, recommendations_text, mandate_id, created_at, mandates(name)')
       .eq('client_id', CLIENT_ID)
       .order('week_start', { ascending: false });
-    if (activeMandateId && activeMandateId !== '__ALL__') q = q.eq('mandate_id', activeMandateId);
-    const { data, error } = await q;
     if (error) throw error;
-    _renderWeeklyList(data || []);
+    const reports = data || [];
+    let voteMap = {};
+    if (reports.length) {
+      const ids = reports.map(r => r.id);
+      const { data: voteRows } = await sbClient.from('agent_feedback')
+        .select('item_id, vote').eq('agent_name', 'weekly_report').eq('client_id', CLIENT_ID).in('item_id', ids);
+      (voteRows || []).forEach(v => { voteMap[v.item_id] = v.vote; });
+    }
+    _renderWeeklyList(reports, voteMap);
   } catch(e) {
     console.warn('[_loadWeeklyReports]', e);
     list.innerHTML = '<div style="color:var(--text-secondary);font-size:var(--fs-base);padding:16px 0;">Could not load reports.</div>';
+  }
+}
+
+function _switchRptTab(key) {
+  ['weekly', 'daily'].forEach(k => {
+    const tab = document.getElementById('rpt-tab-' + k);
+    const panel = document.getElementById('rpt-panel-' + k);
+    if (tab) tab.classList.toggle('active', k === key);
+    if (panel) panel.style.display = k === key ? '' : 'none';
+  });
+  if (key === 'daily') _loadDailyReports();
+}
+
+async function _weeklyVote(reportId, vote) {
+  const likeBtn   = document.getElementById('vote-like-'   + reportId);
+  const unlikeBtn = document.getElementById('vote-unlike-' + reportId);
+  const statusEl  = document.getElementById('vote-status-' + reportId);
+  if (likeBtn)   { likeBtn.disabled = true; }
+  if (unlikeBtn) { unlikeBtn.disabled = true; }
+  try {
+    const { data: existing } = await sbClient.from('agent_feedback')
+      .select('id').eq('agent_name', 'weekly_report').eq('client_id', CLIENT_ID).eq('item_id', reportId).maybeSingle();
+    if (existing) {
+      await sbClient.from('agent_feedback').update({ vote }).eq('id', existing.id);
+    } else {
+      await sbClient.from('agent_feedback').insert({
+        agent_name: 'weekly_report', client_id: CLIENT_ID, mandate_id: null,
+        item_id: reportId, item_type: 'weekly_report', vote
+      });
+    }
+    if (likeBtn)   { likeBtn.classList.toggle('active-like',   vote === 'like');   likeBtn.disabled = false; }
+    if (unlikeBtn) { unlikeBtn.classList.toggle('active-unlike', vote === 'unlike'); unlikeBtn.disabled = false; }
+    if (statusEl)  { statusEl.textContent = vote === 'like' ? 'Marked useful' : 'Marked not useful'; }
+  } catch(e) {
+    console.error('[_weeklyVote]', e);
+    if (likeBtn)   likeBtn.disabled = false;
+    if (unlikeBtn) unlikeBtn.disabled = false;
+  }
+}
+
+const _RPT_METRIC_COLS = [
+  { key: 'total_active_prospects', label: 'Active',       color: '#3B5BDB' },
+  { key: 'new_prospects_today',    label: 'New today',    color: '#1D9E75' },
+  { key: 'signals_today',          label: 'Signals',      color: '#9F3FBF' },
+  { key: 'interactions_today',     label: 'Interactions', color: '#2568B5' },
+];
+
+function _renderDailyList(rows) {
+  const list = document.getElementById('daily-reports-list');
+  if (!list) return;
+  if (!rows || !rows.length) {
+    list.innerHTML = '<div style="color:var(--text-secondary);font-size:var(--fs-base);padding:16px 0;">No daily activity for the last 14 days.</div>';
+    return;
+  }
+  list.innerHTML = rows.map(r => {
+    const dateLabel = new Date(r.date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+    const metrics = r.metrics || {};
+    const badges = _RPT_METRIC_COLS.filter(m => metrics[m.key] != null && metrics[m.key] !== 0).map(m =>
+      `<span class="rpt-metric-badge" style="background:${m.color}18;color:${m.color};border-color:${m.color}30;">${_esc(String(metrics[m.key]))} ${_esc(m.label)}</span>`
+    ).join('');
+    const summaryHtml = r.summary_text ? `<div style="font-size:var(--fs-base);line-height:1.6;color:var(--text-primary);margin-top:${badges ? '10px' : '0'};">${_esc(r.summary_text).replace(/\n/g, '<br>')}</div>` : '';
+    return `<div style="border:1px solid var(--border);border-radius:var(--radius-panel);padding:14px 16px;margin-bottom:8px;">
+      <div style="display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap;">
+        <span style="font-size:var(--fs-xs);font-weight:700;color:var(--text-secondary);white-space:nowrap;flex-shrink:0;padding-top:2px;">${_esc(dateLabel)}</span>
+        ${badges ? `<div style="display:flex;gap:6px;flex-wrap:wrap;">${badges}</div>` : ''}
+      </div>
+      ${summaryHtml}
+    </div>`;
+  }).join('');
+}
+
+async function _loadDailyReports() {
+  const list = document.getElementById('daily-reports-list');
+  if (!list) return;
+  list.innerHTML = '<div style="color:var(--text-secondary);font-size:var(--fs-base);padding:12px 0;">Loading…</div>';
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 14);
+  const cutoffStr = cutoff.toISOString().slice(0, 10);
+  try {
+    const { data, error } = await sbClient.from('daily_activity_summaries')
+      .select('*')
+      .eq('client_id', CLIENT_ID)
+      .gte('date', cutoffStr)
+      .order('date', { ascending: false });
+    if (error) throw error;
+    _renderDailyList(data || []);
+  } catch(e) {
+    console.warn('[_loadDailyReports]', e);
+    list.innerHTML = '<div style="color:var(--text-secondary);font-size:var(--fs-base);padding:16px 0;">Could not load daily activity.</div>';
   }
 }
 
@@ -2365,7 +2494,7 @@ function _switchSysTab(key) {
   document.querySelectorAll('#tab-system .sys-panel').forEach(p => { p.style.display = p.id === 'syspanel-' + key ? '' : 'none'; });
   const sidebarKey = key === 'reports' ? 'weekly' : key;
   _newNavActive('system-' + sidebarKey);
-  if (key === 'reports') _loadWeeklyReports();
+  if (key === 'reports') { _switchRptTab('weekly'); _loadWeeklyReports(); }
   if (key === 'pipeintel') _renderSignalLearningSummary();
 }
 
