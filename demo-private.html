@@ -7798,21 +7798,19 @@ async function _inboxSend(draftId, prospectId) {
   const body = textarea.value.trim();
   if (!body) { showToast('No message to send'); return; }
   if (body.includes('{') || body.includes('}')) { showToast('Blocked: message contains literal braces {}'); return; }
-  const p = _inboxProspectsById[prospectId] || _prospectsById[prospectId];
-  if (!p?.linkedin) { showToast('No LinkedIn URL for this prospect'); return; }
+  const raw = _inboxRawPayloads[draftId];
+  const conversationId = raw?.conversation_id || raw?.conversationId || null;
+  if (!conversationId) { showToast('No conversationId in raw_payload — cannot send direct reply'); return; }
   if (sendBtn) sendBtn.disabled = true;
   if (dismissBtn) dismissBtn.disabled = true;
   try {
-    const res = await fetch('/api/linkedin-send', {
+    const res = await fetch('/api/inbox-send', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ linkedinUrl: p.linkedin, message: body, prospectName: p.name, client_id: CLIENT_ID, touch: 'j0', linkedinTag: p.linkedin_tag })
+      body: JSON.stringify({ conversationId, message: body, client_id: CLIENT_ID })
     });
     const data = await res.json();
     if (!data.success) {
-      const _errMsg = (data.error || '').toLowerCase().includes('not connected')
-        ? 'This prospect isn\'t marked as connected — check linkedin_tag before sending'
-        : 'LinkedIn send error: ' + (data.error || 'unknown');
-      showToast(_errMsg);
+      showToast('LinkedIn send error: ' + (data.error || 'unknown'));
       if (sendBtn) sendBtn.disabled = false;
       if (dismissBtn) dismissBtn.disabled = false;
       return;
@@ -7830,10 +7828,11 @@ async function _inboxSend(draftId, prospectId) {
       comment: edited ? 'Edited before sending' : null
     });
     if (afErr) console.error('[_inboxSend] agent_feedback insert failed:', afErr);
+    const p = _inboxProspectsById[prospectId] || _prospectsById[prospectId];
     const { error: intErr } = await sbClient.from('interactions').insert({
       prospect_id: prospectId, client_id: CLIENT_ID,
-      mandate_id: _prospectsById[prospectId]?.mandate_id ?? null,
-      type: 'linkedin', note: 'j0 sent via inbox reply', touch: 'j0'
+      mandate_id: p?.mandate_id ?? null,
+      type: 'linkedin', note: 'reply sent via inbox', touch: 'j0'
     });
     if (intErr) console.error('[_inboxSend] interactions insert failed:', intErr);
     showToast('Sent via LinkedIn ✓');
