@@ -7671,16 +7671,15 @@ async function loadInboxDrafts() {
     }
     const prospectIds = [...new Set(drafts.map(d => d.prospect_id).filter(Boolean))];
     if (prospectIds.length) {
-      const { data: pRows } = await sbClient.from('prospects')
+      const { data: pRows, error: pErr } = await sbClient.from('prospects')
         .select('id,name,company,linkedin,photo_url,linkedin_tag,mandate_id')
+        .eq('client_id', CLIENT_ID)
         .in('id', prospectIds);
+      if (pErr) console.error('[inbox] prospects batch-fetch error:', pErr);
       (pRows || []).forEach(p => {
         _inboxProspectsById[p.id] = p;
         if (!_prospectsById[p.id]) _prospectsById[p.id] = p;
       });
-      console.log('[inbox-debug] prospectIds demandés:', prospectIds);
-      console.log('[inbox-debug] pRows reçues:', pRows);
-      console.log('[inbox-debug] _inboxProspectsById:', JSON.stringify(_inboxProspectsById));
     }
     drafts.forEach(d => {
       _inboxDraftOriginals[d.id] = d.suggested_reply || '';
