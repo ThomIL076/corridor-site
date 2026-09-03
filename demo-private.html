@@ -7797,7 +7797,7 @@ function _renderInboxCards(drafts, view = 'pending') {
          </div>`
       : `<div style="margin-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
            <span style="font-size:var(--fs-xs);font-style:italic;color:var(--muted);">Brouillon non généré — message source non reconnu</span>
-           ${draft.raw_payload ? `<button onclick="_inboxShowRaw('${draft.id}')" style="font-size:var(--fs-xs);padding:3px 8px;border-radius:var(--radius-pill);border:1px solid var(--border);background:none;color:var(--text);cursor:pointer;">Voir raw_payload</button>` : ''}
+           ${CLIENT_ID === 'thomas' && draft.raw_payload ? `<button onclick="_inboxShowRaw('${draft.id}')" style="font-size:var(--fs-xs);padding:3px 8px;border-radius:var(--radius-pill);border:1px solid var(--border);background:none;color:var(--text);cursor:pointer;">Voir raw_payload</button>` : ''}
          </div>`;
     const actionBtns = `<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
         ${draft.suggested_reply && draft.prospect_id ? `<button id="inbox-send-${draft.id}" onclick="_inboxSend('${draft.id}','${draft.prospect_id}')"
