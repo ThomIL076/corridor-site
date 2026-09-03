@@ -2073,7 +2073,6 @@ body.new-nav { padding-left: 220px; }
       <button class="btn-primary btn-lg system-btn system-card-btn" onclick="runPipelineIntel()" id="pipeintel-btn" style="margin-bottom:16px;">
         <span data-en="▶ Scan New Prospects" data-fr="▶ Scanner les nouveaux prospects">▶ Scan New Prospects</span>
       </button>
-      <div id="signal-learning-summary" style="display:none;font-size:var(--fs-sm);color:var(--muted);margin-bottom:12px;padding:10px 12px;background:var(--navy-light);border:1px solid var(--border);border-radius:var(--radius-sm);"></div>
       <div class="ai-box" style="margin-bottom:24px;">
         <div class="ai-box-header">
           <span class="ai-box-label" data-en="New This Week" data-fr="Nouveaux cette semaine">New This Week</span>
@@ -2086,7 +2085,6 @@ body.new-nav { padding-left: 220px; }
           <span class="card-title" data-en="📊 Pipeline Reviewer" data-fr="📊 Revue pipeline">📊 Pipeline Reviewer</span>
           <span class="card-badge badge-review" data-en="ON DEMAND" data-fr="A LA DEMANDE">ON DEMAND</span>
         </div>
-        <div class="system-desc" style="min-height:40px;margin-bottom:14px;" data-en="Full pipeline health check: every active prospect classified RED (action required), AMBER (watch), or GREEN (on track)." data-fr="Bilan pipeline complet : chaque prospect actif classé RED, AMBER ou GREEN.">Full pipeline health check: every active prospect classified RED (action required), AMBER (watch), or GREEN (on track).</div>
         <button class="btn-primary btn-lg system-btn system-card-btn" onclick="_runPipelineReview()" id="pr-run-btn" style="max-width:280px;">
           <span data-en="▶ Run Pipeline Review" data-fr="▶ Lancer la revue pipeline">▶ Run Pipeline Review</span>
         </button>
@@ -6553,12 +6551,11 @@ async function runWeeklyReport(){
       .limit(500);
     if (!error && ints && ints.length > 0) {
       const uniqueIds = [...new Set(ints.map(i => i.prospect_id).filter(Boolean))];
-      let _wrPQuery = sbClient
+      const { data: freshProspects } = await sbClient
         .from('prospects')
         .select('id, name, company, linkedin')
-        .eq('client_id', _wrClientId);
-      _wrPQuery = _applyMandateFilter(_wrPQuery);
-      const { data: freshProspects } = await _wrPQuery.in('id', uniqueIds);
+        .eq('client_id', _wrClientId)
+        .in('id', uniqueIds);
       const pById = {};
       (freshProspects || []).forEach(p => { pById[p.id] = p; });
       const _wrTypeLabel = { LinkedIn: 'linkedin', email_j5: 'J+5 follow-up' };
@@ -7848,11 +7845,13 @@ async function loadInboxDrafts(view = 'pending') {
       return;
     }
     const prospectIds = [...new Set(drafts.map(d => d.prospect_id).filter(Boolean))];
+    console.log('[inbox] CLIENT_ID:', CLIENT_ID, '| prospectIds:', JSON.stringify(prospectIds));
     if (prospectIds.length) {
       const { data: pRows, error: pErr } = await sbClient.from('prospects')
         .select('id,name,company,linkedin,linkedin_tag,mandate_id')
         .eq('client_id', CLIENT_ID)
         .in('id', prospectIds);
+      console.log('[inbox] pRows count:', (pRows || []).length, '| pErr:', pErr ? JSON.stringify(pErr) : null, '| first id returned:', pRows?.[0]?.id);
       if (pErr) console.error('[inbox] prospects batch-fetch error:', pErr);
       (pRows || []).forEach(p => {
         _inboxProspectsById[p.id] = p;
