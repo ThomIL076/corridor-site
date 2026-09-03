@@ -6541,12 +6541,11 @@ async function runWeeklyReport(){
       .limit(500);
     if (!error && ints && ints.length > 0) {
       const uniqueIds = [...new Set(ints.map(i => i.prospect_id).filter(Boolean))];
-      let _wrPQuery = sbClient
+      const { data: freshProspects } = await sbClient
         .from('prospects')
         .select('id, name, company, linkedin')
-        .eq('client_id', _wrClientId);
-      _wrPQuery = _applyMandateFilter(_wrPQuery);
-      const { data: freshProspects } = await _wrPQuery.in('id', uniqueIds);
+        .eq('client_id', _wrClientId)
+        .in('id', uniqueIds);
       const pById = {};
       (freshProspects || []).forEach(p => { pById[p.id] = p; });
       const _wrTypeLabel = { LinkedIn: 'linkedin', email_j5: 'J+5 follow-up' };
