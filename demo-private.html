@@ -7678,6 +7678,9 @@ async function loadInboxDrafts() {
         _inboxProspectsById[p.id] = p;
         if (!_prospectsById[p.id]) _prospectsById[p.id] = p;
       });
+      console.log('[inbox-debug] prospectIds demandés:', prospectIds);
+      console.log('[inbox-debug] pRows reçues:', pRows);
+      console.log('[inbox-debug] _inboxProspectsById:', JSON.stringify(_inboxProspectsById));
     }
     drafts.forEach(d => {
       _inboxDraftOriginals[d.id] = d.suggested_reply || '';
