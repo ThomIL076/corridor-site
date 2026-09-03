@@ -392,6 +392,15 @@ button, [role="button"], select, input { min-height: 28px; }
 .agent-back-btn:hover { color:var(--navy); text-decoration:underline; }
 @media(max-width:600px) { .agent-grid { grid-template-columns:repeat(2, 1fr); } }
 
+/* ── Agent Panel Header ─────────────────────────────────────────────────── */
+.agent-panel-header {
+  display:flex; align-items:center; gap:14px;
+  padding:18px 20px 14px; max-width:900px; margin:0 auto;
+}
+.agent-panel-header .aph-icon { font-size:30px; line-height:1; flex-shrink:0; }
+.agent-panel-header .aph-label { font-size:var(--fs-lg); font-weight:700; color:var(--navy); line-height:1.2; }
+.agent-panel-header .aph-group { font-size:var(--fs-xs); color:var(--muted); margin-top:2px; text-transform:uppercase; letter-spacing:0.6px; font-weight:600; }
+
 .chat-messages {
   background:var(--bg); border:1.5px solid var(--border); border-radius:var(--radius-panel);
   padding:16px; min-height:200px; max-height:340px; overflow-y:auto;
@@ -2941,7 +2950,34 @@ function switchAgent(name) {
 
 function _activateAgent(name) { switchAgent(name); }
 
+const _AGENT_META = {
+  cmo:          { icon:'🎯', color:'#3B5BDB', label:'CMO Orchestrator',    group:'Hub' },
+  positioning:  { icon:'🧭', color:'#1D9E75', label:'Positioning Analyst', group:'Content' },
+  content:      { icon:'✍️', color:'#1D9E75', label:'Content Strategist',  group:'Content' },
+  copywriter:   { icon:'✏️', color:'#1D9E75', label:'Copywriter',          group:'Content' },
+  repurposing:  { icon:'♻️', color:'#1D9E75', label:'Repurposing Engine',  group:'Content' },
+  seo:          { icon:'🔎', color:'#1D9E75', label:'SEO & AEO',           group:'Content' },
+  distribution: { icon:'📡', color:'#1D9E75', label:'Distribution',        group:'Content' },
+  performance:  { icon:'📊', color:'#1D9E75', label:'Performance Analyst', group:'Content' },
+  competitive:  { icon:'⚔️', color:'#2568B5', label:'Competitive Intel',   group:'GTM' },
+  prospect:     { icon:'🔍', color:'#2568B5', label:'Prospect Agent',      group:'GTM' },
+  objection:    { icon:'🛡️', color:'#2568B5', label:'Objection Handler',   group:'GTM' },
+};
+
+function _initAgentPanelHeaders() {
+  for (const [key, m] of Object.entries(_AGENT_META)) {
+    const panel = document.getElementById('agent-' + key);
+    if (!panel || panel.querySelector('.agent-panel-header')) continue;
+    const hdr = document.createElement('div');
+    hdr.className = 'agent-panel-header';
+    hdr.style.cssText = `border-left:4px solid ${m.color};background:linear-gradient(90deg,${m.color}18 0%,transparent 65%);`;
+    hdr.innerHTML = `<span class="aph-icon">${m.icon}</span><div><div class="aph-label">${m.label}</div><div class="aph-group">${m.group}</div></div>`;
+    panel.insertBefore(hdr, panel.firstChild);
+  }
+}
+
 function _showAgentsMap() {
+  _initAgentPanelHeaders();
   document.querySelectorAll('.agent-panel').forEach(p => p.classList.remove('active'));
   const map = document.getElementById('agents-map');
   if (map) map.style.display = '';
