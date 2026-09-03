@@ -395,11 +395,18 @@ button, [role="button"], select, input { min-height: 28px; }
 /* ── Agent Panel Header ─────────────────────────────────────────────────── */
 .agent-panel-header {
   display:flex; align-items:center; gap:14px;
-  padding:18px 20px 14px; max-width:900px; margin:0 auto;
+  padding:18px 20px 14px; max-width:900px; margin:0 auto 16px;
 }
 .agent-panel-header .aph-icon { font-size:30px; line-height:1; flex-shrink:0; }
 .agent-panel-header .aph-label { font-size:var(--fs-lg); font-weight:700; color:var(--navy); line-height:1.2; }
 .agent-panel-header .aph-group { font-size:var(--fs-xs); color:var(--muted); margin-top:2px; text-transform:uppercase; letter-spacing:0.6px; font-weight:600; }
+/* ── Agent panel accent cascade (--panel-accent set per-panel by _initAgentPanelHeaders) ── */
+.agent-panel { --panel-accent: var(--navy); }
+.agent-panel .card { border-top:3px solid var(--panel-accent); border-top-left-radius:0; border-top-right-radius:0; }
+.agent-panel .chat-msg.assistant .chat-avatar { background:var(--panel-accent); }
+.agent-panel .chat-input:focus { border-color:var(--panel-accent); }
+.agent-panel .btn-primary { background:var(--panel-accent); }
+.agent-panel .btn-primary:hover:not(:disabled) { background:var(--panel-accent); filter:brightness(0.88); }
 
 .chat-messages {
   background:var(--bg); border:1.5px solid var(--border); border-radius:var(--radius-panel);
@@ -414,7 +421,6 @@ button, [role="button"], select, input { min-height: 28px; }
 }
 .chat-msg.assistant .chat-avatar { background:var(--navy); color:#fff; }
 .chat-msg.user .chat-avatar { background:var(--blue); color:#fff; }
-#agent-objection .chat-msg.assistant .chat-avatar { background:#f59e0b; }
 .agent-tab-btn.obj.active { background:#f59e0b; border-color:#f59e0b; }
 .chat-bubble {
   max-width:80%; font-size:var(--fs-base); line-height:1.7; padding:10px 14px; border-radius:var(--radius-panel);
@@ -1223,35 +1229,9 @@ body.new-nav { padding-left: 220px; }
   </div>
   <div class="snav-section">
     <span class="snav-section-label">Agents</span>
-    <button class="snav-item" data-nav="agent-cmo" onclick="_switchSidebarAgent('cmo')">
-      <span class="snav-icon">🎯</span> CMO Orchestrator
+    <button class="snav-item" data-nav="agents" onclick="_switchNewNav('agents')">
+      <span class="snav-icon">🤖</span><span data-en="Agents" data-fr="Agents">Agents</span>
     </button>
-    <div class="snav-group">
-      <button class="snav-item snav-group-toggle" onclick="_toggleSnavGroup(this)">
-        <span class="snav-icon">✍️</span> Content
-        <span class="snav-chevron">›</span>
-      </button>
-      <div class="snav-group-items">
-        <button class="snav-item snav-sub" data-nav="agent-positioning" onclick="_switchSidebarAgent('positioning')"><span class="snav-icon">🧭</span> Positioning Analyst</button>
-        <button class="snav-item snav-sub" data-nav="agent-content" onclick="_switchSidebarAgent('content')"><span class="snav-icon">✍️</span> Content Strategist</button>
-        <button class="snav-item snav-sub" data-nav="agent-copywriter" onclick="_switchSidebarAgent('copywriter')"><span class="snav-icon">✏️</span> Copywriter</button>
-        <button class="snav-item snav-sub" data-nav="agent-repurposing" onclick="_switchSidebarAgent('repurposing')"><span class="snav-icon">♻️</span> Repurposing Engine</button>
-        <button class="snav-item snav-sub" data-nav="agent-seo" onclick="_switchSidebarAgent('seo')"><span class="snav-icon">🔎</span> SEO &amp; AEO</button>
-        <button class="snav-item snav-sub" data-nav="agent-distribution" onclick="_switchSidebarAgent('distribution')"><span class="snav-icon">📡</span> Distribution Manager</button>
-        <button class="snav-item snav-sub" data-nav="agent-performance" onclick="_switchSidebarAgent('performance')"><span class="snav-icon">📊</span> Performance Analyst</button>
-      </div>
-    </div>
-    <div class="snav-group">
-      <button class="snav-item snav-group-toggle" onclick="_toggleSnavGroup(this)">
-        <span class="snav-icon">🚀</span> GTM
-        <span class="snav-chevron">›</span>
-      </button>
-      <div class="snav-group-items">
-        <button class="snav-item snav-sub" data-nav="agent-competitive" onclick="_switchSidebarAgent('competitive')"><span class="snav-icon">⚔️</span> Competitive Intel</button>
-        <button class="snav-item snav-sub" data-nav="agent-prospect" onclick="_switchSidebarAgent('prospect')"><span class="snav-icon">🔍</span> Prospect Agent</button>
-        <button class="snav-item snav-sub" data-nav="agent-objection" onclick="_switchSidebarAgent('objection')"><span class="snav-icon">🛡️</span> Objection Handler</button>
-      </div>
-    </div>
   </div>
   <div class="snav-footer">
     <button class="snav-item" data-nav="clients" onclick="_switchNewNav('clients')">
@@ -2968,11 +2948,20 @@ function _initAgentPanelHeaders() {
   for (const [key, m] of Object.entries(_AGENT_META)) {
     const panel = document.getElementById('agent-' + key);
     if (!panel || panel.querySelector('.agent-panel-header')) continue;
+    // Set accent CSS custom property on the panel — cascades to avatar, button, input focus
+    panel.style.setProperty('--panel-accent', m.color);
+    // Inject visual header
     const hdr = document.createElement('div');
     hdr.className = 'agent-panel-header';
     hdr.style.cssText = `border-left:4px solid ${m.color};background:linear-gradient(90deg,${m.color}18 0%,transparent 65%);`;
     hdr.innerHTML = `<span class="aph-icon">${m.icon}</span><div><div class="aph-label">${m.label}</div><div class="aph-group">${m.group}</div></div>`;
     panel.insertBefore(hdr, panel.firstChild);
+    // Tint the agent name in the description to match the group accent
+    const card = panel.querySelector('.card');
+    if (card) {
+      const strong = card.querySelector('div > strong');
+      if (strong) strong.style.color = m.color;
+    }
   }
 }
 
