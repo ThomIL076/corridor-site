@@ -5149,19 +5149,24 @@ Populate stakeholder_* fields ONLY when new_stakeholder is true; set to null oth
       if (Array.isArray(parsed)) signalsData = parsed;
     } catch (e) { console.error('[runMorningScan] signals JSON parse failed:', e, text); }
 
-    // Pre-search DM for signals without a named stakeholder — only confirmed (high) results reach the feed
+    // Verify DM for every signal — pre-filled names are confirmed against live web context,
+    // not trusted as-is. Only confirmed (high) results reach the feed.
     if (signalsData && signalsData.length > 0) {
       signalsData = signalsData.slice(0, 5);
       await Promise.all(signalsData.map(async (s) => {
-        if (s.stakeholder_name || s.stakeholder_title) return;
         const co = s.stakeholder_company || s.signal_company;
         if (!co) { s._dm_skip = true; s._dm_skip_reason = 'no_company'; return; }
+        const hadPrefilledName = !!(s.stakeholder_name || s.stakeholder_title);
         try {
           const liveCtx = await _prefetchWebContext(co, 'GTM decision maker');
+          const ctxTxt = liveCtx || 'No live context available.';
+          const prompt = hadPrefilledName
+            ? `Is "${s.stakeholder_name || 'Unknown'}"${s.stakeholder_title ? ', ' + s.stakeholder_title : ''} confirmed as a real, current person associated with ${co} as a decision-maker (founder, CEO, or senior GTM/BD contact), based ONLY on the web context below?\n\nWEB CONTEXT:\n${ctxTxt}\n\nReturn a single JSON object, no prose, no markdown fences:\n{"name": "Full Name" or null, "title": "Title" or null, "linkedin_url": URL only if explicitly stated in the context above else null, "confidence": "high" or "low" or "not_found"}\n\nIf the context confirms this exact person at this company, set confidence to "high" and return their name/title as stated in the context. If the context does not confirm this person, or does not mention them at all, set confidence to "not_found" and name to null. Never invent a name or construct a URL from a name.`
+            : `Based ONLY on the web context below, identify the main decision-maker (founder, CEO, or most senior GTM/BD contact) at ${co}.\n\nWEB CONTEXT:\n${ctxTxt}\n\nReturn a single JSON object, no prose, no markdown fences:\n{"name": "Full Name" or null, "title": "Title" or null, "linkedin_url": URL only if explicitly stated in the context above else null, "confidence": "high" or "low" or "not_found"}\n\nIf no individual is named in the context, set confidence to "not_found" and name to null. Never invent a name or construct a URL from a name.`;
           const dmRes = await fetch(API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 300, messages: [{ role: 'user', content: `Based ONLY on the web context below, identify the main decision-maker (founder, CEO, or most senior GTM/BD contact) at ${co}.\n\nWEB CONTEXT:\n${liveCtx || 'No live context available.'}\n\nReturn a single JSON object, no prose, no markdown fences:\n{"name": "Full Name" or null, "title": "Title" or null, "linkedin_url": URL only if explicitly stated in the context above else null, "confidence": "high" or "low" or "not_found"}\n\nIf no individual is named in the context, set confidence to "not_found" and name to null. Never invent a name or construct a URL from a name.` }] })
+            body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 300, messages: [{ role: 'user', content: prompt }] })
           });
           if (!dmRes.ok) { s._dm_skip = true; s._dm_skip_reason = 'error'; return; }
           const dmData = await dmRes.json();
@@ -5172,7 +5177,7 @@ Populate stakeholder_* fields ONLY when new_stakeholder is true; set to null oth
             s.stakeholder_name = dm.name;
             s.stakeholder_title = dm.title || s.stakeholder_title || null;
             s.stakeholder_linkedin_url = dm.linkedin_url || s.stakeholder_linkedin_url || null;
-            s.new_stakeholder = true;
+            s.new_stakeholder = !hadPrefilledName;
           } else {
             s._dm_skip = true; s._dm_skip_reason = 'low_confidence';
           }
