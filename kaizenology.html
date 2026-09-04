@@ -4517,7 +4517,41 @@ function _openAskFromMandate() {
   });
 }
 
-async function _buildAskSystemPrompt(ctx, pipelineSnapshot) {
+function _isPipelinePerfQuestion(msg) {
+  const m = (msg || '').toLowerCase();
+  const patterns = [
+    /convert/, /conversion/, /taux de r[ée]ponse/, /response rate/,
+    /meilleur(e)? (secteur|signal|pays|moment|jour)/, /quel(le)? (secteur|type de signal|pays|jour|moment)/,
+    /which (sector|signal|country|day|time)/, /best[- ](converting|performing)/, /best (sector|signal|country|day|time)/,
+    /fonctionne le mieux/, /marche le mieux/, /performe le mieux/, /works best/, /performs best/,
+    /heure d'envoi/, /jour de la semaine/, /time of day/, /day of week/, /meilleur moment/, /best time to (send|contact)/
+  ];
+  return patterns.some(re => re.test(m));
+}
+
+async function _fetchPipelineInsights() {
+  try {
+    const { data, error } = await sbClient.from('pipeline_insights')
+      .select('dimension, dimension_value, n_contacted, n_converted, conversion_rate, is_reliable')
+      .eq('client_id', CLIENT_ID)
+      .order('dimension', { ascending: true })
+      .order('conversion_rate', { ascending: false });
+    if (error) { console.warn('[pipeline-insights] fetch error:', error); return null; }
+    return data || [];
+  } catch(e) { console.warn('[pipeline-insights] exception:', e); return null; }
+}
+
+function _formatPipelineInsights(rows) {
+  if (!rows || !rows.length) return 'PIPELINE_INSIGHTS: (no rows for this client — pipeline not active enough yet to compute conversion data)';
+  const lines = rows.map(r => {
+    const dv = r.dimension_value || '(overall)';
+    const cr = (r.conversion_rate != null) ? r.conversion_rate + '%' : 'n/a';
+    return '  - dimension: ' + r.dimension + ' | value: ' + dv + ' | contacted: ' + r.n_contacted + ' | converted: ' + r.n_converted + ' | conversion_rate: ' + cr + ' | is_reliable: ' + !!r.is_reliable;
+  });
+  return 'PIPELINE_INSIGHTS:\n' + lines.join('\n');
+}
+
+async function _buildAskSystemPrompt(ctx, pipelineSnapshot, pipelineInsightsBlock) {
   const mandateBlock = (typeof _mandateContext === 'function') ? _mandateContext() : '';
   let ctxBlock = '';
   let liveSearchCtx = '';
@@ -4560,7 +4594,11 @@ async function _buildAskSystemPrompt(ctx, pipelineSnapshot) {
     const _lsResult = await _marketIntelSearch(_lsName, 500);
     if (_lsResult) liveSearchCtx = '\n\nLIVE CONTEXT (from web search, use this as ground truth for facts, do not invent beyond this):\n' + _lsResult;
   }
-  return 'LANGUAGE RULE (non-negotiable): Respond exclusively in the language of the user\'s latest message — regardless of the language of any data injected below (which may be in French). French context data does not mean French response. Detect only the user message language.\n\nYou are Corridor\'s assistant helping with GTM pipeline management.\n' + mandateBlock + ctxBlock + liveSearchCtx + '\n\nBe factual and concise. Never use em-dashes (—) or horizontal rules (---) in your response.\nNever state a fact about a prospect, company, mandate, or signal that is not explicitly present in the context provided or in what the user has told you in this conversation. If you don\'t have enough information to answer accurately, say so directly rather than guessing or inferring plausibly-sounding details. Do not invent URLs, dates, numbers, or attributions. When asked about something outside the provided context (general market knowledge, definitions, how-to questions), you may answer from general knowledge, but never blend invented specifics about THIS prospect/mandate/signal with general knowledge in a way that makes them indistinguishable.\n\nFINAL REMINDER: your entire response must be in the language of the user\'s message above, not in the language of the context data.';
+  let insightsBlock = '';
+  if (pipelineInsightsBlock) {
+    insightsBlock = '\n\n' + pipelineInsightsBlock + '\n\nYou have access to PIPELINE_INSIGHTS above: the real conversion rates computed on the user\'s actual pipeline, by sector, signal type, and country. Each row has an is_reliable field: if false, the sample is too small (fewer than 15 prospects contacted) for the number to mean anything — in that case, never present that number as an actionable fact. Say explicitly that there isn\'t enough data yet on that dimension instead of citing an unreliable percentage. Never calculate, estimate, or invent a conversion rate yourself — use only the numbers provided in PIPELINE_INSIGHTS. If PIPELINE_INSIGHTS has no rows, tell the user honestly that the pipeline doesn\'t have enough activity yet to compute this, rather than staying silent or guessing. Breakdown by time of day or day of week is NOT available yet — if asked about it, say so explicitly instead of improvising an answer.';
+  }
+  return 'LANGUAGE RULE (non-negotiable): Respond exclusively in the language of the user\'s latest message — regardless of the language of any data injected below (which may be in French). French context data does not mean French response. Detect only the user message language.\n\nYou are Corridor\'s assistant helping with GTM pipeline management.\n' + mandateBlock + ctxBlock + liveSearchCtx + insightsBlock + '\n\nBe factual and concise. Never use em-dashes (—) or horizontal rules (---) in your response.\nNever state a fact about a prospect, company, mandate, or signal that is not explicitly present in the context provided or in what the user has told you in this conversation. If you don\'t have enough information to answer accurately, say so directly rather than guessing or inferring plausibly-sounding details. Do not invent URLs, dates, numbers, or attributions. When asked about something outside the provided context (general market knowledge, definitions, how-to questions), you may answer from general knowledge, but never blend invented specifics about THIS prospect/mandate/signal with general knowledge in a way that makes them indistinguishable.\n\nFINAL REMINDER: your entire response must be in the language of the user\'s message above, not in the language of the context data.';
 }
 
 async function _buildPipelineSnapshot() {
@@ -4663,6 +4701,10 @@ async function _sendAskMessage() {
     try { _askSnapshot = await _buildPipelineSnapshot(); } catch(e) { console.warn('[pipeline-snapshot] error:', e); }
   }
   console.log('[snapshot] injected into prompt, length:', _askSnapshot.length);
+  let _askInsightsBlock = '';
+  if (_isPipelinePerfQuestion(msg)) {
+    try { _askInsightsBlock = _formatPipelineInsights(await _fetchPipelineInsights()); } catch(e) { console.warn('[pipeline-insights] error:', e); }
+  }
   try {
     const res = await fetch(API_URL, {
       method: 'POST',
@@ -4670,7 +4712,7 @@ async function _sendAskMessage() {
       body: JSON.stringify({
         model: 'claude-sonnet-5',
         max_tokens: 4000,
-        system: await _buildAskSystemPrompt(_askCtx, _askSnapshot),
+        system: await _buildAskSystemPrompt(_askCtx, _askSnapshot, _askInsightsBlock),
         messages: _askHistory
       })
     });
