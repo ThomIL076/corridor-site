@@ -13,7 +13,8 @@
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <meta name="theme-color" content="#12213f">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300;0,400;0,700;0,900;1,300;1,400&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-<!-- impeccable-ignore: overused-font -- Fraunces reserved for auth gate screens only -->
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<!-- impeccable-ignore: overused-font -- Fraunces reserved for the access-blocked screen only (Phase 0 redesign moved the sign-in and profile-error screens to Instrument Sans / IBM Plex Mono) -->
 <style>
 :root {
   --navy: #1a2b5e;
@@ -94,6 +95,12 @@
   --fs-lg: 18px;
   --fs-xl: 22px;
   --fs-display: 28px;
+
+  /* Groupe G -- tokens de la refonte (Phase 0 : bancs d'essai sur les ecrans auth) */
+  --ink: #0e1a2e;
+  --accent: #2f6bff;
+  --danger: #c9302c;
+  --success: #1f8a5c;
 }
 
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -261,6 +268,10 @@ button, [role="button"], select, input { min-height: 28px; }
 .badge-ai { background:var(--green-bg); color:var(--green); border:1px solid var(--green-border); }
 .badge-live { background:#fef3c7; color:var(--amber-text); border:1px solid #fcd34d; animation:pulse-badge 2s infinite; }
 @keyframes pulse-badge { 0%,100%{opacity:1} 50%{opacity:0.7} }
+@keyframes pulseDot { 0%,100%{opacity:1} 50%{opacity:.25} }
+#auth-gate input::placeholder { color: rgba(255,255,255,.35); }
+#auth-gate input:hover, #auth-gate input:focus { border-color: rgba(255,255,255,.30) !important; }
+#auth-gate a:hover { color: var(--accent) !important; }
 
 .two-col { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
 .three-col { display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; }
@@ -1146,24 +1157,37 @@ body.new-nav { padding-left: 220px; }
 <body>
 
 <!-- AUTH GATE (Supabase) — visible par défaut, masqué si session valide -->
-<div id="auth-gate" style="display:flex;position:fixed;inset:0;z-index:9999;background:var(--navy);align-items:center;justify-content:center;font-family:'Plus Jakarta Sans',sans-serif;">
-  <div style="width:100%;max-width:360px;padding:32px;">
-    <div style="display:flex;align-items:center;gap:10px;justify-content:center;margin-bottom:6px;">
-      <div style="display:grid;grid-template-columns:9px 9px;grid-template-rows:9px 9px;gap:3px;">
-        <span style="background:#fff;border-radius:2px;"></span>
-        <span style="background:var(--blue);border-radius:2px;"></span>
-        <span style="background:var(--blue);border-radius:2px;"></span>
-        <span style="background:#fff;border-radius:2px;"></span>
+<div id="auth-gate" style="display:flex;position:fixed;inset:0;z-index:9999;background:var(--ink);align-items:center;justify-content:center;font-family:'Instrument Sans',sans-serif;">
+  <div style="width:100%;max-width:372px;padding:32px;">
+    <div style="display:flex;align-items:center;gap:10px;justify-content:center;margin-bottom:8px;">
+      <div style="display:grid;grid-template-columns:7px 7px;grid-template-rows:7px 7px;gap:2px;">
+        <span style="background:var(--accent);border-radius:1px;"></span>
+        <span style="background:#5c8bff;border-radius:1px;"></span>
+        <span style="background:#5c8bff;border-radius:1px;"></span>
+        <span style="background:#fff;border-radius:1px;"></span>
       </div>
-      <span style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:var(--fs-xl);letter-spacing:3px;color:#fff;">CORRIDOR</span>
+      <span style="font-family:'Instrument Sans',sans-serif;font-weight:600;font-size:22px;letter-spacing:0.18em;line-height:1;color:#fff;">CORRIDOR</span>
     </div>
-    <p style="text-align:center;color:var(--blue);font-style:italic;font-family:'Fraunces',serif;margin:0 0 28px;font-size:15px;">Partner Demo — private access</p>
+    <p style="text-align:center;color:rgba(255,255,255,.5);font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:0.22em;margin:0 0 28px;">PARTNER DEMO · PRIVATE ACCESS</p>
     <form onsubmit="doLogin(event)">
-      <input id="login-email" type="email" placeholder="Email" autocomplete="email" required style="width:100%;box-sizing:border-box;padding:13px 14px;margin-bottom:12px;border:1px solid #3a4a7a;border-radius:var(--radius-md);background:#243875;color:#fff;font-size:15px;outline:none;">
-      <input id="login-password" type="password" placeholder="Password" autocomplete="current-password" required style="width:100%;box-sizing:border-box;padding:13px 14px;margin-bottom:16px;border:1px solid #3a4a7a;border-radius:var(--radius-md);background:#243875;color:#fff;font-size:15px;outline:none;">
-      <button id="login-btn" type="submit" style="width:100%;padding:13px;border:none;border-radius:var(--radius-md);background:#fff;color:var(--navy);font-weight:700;font-size:15px;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;">Sign in</button>
+      <label for="login-email" style="display:block;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:0.18em;color:rgba(255,255,255,.5);margin-bottom:5px;">EMAIL</label>
+      <input id="login-email" type="email" placeholder="you@company.com" autocomplete="email" required style="width:100%;box-sizing:border-box;padding:13px 14px;margin-bottom:14px;border:1px solid rgba(255,255,255,.14);border-radius:var(--radius-sm);background:rgba(255,255,255,.07);color:#fff;font-size:15px;font-family:'Instrument Sans',sans-serif;outline:none;transition:border-color .15s;">
+      <label for="login-password" style="display:block;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:0.18em;color:rgba(255,255,255,.5);margin-bottom:5px;">PASSWORD</label>
+      <input id="login-password" type="password" autocomplete="current-password" required style="width:100%;box-sizing:border-box;padding:13px 14px;margin-bottom:18px;border:1px solid rgba(255,255,255,.14);border-radius:var(--radius-sm);background:rgba(255,255,255,.07);color:#fff;font-size:15px;font-family:'Instrument Sans',sans-serif;outline:none;transition:border-color .15s;">
+      <button id="login-btn" type="submit" style="width:100%;padding:13px;border:none;border-radius:var(--radius-sm);background:#fff;color:var(--ink);font-weight:700;font-size:15px;cursor:pointer;font-family:'Instrument Sans',sans-serif;">Sign in</button>
       <p id="login-error" style="display:none;color:var(--red-light);font-size:var(--fs-base);text-align:center;margin:14px 0 0;"></p>
     </form>
+    <div style="margin-top:24px;padding-top:16px;border-top:1px solid rgba(255,255,255,.1);text-align:center;">
+      <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:10px;">
+        <span style="width:6px;height:6px;border-radius:50%;background:var(--success);display:inline-block;animation:pulseDot 2.4s ease-in-out infinite;"></span>
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:0.12em;color:rgba(255,255,255,.5);">SYSTEM ACTIVE · 15 AGENTS RUNNING</span>
+      </div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:0.12em;">
+        <a href="mailto:thomas@corridor.systems" style="color:rgba(255,255,255,.5);text-decoration:none;">CONTACT</a>
+        <span style="color:rgba(255,255,255,.3);margin:0 6px;">·</span>
+        <a href="https://corridor.systems" target="_blank" rel="noopener" style="color:rgba(255,255,255,.5);text-decoration:none;">CORRIDOR.SYSTEMS ↗</a>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1187,21 +1211,29 @@ body.new-nav { padding-left: 220px; }
 </div>
 
 <!-- PROFILE LOAD ERROR (transient network / DB unavailable at login) -->
-<div id="profile-error-screen" style="display:none;position:fixed;inset:0;z-index:9999;background:var(--navy);align-items:center;justify-content:center;font-family:'Plus Jakarta Sans',sans-serif;">
-  <div style="width:100%;max-width:420px;padding:32px;text-align:center;">
-    <div style="display:flex;align-items:center;gap:10px;justify-content:center;margin-bottom:6px;">
-      <div style="display:grid;grid-template-columns:9px 9px;grid-template-rows:9px 9px;gap:3px;">
-        <span style="background:#fff;border-radius:2px;"></span>
-        <span style="background:var(--blue);border-radius:2px;"></span>
-        <span style="background:var(--blue);border-radius:2px;"></span>
-        <span style="background:#fff;border-radius:2px;"></span>
+<div id="profile-error-screen" style="display:none;position:fixed;inset:0;z-index:9999;background:var(--ink);align-items:center;justify-content:center;font-family:'Instrument Sans',sans-serif;">
+  <div style="width:100%;max-width:372px;padding:32px;">
+    <div style="display:flex;align-items:center;gap:10px;justify-content:center;margin-bottom:24px;">
+      <div style="display:grid;grid-template-columns:7px 7px;grid-template-rows:7px 7px;gap:2px;">
+        <span style="background:var(--accent);border-radius:1px;"></span>
+        <span style="background:#5c8bff;border-radius:1px;"></span>
+        <span style="background:#5c8bff;border-radius:1px;"></span>
+        <span style="background:#fff;border-radius:1px;"></span>
       </div>
-      <span style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:var(--fs-xl);letter-spacing:3px;color:#fff;">CORRIDOR</span>
+      <span style="font-family:'Instrument Sans',sans-serif;font-weight:600;font-size:22px;letter-spacing:0.18em;line-height:1;color:#fff;">CORRIDOR</span>
     </div>
-    <h2 style="color:#fff;font-family:'Fraunces',serif;font-weight:700;font-size:26px;margin:24px 0 12px;">Unable to load your profile</h2>
-    <p style="color:var(--blue);font-size:15px;line-height:1.7;margin-bottom:28px;">Check your connection and try again. If the issue persists, reload the page.</p>
-    <button onclick="_retryProfileLoad()" style="background:#fff;color:var(--navy);padding:13px 26px;border-radius:var(--radius-md);font-weight:700;font-size:15px;border:none;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;">Try again</button>
-    <div style="margin-top:18px;"><button onclick="signOut()" style="background:transparent;border:none;color:var(--blue);font-size:var(--fs-base);cursor:pointer;text-decoration:underline;font-family:inherit;">Sign out</button></div>
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
+      <span style="width:6px;height:6px;border-radius:50%;background:var(--danger);display:inline-block;"></span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:0.12em;color:var(--danger);">PROFILE UNAVAILABLE</span>
+    </div>
+    <h2 style="color:#fff;font-family:'Instrument Sans',sans-serif;font-weight:600;font-size:21px;margin:0 0 12px;">We could not load your profile.</h2>
+    <p style="color:rgba(255,255,255,.65);font-size:13.5px;line-height:1.6;margin:0 0 20px;">Your session is valid, so nothing has been lost. This is a read failure on our side. Try again, and if it persists the detail below is what to send us.</p>
+    <div style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:var(--radius-md);padding:14px 16px;margin-bottom:20px;">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:0.18em;color:rgba(255,255,255,.5);margin-bottom:10px;">DIAGNOSTIC</div>
+      <div id="pe-diag-rows"></div>
+    </div>
+    <button onclick="_retryProfileLoad()" style="width:100%;padding:13px;border:none;border-radius:var(--radius-sm);background:#fff;color:var(--ink);font-weight:700;font-size:15px;cursor:pointer;font-family:'Instrument Sans',sans-serif;margin-bottom:10px;">Try again</button>
+    <button onclick="signOut()" style="width:100%;padding:13px;border:1px solid rgba(255,255,255,.2);border-radius:var(--radius-sm);background:transparent;color:#fff;font-weight:600;font-size:15px;cursor:pointer;font-family:'Instrument Sans',sans-serif;">Sign out</button>
   </div>
 </div>
 
@@ -1654,6 +1686,13 @@ body.new-nav { padding-left: 220px; }
           Next batch →
         </button>
       </div>
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-header" style="display:flex;align-items:center;gap:8px;">
+          <span class="card-title">Agents at work</span>
+          <span class="card-badge badge-auto">LIVE</span>
+        </div>
+        <div id="agents-at-work-list" style="font-size:var(--fs-sm);color:var(--muted);">Loading...</div>
+      </div>
       <div id="priorities-container"></div>
     </div>
   </div>
@@ -2096,6 +2135,10 @@ body.new-nav { padding-left: 220px; }
           <div class="ai-box-body" id="pr-output" data-en="Click to run the pipeline review..." data-fr="Cliquez pour lancer la revue pipeline...">Click to run the pipeline review...</div>
         </div>
       </div>
+      <div class="card" style="margin-top:16px;">
+        <div class="card-header"><span class="card-title">Stage conversion</span></div>
+        <div id="stage-conversion-list" style="font-size:var(--fs-sm);color:var(--muted);">Loading...</div>
+      </div>
     </div>
 
     <!-- ── Reports ── -->
@@ -2502,7 +2545,75 @@ function _switchSysTab(key) {
   const sidebarKey = key === 'reports' ? 'weekly' : key;
   _newNavActive('system-' + sidebarKey);
   if (key === 'reports') { _switchRptTab('weekly'); _loadWeeklyReports(); }
-  if (key === 'pipeintel') _renderSignalLearningSummary();
+  if (key === 'pipeintel') { _renderSignalLearningSummary(); _loadStageConversion(); }
+}
+
+// ── Stage conversion (Pipeline health) ──
+// Le taux réel est calculé en direct sur le pipeline actuel (approximation instantanée,
+// pas de cohorte historique -- aucun timestamp de changement d'étape n'est tracé nulle
+// part dans le schéma actuel). La cible vient de conversion_targets si elle existe.
+const _SC_TRANSITIONS = [
+  { from: 'Identified',   to: '1st Contact' },
+  { from: '1st Contact',  to: 'Engaged' },
+  { from: 'Engaged',      to: 'Replied' },
+  { from: 'Replied',      to: 'Proposal' },
+  { from: 'Proposal',     to: 'Closed' }
+];
+
+async function _loadStageConversion() {
+  const el = document.getElementById('stage-conversion-list');
+  if (!el) return;
+  el.innerHTML = 'Loading...';
+  try {
+    const { data: { session } } = await sbClient.auth.getSession();
+    const token = session?.access_token || '';
+    let param = '';
+    if (activeMandateId === '__ALL__') param = '?mandate_mode=all';
+    else if (activeMandateId) param = '?mandate_id=' + encodeURIComponent(activeMandateId);
+    const res = await fetch('/api/pipeline-prospects' + param, { headers: { 'Authorization': 'Bearer ' + token } });
+    if (!res.ok) throw new Error('pipeline-prospects: HTTP ' + res.status);
+    const { prospects } = await res.json();
+    const rankOf = s => KANBAN_STAGES.indexOf(s);
+    const countAtLeast = stage => (prospects || []).filter(p => rankOf(p.stage) >= rankOf(stage) && rankOf(p.stage) >= 0).length;
+
+    let targets = [];
+    try {
+      let q = sbClient.from('conversion_targets').select('from_stage, to_stage, target_rate, source, set_by, computed_at').eq('client_id', CLIENT_ID);
+      q = (activeMandateId && activeMandateId !== '__ALL__') ? q.eq('mandate_id', activeMandateId) : q.is('mandate_id', null);
+      const { data } = await q;
+      targets = data || [];
+    } catch(e) { console.warn('[stage-conversion] targets read error:', e); }
+
+    el.innerHTML = _SC_TRANSITIONS.map(t => {
+      const nSource = countAtLeast(t.from);
+      const nTarget = countAtLeast(t.to);
+      const rate = nSource > 0 ? (nTarget / nSource * 100) : null;
+      const rateStr = rate != null ? rate.toFixed(1) + '%' : '—';
+      const target = targets.find(x => x.from_stage === t.from && x.to_stage === t.to);
+      let colorVar = 'var(--text)';
+      let targetLine = '<span style="font-size:var(--fs-xs);color:var(--dim);">Target available after 30 days of activity</span>';
+      if (target && target.target_rate != null && rate != null) {
+        const onTarget = rate >= target.target_rate;
+        colorVar = onTarget ? 'var(--green-brand)' : 'var(--amber-mid)';
+        const provenance = target.set_by
+          ? 'SET BY YOU' + (target.computed_at ? ' · ' + new Date(target.computed_at).toLocaleDateString() : '')
+          : (target.source === 'calculated_snapshot_current' ? 'CURRENT PIPELINE SNAPSHOT' : 'YOUR 90D MEDIAN');
+        targetLine = '<span style="font-family:monospace;font-size:var(--fs-xs);color:var(--dim);">TARGET ' + target.target_rate + '% · ' + provenance + '</span>';
+      }
+      const barPct = rate != null ? Math.min(100, rate) : 0;
+      return '<div style="padding:9px 0;border-bottom:1px solid var(--border);">'
+        + '<div style="display:flex;justify-content:space-between;align-items:baseline;">'
+        + '<span style="font-family:monospace;font-size:var(--fs-xs);color:var(--muted);">' + _esc(t.from.toUpperCase()) + ' → ' + _esc(t.to.toUpperCase()) + '</span>'
+        + '<span style="font-family:monospace;font-weight:600;color:' + colorVar + ';">' + rateStr + '</span>'
+        + '</div>'
+        + '<div style="height:4px;background:var(--border);border-radius:2px;margin:5px 0;overflow:hidden;"><div style="height:100%;width:' + barPct + '%;background:' + colorVar + ';"></div></div>'
+        + targetLine
+        + '</div>';
+    }).join('');
+  } catch(e) {
+    console.warn('[stage-conversion]', e);
+    el.innerHTML = 'Unable to load stage conversion right now.';
+  }
 }
 
 function _switchNewNav(tab, sysHint) {
@@ -2847,12 +2958,32 @@ function paintBlocked(){
   const so = document.getElementById('blocked-signout'); if (so) so.textContent = fr ? 'Se déconnecter' : 'Sign out';
 }
 let _profileRetryFn = null;
+// Bloc diagnostic (Profile unavailable) -- etat en memoire seulement, pas de persistance.
+// _lastProfileErrorInfo capture le vrai statut au moment de l'echec (pas de valeur inventee).
+let _lastProfileErrorInfo = null; // { at: Date, status: string } | null
+let _lastProfileLoadAttempts = 0;
+function _diagRow(color, label, value) {
+  return '<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;">'
+    + '<span style="display:flex;align-items:center;gap:6px;font-family:\'IBM Plex Mono\',monospace;font-size:9.5px;letter-spacing:0.1em;color:rgba(255,255,255,.5);"><span style="width:6px;height:6px;border-radius:50%;background:' + color + ';display:inline-block;flex-shrink:0;"></span>' + label + '</span>'
+    + '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:9.5px;letter-spacing:0.1em;color:#fff;">' + value + '</span>'
+    + '</div>';
+}
 function showProfileError(retryFn) {
   _profileRetryFn = retryFn;
   document.getElementById('auth-gate').style.display = 'none';
   const ab = document.getElementById('access-blocked'); if (ab) ab.style.display = 'none';
   document.getElementById('profile-error-screen').style.display = 'flex';
   const so = document.getElementById('signout-btn'); if (so) so.style.display = 'inline-flex';
+  const rows = document.getElementById('pe-diag-rows');
+  if (rows) {
+    const statusStr = _lastProfileErrorInfo
+      ? _esc((_lastProfileErrorInfo.status || 'UNKNOWN').toUpperCase() + ' ' + _lastProfileErrorInfo.at.toTimeString().slice(0, 5))
+      : 'UNKNOWN';
+    rows.innerHTML =
+      _diagRow('var(--success)', 'SESSION', 'VALID') +
+      _diagRow('var(--danger)', 'PROFILE ENDPOINT', statusStr) +
+      _diagRow('rgba(255,255,255,.3)', 'RETRY', _lastProfileLoadAttempts + ' OF 3');
+  }
 }
 function hideProfileError() {
   const el = document.getElementById('profile-error-screen');
@@ -2866,6 +2997,7 @@ async function checkAccess(session){
   async function _loadAndShow() {
     hideProfileError();
     for (let attempt = 1; attempt <= 3; attempt++) {
+      _lastProfileLoadAttempts = attempt;
       if (attempt > 1) await new Promise(r => setTimeout(r, 1000));
       const result = await loadClientProfile();
       if (result === true) { showDemo(); return; }
@@ -2974,6 +3106,46 @@ function setLang(lang) {
   paintBlocked();      // écran "essai terminé" / "accès refusé" suit la langue
 }
 
+function _relTimeShort(iso) {
+  if (!iso) return '';
+  const d = new Date(iso); if (isNaN(d)) return '';
+  const mins = Math.floor((Date.now() - d) / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return mins + 'm ago';
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return hrs + 'h ago';
+  return _relDate(iso);
+}
+
+async function _loadAgentsAtWork() {
+  const el = document.getElementById('agents-at-work-list');
+  if (!el) return;
+  try {
+    let q = sbClient.from('agent_activity_log')
+      .select('agent_name, action_summary, occurred_at')
+      .eq('client_id', CLIENT_ID)
+      .order('occurred_at', { ascending: false })
+      .limit(5);
+    if (activeMandateId && activeMandateId !== '__ALL__') q = q.eq('mandate_id', activeMandateId);
+    const { data, error } = await q;
+    if (error) throw error;
+    if (!data || !data.length) {
+      el.innerHTML = '<div style="color:var(--muted);">No agent activity logged yet — this shows up as soon as an agent runs.</div>';
+      return;
+    }
+    el.innerHTML = data.map(r =>
+      '<div style="border-left:2px solid var(--blue-brand);padding:4px 0 4px 10px;margin-bottom:8px;">'
+      + '<div style="font-family:monospace;font-size:var(--fs-xs);font-weight:600;color:var(--blue-brand);text-transform:uppercase;letter-spacing:0.04em;">' + _esc(r.agent_name || '') + '</div>'
+      + '<div style="color:var(--text);font-size:var(--fs-sm);">' + _esc(r.action_summary || '') + '</div>'
+      + '<div style="font-family:monospace;font-size:var(--fs-xs);color:var(--muted);">' + _relTimeShort(r.occurred_at) + '</div>'
+      + '</div>'
+    ).join('');
+  } catch(e) {
+    console.warn('[agents-at-work]', e);
+    el.innerHTML = '<div style="color:var(--muted);">Unable to load agent activity right now.</div>';
+  }
+}
+
 // ── TAB SWITCHING ──
 function switchTab(name, fromClick = false) {
   window.scrollTo({ top: 0, behavior: 'instant' });
@@ -2989,7 +3161,7 @@ function switchTab(name, fromClick = false) {
   if (name === 'pipeline') { const sh = document.getElementById('kanban-swipe-hint'); if (sh) { sh.style.opacity = '1'; setTimeout(() => { sh.style.opacity = '0'; }, 3000); } }
   if (name === 'send') loadSendView();
   if (name === 'agents') _showAgentsMap();
-  if (name === 'priorities') loadDailyPriorities();
+  if (name === 'priorities') { loadDailyPriorities(); _loadAgentsAtWork(); }
   if (name === 'inbox') loadInboxDrafts();
   if (name === 'stats') { if (!_kanbanLoaded) { loadKanban().then(() => renderStats()); } else { renderStats(); } }
   if (name === 'clients') loadClientsKanban();
@@ -4371,6 +4543,14 @@ async function sendAgent(agentName) {
     const data = await res.json();
     const reply = (Array.isArray(data.content) ? data.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim() : '') || 'No response.';
     agentHistories[agentName].push({ role: 'assistant', content: reply });
+    // Log d'activité (fire-and-forget, non bloquant -- l'absence de log ne doit jamais empêcher l'agent de répondre)
+    sbClient.from('agent_activity_log').insert({
+      client_id: CLIENT_ID,
+      mandate_id: activeMandateId && activeMandateId !== '__ALL__' ? activeMandateId : null,
+      agent_name: (_AGENT_META[agentName] && _AGENT_META[agentName].label) || agentName,
+      action_summary: 'Answered: ' + (msg.length > 70 ? msg.slice(0, 70) + '…' : msg),
+      prospect_id: null
+    }).then(({ error }) => { if (error) console.warn('[agent-activity-log]', error); }).catch(e => console.warn('[agent-activity-log]', e));
     // ADD mémoire (fire-and-forget, par agent, fail-open)
     try {
       _getAuthHeaders().then(authH => fetch('/api/memory', {
@@ -4894,6 +5074,14 @@ async function _runPipelineReview() {
       const rj = await r.json();
       summary = (Array.isArray(rj.content) ? rj.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim() : '') || '';
       summary = summary.replace(/--+/g, ',').trim();
+      // Log d'activité (fire-and-forget, non bloquant)
+      sbClient.from('agent_activity_log').insert({
+        client_id: CLIENT_ID,
+        mandate_id: activeMandateId && activeMandateId !== '__ALL__' ? activeMandateId : null,
+        agent_name: 'Pipeline Reviewer',
+        action_summary: 'Reviewed pipeline: ' + red.length + ' at risk, ' + amber.length + ' to watch',
+        prospect_id: null
+      }).then(({ error }) => { if (error) console.warn('[agent-activity-log]', error); }).catch(e => console.warn('[agent-activity-log]', e));
     } catch(e) { console.error('[_runPipelineReview]', e); }
 
     const renderRow = (p, color) => {
@@ -5230,6 +5418,17 @@ Populate stakeholder_* fields ONLY when new_stakeholder is true; set to null oth
       const _skippedError     = signalsData.filter(s => s._dm_skip_reason === 'error').length;
       signalsData = signalsData.filter(s => !s._dm_skip && !!(s.stakeholder_name || s.stakeholder_title));
       console.warn(`[runMorningScan] DM lookup: ${_skippedNoCompany} sans société, ${_skippedLowConf} confiance insuffisante, ${_skippedError} erreur — ${signalsData.length} signaux conservés`);
+    }
+
+    if (signalsData !== null) {
+      // Log d'activité (fire-and-forget, non bloquant)
+      sbClient.from('agent_activity_log').insert({
+        client_id: CLIENT_ID,
+        mandate_id: activeMandateId && activeMandateId !== '__ALL__' ? activeMandateId : null,
+        agent_name: 'Morning Scan',
+        action_summary: 'Found ' + signalsData.length + ' new signal' + (signalsData.length === 1 ? '' : 's'),
+        prospect_id: null
+      }).then(({ error }) => { if (error) console.warn('[agent-activity-log]', error); }).catch(e => console.warn('[agent-activity-log]', e));
     }
 
     const TAG_COLORS = { 'fundraising':'#2568B5', 'leadership-change':'#7C3AED', 'activity':'#B45309', 'expansion':'#059669' };
@@ -6722,6 +6921,13 @@ ${_langLine()}`;
       client_id: CLIENT_ID, mandate_id: null,
       week_start: weekStart, summary: _wrSummary, full_report: _wrTempEl.innerHTML
     });
+    // Log d'activité (fire-and-forget, non bloquant)
+    sbClient.from('agent_activity_log').insert({
+      client_id: CLIENT_ID, mandate_id: null,
+      agent_name: 'Weekly Report',
+      action_summary: 'Published weekly report',
+      prospect_id: null
+    }).then(({ error }) => { if (error) console.warn('[agent-activity-log]', error); }).catch(e => console.warn('[agent-activity-log]', e));
   } catch(e) { console.warn('[runWeeklyReport] insert failed:', e); }
   await _loadWeeklyReports();
   } catch(e) {
@@ -6859,6 +7065,112 @@ function _reminderBannerHTML(reminderDate) {
       ${r?'<button class="reminder-clear-btn btn-sm" onclick="_clearReminder()">Clear</button>':''}
     </div>
   </div>`;
+}
+
+// ── Buying committee (3 fixed roles, persisted, extends the DM-verification pattern) ──
+const _BC_ROLES = ['economic_buyer', 'champion', 'technical_evaluator'];
+const _BC_ROLE_LABELS = { economic_buyer: 'Economic Buyer', champion: 'Champion', technical_evaluator: 'Technical Evaluator' };
+// Un rôle confirmé bouge rarement en 90 jours ; un rôle "not identified" doit être retenté
+// plus vite -- l'absence de résultat aujourd'hui n'est pas une preuve d'absence dans 3 mois.
+const _BC_FOUND_STALE_DAYS = 90;
+const _BC_NOTFOUND_STALE_DAYS = 30;
+
+function _bcIsStale(row) {
+  if (!row || !row.discovered_at) return true;
+  const ageDays = (Date.now() - new Date(row.discovered_at).getTime()) / 86400000;
+  return ageDays > (row.name ? _BC_FOUND_STALE_DAYS : _BC_NOTFOUND_STALE_DAYS);
+}
+
+async function _discoverBuyingCommittee(prospect) {
+  const co = prospect.company;
+  if (!co) return null;
+  const liveCtx = await _prefetchWebContext(co, 'buying committee decision makers');
+  const prompt = 'Based ONLY on the web context below, identify up to three specific individuals at ' + co + ' who would be involved in a B2B GTM purchase decision, one per role:\n\n'
+    + '- economic_buyer: the person with budget authority for this type of decision\n'
+    + '- champion: the person likely to advocate for this internally\n'
+    + '- technical_evaluator: the person who would validate the solution technically\n\n'
+    + 'WEB CONTEXT:\n' + (liveCtx || 'No live context available.') + '\n\n'
+    + 'Return a single JSON object, no prose, no markdown fences, exactly this shape:\n'
+    + '{"economic_buyer":{"name":"Full Name" or null,"title":"Title" or null,"linkedin":URL only if explicitly stated in the context above else null,"confidence":"high" or "low" or "not_found"},"champion":{...same structure...},"technical_evaluator":{...same structure...}}\n\n'
+    + 'For each role, if the context does not clearly confirm a specific named individual in that role at this company, set confidence to "not_found" and name to null. Never invent a name or construct a URL from a name.';
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 700, messages: [{ role: 'user', content: prompt }] })
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const txt = Array.isArray(data.content) ? data.content.filter(b => b.type === 'text').map(b => b.text).join('').trim() : '';
+    const parsed = JSON.parse(txt.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim());
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch(_e) { return null; }
+}
+
+async function _loadBuyingCommittee(prospectId, p) {
+  const el = document.getElementById('bc-section-' + prospectId);
+  if (!el) return;
+  let byRole = {};
+  try {
+    const { data } = await sbClient.from('buying_committee_members')
+      .select('role, name, title, linkedin, confidence, discovered_at')
+      .eq('prospect_id', prospectId).eq('client_id', CLIENT_ID);
+    (data || []).forEach(r => { byRole[r.role] = r; });
+  } catch(e) { console.warn('[buying-committee] read error:', e); }
+
+  const needsRefresh = (p.icp_score || 0) >= 4 && _BC_ROLES.some(r => _bcIsStale(byRole[r]));
+  if (!needsRefresh) { _renderBuyingCommittee(prospectId, byRole); return; }
+
+  _renderBuyingCommittee(prospectId, byRole, true);
+  const result = await _discoverBuyingCommittee(p);
+  if (!result) { _renderBuyingCommittee(prospectId, byRole); return; }
+
+  const nowIso = new Date().toISOString();
+  const upsertRows = _BC_ROLES.map(role => {
+    const r = result[role] || {};
+    const confirmed = r.confidence === 'high' && !!r.name;
+    return {
+      client_id: CLIENT_ID, prospect_id: prospectId, role,
+      name: confirmed ? r.name : null,
+      title: confirmed ? (r.title || null) : null,
+      linkedin: confirmed ? (r.linkedin || null) : null,
+      confidence: confirmed ? 'high' : 'not_found',
+      discovered_at: nowIso
+    };
+  });
+  try {
+    await sbClient.from('buying_committee_members').upsert(upsertRows, { onConflict: 'prospect_id,role' });
+  } catch(e) { console.warn('[buying-committee] write error:', e); }
+
+  const newByRole = {};
+  upsertRows.forEach(r => { newByRole[r.role] = r; });
+  _renderBuyingCommittee(prospectId, newByRole);
+}
+
+function _renderBuyingCommittee(prospectId, byRole, loading) {
+  const el = document.getElementById('bc-section-' + prospectId);
+  if (!el) return;
+  if (loading) {
+    el.innerHTML = '<div style="font-size:var(--fs-xs);color:var(--muted);font-style:italic">Researching buying committee...</div>';
+    return;
+  }
+  el.innerHTML = _BC_ROLES.map(role => {
+    const r = byRole[role];
+    const label = _BC_ROLE_LABELS[role];
+    if (r && r.name) {
+      const nameHtml = r.linkedin
+        ? '<a href="' + _esc(r.linkedin) + '" target="_blank" rel="noopener" style="color:var(--navy);text-decoration:underline;font-weight:600;">' + _esc(r.name) + '</a>'
+        : '<span style="font-weight:600;color:var(--navy);">' + _esc(r.name) + '</span>';
+      return '<div style="display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);font-size:var(--fs-sm);">'
+        + '<span style="color:var(--muted);flex-shrink:0;">' + label + '</span>'
+        + '<span style="text-align:right;min-width:0;">' + nameHtml + (r.title ? '<div style="font-size:var(--fs-xs);color:var(--muted);">' + _esc(r.title) + '</div>' : '') + '</span>'
+        + '</div>';
+    }
+    return '<div style="display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);font-size:var(--fs-sm);">'
+      + '<span style="color:var(--muted);flex-shrink:0;">' + label + '</span>'
+      + '<span style="color:var(--dim);">Not identified</span>'
+      + '</div>';
+  }).join('');
 }
 
 async function openDrawer(card, initialTab = 'activity') {
@@ -7175,6 +7487,7 @@ async function openDrawer(card, initialTab = 'activity') {
   }
   if (document.getElementById('dv-team')) _restoreDealValue();
   _renderSignalLink((_prospectsById[prospectId] || {}).signal, (_prospectsById[prospectId] || {}).signal_url);
+  if (prospectId) _loadBuyingCommittee(prospectId, _p).catch(e => console.warn('[buying-committee]', e));
 
   if (prospectId) {
     const { data, error } = await sbClient
@@ -9467,6 +9780,10 @@ function _drawerProfileHTML(id, p, colStage, fb){
       (p.signalInterpretation ? `<div style="background:var(--navy-light);border:1px solid var(--blue);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--navy);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:10px;opacity:0.65;display:block;margin-bottom:3px">✦ ${currentLang==='fr'?'Analyse IA':'AI Insight'}</span>${v(stripHtml(p.signalInterpretation))}</div>` : '')
     )}
     <textarea id="ed-notes" class="dp-inp" placeholder="Notes" style="min-height:60px;resize:vertical">${v(p.notes)}</textarea>
+    ${card(
+      lbl('Buying committee') +
+      `<div id="bc-section-${v(id)}" style="font-size:var(--fs-xs);color:var(--muted);font-style:italic">Loading...</div>`
+    )}
     ${_acSection}
     <button class="btn-primary btn-lg" style="width:100%;justify-content:center" onclick="saveProspectEdit('${v(id)}')"><span data-en="Save changes" data-fr="Enregistrer les modifications">Save changes</span></button>
     <div style="display:flex;gap:8px;margin-top:4px">
@@ -11429,7 +11746,10 @@ async function loadClientProfile() {
       .select('client_id, contact_name, company_name, display_name, avatar_url, sender_bio, owner_inbox_email, email_campaign_id, hubspot_api_key, hubspot_stage_mapping, hubspot_last_sync')
       .eq('auth_user_id', user.id)
       .single();
-    if (error || !data) return false;
+    if (error || !data) {
+      _lastProfileErrorInfo = { at: new Date(), status: error ? (error.message || error.code || 'query failed') : 'no data returned' };
+      return false;
+    }
     if (!data.client_id) {
       console.error('loadClientProfile: client_id manquant pour', user.id);
       showBlocked('no_client_id');
@@ -11443,7 +11763,11 @@ async function loadClientProfile() {
     document.getElementById('nav-avatar').innerHTML = _navAvatarHTML(data.avatar_url, name);
     document.getElementById('user-profile-btn').style.display = 'flex';
     return true;
-  } catch(e) { console.warn('loadClientProfile:', e); return false; }
+  } catch(e) {
+    _lastProfileErrorInfo = { at: new Date(), status: (e && e.message) || 'network error' };
+    console.warn('loadClientProfile:', e);
+    return false;
+  }
 }
 
 function openProfileModal() {
