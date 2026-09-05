@@ -129,27 +129,17 @@ body {
 }
 body.new-nav .top-chrome-wrapper { left: 220px; }
 
-/* ── NAV ── */
+/* ── NAV + MANDATE BAR (fusionnes en une seule barre 58px, Phase 1 cleanup) ──
+   Logo retire (doublon avec .snav-logo depuis Phase 1) ; badge ACTIVE retire (aucun etat reel
+   type "Trial"/suspendu dans le modele Corridor, cf. echange cleanup) ; Sign Out deplace dans
+   le pied de la sidebar (.snav-signout) + ajoute au panneau mobile "More" (sidebar inaccessible
+   sous 768px, cf. tab bar mobile). */
 nav {
   display:flex; align-items:center; justify-content:space-between; gap:12px;
-  padding: 0 48px; height: 72px; box-sizing:border-box;
+  padding: 0 24px; height: 58px; box-sizing:border-box;
   background: rgba(255,255,255,0.97);
   backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--border);
-}
-.logo { display:flex; align-items:center; gap:10px; text-decoration:none; }
-.logo-mark { width:22px; height:22px; display:grid; grid-template-columns:1fr 1fr; gap:3px; }
-.logo-mark span { border-radius:2px; }
-.logo-mark span:nth-child(1),.logo-mark span:nth-child(4) { background:var(--navy); }
-.logo-mark span:nth-child(2),.logo-mark span:nth-child(3) { background:var(--blue); }
-.logo-name { font-size:var(--fs-base); font-weight:800; letter-spacing:2.5px; color:var(--navy); }
-.logo-tagline { font-size:8px; color:var(--dim); letter-spacing:1px; margin-top:1px; }
-.logo-text { display:flex; flex-direction:column; }
-.nav-badge {
-  position:absolute; left:50%; transform:translateX(-50%);
-  font-size:var(--fs-micro); font-weight:600; letter-spacing:1.5px; text-transform:uppercase;
-  color:var(--navy); background:var(--navy-light); border:1px solid var(--blue);
-  padding:4px 12px; border-radius:var(--radius-pill);
 }
 .nav-cta {
   font-size:var(--fs-sm); font-weight:600; color:var(--white); background:var(--navy);
@@ -161,12 +151,11 @@ nav {
 
 
 .mandate-bar {
-  display: flex;
+  /* display:none par defaut (inline sur l'element) -- bascule en 'flex' par _loadMandateOptions()
+     une fois les mandats charges. N'est plus une barre empilee a part : vit desormais comme un
+     groupe flex a l'interieur de <nav>, donc ni padding/background/border-bottom propres ici. */
   align-items: center;
   gap: 12px;
-  padding: 10px 24px;
-  background: var(--navy-light);
-  border-bottom: 1px solid var(--border);
 }
 .mandate-bar-label {
   font-family: 'IBM Plex Mono', monospace;
@@ -963,8 +952,6 @@ h1, h2, .k-card-name, .k-card-company { overflow-wrap:break-word; word-break:bre
   .kpi-row .kpi-card:last-child { grid-column:1 / -1; }
   /* 4. header compact */
   .user-company { display:none; }
-  .logo-mark { width:32px; }
-  .logo-tagline { display:none; }
   .nav-cta { font-size:0; padding:8px 10px; }
   .nav-cta::before { content:'📅'; font-size:var(--fs-lg); }
   /* 7. boutons agents en grille 2 colonnes */
@@ -977,14 +964,11 @@ h1, h2, .k-card-name, .k-card-company { overflow-wrap:break-word; word-break:bre
   #kpi-emeana, #score-kpi-naemea { font-size:var(--fs-xl); line-height:1.15; }
   #kpi-emeana .numsplit, #score-kpi-naemea .numsplit { font-size:0; }
   #kpi-emeana .numsplit::after, #score-kpi-naemea .numsplit::after { content:''; display:block; }
-  /* 10. logo mark seul + titres de module centrés */
-  .logo-name { display:none; }
+  /* 10. titres de module centrés */
   .module-header { text-align:center; }
 }
 /* ══ MOBILE FIXES — ROUND 2 (≤480px) ══ */
 @media (max-width:480px) {
-  /* 1. badge ACTIVE réduit (ne chevauche plus l'avatar) */
-  .nav-badge { font-size:var(--fs-micro); padding:2px 6px; }
   /* 3. titres de section non coupés */
   /* 6. Toolbar Pipeline : 4 boutons en grille 2x2, pleine largeur (= bouton Analyze) */
   .csv-actions { display:grid !important; grid-template-columns:repeat(2,1fr); gap:8px; width:calc(100% - 32px); margin:0 auto; }
@@ -992,8 +976,6 @@ h1, h2, .k-card-name, .k-card-company { overflow-wrap:break-word; word-break:bre
   .csv-actions > button, .csv-actions > label { width:100%; max-width:none; text-align:center; justify-content:center; font-size:var(--fs-sm); padding:10px 8px; box-sizing:border-box; }
   .csv-full { display:none; }
   .csv-short { display:inline; }
-  /* logo mark carré (complète le width:20px du round 1) */
-  .logo-mark { height:32px; }
 }
 /* ══ MOBILE FIXES — ROUND 4 : Toolbar Pipeline mobile (≤480px) ══ */
 @media (max-width:480px) {
@@ -1050,16 +1032,10 @@ h1, h2, .k-card-name, .k-card-company { overflow-wrap:break-word; word-break:bre
     box-sizing: border-box;
   }
 }
-/* ══ MOBILE NAV : avatar+badge centrés, hamburger/logo gauche, Sign out droite (≤480px) ══ */
-@media (max-width:480px) {
-  nav { height:72px; position:relative; }
-  .user-info { display:none; }
-  /* avatar : centré horizontalement, ancré en haut — symétrique avec le badge en bas */
-  .user-avatar { position:absolute !important; left:50%; transform:translateX(-50%) !important; top:8px !important; width:32px !important; height:32px !important; font-size:var(--fs-base); }
-  /* badge ACTIVE : centré horizontalement, ancré en bas */
-  #nav-badge-wrap { position:absolute !important; left:50%; transform:translateX(-50%) !important; top:auto !important; bottom:8px; height:auto !important; }
-  .nav-badge { position:static; left:auto; transform:none; }
-}
+/* Nav resserree (mandate + Ask Corridor + avatar) : nom/société masqués sous 480px pour éviter
+   le débordement -- seule la partie utile de l'ancien bloc "MOBILE NAV" (avatar/badge centrés,
+   devenue obsolète avec le logo/badge/Sign Out retirés de <nav>). */
+@media (max-width:480px) { .user-info { display:none; } }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
@@ -1149,6 +1125,16 @@ body.new-nav { padding-left: 220px; }
   font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; letter-spacing: 0.12em;
   color: var(--sidebar-label);
 }
+/* Sign Out relocalise depuis <nav> (cleanup) : meme #signout-btn, meme onclick="signOut()",
+   seul le placement/style changent -- aucune logique JS a modifier. */
+.snav-signout {
+  display: none; align-items: center; gap: 6px; width: 100%;
+  margin-top: 10px; padding: 8px 2px 0; border: none; border-top: 1px solid rgba(255,255,255,.1);
+  background: none; text-align: left; cursor: pointer;
+  font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; letter-spacing: 0.12em;
+  color: var(--sidebar-label);
+}
+.snav-signout:hover { color: #fff; }
 /* Hamburger trigger (mobile only) */
 .snav-hamburger {
   display: none;
@@ -1184,10 +1170,12 @@ body.new-nav { padding-left: 220px; }
   body.new-nav.snav-open .snav-backdrop { display: block; }
 }
 /* Mobile bottom tab bar (Phase 1 chunk 5) : remplace le hamburger + sidebar coulissante en
-   dessous de 760px, comme specifie ("Sidebar hidden, replaced by a bottom tab bar") -- les
-   deux mecanismes ne coexistent jamais, celui-ci gagne sur les regles 768px ci-dessus. */
+   dessous de 768px, comme specifie ("Sidebar hidden, replaced by a bottom tab bar") -- meme
+   seuil que les regles hamburger/sidebar ci-dessus (etait 760px, corrige lors du cleanup pour
+   fermer la fenetre 761-768px ou les deux mecanismes se contredisaient), celui-ci gagne via
+   !important. */
 .mobile-tabbar { display: none; }
-@media (max-width: 760px) {
+@media (max-width: 768px) {
   body.new-nav .snav-hamburger,
   body.new-nav .new-sidebar,
   body.new-nav .snav-backdrop { display: none !important; }
@@ -1229,8 +1217,6 @@ body.new-nav { padding-left: 220px; }
      focus, comme prevu). Suppression sure dans les deux cas, mais l'explication initiale
      ("le focus aussi") etait fausse -- gardee ici pour ne pas la re-ecrire une deuxieme fois. */
   #auth-gate button:hover { opacity:.92; }
-  .nav-signout { background:transparent; border:1px solid var(--border-mid); color:var(--muted); padding:7px 14px; border-radius:var(--radius-md); font-size:var(--fs-base); cursor:pointer; font-family:'Plus Jakarta Sans',sans-serif; margin-left:8px; }
-  .nav-signout:hover { color:var(--navy); border-color:var(--navy); }
   .hp-btn { font-size:var(--fs-sm);padding:4px 12px;border:1px solid var(--border);border-radius:16px;background:var(--white);color:var(--text);cursor:pointer;font-family:inherit;transition:background .15s,color .15s; }
   .hp-btn.active { background:var(--navy);color:#fff;border-color:var(--navy); }
   .sig-btn { font-size:var(--fs-sm);padding:4px 12px;border:1px solid var(--border);border-radius:16px;background:var(--white);color:var(--text);cursor:pointer;font-family:inherit;transition:background .15s,color .15s; }
@@ -1396,6 +1382,9 @@ body.new-nav { padding-left: 220px; }
       <span class="snav-live-dot" aria-hidden="true"></span>
       <span data-en="System active" data-fr="Système actif">System active</span>
     </div>
+    <button id="signout-btn" class="snav-signout" onclick="signOut()" aria-label="Sign out">
+      <span data-en="Sign out" data-fr="Se déconnecter">Sign out</span>
+    </button>
   </div>
 </aside>
 
@@ -1405,7 +1394,7 @@ body.new-nav { padding-left: 220px; }
 </button>
 <div class="snav-backdrop" id="snav-backdrop" onclick="_toggleSnavMenu()"></div>
 
-<!-- MOBILE BOTTOM TAB BAR (Phase 1 chunk 5, < 760px) -->
+<!-- MOBILE BOTTOM TAB BAR (Phase 1 chunk 5, < 768px) -->
 <nav class="mobile-tabbar" id="mobile-tabbar" aria-label="Mobile navigation">
   <button class="mtab-item" data-nav="priorities" onclick="_switchNewNav('priorities')">Today</button>
   <button class="mtab-item" data-nav="pipeline" onclick="_switchNewNav('pipeline')">Pipeline</button>
@@ -1418,21 +1407,28 @@ body.new-nav { padding-left: 220px; }
   <button class="mtab-item" id="mtab-more-btn" onclick="_switchNewNav('more')">More</button>
 </nav>
 
-<!-- NAV -->
+<!-- NAV + MANDATE BAR (fusionnes, cleanup) : logo retire (doublon .snav-logo), badge ACTIVE
+     retire (aucun etat reel), Sign Out deplace en pied de sidebar (+ panneau mobile "More").
+     #mandate-bar reste l'id/le mecanisme de bascule display exact de _loadMandateOptions() --
+     seul son role visuel change (sous-groupe flex dans <nav> plutot que barre empilee). -->
 <div class="top-chrome-wrapper">
 <nav aria-label="Primary navigation">
-  <a href="index.html" class="logo">
-    <div class="logo-mark"><span></span><span></span><span></span><span></span></div>
-    <div class="logo-text">
-      <span class="logo-name">CORRIDOR</span>
-      <span class="logo-tagline">GTM System</span>
-    </div>
-  </a>
-  <div id="nav-badge-wrap" style="position:absolute;left:50%;transform:translateX(-50%);display:flex;align-items:center;height:100%;">
-    <div class="nav-badge" id="nav-status-badge"></div>
+  <div class="mandate-bar" id="mandate-bar" style="display:none;">
+    <span class="mandate-bar-label">MANDATE</span>
+    <select class="input-select" id="mandate-select" onchange="_onMandateChange()">
+      <option value="">Consolidated view (all)</option>
+    </select>
+    <select class="input-select" id="deal-select" style="display:none;" onchange="_onDealChange()">
+      <option value="">No specific deal</option>
+    </select>
   </div>
 
-  <div style="display:flex;align-items:center;gap:14px;margin-left:auto;padding-right:8px;">
+  <div style="display:flex;align-items:center;gap:14px;margin-left:auto;">
+    <button onclick="_openAskFromMandate()" style="flex-shrink:0;display:flex;align-items:center;gap:7px;font-size:var(--fs-xs);font-weight:600;padding:6px 14px;border:none;border-radius:var(--radius-pill);background:var(--ink);color:#fff;cursor:pointer;height:30px;">
+      <span data-en="Ask Corridor" data-fr="Demander à Corridor">Ask Corridor</span>
+      <span style="width:6px;height:6px;border-radius:50%;background:var(--success);display:inline-block;flex-shrink:0;animation:pulseDot 2.4s ease-in-out infinite;"></span>
+    </button>
+    <div style="width:1px;height:22px;background:var(--border);flex-shrink:0;"></div>
     <div class="user-profile" id="user-profile-btn" style="display:none" onclick="openProfileModal()">
       <div class="user-avatar" id="nav-avatar"></div>
       <div class="user-info">
@@ -1440,28 +1436,8 @@ body.new-nav { padding-left: 220px; }
         <span class="user-company" id="nav-company"></span>
       </div>
     </div>
-    <button id="signout-btn" class="nav-signout" style="display:none" onclick="signOut()" aria-label="Sign out">Sign out</button>
   </div>
 </nav>
-
-<!-- MANDATE SELECTOR BAR -->
-<div class="mandate-bar" id="mandate-bar" style="display:none;">
-  <span class="mandate-bar-label">MANDATE</span>
-  <select class="input-select" id="mandate-select" onchange="_onMandateChange()">
-    <option value="">Consolidated view (all)</option>
-  </select>
-  <select class="input-select" id="deal-select" style="display:none;" onchange="_onDealChange()">
-    <option value="">No specific deal</option>
-  </select>
-  <!-- Pastille Ask Corridor (Phase 1, chunk top bar) : fond ink + point live, comme la spec.
-       Reste dans .mandate-bar pour l'instant plutot que fusionnee avec <nav> dans une seule
-       barre 58px -- fusion + relocalisation du logo/Sign out laissees pour une passe separee,
-       signalees explicitement plutot que tentees a la va-vite dans ce chunk. -->
-  <button onclick="_openAskFromMandate()" style="flex-shrink:0;display:flex;align-items:center;gap:7px;font-size:var(--fs-xs);font-weight:600;padding:6px 14px;border:none;border-radius:var(--radius-pill);background:var(--ink);color:#fff;cursor:pointer;height:30px;margin-left:auto;">
-    <span data-en="Ask Corridor" data-fr="Demander à Corridor">Ask Corridor</span>
-    <span style="width:6px;height:6px;border-radius:50%;background:var(--success);display:inline-block;flex-shrink:0;animation:pulseDot 2.4s ease-in-out infinite;"></span>
-  </button>
-</div>
 
 <!-- JOURNEY SPINE (Phase 1) -->
 <div class="journey-spine" id="journey-spine">
@@ -2401,6 +2377,9 @@ body.new-nav { padding-left: 220px; }
       <button class="more-row" onclick="_switchNewNav('clients')"><span data-en="Clients" data-fr="Clients">Clients</span><span class="more-chevron">›</span></button>
       <button class="more-row" onclick="_switchNewNav('integrations')"><span data-en="Integrations" data-fr="Intégrations">Integrations</span><span class="more-chevron">›</span></button>
       <button class="more-row" onclick="_switchNewNav('stats')"><span>Stats</span><span class="more-chevron">›</span></button>
+      <!-- Sign out (cleanup) : sidebar (donc Sign Out) inaccessible sous 768px -- seul point
+           d'acces mobile, meme onclick="signOut()" que le bouton sidebar, aucune 2e logique. -->
+      <button class="more-row" onclick="signOut()"><span data-en="Sign out" data-fr="Se déconnecter">Sign out</span><span class="more-chevron">›</span></button>
     </div>
   </div>
 
@@ -3114,13 +3093,6 @@ let _blockedKind = null;     // 'expired' | 'not_found' quand l'accès est bloqu
 let _demoStarted = false;    // init unique post-login (scroll top + onglet Scanner)
 
 async function showDemo(){
-  const badge = document.getElementById('nav-status-badge');
-  if (badge) {
-    badge.textContent = 'Active';
-    badge.style.background = 'var(--green-bg)';
-    badge.style.color = 'var(--green)';
-    badge.style.borderColor = '';
-  }
   const ab = document.getElementById('access-blocked'); if (ab) ab.style.display = 'none';
   _blockedKind = null;
   const so = document.getElementById('signout-btn'); if (so) so.style.display = 'inline-flex';
@@ -3405,15 +3377,16 @@ function switchTab(name, fromClick = false) {
     setTimeout(() => {
       const panel = document.getElementById('tab-' + name);
       if (!panel) return;
-      const nav = document.querySelector('nav');
+      // Selecteur precis : depuis le chunk 5 (tab bar mobile), '.mobile-tabbar' est aussi une
+      // balise <nav> et precede la nav principale dans le DOM -- querySelector('nav') seul
+      // matchait donc le mauvais element (hauteur 0 sur desktop ou elle est display:none).
+      // mandate-bar ne compte plus a part depuis la fusion (cleanup) : c'est un sous-groupe
+      // flex dans <nav>, deja inclus dans sa hauteur.
+      const nav = document.querySelector('nav[aria-label="Primary navigation"]');
       const tabsNav = document.querySelector('.tabs-nav');
-      const mBar = document.getElementById('mandate-bar');
-      const mBarH = (mBar && mBar.style.display !== 'none' && mBar.offsetHeight > 0)
-        ? mBar.offsetHeight : 0;
       let offset = 0;
       if (nav) offset += nav.getBoundingClientRect().height;
       if (tabsNav) offset += tabsNav.getBoundingClientRect().height;
-      offset += mBarH;
       const accessNote = document.querySelector('.access-note');
       if (accessNote && getComputedStyle(accessNote).display !== 'none') offset += accessNote.offsetHeight;
       const mainEl = document.querySelector('main');
@@ -3423,7 +3396,6 @@ function switchTab(name, fromClick = false) {
       console.log('[SWITCHTAB DEBUG]', name, {
         navH: nav ? nav.getBoundingClientRect().height : null,
         tabsNavH: tabsNav ? tabsNav.getBoundingClientRect().height : null,
-        mBarH,
         offset,
         panelTopBeforeScroll: panel.getBoundingClientRect().top,
         scrollYBefore: window.scrollY,
@@ -6828,18 +6800,6 @@ async function _markSent(pid, touch, auto = false, msgText = '', elPrefix = '') 
   _updateSentCounter();
 }
 
-const touchMeta = {
-  j0:  { cls:'touch-j0',  en:'J+0 · Connection', fr:'J+0 · Connexion' },
-  j5:  { cls:'touch-j5',  en:'LinkedIn Follow-Up', fr:'LinkedIn Follow-Up' },
-  ambassador: { cls:'touch-ambassador', en:'Ambassador',        fr:'Ambassadeur' },
-  redirect:   { cls:'touch-redirect',   en:'Redirect',          fr:'Redirect' },
-};
-const sendPreview = {
-  j0:  { en:n=>`Hi ${n}, I help B2B teams open pipeline across Europe and beyond. Given your current move, thought it was worth connecting.`,
-         fr:n=>`Bonjour ${n}, j'aide les équipes B2B à ouvrir du pipeline sur le corridor EMEA et Amérique du Nord. Vu votre actualité, ça valait le coup de se connecter.` },
-  j5:  { en:n=>`Thanks for connecting, ${n}. I saw the signal on your side and had one specific idea on how to approach the new market without a local hire yet.`,
-         fr:n=>`Merci pour la connexion, ${n}. J'ai vu le signal de votre côté et j'avais une idée précise pour aborder le nouveau marché sans recrutement local immédiat.` },
-};
 const _avatarPalette = ['#1a2b5e','#243875','#2d4a8a','#3a5a9a','#4a6ab0','#6a4a9a','#8a3a6a','#b04a5a','#15803d','#7a5a2a'];
 function sendAvatarColor(name){
   const c = name.charCodeAt(0) + (name.charCodeAt(name.length - 1) || 0);
