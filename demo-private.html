@@ -2145,7 +2145,13 @@ body.new-nav { padding-left: 220px; }
       <span style="font-size:14px;font-weight:700;color:var(--navy)" data-en="Today's send queue" data-fr="File d'envoi du jour">Today's send queue</span>
       <span class="send-badge-count" id="send-badge"><span id="send-count">7</span></span>
       <span style="font-size:var(--fs-sm);color:var(--muted)" data-en="messages due today" data-fr="messages à envoyer aujourd'hui">messages due today</span>
-      <span id="sent-counter" style="font-size:var(--fs-sm);color:var(--muted);margin-left:4px;">Sent today: 0 / 40</span>
+    </div>
+    <!-- TODAY'S CAPACITY (README) : meme composant partage que Today, _renderCapacityBars(),
+         zero retouche a la fonction -- deuxieme containerId monte ici. Remplace le texte plat
+         #sent-counter. -->
+    <div class="card" style="margin-bottom:18px;max-width:460px;">
+      <div class="card-header" style="margin-bottom:10px;padding-bottom:10px;"><span class="card-title">Today's capacity</span></div>
+      <div id="send-capacity-bars" style="font-size:var(--fs-sm);color:var(--muted);">Loading...</div>
     </div>
     <div id="send-filters" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;align-items:center;">
       <select id="send-filter-region" onchange="_applySendFilters()" style="padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:var(--fs-sm);font-family:inherit;color:var(--text);background:#fff;">
@@ -2186,6 +2192,14 @@ body.new-nav { padding-left: 220px; }
     </div>
     <div id="manual-send-section"></div>
     <div id="send-list"></div>
+    <!-- RECENTLY SENT (README, 3e palier) : hors des 3 filtres region/ICP/origine -- journal en
+         lecture seule, pas affecte par _applySendFilters(), peuple une seule fois par
+         _loadRecentlySent() (pas sur chaque changement de filtre). -->
+    <div class="today-step-divider" id="send-recently-divider" hidden>
+      <span class="today-step-label">Recently sent</span>
+      <span class="today-step-rule"></span>
+    </div>
+    <div id="send-recently-sent"></div>
   </div>
 
   <!-- ══ TAB: STATS ══ -->
@@ -6220,6 +6234,7 @@ async function loadSendView() {
 
     _fetchTodaySendCounts().catch(err => console.error('_fetchTodaySendCounts:', err));
     _applySendFilters();
+    _loadRecentlySent().catch(err => console.error('_loadRecentlySent:', err));
 
   } catch(e) {
     console.error('loadSendView:', e);
@@ -6309,21 +6324,36 @@ function _applySendFilters() {
   });
   readyJ5Low = _sortEMEAFirst(readyJ5Low);
 
-  const totalDue = totalInvite + readyJ0.length + readyJ5High.length;
+  // 3 paliers (README, arbitrage Thomas) : DUE NOW = tete de la queue triee, dans l'ordre
+  // d'affichage deja existant (invite -> j0 -> j5 haute ICP) ; SCHEDULED TODAY = le reste de
+  // cette meme queue. readyJ5Low (ICP<8, deja automatise, aucune action attendue) n'entre dans
+  // aucun des 3 paliers -- il n'etait deja pas compte dans le total "due" avant cette passe,
+  // garde comme section separee inchangee (cf. _renderJ5LowSection).
+  const queue = [
+    ...readyInvite.map(p => ({ p, touch: 'invite' })),
+    ...readyJ0.map(p => ({ p, touch: 'j0' })),
+    ...readyJ5High.map(p => ({ p, touch: 'j5' })),
+  ];
+  const totalDue = queue.length;
   const countEl = document.getElementById('send-count');
   if (countEl) countEl.textContent = totalDue;
   _setSendBadge(totalDue);
 
   let html = '';
-  if (readyInvite.length) {
-    html += _renderSendSection(currentLang==='fr' ? 'Invitations à envoyer' : 'Invitations to send', readyInvite, 'invite');
+  if (queue.length) {
+    const dueNow = queue[0];
+    const scheduled = queue.slice(1);
+    html += `<div class="today-step-divider"><span class="today-step-label">Due now</span><span class="today-step-rule"></span></div>`;
+    html += dueNow.touch === 'j5' ? _j5CardHTML(dueNow.p) : _sendCardHTML(dueNow.p, dueNow.touch, true);
     if (totalInvite > 25) html += `<div style="text-align:center;font-size:var(--fs-sm);color:var(--muted);padding:8px 0 16px">${totalInvite - 25} more invitation${totalInvite - 25 > 1 ? 's' : ''} not shown -- raise ICP filter or mark some as sent to see the next batch.</div>`;
+    if (scheduled.length) {
+      html += `<div class="today-step-divider"><span class="today-step-label">Scheduled today</span><span class="today-step-rule"></span><span class="today-step-count">${scheduled.length}</span></div>`;
+      html += scheduled.map(item => item.touch === 'j5' ? _j5CardHTML(item.p) : _sendCardHTML(item.p, item.touch, false)).join('');
+    }
+  } else {
+    html += '<div style="padding:32px 0;text-align:center;color:var(--muted);font-size:var(--fs-base)">Nothing due. Adjust filters or check back tomorrow.</div>';
   }
-  if (readyJ0.length) html += _renderSendSection(currentLang==='fr' ? 'Connexions acceptées — J+0' : 'Accepted connections — J+0', readyJ0, 'j0');
-  if (readyJ5High.length || readyJ5Low.length) html += _renderJ5Section(readyJ5High, readyJ5Low);
-  if (!totalDue && !readyJ5Low.length) {
-    html = '<div style="padding:32px 0;text-align:center;color:var(--muted);font-size:var(--fs-base)">Nothing due. Adjust filters or check back tomorrow.</div>';
-  }
+  if (readyJ5Low.length) html += _renderJ5LowSection(readyJ5Low);
 
   listEl.innerHTML = html;
   if (typeof applyLang === 'function') applyLang();
@@ -6331,57 +6361,65 @@ function _applySendFilters() {
 
 // _deriveScore supprimé — remplacé par _calcICP() (scoring unifié, Phase 4)
 
-function _renderSendSection(title, prospects, touchType) {
-  const items = prospects.map(p => {
-    const seq = (_sendSequences[p.id]||[]).find(s => s.touch === touchType);
-    const hasBody = seq && seq.body;
-    const isReady = seq && seq.status === 'ready';
-    const seqId   = seq ? seq.id : null;
-    const isConnected = p.linkedin_tag === 'connection-accepted';
-    const sendBlocked = touchType !== 'invite' && !isConnected;
-    const sendDisabled = !isReady || sendBlocked;
-    const sendTitle = sendBlocked ? 'Connection not yet accepted' : '';
-    return `
-      <div class="card send-card" id="sc-${p.id}" data-pid="${_esc(p.id)}" data-touch="${_esc(touchType)}" data-seq-id="${_esc(seqId||'')}">
-        <div class="send-row">
-          <div class="send-avatar" style="background:${_sendAvatarColor(p.name)}">${_esc(_sendInitials(p.name))}</div>
-          <div class="send-id">
-            <div class="send-name">${_esc(p.name)}</div>
-            <div class="send-company">${_esc(p.company)}${p.region ? ' · ' + _esc(p.region) : ''}</div>
-            ${p.signal ? `<div style="margin-top:3px;">${_sigBadge(p.signal_type)}</div>` : ''}
-          </div>
-          <span class="send-touch ${TOUCH_LABELS[touchType]?.class||'touch-j0'}">${TOUCH_LABELS[touchType]?.label||touchType}</span>
-        </div>
-        <div class="send-expand" id="se-${p.id}" style="display:none">
-          <div class="ai-box" style="margin-top:10px">
-            <div class="ai-box-header">
-              <span class="ai-box-label">Message</span>
-              <div class="ai-spinner" id="ss-${p.id}"></div>
-            </div>
-            <div class="ai-box-body" id="so-${p.id}" contenteditable="true" spellcheck="false" data-pid="${p.id}" oninput="const b=document.getElementById('sv-'+this.dataset.pid);if(b){b.disabled=false;b.style.opacity='1';b.style.cursor='pointer';}" style="min-height:80px;outline:none;cursor:text">${_esc(seq?.body||'')}</div>
-          </div>
-          <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-            <button class="btn-primary btn-md" onclick="_generateSequenceMessage('${p.id}','${touchType}')" id="sg-${p.id}">▶ Generate</button>
-            <button class="btn-secondary btn-md" onclick="_saveSequenceDraft('${p.id}','${touchType}')" id="sv-${p.id}" disabled style="opacity:0.45;cursor:not-allowed">Save draft</button>
-            <button class="btn-secondary btn-md" onclick="_markReady('${p.id}')" id="sr-${p.id}" ${isReady?'style="border-color:var(--green);color:var(--green)"':''}>${isReady ? '✓ Ready' : 'Mark ready'}</button>
-            <button class="btn-primary btn-md" onclick="_sendViaLinkedIn('${p.id}','${touchType}')" id="sli-${p.id}" ${sendDisabled?'disabled':''} ${sendBlocked?`style="opacity:0.4;cursor:not-allowed" title="${sendTitle}"`:''}>Send via LinkedIn</button>
-            <button class="btn-secondary btn-md" onclick="_markSent('${p.id}','${touchType}')" id="sms-${p.id}">✓ Mark as sent</button>
-          </div>
-        </div>
-        <div class="send-actions">
-          <button class="btn-secondary btn-md" onclick="_toggleSendCard('${p.id}')" style="width:100%">${hasBody ? '▼ Review & send' : '▼ Draft message'}</button>
-        </div>
-      </div>`;
-  }).join('');
+// Carte invite/j0 (extrait de l'ancien _renderSendSection, comportement inchange) -- reutilisee
+// telle quelle pour DUE NOW (expanded=true, pas de bouton replier/plier initial different) et
+// SCHEDULED TODAY (expanded=false, identique a avant). Seul ajout : le libelle du bouton Generate
+// bascule sur Regenerate quand un brouillon existe deja, meme convention que le bouton Next
+// action du tiroir (_hasCachedAction ? Regenerate : ...) -- pas de nouvelle fonction, appel
+// direct a _generateSequenceMessage() existante (accepte deja d'ecraser un brouillon existant).
+function _sendCardHTML(p, touchType, expanded = false) {
+  const seq = (_sendSequences[p.id]||[]).find(s => s.touch === touchType);
+  const hasBody = seq && seq.body;
+  const isReady = seq && seq.status === 'ready';
+  const seqId   = seq ? seq.id : null;
+  const isConnected = p.linkedin_tag === 'connection-accepted';
+  const sendBlocked = touchType !== 'invite' && !isConnected;
+  const sendDisabled = !isReady || sendBlocked;
+  const sendTitle = sendBlocked ? 'Connection not yet accepted' : '';
+  // Emphase DUE NOW (README : bordure/ombre renforcees) vs ligne dense SCHEDULED TODAY (padding
+  // resserre) -- purement cosmetique, memes tokens que le reste du fichier (--accent).
+  const cardStyle = expanded
+    ? 'border-color:var(--accent);box-shadow:0 2px 10px rgba(47,107,255,0.12);'
+    : 'padding:14px 18px;';
   return `
-    <div style="margin-bottom:24px">
-      <div style="font-size:var(--fs-micro);font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);margin-bottom:12px">${_esc(title)}</div>
-      ${items}
+    <div class="card send-card" id="sc-${p.id}" style="${cardStyle}" data-pid="${_esc(p.id)}" data-touch="${_esc(touchType)}" data-seq-id="${_esc(seqId||'')}">
+      <div class="send-row">
+        <div class="send-avatar" style="background:${_sendAvatarColor(p.name)}">${_esc(_sendInitials(p.name))}</div>
+        <div class="send-id">
+          <div class="send-name">${_esc(p.name)}</div>
+          <div class="send-company">${_esc(p.company)}${p.region ? ' · ' + _esc(p.region) : ''}</div>
+          ${p.signal ? `<div style="margin-top:3px;">${_sigBadge(p.signal_type)}</div>` : ''}
+        </div>
+        <span class="send-touch ${TOUCH_LABELS[touchType]?.class||'touch-j0'}">${TOUCH_LABELS[touchType]?.label||touchType}</span>
+      </div>
+      <div class="send-expand" id="se-${p.id}" style="display:${expanded ? 'block' : 'none'}">
+        <div class="ai-box" style="margin-top:10px">
+          <div class="ai-box-header">
+            <span class="ai-box-label">Message</span>
+            <div class="ai-spinner" id="ss-${p.id}"></div>
+          </div>
+          <div class="ai-box-body" id="so-${p.id}" contenteditable="true" spellcheck="false" data-pid="${p.id}" oninput="const b=document.getElementById('sv-'+this.dataset.pid);if(b){b.disabled=false;b.style.opacity='1';b.style.cursor='pointer';}" style="min-height:80px;outline:none;cursor:text">${_esc(seq?.body||'')}</div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+          <button class="btn-primary btn-md" onclick="_generateSequenceMessage('${p.id}','${touchType}')" id="sg-${p.id}">${hasBody ? '🔄 Regenerate' : '▶ Generate'}</button>
+          <button class="btn-secondary btn-md" onclick="_saveSequenceDraft('${p.id}','${touchType}')" id="sv-${p.id}" disabled style="opacity:0.45;cursor:not-allowed">Save draft</button>
+          <button class="btn-secondary btn-md" onclick="_markReady('${p.id}')" id="sr-${p.id}" ${isReady?'style="border-color:var(--green);color:var(--green)"':''}>${isReady ? '✓ Ready' : 'Mark ready'}</button>
+          <button class="btn-primary btn-md" onclick="_sendViaLinkedIn('${p.id}','${touchType}')" id="sli-${p.id}" ${sendDisabled?'disabled':''} ${sendBlocked?`style="opacity:0.4;cursor:not-allowed" title="${sendTitle}"`:''}>Send via LinkedIn</button>
+          <button class="btn-secondary btn-md" onclick="_markSent('${p.id}','${touchType}')" id="sms-${p.id}">✓ Mark as sent</button>
+        </div>
+      </div>
+      <div class="send-actions">
+        <button class="btn-secondary btn-md" onclick="_toggleSendCard('${p.id}')" style="width:100%">${expanded ? '▲ Collapse' : (hasBody ? '▼ Review & send' : '▼ Draft message')}</button>
+      </div>
     </div>`;
 }
 
-function _renderJ5Section(highICP, lowICP) {
-  const highCards = highICP.map(p => `
+// Carte J+5 (extraite de l'ancien _renderJ5Section, comportement inchange) : pas de brouillon
+// editable pour ce canal (_startEmailSeq() genere et envoie cote serveur en un clic) -- donc pas
+// de Edit/Regenerate ici, contrairement a _sendCardHTML. Reutilisee telle quelle pour DUE NOW et
+// SCHEDULED TODAY quand le premier/les suivants de la queue sont un follow-up J+5.
+function _j5CardHTML(p) {
+  return `
     <div class="card send-card" id="sc-j5-${p.id}">
       <div class="send-row">
         <div class="send-avatar" style="background:${_sendAvatarColor(p.name)}">${_esc(_sendInitials(p.name))}</div>
@@ -6394,8 +6432,13 @@ function _renderJ5Section(highICP, lowICP) {
       <div class="send-actions">
         <button class="btn-primary btn-md" id="start-seq-${p.id}" onclick="_startEmailSeq('${p.id}')" style="width:100%;background:var(--green-brand);">Send follow-up</button>
       </div>
-    </div>`).join('');
+    </div>`;
+}
 
+// readyJ5Low (ICP<8) : deja hors du total "due" avant cette passe (jamais compte dans totalDue) --
+// garde en section separee inchangee, ne rentre dans aucun des 3 paliers (ni due, ni "recently
+// sent" puisqu'une partie n'est meme pas encore envoyee, juste "Scheduled").
+function _renderJ5LowSection(lowICP) {
   const lowCards = lowICP.map(p => {
     const sent = _sendJ5Sent[p.id];
     const statusLabel = sent ? '✓ Sent ' + (_relDate(sent.created_at) || '') : 'Scheduled';
@@ -6411,12 +6454,68 @@ function _renderJ5Section(highICP, lowICP) {
       </div>
     </div>`;
   }).join('');
-
   return `
     <div style="margin-bottom:24px">
       <div style="font-size:var(--fs-micro);font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);margin-bottom:12px">Follow-up (J+5)</div>
-      ${highCards}${lowCards}
+      ${lowCards}
     </div>`;
+}
+
+// RECENTLY SENT (README, 3e palier) : 7 jours glissants (arbitrage Thomas -- pas "aujourd'hui
+// seulement", ajustable si 7j ne correspond pas a l'usage reel). Deux sources fusionnees, comme
+// _sendJ5Sent le fait deja pour le J+5 : sequences status='sent' pour invite/j0 (jamais chargees
+// en liste ailleurs -- loadSendView() ne charge que status draft/ready) + _sendJ5Sent existant
+// (deja charge par loadSendView(), fusion interactions/sequences pour le canal email) filtre a 7j
+// cote client plutot que reinterroge. "Sent Nd/N weeks ago" via _relDate() -- pas _fmtReminder(),
+// qui formate un ecart a une date FUTURE/en retard, pas un temps ecoule depuis un envoi reel ;
+// _relDate() est deja la fonction du fichier pour "X ago" (utilisee juste au-dessus pour J+5 low).
+async function _loadRecentlySent() {
+  const container = document.getElementById('send-recently-sent');
+  const divider = document.getElementById('send-recently-divider');
+  if (!container) return;
+  try {
+    const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+    let q = sbClient.from('sequences')
+      .select('id,prospect_id,touch,sent_at,created_at')
+      .eq('client_id', CLIENT_ID).eq('status', 'sent').in('touch', ['invite', 'j0'])
+      .gte('sent_at', sevenDaysAgo);
+    q = _applyMandateFilter(q);
+    const { data, error } = await q;
+    if (error) throw error;
+    let items = (data || []).map(s => ({ prospect_id: s.prospect_id, touch: s.touch, sent_at: s.sent_at || s.created_at }));
+    // ICP<8 exclu ici : _startEmailSeq() ne fait jamais avancer le stage (verifie -- ecrit
+    // uniquement dans interactions), donc un prospect bas ICP reste indefiniment visible dans
+    // la section Follow-up (J+5) ci-dessus avec son propre statut "Sent Xd ago" (readyJ5Low n'a
+    // pas de fenetre temporelle). Le montrer aussi ici serait un doublon pur, pas juste un
+    // chevauchement -- contrairement aux hauts ICP qui disparaissent de la queue une fois
+    // envoyes (readyJ5High exclut _sendJ5Sent) et n'ont plus que Recently sent comme visibilite.
+    Object.entries(_sendJ5Sent).forEach(([pid, rec]) => {
+      const icp = parseFloat(_prospectsById[pid]?.icp_score || 0);
+      if (icp >= 8 && rec.created_at && rec.created_at >= sevenDaysAgo) items.push({ prospect_id: pid, touch: 'j5', sent_at: rec.created_at });
+    });
+    items.sort((a, b) => new Date(b.sent_at) - new Date(a.sent_at));
+    items = items.slice(0, 20);
+    if (divider) divider.hidden = items.length === 0;
+    container.innerHTML = items.map(it => {
+      const p = _prospectsById[it.prospect_id];
+      if (!p) return '';
+      const label = TOUCH_LABELS[it.touch]?.label || (it.touch === 'j5' ? 'J+5' : it.touch);
+      return `<div class="card send-card" style="opacity:0.65;">
+        <div class="send-row">
+          <div class="send-avatar" style="background:${_sendAvatarColor(p.name)}">${_esc(_sendInitials(p.name))}</div>
+          <div class="send-id">
+            <div class="send-name">${_esc(p.name)}</div>
+            <div class="send-company">${_esc(p.company || '')}</div>
+          </div>
+          <span class="send-touch ${TOUCH_LABELS[it.touch]?.class||'touch-j5'}">${_esc(label)}</span>
+          <span style="font-size:var(--fs-xs);color:var(--success);white-space:nowrap;flex-shrink:0;margin-left:8px;">Sent ${_esc(_relDate(it.sent_at) || '')}</span>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    console.warn('[_loadRecentlySent]', e);
+    if (divider) divider.hidden = true;
+  }
 }
 
 function _toggleSendCard(pid) {
@@ -6969,18 +7068,12 @@ let _todaySendCounts = { invitesSent: 0, messagesSent: 0, emailsSent: 0 };
 
 function _updateSentCounter() {
   const { invitesSent: inv, messagesSent: msg, emailsSent: em } = _todaySendCounts;
-  const el = document.getElementById('sent-counter');
-  if (el) {
-    el.textContent = `Invites: ${inv}/${INVITE_DAILY_LIMIT} · LinkedIn: ${msg}/${MESSAGE_DAILY_LIMIT} · Emails: ${em}/${EMAIL_DAILY_LIMIT}`;
-    if (inv >= 28 || msg >= 38 || em >= 38)      { el.style.color = 'var(--red)'; }
-    else if (inv >= 25 || msg >= 35 || em >= 35) { el.style.color = '#ea580c'; }
-    else                                          { el.style.color = 'var(--muted)'; }
-  }
-  // TODAY'S CAPACITY (README) : rendu partage Today/Send -- une seule fonction, appelee ici pour
-  // ne pas dupliquer la logique de calcul (_todaySendCounts / limites deja definies plus haut).
-  // Le rendu texte plat de Send (#sent-counter, ci-dessus) reste inchange pour cette passe --
-  // seul Today recoit le nouveau widget en barres, cf. scope arbitre (pass Today uniquement).
+  // TODAY'S CAPACITY (README) : rendu partage Today/Send -- une seule fonction
+  // (_renderCapacityBars, zero retouche depuis Today), montee ici une deuxieme fois sur son
+  // propre containerId. #sent-counter (texte plat) retire du DOM de Send, remplace par les
+  // barres -- plus besoin du seuil couleur ad hoc qui lui etait applique.
   _renderCapacityBars('today-capacity-bars', inv, msg, em);
+  _renderCapacityBars('send-capacity-bars', inv, msg, em);
 }
 
 function _renderCapacityBars(containerId, inv, msg, em) {
