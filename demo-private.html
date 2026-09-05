@@ -1302,7 +1302,9 @@ body.new-nav { padding-left: 220px; }
     <span class="snav-section-label">Orchestration</span>
     <button class="snav-item" data-nav="agents" onclick="_switchNewNav('agents')">
       <span data-en="Agents" data-fr="Agents">Agents</span>
-      <span class="snav-meta" id="snav-meta-agents"></span>
+      <!-- 15 = taille reelle du roster (11 agents de chat + 4 agents pipeline), verifiee lors
+           de l'audit agent_activity_log -- pas "actuellement actifs", pas de suivi temps reel. -->
+      <span class="snav-meta">15</span>
     </button>
     <button class="snav-item" data-nav="clients" onclick="_switchNewNav('clients')">
       <span>Clients</span>
@@ -2955,6 +2957,11 @@ async function showDemo(){
     _setSigFilter('signal');
   }
   if (!_kanbanLoaded) loadKanban();
+  // Badges sidebar (Phase 1 chunk 2) : meme loaders que les vues elles-memes, appeles une fois
+  // en avance en plus de leur declenchement normal a la navigation -- aucune logique dupliquee,
+  // meme principe que loadKanban() ci-dessus. Fire-and-forget, ne bloque jamais l'ecran Today.
+  loadSendView();
+  loadInboxDrafts('pending');
   _initHpFilters();
   // Init unique post-login : Priorities par défaut + scroll en haut (PWA démarre proprement)
   if (!_demoStarted) {
@@ -5714,6 +5721,13 @@ let _manualPid = null;
 let _manualTouch = null;
 let _drawerSendPid = null;
 
+// Badge sidebar : meme source que le compteur affiche dans la vue Send elle-meme, jamais
+// une seconde logique de calcul en parallele (voir echange chunk 2, Phase 1).
+function _setSendBadge(n) {
+  const el = document.getElementById('snav-badge-send');
+  if (el) el.textContent = n > 0 ? n : '';
+}
+
 async function loadSendView() {
   const listEl = document.getElementById('send-list');
   const countEl = document.getElementById('send-count');
@@ -5861,6 +5875,7 @@ function _applySendFilters() {
   const totalDue = totalInvite + readyJ0.length + readyJ5High.length;
   const countEl = document.getElementById('send-count');
   if (countEl) countEl.textContent = totalDue;
+  _setSendBadge(totalDue);
 
   let html = '';
   if (readyInvite.length) {
@@ -6643,6 +6658,7 @@ async function _markSent(pid, touch, auto = false, msgText = '', elPrefix = '') 
     const remaining = document.querySelectorAll('.send-card').length;
     const countEl = document.getElementById('send-count');
     if (countEl) countEl.textContent = remaining;
+    _setSendBadge(remaining);
   }, 600);
   if (eLastContact || eStage || eLinkedinTag || eReminder) {
     showToast('⚠ Sent but not fully tracked');
@@ -8278,6 +8294,11 @@ async function loadInboxDrafts(view = 'pending') {
     }
     const { data: drafts, error } = await query;
     if (error) throw error;
+    // Badge sidebar : meme requete/meme definition de "pending" que la vue Inbox elle-meme.
+    if (view === 'pending') {
+      const badgeEl = document.getElementById('snav-badge-inbox');
+      if (badgeEl) badgeEl.textContent = (drafts && drafts.length) ? drafts.length : '';
+    }
     if (!drafts || !drafts.length) {
       container.innerHTML = `<div style="padding:40px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">${view === 'pending' ? 'No pending replies.' : 'No history yet.'}</div>`;
       return;
