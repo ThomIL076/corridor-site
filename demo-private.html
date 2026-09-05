@@ -105,6 +105,12 @@
   --accent: #2f6bff;
   --danger: #c9302c;
   --success: #1f8a5c;
+  /* Derives success/danger (tiroir prospect, chunk 2) : meme couple bg/border que l'ancien
+     --green-bg/--green-border, applique a la palette de la refonte plutot qu'invente. */
+  --success-bg: #eafbf3;
+  --success-border: #a8e0c4;
+  --danger-bg: #fdf1f1;
+  --danger-border: #eab3b3;
 }
 
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -210,6 +216,50 @@ nav {
 .spine-stage.active .spine-count { color: var(--accent); }
 .spine-stage.active .spine-rail { background: var(--accent); }
 @media (max-width: 760px) { .journey-spine { min-width: 660px; } }
+
+/* ── TIROIR PROSPECT (restructuration scroll, chunk 2) ──
+   Remplace .dtab/.dtab-panel : header fixe (.pd-*) + corps qui scrolle en 5 sections +
+   footer fixe, comme specifie. #drawer reste position:fixed/flex-direction:column (inchange). */
+.pd-header { padding:18px 22px 16px; border-bottom:1px solid var(--border); flex-shrink:0; font-family:'Instrument Sans',sans-serif; }
+.pd-head-top { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+.pd-name-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.pd-name { font-size:18px; font-weight:600; color:var(--ink); }
+.pd-stage-chip { font-family:'IBM Plex Mono',monospace; font-size:9px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; padding:2px 8px; border-radius:var(--radius-pill); background:var(--navy-light); color:var(--navy); }
+.pd-role { font-size:13px; color:var(--muted); margin-top:2px; }
+.pd-firmo { font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:0.04em; color:var(--dim); margin-top:5px; }
+.pd-close { flex-shrink:0; width:28px; height:28px; border-radius:var(--radius-sm); border:1px solid var(--border); background:#fff; color:var(--muted); cursor:pointer; font-size:14px; display:flex; align-items:center; justify-content:center; }
+.pd-close:hover { color:var(--ink); border-color:var(--ink); }
+.pd-stats { display:flex; margin-top:14px; }
+.pd-stat { flex:1; padding:0 12px; border-left:1px solid var(--border); min-width:0; }
+.pd-stat:first-child { border-left:none; padding-left:0; }
+.pd-stat-label { font-family:'IBM Plex Mono',monospace; font-size:8.5px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); margin-bottom:3px; }
+.pd-stat-value { font-family:'IBM Plex Mono',monospace; font-size:14px; font-weight:600; color:var(--ink); display:flex; align-items:center; gap:5px; white-space:nowrap; }
+.pd-stat-edit { cursor:pointer; color:var(--muted); background:none; border:none; padding:0; font-size:11px; line-height:1; flex-shrink:0; }
+.pd-stat-edit:hover { color:var(--accent); }
+.pd-links { display:flex; gap:12px; flex-wrap:wrap; margin-top:12px; }
+.pd-link { font-size:11px; color:var(--accent); text-decoration:none; }
+.pd-link:hover { text-decoration:underline; }
+.pd-body { flex:1; min-height:0; overflow-y:auto; padding:0 22px; }
+.pd-section { padding:18px 0; border-bottom:1px solid var(--border); }
+.pd-section-label { font-family:'IBM Plex Mono',monospace; font-size:9.5px; font-weight:600; letter-spacing:0.14em; text-transform:uppercase; color:var(--muted); margin-bottom:10px; }
+.pd-next-action { background:var(--success-bg); border:1px solid var(--success-border); border-radius:var(--radius-md); padding:14px 16px; }
+.pd-next-action-label { font-family:'IBM Plex Mono',monospace; font-size:9px; font-weight:700; letter-spacing:0.12em; color:var(--success); margin-bottom:6px; }
+.pd-next-action-text { font-size:14px; font-weight:600; color:var(--ink); line-height:1.5; }
+.pd-row { display:flex; align-items:baseline; gap:10px; padding:9px 0; border-bottom:1px solid var(--border); }
+.pd-row:last-child { border-bottom:none; }
+.pd-row-mono { font-family:'IBM Plex Mono',monospace; font-size:9.5px; letter-spacing:0.06em; color:var(--muted); flex-shrink:0; white-space:nowrap; }
+.pd-row-main { font-size:13px; color:var(--text); line-height:1.5; min-width:0; }
+.pd-row-name { font-size:13.5px; font-weight:600; color:var(--ink); }
+.pd-row-ghost { color:var(--dim); font-style:italic; }
+.pd-empty { font-size:12.5px; color:var(--dim); font-style:italic; }
+.pd-brief-card { background:var(--ink); color:#fff; border-radius:var(--radius-md); padding:16px 18px; font-size:13.5px; line-height:1.65; }
+.pd-brief-card h3 { font-size:13px; margin:12px 0 4px; }
+.pd-brief-card h3:first-child { margin-top:0; }
+.pd-brief-card p, .pd-brief-card ul { margin:0 0 8px; }
+.pd-brief-card a { color:#bcd0ff; }
+.pd-footer { display:flex; gap:8px; padding:14px 22px; border-top:1px solid var(--border); flex-shrink:0; background:#fff; }
+.pd-plus { display:flex; align-items:center; gap:6px; font-size:12px; font-weight:600; color:var(--accent); background:none; border:none; cursor:pointer; padding:4px 0; }
+.pd-plus:hover { text-decoration:underline; }
 
 /* ── MAIN CONTENT ── */
 .main { max-width:1160px; margin:0 auto; padding:52px 48px 80px; }
@@ -833,9 +883,6 @@ body.ask-open { overflow:hidden; }
 .scanner-panel-head { padding:18px 22px 16px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; gap:12px; flex-shrink:0; }
 .scanner-panel-title { font-size:15px; font-weight:800; color:var(--navy); font-family:'Plus Jakarta Sans',sans-serif; }
 .scanner-panel-body { padding:20px 22px; flex:1; overflow-y:auto; }
-.drawer-head { padding:20px 22px 18px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-shrink:0; }
-.drawer-name { font-size:var(--fs-md); font-weight:800; color:var(--navy); }
-.drawer-company { font-size:var(--fs-sm); color:var(--muted); margin-top:2px; }
 .drawer-score { font-size:var(--fs-xs); font-weight:700; color:var(--blue); margin-top:6px; display:inline-block; background:var(--navy-light); border:1px solid var(--blue); padding:3px 10px; border-radius:var(--radius-pill); }
 .drawer-close { background:transparent; border:none; font-size:20px; color:var(--muted); cursor:pointer; line-height:1; padding:0 4px; display:flex; align-items:center; justify-content:center; min-width:44px; min-height:44px; }
 .drawer-close:hover { color:var(--navy); }
@@ -852,29 +899,12 @@ body.ask-open { overflow:hidden; }
 .tl-meta { display:flex; justify-content:space-between; gap:8px; font-size:var(--fs-xs); color:var(--muted); margin-top:3px; }
 .tl-status { font-weight:700; }
 
-/* ── PHASE 2 DRAWER ── */
-.drawer-tabs{display:flex;border-bottom:1px solid var(--border);padding:0 22px;gap:18px;margin-top:4px;flex-shrink:0;}
-.dtab{padding:10px 4px;font-size:var(--fs-xs);font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:var(--text-secondary);cursor:pointer;border-bottom:2px solid transparent;transition:color 0.15s,border-color 0.15s;user-select:none;}
-.dtab:hover{color:var(--navy);}
-.dtab.active{color:var(--navy);border-bottom-color:var(--blue-brand);}
-.dtab-panel{display:none;padding:20px 22px;}
-.dtab-panel.active{display:flex;flex-direction:column;flex:1;min-height:0;overflow-y:auto;}
-/* Activity panel — timeline scrolls, Log form anchored at bottom */
-#dpanel-activity{overflow:hidden;}
-#dpanel-activity .int-log{flex:1;min-height:0;max-height:none;overflow-y:auto;margin-bottom:0;}
-#dpanel-activity .int-form{flex-shrink:0;margin-top:12px;}
-.int-log{display:flex;flex-direction:column;gap:0;margin-bottom:18px;max-height:240px;overflow-y:auto;}
-.int-item{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);}
-.int-item:last-child{border-bottom:none;}
-.int-icon-circle{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:var(--fs-base);flex-shrink:0;font-weight:700;}
-.int-icon{width:28px;height:28px;border-radius:var(--radius-md);background:var(--navy-light);border:1px solid var(--blue);display:flex;align-items:center;justify-content:center;font-size:var(--fs-sm);flex-shrink:0;}
-.int-body{flex:1;min-width:0;}
-.int-type{font-size:var(--fs-micro);font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--blue);}
-.int-note{font-size:var(--fs-sm);color:var(--text);margin-top:2px;line-height:1.5;word-break:break-word;}
-.int-date{font-size:var(--fs-micro);color:var(--dim);margin-top:3px;}
-.int-empty{font-size:var(--fs-sm);color:var(--dim);font-style:italic;padding:12px 0;}
-.int-form{background:var(--navy-light);border:1px solid var(--blue-light);border-radius:var(--radius-md);padding:14px;margin-top:0;}
-.int-form-title{font-size:var(--fs-micro);font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--dim);margin-bottom:10px;}
+/* ── PHASE 2 DRAWER ──
+   Onglets/.dtab retires (restructuration scroll, chunk 2) : remplaces par .pd-*. _renderIntList,
+   _INT_META et leur CSS dediee (int-item/int-icon-circle/int-body/int-type/int-note/int-date/
+   int-empty) ont ete supprimes proprement -- plus aucun appelant possible une fois le rendu de
+   Message history reecrit avec expand/collapse natif (_pdBuildMessageHistoryHTML). Seuls
+   _toggleDebrief/_VERDICT_COLORS/_parseDebrief sont reutilises tels quels (pas reecrits). */
 .int-type-btns{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;}
 .int-type-btn{padding:5px 11px;border:1px solid var(--border-mid);border-radius:var(--radius-pill);font-size:var(--fs-xs);font-weight:600;color:var(--muted);background:#fff;cursor:pointer;transition:all 0.15s;}
 .int-type-btn:hover{border-color:var(--navy);color:var(--navy);}
@@ -7115,19 +7145,10 @@ ${_langLine()}`;
 let _drawerProspect = null;
 let _scannerPreFill = null;
 let _drawerInteractions = [];
+let _drawerReplies = []; // reply_drafts du prospect ouvert -- alimente Message history (chunk 2)
 let _drawerPollInterval = null;
 
 const _INT_ICONS = { linkedin:'💼', email:'📧', call:'📞', meeting:'🤝', note:'📝' };
-const _INT_META  = {
-  linkedin: { bg:'#dbeafe', fg:'var(--blue-brand)', icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>' },
-  email:    { bg:'#d1fae5', fg:'var(--green-brand)', icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>' },
-  call:     { bg:'#f3f4f6', fg:'#888780', icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.38 2 2 0 0 1 3.6 1h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 8.6a16 16 0 0 0 6.29 6.29l.91-.91a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>' },
-  meeting:  { bg:'#f3f4f6', fg:'#888780', icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>' },
-  note:     { bg:'#f3f4f6', fg:'#888780', icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>' },
-  system:      { bg:'#f3f4f6', fg:'#888780', icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>' },
-  phone_found: { bg:'#f3f4f6', fg:'#888780', icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.38 2 2 0 0 1 3.6 1h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 8.6a16 16 0 0 0 6.29 6.29l.91-.91a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>' },
-  email_found: { bg:'#f3f4f6', fg:'#888780', icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>' },
-};
 
 function _relDate(iso) {
   if (!iso) return null;
@@ -7173,40 +7194,6 @@ function _toggleDebrief(uid) {
   const opening = body.style.display === 'none' || body.style.display === '';
   body.style.display = opening ? 'block' : 'none';
   if (chevron) chevron.textContent = opening ? '▲' : '▼';
-}
-function _renderIntList(ints) {
-  if (!ints.length) return '<div class="int-empty">No interactions logged yet.</div>';
-  return ints.map((i, idx) => {
-    const uid = i.id || idx;
-    if (i.type === 'call') {
-      const debrief = _parseDebrief(i.note);
-      if (debrief) {
-        const c = _VERDICT_COLORS[debrief.verdict] || _VERDICT_COLORS.neutral;
-        const callMeta = _INT_META.call;
-        return `<div class="int-item" style="cursor:pointer;user-select:none;" onclick="_toggleDebrief('${uid}')">
-    <div class="int-icon-circle" style="background:${callMeta.bg};color:${callMeta.fg}">${callMeta.icon}</div>
-    <div class="int-body" style="flex:1;min-width:0;">
-      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-        <span style="font-size:var(--fs-micro);font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--blue);">Post-call debrief</span>
-        <span style="background:${c.bg};border:1px solid ${c.border};color:${c.text};border-radius:var(--radius-panel);font-size:var(--fs-micro);font-weight:700;padding:1px 7px;text-transform:uppercase;">${debrief.verdict}</span>
-        <span style="margin-left:auto;font-size:var(--fs-xs);color:var(--muted);">${_relDate(i.created_at)||''}</span>
-        <span id="debrief-chevron-${uid}" style="font-size:var(--fs-xs);color:var(--muted);">▼</span>
-      </div>
-      <pre id="debrief-body-${uid}" style="display:none;font-size:var(--fs-sm);line-height:1.6;white-space:pre-wrap;margin:8px 0 0;font-family:inherit;color:var(--text);">${_esc(debrief.fullText)}</pre>
-    </div>
-  </div>`;
-      }
-    }
-    const im = _INT_META[i.type] || { bg:'#f3f4f6', fg:'#888780', icon:'•' };
-    return `<div class="int-item">
-    <div class="int-icon-circle" style="background:${im.bg};color:${im.fg}">${im.icon}</div>
-    <div class="int-body">
-      <div class="int-type">${_esc(i.type)}</div>
-      ${i.note ? `<div class="int-note">${_esc(i.note)}</div>` : ''}
-      <div class="int-date">${_relDate(i.created_at)||''}</div>
-    </div>
-  </div>`;
-  }).join('');
 }
 function _renderReminder(reminderDate) {
   const r = reminderDate ? _fmtReminder(reminderDate) : null;
@@ -7384,60 +7371,157 @@ async function openDrawer(card, initialTab = 'activity') {
   const _cachedRendered = _p.next_action_cache
     ? renderMarkdown(_p.next_action_cache).replace(/([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})/g, '<a href="mailto:$1" style="color:var(--navy);text-decoration:underline">$1</a>')
     : null;
+
+  // Interactions + replies charges AVANT le template (restructuration scroll) : Touches et
+  // Message history en ont besoin au rendu, pas seulement l'ancien onglet Activity.
+  if (prospectId) {
+    const [_intRes, _replyRes] = await Promise.all([
+      sbClient.from('interactions').select('id,type,note,created_at')
+        .eq('prospect_id', prospectId).order('created_at', { ascending: false }).limit(30),
+      sbClient.from('reply_drafts').select('id,incoming_message,created_at,updated_at')
+        .eq('prospect_id', prospectId).order('created_at', { ascending: false }).limit(10)
+    ]);
+    _drawerInteractions = _intRes.error ? [] : (_intRes.data || []);
+    _drawerReplies = _replyRes.error ? [] : (_replyRes.data || []);
+  } else {
+    _drawerInteractions = [];
+    _drawerReplies = [];
+  }
+  const touchCount = _drawerInteractions.length;
+  const discoveryBrief = _drawerInteractions.find(i => i.type === 'discovery_brief') || null;
+  const _stalled = _isProspectStalled(_p);
+  const messageHistoryHTML = _pdBuildMessageHistoryHTML();
+
+  // Signal timeline (section 2) : signal/signal_type/signal_date sont des champs uniques sur le
+  // prospect, pas un historique -- une seule ligne reelle au maximum, jamais complete a 3 par
+  // invention (meme principe que l'etape SIGNAL vide de la spine, Phase 1).
+  const _sigText = _p.signal ? _sanitizeSignal(_p.signal) : '';
+  const signalTimelineHTML = _sigText ? `
+    <div class="pd-row">
+      <span class="pd-row-mono">${_p.signal_type ? _esc(_p.signal_type.toUpperCase()) : 'SIGNAL'}</span>
+      <span class="pd-row-mono" style="margin-left:auto">${_p.signal_date ? _esc(_relDate(_p.signal_date) || '') : ''}</span>
+    </div>
+    <div class="pd-row-main" style="margin:-4px 0 4px">${_sigText}</div>
+  ` : `<div class="pd-empty">No signal recorded yet.</div>`;
+
+  const stageAgeLbl = '—'; // pas de stage_changed_at en base -- pas invente, cf. echange cleanup
+  const dealValLbl = _p.deal_value ? `${_p.deal_currency || 'EUR'} ${Math.round(parseInt(_p.deal_value) / 1000)}k` : '—';
+  const links = [
+    _p.linkedin ? { label: 'LinkedIn', href: _p.linkedin } : null,
+    _p.email ? { label: 'Email', href: 'mailto:' + _p.email } : null,
+    _p.phone ? { label: 'Phone', href: 'tel:' + _p.phone } : null,
+    _p.website_url ? { label: 'Company site', href: _p.website_url } : null,
+  ].filter(Boolean);
+  const firmoParts = [sector, _p.country, _p.company_size ? _p.company_size + ' employees' : null].filter(Boolean);
+
   document.getElementById('drawer').innerHTML = `
-    <div class="drawer-head">
-      <div style="flex:1;min-width:0">
-        <div class="drawer-name">${_esc(name)}</div>
-        <div class="drawer-company">${_esc(company)}</div>
-        ${_p.company_verified === false ? `<div style="margin-top:3px;"><span style="font-size:10px;font-weight:700;color:#b45309;background:#fef3c7;border:1px solid #fde68a;border-radius:20px;padding:1px 6px;">⚠ Société non confirmée</span></div>` : ''}
-        ${_p.identity_confidence === 'low' ? `<div style="margin-top:3px;"><span style="font-size:10px;font-weight:700;color:#6b7280;background:#f3f4f6;border:1px solid #d1d5db;border-radius:20px;padding:1px 6px;">? Identité à vérifier</span></div>` : ''}
-        <div class="drawer-last-contact">${lcStr ? 'Last contact: '+_esc(lcStr) : 'No contact logged yet'}</div>
-      </div>
-      ${icpDial}
-      <button onclick="openScannerPanel('drawer')" style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:var(--radius-sm);background:var(--navy-light);border:1px solid var(--border);cursor:pointer;color:var(--blue);flex-shrink:0;" title="Scan company" aria-label="Scan this company">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-      </button>
-      <button onclick="_openAskFromDrawer()" style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:var(--radius-sm);background:var(--navy-light);border:1px solid var(--border);cursor:pointer;color:var(--blue);flex-shrink:0;" title="Ask Corridor" aria-label="Ask Corridor about this prospect">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-      </button>
-      <button class="drawer-close" onclick="closeDrawer()" aria-label="Close prospect drawer">✕</button>
-    </div>
-    ${!!_p.signal_type && !!_p.signal
-      ? `<div style="margin:8px 22px 4px;padding:8px 12px;background:var(--navy-light);border-radius:var(--radius-md);font-size:var(--fs-xs);color:var(--text);line-height:1.5;border-left:3px solid var(--blue-brand);"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--blue-brand);margin-bottom:3px;">${_esc(_p.signal_type)}</div>${_sanitizeSignal((_p.signal||'').length>200?(_p.signal||'').slice(0,200)+'…':(_p.signal||''))}</div>`
-      : (_p.icp_reason ? `<div style="margin:8px 22px 4px;padding:7px 12px;background:#f1f2f4;border-radius:var(--radius-md);font-size:var(--fs-xs);color:var(--dim);line-height:1.5;"><span style="font-weight:700;opacity:0.75;margin-right:3px;">Correspond aux critères ICP :</span>${_esc(_p.icp_reason)}</div>` : '')}
-    <div class="drawer-tabs">
-      <div class="dtab active" onclick="_switchDTab('activity',this)">Activity</div>
-      <div class="dtab" onclick="_switchDTab('profile',this)">Profile</div>
-      <div class="dtab" onclick="_switchDTab('deal',this)">Deal</div>
-      <div class="dtab" onclick="_switchDTab('ai',this)">AI</div>
-      <div class="dtab" onclick="_switchDTab('send',this)">Send</div>
-    </div>
-    <div class="dtab-panel active" id="dpanel-activity">
-      ${_reminderBannerHTML(reminderDate)}
-      <div class="int-log" id="drawer-int-list">
-        <div class="int-empty" style="color:var(--dim);font-size:var(--fs-sm)">Loading...</div>
-      </div>
-      <div class="int-form">
-        <div class="int-form-title">Log interaction</div>
-        <div class="int-type-btns">
-          ${['linkedin','email','call','meeting','note'].map((t,i) =>
-            `<button class="int-type-btn${i===0?' selected':''}" data-type="${t}"
-              onclick="_selIntType(this,'${t}')">${t}</button>`
-          ).join('')}
+    <div class="pd-header">
+      <div class="pd-head-top">
+        <div style="flex:1;min-width:0">
+          <div class="pd-name-row">
+            <span class="pd-name">${_esc(name)}</span>
+            <span class="pd-stage-chip">${_esc(stage)}</span>
+          </div>
+          <div class="pd-role">${[_p.title, company].filter(Boolean).map(s => _esc(s)).join(' · ')}</div>
+          ${firmoParts.length ? `<div class="pd-firmo">${firmoParts.map(s => _esc(s)).join(' · ')}</div>` : ''}
+          ${_p.company_verified === false ? `<div style="margin-top:5px;"><span style="font-size:10px;font-weight:700;color:#b45309;background:#fef3c7;border:1px solid #fde68a;border-radius:20px;padding:1px 6px;">⚠ Société non confirmée</span></div>` : ''}
+          ${_p.identity_confidence === 'low' ? `<div style="margin-top:3px;"><span style="font-size:10px;font-weight:700;color:#6b7280;background:#f3f4f6;border:1px solid #d1d5db;border-radius:20px;padding:1px 6px;">? Identité à vérifier</span></div>` : ''}
+          <div class="drawer-last-contact" style="font-size:11px;color:var(--dim);margin-top:5px;">${lcStr ? 'Last contact: ' + _esc(lcStr) : 'No contact logged yet'}</div>
         </div>
-        <textarea class="int-note-input" id="drawer-int-note"
-          placeholder="Add a note (optional)..." rows="2"></textarea>
-        <button class="int-save-btn" id="drawer-int-save" onclick="_saveInteraction()">
-          Save interaction
-        </button>
+        <div style="display:flex;gap:6px;flex-shrink:0;">
+          <button onclick="openScannerPanel('drawer')" style="display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:var(--radius-sm);background:#fff;border:1px solid var(--border);cursor:pointer;color:var(--muted);" title="Scan company" aria-label="Scan this company">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          </button>
+          <button onclick="_openAskFromDrawer()" style="display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:var(--radius-sm);background:#fff;border:1px solid var(--border);cursor:pointer;color:var(--muted);" title="Ask Corridor" aria-label="Ask Corridor about this prospect">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </button>
+          <button class="pd-close" onclick="closeDrawer()" aria-label="Close prospect drawer">✕</button>
+        </div>
       </div>
+      <div class="pd-stats">
+        <div class="pd-stat">
+          <div class="pd-stat-label">ICP score</div>
+          <div class="pd-stat-value">${_esc(_icpLbl)}</div>
+        </div>
+        <div class="pd-stat">
+          <div class="pd-stat-label">Stage age</div>
+          <div class="pd-stat-value">${stageAgeLbl}</div>
+        </div>
+        <div class="pd-stat">
+          <div class="pd-stat-label">Touches</div>
+          <div class="pd-stat-value">${touchCount}</div>
+        </div>
+        <div class="pd-stat">
+          <div class="pd-stat-label">Deal value</div>
+          <div class="pd-stat-value">${_esc(dealValLbl)}
+            <button class="pd-stat-edit" onclick="_pdOpenEditDetails('dv-deal-type')" title="Edit deal value" aria-label="Edit deal value">✎</button>
+          </div>
+        </div>
+      </div>
+      ${links.length ? `<div class="pd-links">${links.map(l => `<a class="pd-link" href="${_esc(l.href)}" target="_blank" rel="noopener noreferrer">${l.label}</a>`).join('')}</div>` : ''}
     </div>
-    <div class="dtab-panel" id="dpanel-profile">
-      ${_drawerProfileHTML(prospectId, _prospectsById[prospectId] || {}, stage, { name, company, sector })}
-    </div>
-    <div class="dtab-panel" id="dpanel-deal">
-      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">
-        <div style="display:flex;gap:10px">
+
+    <div class="pd-body">
+
+      <!-- 1. NEXT ACTION -->
+      <div class="pd-section" id="pd-section-nextaction">
+        ${_reminderBannerHTML(reminderDate)}
+        <div class="pd-section-label" style="margin-top:14px">Next action</div>
+        <div class="pd-next-action">
+          <div class="pd-next-action-label">NEXT ACTION</div>
+          <div class="pd-next-action-text ai-box-body${_cachedRendered ? ' loaded' : ''}" id="drawer-output">${_cachedRendered || 'Click to generate the next step...'}</div>
+        </div>
+        <button class="btn-accent btn-lg" style="width:100%;justify-content:center;margin-top:10px"
+          onclick="_drawerAI()" id="drawer-next-btn">${_hasCachedAction ? '🔄 Regenerate' : '▶ Next recommended action'}</button>
+        ${_stalled ? `
+        <button class="btn-secondary btn-md" style="width:100%;justify-content:center;margin-top:8px;border-color:var(--danger-border);color:var(--danger);" onclick="_escalateProspect()" id="drawer-escalate-btn">⚠ Prospect stalled — Escalation Handler</button>
+        <div class="ai-box" id="escalate-box" style="display:none;margin-top:8px">
+          <div class="ai-box-header">
+            <span class="ai-box-label" style="color:var(--danger)">Escalation Brief</span>
+            <div class="ai-spinner" id="escalate-spinner"></div>
+          </div>
+          <div class="ai-box-body" id="escalate-output"></div>
+        </div>` : `<div id="escalate-box" style="display:none"></div>`}
+      </div>
+
+      <!-- 2. SIGNAL TIMELINE -->
+      <div class="pd-section">
+        <div class="pd-section-label">Signal timeline</div>
+        ${signalTimelineHTML}
+      </div>
+
+      <!-- 3. MESSAGE HISTORY -->
+      <div class="pd-section">
+        <div class="pd-section-label">Message history</div>
+        <div id="pd-msghistory-rows">${messageHistoryHTML}</div>
+        <div id="pd-logint-form" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+          <div class="int-type-btns">
+            ${['linkedin', 'email', 'call', 'meeting', 'note'].map((t, i) =>
+    `<button class="int-type-btn${i === 0 ? ' selected' : ''}" data-type="${t}" onclick="_selIntType(this,'${t}')">${t}</button>`
+  ).join('')}
+          </div>
+          <textarea class="int-note-input" id="drawer-int-note" placeholder="Add a note (optional)..." rows="2"></textarea>
+          <button class="int-save-btn" id="drawer-int-save" onclick="_saveInteraction()">Save interaction</button>
+        </div>
+        <button class="pd-plus" style="margin-top:8px" onclick="_pdToggleLogInteraction()">+ Log interaction</button>
+      </div>
+
+      <!-- 4. BUYING COMMITTEE -->
+      <div class="pd-section">
+        <div class="pd-section-label">Buying committee</div>
+        <div id="bc-section-${prospectId}" style="font-size:var(--fs-xs);color:var(--muted);font-style:italic">Loading...</div>
+        ${_pdAdditionalContactsHTML(prospectId, _p)}
+      </div>
+
+      <!-- 5. CALL PREP BRIEF -->
+      <div class="pd-section">
+        <div class="pd-section-label">Call prep brief</div>
+        <div class="pd-brief-card" id="pd-brief-card">${discoveryBrief ? discoveryBrief.note : '<span style="opacity:.6">No brief prepared yet — generate one below.</span>'}</div>
+        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+          <button class="btn-secondary btn-sm" onclick="_pdCopyBrief()"${discoveryBrief ? '' : ' disabled'}>Copy brief</button>
+          <button class="btn-secondary btn-sm" onclick="_openAskFromDrawer()">Ask a follow-up</button>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:14px">
           <button class="btn-md" onclick="_scheduleCall('${prospectId}')" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;background:var(--white);color:var(--text);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;font-family:inherit">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
             Schedule call
@@ -7447,209 +7531,62 @@ async function openDrawer(card, initialTab = 'activity') {
             Call briefing
           </button>
         </div>
-        <button class="btn-lg" id="start-seq-${prospectId}" onclick="_startEmailSeq('${prospectId}')" style="width:100%;background:var(--green-brand);color:#FFFFFF;border:none;border-radius:var(--radius-sm);font-weight:500;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;font-family:inherit">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 6l-10 7L2 6"/></svg>
-          Start email sequence
-        </button>
+        <button class="btn-secondary btn-md" style="width:100%;justify-content:center;margin-top:8px" onclick="_sendDiscoveryBrief()" id="drawer-discovery-btn">Prepare discovery call</button>
         <span id="briefing-status-${prospectId}" style="font-size:var(--fs-xs);color:var(--muted)"></span>
-        <span id="seq-status-${prospectId}" style="font-size:var(--fs-xs);color:var(--muted)"></span>
-      </div>
-      <div style="border-top:1px solid var(--border);padding-top:16px;">
-                <div class="drawer-section-title" style="margin-bottom:12px" data-en="Deal Value" data-fr="Valeur du deal">Deal Value</div>
-        <div class="dv-field-row" style="margin-bottom:10px">
-          <label>Deal Type</label>
-          <select id="dv-deal-type" onchange="_dvShowFields();recalcDealValue()">
-            <option value="">— select —</option>
-            <option value="retainer_only">Retainer only</option>
-            <option value="retainer_success">Retainer + Performance fee</option>
-            <option value="prep_success">Upfront fee + Performance fee</option>
-            <option value="success_only">Performance fee only</option>
-            <option value="fixed">Fixed amount</option>
-            <option value="shared">Shared / Split</option>
-            <option value="referral">Commission (degressive)</option>
-          </select>
-        </div>
-        <div id="dvg-retainer" class="dv-field-group" style="display:none">
-          <div class="dv-field-row">
-            <label>Monthly fee</label>
-            <input type="number" id="dv-retainer-monthly" min="0" placeholder="0" oninput="recalcDealValue()">
-          </div>
-          <div class="dv-field-row">
-            <label>Duration</label>
-            <input type="number" id="dv-retainer-months" min="1" placeholder="6" oninput="recalcDealValue()">
-            <span class="dv-pct">months</span>
-          </div>
-        </div>
-        <div id="dvg-prep" class="dv-field-group" style="display:none">
-          <div class="dv-field-row">
-            <label>Upfront fee</label>
-            <input type="number" id="dv-prep-fee" min="0" placeholder="0" oninput="recalcDealValue()">
-          </div>
-        </div>
-        <div id="dvg-success" class="dv-field-group" style="display:none">
-          <div class="dv-field-row">
-            <label>Performance</label>
-            <input type="number" id="dv-success-rate" min="0" max="100" step="0.1" placeholder="0" oninput="recalcDealValue()">
-            <span class="dv-pct">%</span>
-          </div>
-          <div class="dv-field-row">
-            <label>Basis</label>
-            <select id="dv-base-type" onchange="_dvShowFields();recalcDealValue()">
-              <option value="transaction_value">% of deal value</option>
-              <option value="third_party_fee">% of a partner's fee</option>
-            </select>
-          </div>
-          <div class="dv-field-row">
-            <label id="dv-base-amount-lbl">Base amount</label>
-            <input type="number" id="dv-base-amount" min="0" placeholder="0" oninput="recalcDealValue()">
-          </div>
-        </div>
-        <div id="dvg-fixed" class="dv-field-group" style="display:none">
-          <div class="dv-field-row">
-            <label>Amount</label>
-            <input type="number" id="dv-fixed-amount" min="0" placeholder="0" oninput="recalcDealValue()">
-          </div>
-        </div>
-        <div id="dvg-shared" class="dv-field-group" style="display:none">
-          <div class="dv-field-row">
-            <label>Our share</label>
-            <input type="number" id="dv-share-pct" min="0" max="100" step="1" placeholder="50" oninput="recalcDealValue()">
-            <span class="dv-pct">%</span>
-          </div>
-          <div class="dv-field-row">
-            <label>Based on</label>
-            <select id="dv-sub-type" onchange="_dvShowFields();recalcDealValue()">
-              <option value="retainer_only">Retainer only</option>
-              <option value="retainer_success">Retainer + Performance fee</option>
-              <option value="prep_success">Upfront fee + Performance fee</option>
-              <option value="success_only">Performance fee only</option>
-              <option value="fixed">Fixed amount</option>
-            </select>
-          </div>
-          <div class="dv-field-row" id="dvg-gross-row" style="display:none">
-            <label style="color:var(--muted)">Gross fee</label>
-            <span id="dv-gross-fee" style="font-size:var(--fs-sm);font-weight:600;color:var(--navy)">—</span>
-          </div>
-        </div>
-        <div id="dvg-referral" class="dv-field-group" style="display:none">
-          <div class="dv-field-row">
-            <label>Monthly base</label>
-            <input type="number" id="dv-referral-base" min="0" placeholder="0" oninput="recalcDealValue()">
-          </div>
-          <div class="dv-field-row">
-            <label>1st period</label>
-            <input type="number" id="dv-referral-first" min="0" max="100" step="0.1" placeholder="15" oninput="recalcDealValue()">
-            <span class="dv-pct">%</span>
-          </div>
-          <div class="dv-field-row">
-            <label>Following</label>
-            <input type="number" id="dv-referral-sub" min="0" max="100" step="0.1" placeholder="10" oninput="recalcDealValue()">
-            <span class="dv-pct">%</span>
-          </div>
-          <div class="dv-field-row">
-            <label>Duration</label>
-            <input type="number" id="dv-referral-dur" min="1" placeholder="12" oninput="recalcDealValue()">
-            <span class="dv-pct">months</span>
-          </div>
-        </div>
-        <div class="dv-conf">
-          <label><span data-en="Confidence" data-fr="Confiance">Confidence</span> <span id="dv-conf-val">50%</span></label>
-          <input type="range" id="dv-conf" min="0" max="100" value="50" oninput="recalcDealValue()">
-        </div>
-        <div class="dv-results-box">
-          <div class="dv-results-row">
-            <span class="dv-results-lbl">Fee if closed</span>
-            <span class="dv-results-val" id="dv-fee-if-closed">—</span>
-          </div>
-          <div class="dv-results-row">
-            <span class="dv-results-lbl">Weighted expectation</span>
-            <span class="dv-results-val dv-weighted" id="dv-weighted">—</span>
-          </div>
-        </div>
-        <div class="dv-field-row" style="margin-top:12px">
-          <label>Currency</label>
-          <select id="dv-currency" style="flex:0 0 72px" onchange="recalcDealValue()">
-            <option value="">— —</option>
-            <option value="EUR">EUR</option>
-            <option value="USD">USD</option>
-            <option value="GBP">GBP</option>
-            <option value="ILS">ILS</option>
-          </select>
-          <label style="flex:0 0 auto">Manual</label>
-          <input type="number" id="dv-manual" min="0" placeholder="override" oninput="recalcDealValue()">
-        </div>
-        <button class="btn-secondary btn-md" style="width:100%;justify-content:center;margin-top:10px;" onclick="_saveDealToDB()">
-          <span data-en="Save deal value to prospect" data-fr="Sauvegarder la valeur du deal">Save deal value to prospect</span>
-        </button>
-      </div>
-    </div>
-    <div class="dtab-panel${initialTab==='ai'?' active':''}" id="dpanel-ai">
-      <div class="drawer-section-title" style="margin-bottom:10px">Next action</div>
-      <button class="btn-accent btn-lg" style="width:100%;justify-content:center;margin-bottom:12px"
-        onclick="_drawerAI()" id="drawer-next-btn">${_hasCachedAction ? '🔄 Regenerate' : '▶ Next recommended action'}</button>
-      <button class="btn-secondary btn-md" style="width:100%;justify-content:center;margin-bottom:12px" onclick="_escalateProspect()" id="drawer-escalate-btn">Escalation Handler</button>
-  <button class="btn-secondary btn-md" style="width:100%;justify-content:center;margin-bottom:12px" onclick="_sendDiscoveryBrief()" id="drawer-discovery-btn">Prepare discovery call</button>
-      <div class="ai-box" id="escalate-box" style="display:none">
-        <div class="ai-box-header">
-          <span class="ai-box-label" style="color:#ef4444">Escalation Brief</span>
-          <div class="ai-spinner" id="escalate-spinner"></div>
-        </div>
-        <div class="ai-box-body" id="escalate-output"></div>
-      </div>
-      <div class="ai-box">
-        <div class="ai-box-header">
-          <span class="ai-box-label">Recommended Action</span>
-          <div class="ai-spinner" id="drawer-spinner"></div>
-        </div>
-        <div class="ai-box-body${_cachedRendered ? ' loaded' : ''}" id="drawer-output">${_cachedRendered || 'Click to generate the next step...'}</div>
-      </div>
-      <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--border)">
-        <div class="drawer-section-title" style="margin-bottom:14px">Call prep and debrief</div>
-        <div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">Post-call message</div>
-        <input id="postcall-note" type="text" class="dp-inp"
-          placeholder="One key point from the call, e.g. your expansion into the Nordics"
-          style="margin-bottom:8px" />
-        <button class="btn-secondary btn-md" onclick="_generatePostCallMsg()"
-          style="width:100%;justify-content:center;margin-bottom:10px">
-          Generate post-call message
-        </button>
-        <div id="postcall-box" style="display:none">
-          <div class="ai-box">
-            <div class="ai-box-header">
-              <span class="ai-box-label">Post-call</span>
+        <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
+          <div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">Post-call message</div>
+          <input id="postcall-note" type="text" class="dp-inp" placeholder="One key point from the call, e.g. your expansion into the Nordics" style="margin-bottom:8px" />
+          <button class="btn-secondary btn-md" onclick="_generatePostCallMsg()" style="width:100%;justify-content:center;margin-bottom:10px">Generate post-call message</button>
+          <div id="postcall-box" style="display:none">
+            <div class="ai-box">
+              <div class="ai-box-header"><span class="ai-box-label">Post-call</span></div>
+              <div class="ai-box-body" id="postcall-output" contenteditable="true" spellcheck="false" style="min-height:80px;outline:none;cursor:text;white-space:pre-wrap"></div>
             </div>
-            <div class="ai-box-body" id="postcall-output" contenteditable="true" spellcheck="false"
-              style="min-height:80px;outline:none;cursor:text;white-space:pre-wrap"></div>
-          </div>
-          <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-            <button class="btn-secondary btn-sm" onclick="_copyPostCall()">Copy</button>
-            <button class="btn-secondary btn-md" onclick="_sendPostCallLinkedIn()">Send via LinkedIn</button>
-            <button class="btn-secondary btn-md" onclick="_markPostCallSent()">Mark as sent</button>
+            <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+              <button class="btn-secondary btn-sm" onclick="_copyPostCall()">Copy</button>
+              <button class="btn-secondary btn-md" onclick="_sendPostCallLinkedIn()">Send via LinkedIn</button>
+              <button class="btn-secondary btn-md" onclick="_markPostCallSent()">Mark as sent</button>
+            </div>
           </div>
         </div>
         <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
           <div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">Post-call debrief</div>
-          <button class="btn-secondary btn-md" id="btn-postcall-debrief" onclick="_openPostCallDebrief()"
-            style="width:100%;justify-content:center;margin-bottom:10px">
-            🎙 Generate post-call debrief
-          </button>
+          <button class="btn-secondary btn-md" id="btn-postcall-debrief" onclick="_openPostCallDebrief()" style="width:100%;justify-content:center;margin-bottom:10px">🎙 Generate post-call debrief</button>
           <div id="meeting-notes-select" style="display:none;margin-bottom:10px"></div>
           <div id="post-call-output" style="display:none"></div>
           <div style="text-align:center;margin-top:6px">
-            <a href="#" style="font-size:var(--fs-xs);color:var(--muted);text-decoration:underline;text-underline-offset:2px"
-              onclick="event.preventDefault();_toggleManualDebrief()">Or paste call notes manually</a>
+            <a href="#" style="font-size:var(--fs-xs);color:var(--muted);text-decoration:underline;text-underline-offset:2px" onclick="event.preventDefault();_toggleManualDebrief()">Or paste call notes manually</a>
           </div>
           <div id="manual-debrief-panel" style="display:none;margin-top:10px">
-            <textarea id="manual-debrief-notes" rows="6"
-              placeholder="Paste your call notes, transcript, or summary here..."
-              style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:var(--fs-sm);font-family:inherit;resize:vertical;background:var(--bg);color:var(--text);line-height:1.5"></textarea>
-            <button class="btn-secondary btn-md" onclick="_generateFromManualNotes()"
-              style="width:100%;justify-content:center;margin-top:8px">Generate from notes</button>
+            <textarea id="manual-debrief-notes" rows="6" placeholder="Paste your call notes, transcript, or summary here..." style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:var(--fs-sm);font-family:inherit;resize:vertical;background:var(--bg);color:var(--text);line-height:1.5"></textarea>
+            <button class="btn-secondary btn-md" onclick="_generateFromManualNotes()" style="width:100%;justify-content:center;margin-top:8px">Generate from notes</button>
           </div>
         </div>
+        <span id="seq-status-${prospectId}" style="font-size:var(--fs-xs);color:var(--muted)"></span>
+        <button class="btn-lg" id="start-seq-${prospectId}" onclick="_startEmailSeq('${prospectId}')" style="width:100%;margin-top:8px;background:var(--green-brand);color:#FFFFFF;border:none;border-radius:var(--radius-sm);font-weight:500;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;font-family:inherit">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 6l-10 7L2 6"/></svg>
+          Start email sequence
+        </button>
       </div>
+
+      <!-- EDIT DETAILS (pas une des 5 sections du README -- necessaire pour ne pas perdre les
+           champs Contact/Classification/Signal (edition), Stage et le calculateur Deal Value,
+           dont aucun n'a de place dans les 5 sections en lecture seule. Repliee par defaut. -->
+      <details class="pd-section" id="pd-editdetails">
+        <summary class="pd-section-label" style="cursor:pointer">Edit details</summary>
+        <div style="margin-top:12px">
+          ${_drawerProfileHTML(prospectId, _prospectsById[prospectId] || {}, stage, { name, company, sector })}
+        </div>
+      </details>
+
+      <div id="dpanel-send" style="display:none;padding:16px 0 8px;border-top:1px solid var(--border);margin-top:4px"></div>
     </div>
-    <div class="dtab-panel${initialTab==='send'?' active':''}" id="dpanel-send" style="padding:16px 20px"></div>`;
+
+    <div class="pd-footer">
+      <button class="btn-primary btn-md" style="flex:1;justify-content:center" onclick="_pdToggleCompose(true)">Generate message</button>
+      <button class="btn-secondary btn-md" style="flex:1;justify-content:center" onclick="_pdOpenEditDetails('ed-stage')">Move stage</button>
+      <button class="btn-secondary btn-md" onclick="archiveProspect('${prospectId}')">Archive</button>
+    </div>`;
 
   const _dEl = document.getElementById('drawer');
   _dEl.dataset.pid = prospectId || '';
@@ -7660,31 +7597,102 @@ async function openDrawer(card, initialTab = 'activity') {
   _dEl.classList.add('open');
   document.getElementById('drawer-overlay').classList.add('open');
   document.body.classList.add('drawer-open');
-  if (initialTab && initialTab !== 'activity') {
-    _switchDTab(initialTab, document.querySelector(`.drawer-tabs .dtab[onclick*="'${initialTab}'"]`));
-  }
-  if (document.getElementById('dv-team')) _restoreDealValue();
+  if (initialTab === 'send') _pdToggleCompose(true);
+  if (document.getElementById('dv-deal-type')) _restoreDealValue();
   _renderSignalLink((_prospectsById[prospectId] || {}).signal, (_prospectsById[prospectId] || {}).signal_url);
   if (prospectId) _loadBuyingCommittee(prospectId, _p).catch(e => console.warn('[buying-committee]', e));
-
-  if (prospectId) {
-    const { data, error } = await sbClient
-      .from('interactions')
-      .select('id,type,note,created_at')
-      .eq('prospect_id', prospectId)
-      .order('created_at', { ascending: false })
-      .limit(30);
-    _drawerInteractions = error ? [] : (data || []);
-    const el = document.getElementById('drawer-int-list');
-    if (el) el.innerHTML = _renderIntList(_drawerInteractions);
-    _checkEmailSeqState(prospectId, _drawerInteractions);
-  } else {
-    _drawerInteractions = [];
-    const el = document.getElementById('drawer-int-list');
-    if (el) el.innerHTML = _renderIntList([]);
-  }
+  if (prospectId) _checkEmailSeqState(prospectId, _drawerInteractions);
 
   if (typeof applyLang === 'function') applyLang();
+}
+
+// Restructuration scroll (chunk 2) : petits helpers d'affichage/reveal, pas de nouvelle logique
+// metier -- tout reutilise les fonctions/ids existants (_saveInteraction, saveProspectEdit,
+// _renderManualSection, _promoteContact...).
+function _pdToggleCompose(forceOpen) {
+  const el = document.getElementById('dpanel-send');
+  if (!el) return;
+  const show = forceOpen === true || el.style.display === 'none';
+  el.style.display = show ? 'block' : 'none';
+  if (show) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+function _pdToggleLogInteraction() {
+  const el = document.getElementById('pd-logint-form');
+  if (!el) return;
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+// Message history (section 3) : vraies donnees seulement -- SENT depuis les interactions
+// sortantes reellement loggees (linkedin/email), REPLY depuis reply_drafts (meme table que
+// l'Inbox), DEBRIEF depuis les interactions type 'call' avec un verdict parse. Aucune distinction
+// inventee : ce sont les trois seules sources reelles. Les lignes DEBRIEF restent cliquables
+// (expand/collapse du texte complet), exactement comme dans l'ancien onglet Activity -- meme
+// _toggleDebrief/_VERDICT_COLORS/_parseDebrief reutilises tels quels, pas reecrits.
+function _pdBuildMessageHistoryHTML() {
+  const _histRows = [
+    ..._drawerInteractions.filter(i => i.type === 'linkedin' || i.type === 'email')
+      .map(i => ({ kind: 'msg', dir: 'SENT', channel: i.type.toUpperCase(), date: i.created_at, text: i.note || '' })),
+    ..._drawerReplies.map(r => ({ kind: 'msg', dir: 'REPLY', channel: 'LINKEDIN', date: r.updated_at || r.created_at, text: (r.incoming_message || '').replace(/<[^>]*>/g, '') })),
+    ..._drawerInteractions.filter(i => i.type === 'call' && _parseDebrief(i.note))
+      .map(i => ({ kind: 'debrief', uid: i.id, date: i.created_at, debrief: _parseDebrief(i.note) }))
+  ].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 4);
+  if (!_histRows.length) return `<div class="pd-empty">No messages logged yet.</div>`;
+  return _histRows.map(r => {
+    if (r.kind === 'debrief') {
+      const c = _VERDICT_COLORS[r.debrief.verdict] || _VERDICT_COLORS.neutral;
+      return `<div class="pd-row" style="flex-direction:column;align-items:stretch;cursor:pointer;user-select:none" onclick="_toggleDebrief('${r.uid}')">
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          <span class="pd-row-mono" style="color:var(--accent)">DEBRIEF · CALL</span>
+          <span style="background:${c.bg};border:1px solid ${c.border};color:${c.text};border-radius:var(--radius-panel);font-size:var(--fs-micro);font-weight:700;padding:1px 7px;text-transform:uppercase;">${_esc(r.debrief.verdict)}</span>
+          <span class="pd-row-mono" style="margin-left:auto">${_esc(_relDate(r.date) || '')}</span>
+          <span id="debrief-chevron-${r.uid}" style="font-size:var(--fs-xs);color:var(--muted)">▼</span>
+        </div>
+        <pre id="debrief-body-${r.uid}" style="display:none;font-size:var(--fs-sm);line-height:1.6;white-space:pre-wrap;margin:8px 0 0;font-family:inherit;color:var(--text)">${_esc(r.debrief.fullText)}</pre>
+      </div>`;
+    }
+    return `<div class="pd-row">
+      <span class="pd-row-mono" style="color:${r.dir === 'REPLY' ? 'var(--success)' : 'var(--muted)'}">${r.dir} · ${_esc(r.channel)}</span>
+      <span class="pd-row-mono" style="margin-left:auto">${_esc(_relDate(r.date) || '')}</span>
+    </div>
+    <div class="pd-row-main" style="margin:-4px 0 4px">${_esc((r.text || '').slice(0, 160))}${(r.text || '').length > 160 ? '…' : ''}</div>`;
+  }).join('');
+}
+function _pdRefreshMessageHistory() {
+  const el = document.getElementById('pd-msghistory-rows');
+  if (el) el.innerHTML = _pdBuildMessageHistoryHTML();
+}
+function _pdOpenEditDetails(focusId) {
+  const det = document.getElementById('pd-editdetails');
+  if (!det) return;
+  det.open = true;
+  det.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  if (focusId) setTimeout(() => document.getElementById(focusId)?.focus(), 250);
+}
+function _pdCopyBrief() {
+  const el = document.getElementById('pd-brief-card');
+  if (!el) return;
+  const text = el.textContent || '';
+  navigator.clipboard.writeText(text.trim()).then(
+    () => showToast('Brief copied'),
+    () => showToast('Copy failed')
+  );
+}
+// "Promote additional contact" (cleanup mapping) : plus de bouton "revele au clic" -- un "+"
+// inline directement dans Buying committee, meme _promoteContact(id, i) inchange derriere.
+function _pdAdditionalContactsHTML(id, p) {
+  const ac = Array.isArray(p.additional_contacts) ? p.additional_contacts : [];
+  if (!ac.length) return '';
+  return `<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+    <div class="pd-row-mono" style="margin-bottom:6px">${currentLang === 'fr' ? 'Autres décideurs identifiés' : 'Other decision-makers found'}</div>
+    ${ac.map((c, i) => `
+      <div class="pd-row" style="align-items:center">
+        <div style="min-width:0">
+          <div class="pd-row-name">${c.name ? _esc(c.name) : ''}</div>
+          <div class="pd-row-mono" style="text-transform:none;letter-spacing:0">${c.title ? _esc(c.title) : ''}</div>
+        </div>
+        <button class="pd-stat-edit" id="promote-btn-${_esc(id)}-${i}" style="margin-left:auto;font-size:16px" onclick="_promoteContact('${_esc(id)}',${i})" title="Promote to prospect" aria-label="Promote to prospect">+</button>
+      </div>
+    `).join('')}
+  </div>`;
 }
 
 function closeDrawer() {
@@ -8003,13 +8011,6 @@ function _viewInPipeline(prospectId) {
   closeScannerPanel();
   _prOpenProspect(prospectId);
 }
-function _switchDTab(name, el) {
-  document.querySelectorAll('.dtab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.dtab-panel').forEach(p => p.classList.remove('active'));
-  if (el) el.classList.add('active');
-  const p = document.getElementById('dpanel-' + name);
-  if (p) p.classList.add('active');
-}
 function _selIntType(btn) {
   document.querySelectorAll('.int-type-btn').forEach(b => b.classList.remove('selected'));
   btn.classList.add('selected');
@@ -8049,8 +8050,7 @@ async function _saveInteraction() {
   if (lcEl) { lcEl.textContent = 'Last contact: just now'; lcEl.classList.remove('overdue'); }
   const card = document.querySelector(`.k-card[data-id="${pid}"]`);
   if (card) card.dataset.lastContact = data.created_at;
-  const listEl = document.getElementById('drawer-int-list');
-  if (listEl) listEl.innerHTML = _renderIntList(_drawerInteractions);
+  _pdRefreshMessageHistory();
   if (document.getElementById('drawer-int-note'))
     document.getElementById('drawer-int-note').value = '';
   showToast('Interaction saved');
@@ -8685,10 +8685,15 @@ async function _sendDiscoveryBrief() {
     const ctx = _drawerInteractions.slice(0, 5)
       .map(i => `- ${i.type}${i.note ? ': ' + i.note.slice(0, 120) : ''} (${_relDate(i.created_at) || 'recent'})`)
       .join('\n');
+    // Double-read (cleanup, notes) : p.notes (historique, plus jamais reecrit) + les notes
+    // loggees depuis via "+ Log interaction" (type='note'), jamais l'un n'ecrase l'autre.
+    const loggedNotes = _drawerInteractions.filter(i => i.type === 'note' && i.note)
+      .slice(0, 3).map(i => i.note).join(' | ');
+    const notesCombined = [p.notes, loggedNotes].filter(Boolean).join(' | ') || 'None';
     const systemPrompt = `You are a B2B sales prep assistant. Generate a discovery call brief. Output valid HTML using only <h3>, <p>, <ul>, <li> tags. No inline styles, no markdown fences. Anti-hallucination rule: only state company facts that appear verbatim in LIVE CONTEXT. If no context is available, omit speculative company claims entirely.`;
     const userMsg = `Prospect: ${p.name}, ${p.title || 'unknown title'} at ${p.company || 'unknown company'}.
 Sector: ${p.sector || '-'} | Country: ${p.country || '-'} | Stage: ${p.stage || '-'} | ICP Score: ${p.score || '-'}
-Signal: ${p.signal || 'None'} | Notes: ${p.notes || 'None'}
+Signal: ${p.signal || 'None'} | Notes: ${notesCombined}
 ${ctx ? '\nInteraction history:\n' + ctx : 'No interactions logged.'}
 ${liveCtx || '\nNo verified web context available. Do not state any company-specific facts.'}
 
@@ -8857,8 +8862,7 @@ Rules: no em-dashes, no markdown headers, factual only, base everything on the n
       .select('id,type,note,created_at').single();
     if (intData) {
       _drawerInteractions = [intData, ..._drawerInteractions];
-      const listEl = document.getElementById('drawer-int-list');
-      if (listEl) listEl.innerHTML = _renderIntList(_drawerInteractions);
+      _pdRefreshMessageHistory();
     }
   } catch(e) { console.warn('[post-call] persist failed:', e.message); }
 }
@@ -9892,20 +9896,6 @@ function _drawerProfileHTML(id, p, colStage, fb){
   const rt = p.region ? _regionTag(p.region) : '';
   const lbl = t => `<div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);letter-spacing:0.02em">${t}</div>`;
   const card = c => `<div style="border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:14px 16px;display:flex;flex-direction:column;gap:8px">${c}</div>`;
-  const _ac = Array.isArray(p.additional_contacts) ? p.additional_contacts : [];
-  const _acSection = _ac.length > 0 ? card(
-    lbl((currentLang==='fr' ? 'Autres décideurs chez ' : 'Other decision-makers at ') + (p.company ? _esc(p.company) : (currentLang==='fr' ? 'cette société' : 'this company'))) +
-    _ac.map((c, i) => `
-      <div onclick="_showContactAction('${v(id)}',${i})" style="padding:8px 0;border-bottom:0.5px solid var(--border);cursor:pointer;user-select:none">
-        <div style="font-size:var(--fs-sm);font-weight:600;color:var(--text)">${c.name ? _esc(c.name) : ''}</div>
-        <div style="font-size:var(--fs-xs);color:var(--muted)">${c.title ? _esc(c.title) : ''}</div>
-        ${c.linkedin ? `<a href="${_esc(c.linkedin)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" style="font-size:var(--fs-xs);color:var(--blue-brand)">${_esc(c.linkedin.replace(/^https?:\/\/(www\.)?linkedin\.com\//,'linkedin.com/'))}</a>` : ''}
-        <div id="ac-action-${v(id)}-${i}" style="display:none;margin-top:6px;padding:8px 10px;background:var(--navy-light);border-radius:var(--radius-sm);border:1px solid var(--border)">
-          <button onclick="event.stopPropagation();_promoteContact('${v(id)}',${i})" style="font-size:var(--fs-sm);padding:6px 12px;background:var(--navy);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer;width:100%">${currentLang==='fr' ? 'Promouvoir en prospect &amp; préparer l\'invitation' : 'Promote to prospect &amp; prepare invite'}</button>
-        </div>
-      </div>
-    `).join('')
-  ) : '';
   return `<div class="dp-edit">
     ${card(
       lbl('Contact') +
@@ -9970,25 +9960,63 @@ function _drawerProfileHTML(id, p, colStage, fb){
       `</select>` +
       (p.signalInterpretation ? `<div style="background:var(--navy-light);border:1px solid var(--blue);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--navy);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:10px;opacity:0.65;display:block;margin-bottom:3px">✦ ${currentLang==='fr'?'Analyse IA':'AI Insight'}</span>${v(stripHtml(p.signalInterpretation))}</div>` : '')
     )}
-    <textarea id="ed-notes" class="dp-inp" placeholder="Notes" style="min-height:60px;resize:vertical">${v(p.notes)}</textarea>
     ${card(
-      lbl('Buying committee') +
-      `<div id="bc-section-${v(id)}" style="font-size:var(--fs-xs);color:var(--muted);font-style:italic">Loading...</div>`
+      lbl('Deal Value') +
+      `<div class="dv-field-row" style="margin-bottom:6px">
+        <label>Deal Type</label>
+        <select id="dv-deal-type" onchange="_dvShowFields();recalcDealValue()">
+          <option value="">— select —</option>
+          <option value="retainer_only">Retainer only</option>
+          <option value="retainer_success">Retainer + Performance fee</option>
+          <option value="prep_success">Upfront fee + Performance fee</option>
+          <option value="success_only">Performance fee only</option>
+          <option value="fixed">Fixed amount</option>
+          <option value="shared">Shared / Split</option>
+          <option value="referral">Commission (degressive)</option>
+        </select>
+      </div>
+      <div id="dvg-retainer" class="dv-field-group" style="display:none">
+        <div class="dv-field-row"><label>Monthly fee</label><input type="number" id="dv-retainer-monthly" min="0" placeholder="0" oninput="recalcDealValue()"></div>
+        <div class="dv-field-row"><label>Duration</label><input type="number" id="dv-retainer-months" min="1" placeholder="6" oninput="recalcDealValue()"><span class="dv-pct">months</span></div>
+      </div>
+      <div id="dvg-prep" class="dv-field-group" style="display:none">
+        <div class="dv-field-row"><label>Upfront fee</label><input type="number" id="dv-prep-fee" min="0" placeholder="0" oninput="recalcDealValue()"></div>
+      </div>
+      <div id="dvg-success" class="dv-field-group" style="display:none">
+        <div class="dv-field-row"><label>Performance</label><input type="number" id="dv-success-rate" min="0" max="100" step="0.1" placeholder="0" oninput="recalcDealValue()"><span class="dv-pct">%</span></div>
+        <div class="dv-field-row"><label>Basis</label><select id="dv-base-type" onchange="_dvShowFields();recalcDealValue()"><option value="transaction_value">% of deal value</option><option value="third_party_fee">% of a partner's fee</option></select></div>
+        <div class="dv-field-row"><label id="dv-base-amount-lbl">Base amount</label><input type="number" id="dv-base-amount" min="0" placeholder="0" oninput="recalcDealValue()"></div>
+      </div>
+      <div id="dvg-fixed" class="dv-field-group" style="display:none">
+        <div class="dv-field-row"><label>Amount</label><input type="number" id="dv-fixed-amount" min="0" placeholder="0" oninput="recalcDealValue()"></div>
+      </div>
+      <div id="dvg-shared" class="dv-field-group" style="display:none">
+        <div class="dv-field-row"><label>Our share</label><input type="number" id="dv-share-pct" min="0" max="100" step="1" placeholder="50" oninput="recalcDealValue()"><span class="dv-pct">%</span></div>
+        <div class="dv-field-row"><label>Based on</label><select id="dv-sub-type" onchange="_dvShowFields();recalcDealValue()"><option value="retainer_only">Retainer only</option><option value="retainer_success">Retainer + Performance fee</option><option value="prep_success">Upfront fee + Performance fee</option><option value="success_only">Performance fee only</option><option value="fixed">Fixed amount</option></select></div>
+        <div class="dv-field-row" id="dvg-gross-row" style="display:none"><label style="color:var(--muted)">Gross fee</label><span id="dv-gross-fee" style="font-size:var(--fs-sm);font-weight:600;color:var(--navy)">—</span></div>
+      </div>
+      <div id="dvg-referral" class="dv-field-group" style="display:none">
+        <div class="dv-field-row"><label>Monthly base</label><input type="number" id="dv-referral-base" min="0" placeholder="0" oninput="recalcDealValue()"></div>
+        <div class="dv-field-row"><label>1st period</label><input type="number" id="dv-referral-first" min="0" max="100" step="0.1" placeholder="15" oninput="recalcDealValue()"><span class="dv-pct">%</span></div>
+        <div class="dv-field-row"><label>Following</label><input type="number" id="dv-referral-sub" min="0" max="100" step="0.1" placeholder="10" oninput="recalcDealValue()"><span class="dv-pct">%</span></div>
+        <div class="dv-field-row"><label>Duration</label><input type="number" id="dv-referral-dur" min="1" placeholder="12" oninput="recalcDealValue()"><span class="dv-pct">months</span></div>
+      </div>
+      <div class="dv-conf"><label><span data-en="Confidence" data-fr="Confiance">Confidence</span> <span id="dv-conf-val">50%</span></label><input type="range" id="dv-conf" min="0" max="100" value="50" oninput="recalcDealValue()"></div>
+      <div class="dv-results-box">
+        <div class="dv-results-row"><span class="dv-results-lbl">Fee if closed</span><span class="dv-results-val" id="dv-fee-if-closed">—</span></div>
+        <div class="dv-results-row"><span class="dv-results-lbl">Weighted expectation</span><span class="dv-results-val dv-weighted" id="dv-weighted">—</span></div>
+      </div>
+      <div class="dv-field-row" style="margin-top:8px">
+        <label>Currency</label>
+        <select id="dv-currency" style="flex:0 0 72px" onchange="recalcDealValue()"><option value="">— —</option><option value="EUR">EUR</option><option value="USD">USD</option><option value="GBP">GBP</option><option value="ILS">ILS</option></select>
+        <label style="flex:0 0 auto">Manual</label>
+        <input type="number" id="dv-manual" min="0" placeholder="override" oninput="recalcDealValue()">
+      </div>
+      <button class="btn-secondary btn-md" style="width:100%;justify-content:center;margin-top:6px;" onclick="_saveDealToDB()"><span data-en="Save deal value to prospect" data-fr="Sauvegarder la valeur du deal">Save deal value to prospect</span></button>`
     )}
-    ${_acSection}
     <button class="btn-primary btn-lg" style="width:100%;justify-content:center" onclick="saveProspectEdit('${v(id)}')"><span data-en="Save changes" data-fr="Enregistrer les modifications">Save changes</span></button>
-    <div style="display:flex;gap:8px;margin-top:4px">
-      <button class="btn-secondary btn-md" style="flex:1;justify-content:center" onclick="archiveProspect('${v(id)}')"><span data-en="Archive" data-fr="Archiver">Archive</span></button>
-      <button class="btn-secondary btn-md" style="flex:1;justify-content:center;color:var(--red);border-color:var(--red-light)" onclick="deleteProspect('${v(id)}')"><span data-en="Delete" data-fr="Supprimer">Delete</span></button>
-    </div>
+    <button class="btn-secondary btn-md" style="width:100%;justify-content:center;color:var(--red);border-color:var(--red-light)" onclick="deleteProspect('${v(id)}')"><span data-en="Delete" data-fr="Supprimer">Delete</span></button>
   </div>`;
-}
-function _showContactAction(pid, cIdx) {
-  document.querySelectorAll('[id^="ac-action-"]').forEach(el => {
-    if (el.id !== 'ac-action-' + pid + '-' + cIdx) el.style.display = 'none';
-  });
-  const panel = document.getElementById('ac-action-' + pid + '-' + cIdx);
-  if (panel) panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
 }
 
 async function _promoteContact(primaryPid, cIdx) {
@@ -9998,7 +10026,7 @@ async function _promoteContact(primaryPid, cIdx) {
   const contact = _ac[cIdx];
   if (!contact) return;
 
-  const btn = document.querySelector('#ac-action-' + primaryPid + '-' + cIdx + ' button');
+  const btn = document.getElementById('promote-btn-' + primaryPid + '-' + cIdx);
   if (btn) { btn.disabled = true; btn.textContent = '...'; }
 
   try {
@@ -10078,7 +10106,8 @@ async function saveProspectEdit(id){
     funding_stage: g('ed-funding-stage') || null,
     last_funding_date: g('ed-last-funding-date') || null,
     total_funding: g('ed-total-funding') || null,
-    stage: newStage, notes: g('ed-notes') || null,
+    stage: newStage, // notes retire du formulaire (cleanup) : p.notes n'est plus jamais reecrit,
+                     // les nouvelles notes passent uniquement par une interaction loggee type='note'
     signal: signalVal,
     signal_type: document.getElementById('drawer-signal-type')?.value || null,
     deal_value: _dvVal !== null ? _dvVal : (p.deal_value || null),
@@ -11513,7 +11542,18 @@ async function _autoGenerateCsSteps(row) {
   if (!company && !name) return;
   const sector   = (prospect && prospect.sector)       || '';
   const dealVal  = Number((prospect && prospect.deal_value) || row.deal_value) || 0;
-  const notes    = (prospect && prospect.notes) || row.notes || '';
+  // Double-read (cleanup, notes) : p.notes (historique, plus jamais reecrit) + les notes
+  // loggees depuis via l'interaction "+ Log interaction" du tiroir -- jamais l'un ecrase l'autre.
+  let notes = (prospect && prospect.notes) || row.notes || '';
+  if (row.prospect_id) {
+    try {
+      const { data: noteInts } = await sbClient.from('interactions')
+        .select('note,created_at').eq('prospect_id', row.prospect_id).eq('type', 'note')
+        .order('created_at', { ascending: false }).limit(3);
+      const loggedNotes = (noteInts || []).map(i => i.note).filter(Boolean).join(' | ');
+      if (loggedNotes) notes = notes ? notes + ' | ' + loggedNotes : loggedNotes;
+    } catch (e) {}
+  }
   const signal   = (prospect && prospect.signal_type)  || '';
   const systemPrompt = `You are a customer success specialist. Generate 3-5 tailored onboarding roadmap steps for a new B2B client's first 90 days. Output ONLY a valid JSON array — no markdown, no preamble. Each element: {"label":"string up to 60 chars","note":"optional context up to 120 chars"}. If context is too sparse, return [].`;
   const userMsg = `New client: ${name}${company ? ' at ' + company : ''}\nSector: ${sector || '-'} | Deal: ${dealVal > 0 ? '€' + dealVal : '-'} | Signal: ${signal || '-'}\nNotes: ${notes || 'None'}\nGenerate 3-5 specific, actionable CS roadmap steps for the first 90 days.`;
