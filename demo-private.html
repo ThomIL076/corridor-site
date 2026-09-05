@@ -7368,7 +7368,18 @@ function _fmtReminder(iso) {
   if (!iso) return null;
   const d = new Date(iso); if (isNaN(d)) return null;
   const days = Math.ceil((d - Date.now()) / 86400000);
-  if (days < 0)  return { label:'Overdue by ' + Math.abs(days) + 'd', overdue:true };
+  if (days < 0) {
+    // Paliers (arbitrage Thomas) : <30j inchange (jours), 30-364j en mois arrondis, >=365j en
+    // annees arrondies -- un compte de jours a 4 chiffres sur un prospect oublie depuis des
+    // annees n'apporte rien de lisible. Meme convention mots-entiers (singulier/pluriel) que
+    // _relDate() juste au-dessus, pas d'abreviation inventee.
+    const od = Math.abs(days);
+    let magnitude;
+    if (od < 30) magnitude = od + 'd';
+    else if (od < 365) { const m = Math.round(od / 30); magnitude = m + (m === 1 ? ' month' : ' months'); }
+    else { const y = Math.round(od / 365); magnitude = y + (y === 1 ? ' year' : ' years'); }
+    return { label:'Overdue by ' + magnitude, overdue:true };
+  }
   if (days === 0) return { label:'Today', overdue:false };
   if (days === 1) return { label:'Tomorrow', overdue:false };
   return { label:'In ' + days + ' days — ' + d.toLocaleDateString('en-GB',{day:'numeric',month:'short'}), overdue:false };
