@@ -1183,6 +1183,38 @@ body.new-nav { padding-left: 220px; }
   body.new-nav .snav-hamburger { display: flex; }
   body.new-nav.snav-open .snav-backdrop { display: block; }
 }
+/* Mobile bottom tab bar (Phase 1 chunk 5) : remplace le hamburger + sidebar coulissante en
+   dessous de 760px, comme specifie ("Sidebar hidden, replaced by a bottom tab bar") -- les
+   deux mecanismes ne coexistent jamais, celui-ci gagne sur les regles 768px ci-dessus. */
+.mobile-tabbar { display: none; }
+@media (max-width: 760px) {
+  body.new-nav .snav-hamburger,
+  body.new-nav .new-sidebar,
+  body.new-nav .snav-backdrop { display: none !important; }
+  body.new-nav nav { padding-left: 0; }
+  .mobile-tabbar {
+    display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 210;
+    height: 58px; background: var(--ink); border-top: 1px solid rgba(255,255,255,.1);
+  }
+  .main { padding-bottom: 74px; } /* 58px tab bar + marge, evite qu'elle recouvre le bas du contenu */
+}
+.mtab-item {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  background: none; border: none; height: 58px; cursor: pointer;
+  font-family: 'Instrument Sans', sans-serif; font-size: 11px; font-weight: 500;
+  color: rgba(255,255,255,.72);
+}
+.mtab-item.active { color: #fff; font-weight: 600; }
+.mtab-badge { font-family: 'IBM Plex Mono', monospace; font-size: 9px; color: var(--accent); }
+.mtab-badge:empty { display: none; }
+.more-list { display: flex; flex-direction: column; }
+.more-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 4px; border: none; border-bottom: 1px solid var(--border);
+  background: none; text-align: left; width: 100%;
+  font-family: 'Instrument Sans', sans-serif; font-size: 15px; color: var(--text); cursor: pointer;
+}
+.more-chevron { color: var(--muted); font-size: 18px; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
@@ -1372,6 +1404,19 @@ body.new-nav { padding-left: 220px; }
   <span></span><span></span><span></span>
 </button>
 <div class="snav-backdrop" id="snav-backdrop" onclick="_toggleSnavMenu()"></div>
+
+<!-- MOBILE BOTTOM TAB BAR (Phase 1 chunk 5, < 760px) -->
+<nav class="mobile-tabbar" id="mobile-tabbar" aria-label="Mobile navigation">
+  <button class="mtab-item" data-nav="priorities" onclick="_switchNewNav('priorities')">Today</button>
+  <button class="mtab-item" data-nav="pipeline" onclick="_switchNewNav('pipeline')">Pipeline</button>
+  <button class="mtab-item" data-nav="send" onclick="_switchNewNav('send')">
+    <span>Send</span><span class="mtab-badge" id="mtab-badge-send"></span>
+  </button>
+  <button class="mtab-item" data-nav="inbox" onclick="_switchNewNav('inbox')">
+    <span>Inbox</span><span class="mtab-badge" id="mtab-badge-inbox"></span>
+  </button>
+  <button class="mtab-item" id="mtab-more-btn" onclick="_switchNewNav('more')">More</button>
+</nav>
 
 <!-- NAV -->
 <div class="top-chrome-wrapper">
@@ -2343,6 +2388,22 @@ body.new-nav { padding-left: 220px; }
     </div>
   </div>
 
+  <!-- MORE (Phase 1 chunk 5) : liste mobile des destinations secondaires -- Stats ajoutee aux
+       six du README (decision explicite), Scanner volontairement pas d'acces mobile direct
+       pour l'instant (idem, decision explicite plutot que devinee). -->
+  <div class="tab-panel" id="tab-more">
+    <h2 style="font-size:var(--fs-lg);font-weight:700;color:var(--navy);margin:0 0 16px;" data-en="More" data-fr="Plus">More</h2>
+    <div class="more-list">
+      <button class="more-row" onclick="_switchNewNav('system','signals')"><span data-en="Signals" data-fr="Signaux">Signals</span><span class="more-chevron">›</span></button>
+      <button class="more-row" onclick="_switchNewNav('system','pipeintel')"><span data-en="Pipeline health" data-fr="Santé du pipeline">Pipeline health</span><span class="more-chevron">›</span></button>
+      <button class="more-row" onclick="_switchNewNav('system','weekly')"><span data-en="Reports" data-fr="Rapports">Reports</span><span class="more-chevron">›</span></button>
+      <button class="more-row" onclick="_switchNewNav('agents')"><span data-en="Agents" data-fr="Agents">Agents</span><span class="more-chevron">›</span></button>
+      <button class="more-row" onclick="_switchNewNav('clients')"><span data-en="Clients" data-fr="Clients">Clients</span><span class="more-chevron">›</span></button>
+      <button class="more-row" onclick="_switchNewNav('integrations')"><span data-en="Integrations" data-fr="Intégrations">Integrations</span><span class="more-chevron">›</span></button>
+      <button class="more-row" onclick="_switchNewNav('stats')"><span>Stats</span><span class="more-chevron">›</span></button>
+    </div>
+  </div>
+
 </main>
 
 <footer>
@@ -2359,6 +2420,25 @@ function _newNavActive(key) {
   const el = document.querySelector('.snav-item[data-nav="' + key + '"]');
   if (el) el.classList.add('active');
   _updateSpineActive(key);
+  _updateMobileTabActive(key);
+}
+
+// Tab bar mobile (Phase 1 chunk 5) : "More" reste actif tant qu'une destination secondaire est
+// affichee, meme principe de derivation que la spine -- un seul point d'accroche (_newNavActive),
+// pas un troisieme mecanisme de navigation separe.
+const MOBILE_TAB_PRIMARY = { 'priorities': true, 'pipeline': true, 'send': true, 'inbox': true };
+const MOBILE_TAB_SECONDARY = { 'system-signals': true, 'system-pipeintel': true, 'system-weekly': true, 'agents': true, 'clients': true, 'integrations': true, 'stats': true, 'more': true };
+function _updateMobileTabActive(key) {
+  const bar = document.getElementById('mobile-tabbar');
+  if (!bar) return;
+  bar.querySelectorAll('.mtab-item').forEach(el => el.classList.remove('active'));
+  if (MOBILE_TAB_PRIMARY[key]) {
+    const el = bar.querySelector('.mtab-item[data-nav="' + key + '"]');
+    if (el) el.classList.add('active');
+  } else if (MOBILE_TAB_SECONDARY[key]) {
+    const el = document.getElementById('mtab-more-btn');
+    if (el) el.classList.add('active');
+  }
 }
 
 // Tweakable (README) : bascule pour A/B tester la spine sans toucher au HTML/CSS.
@@ -5840,6 +5920,8 @@ function _setSendBadge(n) {
   if (el) el.textContent = n > 0 ? n : '';
   const spineEl = document.getElementById('spine-count-send');
   if (spineEl) spineEl.textContent = n;
+  const mtabEl = document.getElementById('mtab-badge-send');
+  if (mtabEl) mtabEl.textContent = n > 0 ? n : '';
 }
 
 async function loadSendView() {
@@ -8370,12 +8452,15 @@ async function loadInboxDrafts(view = 'pending') {
     }
     const { data: drafts, error } = await query;
     if (error) throw error;
-    // Badge sidebar + spine : meme requete/meme definition de "pending" que la vue Inbox elle-meme.
+    // Badge sidebar + spine + tab bar mobile : meme requete/meme definition de "pending" que
+    // la vue Inbox elle-meme, un seul endroit ecrit les trois.
     if (view === 'pending') {
       const badgeEl = document.getElementById('snav-badge-inbox');
       if (badgeEl) badgeEl.textContent = (drafts && drafts.length) ? drafts.length : '';
       const spineEl = document.getElementById('spine-count-reply');
       if (spineEl) spineEl.textContent = drafts ? drafts.length : 0;
+      const mtabEl = document.getElementById('mtab-badge-inbox');
+      if (mtabEl) mtabEl.textContent = (drafts && drafts.length) ? drafts.length : '';
     }
     if (!drafts || !drafts.length) {
       container.innerHTML = `<div style="padding:40px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">${view === 'pending' ? 'No pending replies.' : 'No history yet.'}</div>`;
