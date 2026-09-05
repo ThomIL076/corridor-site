@@ -5022,8 +5022,8 @@ function _openAskFromDrawer() {
     icp_score: p.icp_score != null ? p.icp_score : ((_drawerProspect && _drawerProspect.score) || ''),
     signal: p.signal ? p.signal.replace(/<[^>]*>/g, '').trim() : '',
     signalUrl: p.signal_url || '',
-    signalInterpretation: p.signalInterpretation || '',
-    scanIntelligence: p.scanIntelligence || ''
+    signalInterpretation: p.signal_interpretation || '',
+    scanIntelligence: p.scan_intelligence || ''
   });
 }
 
@@ -10172,7 +10172,7 @@ function _drawerProfileHTML(id, p, colStage, fb){
         `<option value="">-- Signal type --</option>` +
         `${(_signalTaxonomy && Object.keys(_signalTaxonomy).length ? Object.values(_signalTaxonomy) : [{code:'S1',label:'S1'},{code:'S2',label:'S2'},{code:'S3',label:'S3'},{code:'S4',label:'S4'},{code:'activity',label:currentLang==='fr'?'Engagement passif (réaction/commentaire)':'Passive engagement (reaction/comment)',icon:'👁'}]).map(t => `<option value="${_esc(t.code)}"${(p.signal_type||'').toUpperCase()===(t.code||'').toUpperCase()?' selected':''}>${_esc(t.icon||'')} ${_esc(t.code)} — ${_esc(t.label||t.code)}</option>`).join('')}` +
       `</select>` +
-      (p.signalInterpretation ? `<div style="background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--ink);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:10px;opacity:0.65;display:block;margin-bottom:3px">✦ ${currentLang==='fr'?'Analyse IA':'AI Insight'}</span>${v(stripHtml(p.signalInterpretation))}</div>` : '')
+      (p.signal_interpretation ? `<div style="background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--ink);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:10px;opacity:0.65;display:block;margin-bottom:3px">✦ ${currentLang==='fr'?'Analyse IA':'AI Insight'}</span>${v(stripHtml(p.signal_interpretation))}</div>` : '')
     )}
     ${card(
       lbl('Deal Value') +
