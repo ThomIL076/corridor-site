@@ -55,10 +55,14 @@
   /* Groupe B -- sidebar, inputs, chips */
   --border-input: #dde2f0;
   --chip-bg: #f0f3fb;
-  --sidebar-bg: #12213f;
-  --sidebar-accent: #5B9CF6;
-  --sidebar-label: #B7BFD6;
-  --sidebar-sub: #EDEFF6;
+  /* PHASE 1 (refonte) -- valeurs alignees sur les tokens ink/accent introduits en Phase 0.
+     Ces variables ne sont consommees que par .new-sidebar/.snav-* et par un point de statut
+     CRM isole (kanban Clients) qui suit donc la meme teinte accent, effet de bord mineur. */
+  --sidebar-bg: #0e1a2e;
+  --sidebar-accent: #2f6bff;
+  --sidebar-label: rgba(255,255,255,.5);
+  --sidebar-sub: rgba(255,255,255,.72);
+  --sidebar-hover: rgba(255,255,255,.06);
   --red-dark: #b91c1c;
   --red-light: #fca5a5;
   --chip-suggested-bg: #eef2ff;
@@ -1038,8 +1042,7 @@ h1, h2, .k-card-name, .k-card-company { overflow-wrap:break-word; word-break:bre
   display: none;
   flex-direction: column;
   overflow-y: auto;
-  font-family: 'Plus Jakarta Sans', sans-serif;
-  --sidebar-label-size: 13px;
+  font-family: 'Instrument Sans', sans-serif;
 }
 body.new-nav .new-sidebar { display: flex; }
 body.new-nav { padding-left: 220px; }
@@ -1055,15 +1058,16 @@ body.new-nav { padding-left: 220px; }
   display: grid; grid-template-columns: 8px 8px; grid-template-rows: 8px 8px; gap: 2px; flex-shrink: 0;
 }
 .snav-logo-mark span { border-radius: 2px; }
-.snav-logo-mark span:nth-child(1), .snav-logo-mark span:nth-child(4) { background: #fff; }
-.snav-logo-mark span:nth-child(2), .snav-logo-mark span:nth-child(3) { background: var(--sidebar-accent); }
-.snav-logo-text { font-weight: 800; font-size:var(--fs-base); letter-spacing: 2.5px; color: #fff; }
+.snav-logo-mark span:nth-child(1) { background: var(--sidebar-accent); }
+.snav-logo-mark span:nth-child(2), .snav-logo-mark span:nth-child(3) { background: #5c8bff; }
+.snav-logo-mark span:nth-child(4) { background: #fff; }
+.snav-logo-text { font-weight: 600; font-size: 14px; letter-spacing: 0.16em; line-height: 1; color: #fff; }
 
 .snav-section { padding: 6px 10px 2px; flex-shrink: 0; }
 .snav-section + .snav-section { margin-top: 14px; }
 .snav-section-label {
-  display: block; font-size: var(--sidebar-label-size); font-weight: 500; letter-spacing: 0.03em;
-  color: var(--sidebar-label); padding: 14px 8px 4px;
+  display: block; font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; letter-spacing: 0.18em;
+  text-transform: uppercase; color: var(--sidebar-label); padding: 26px 24px 8px;
 }
 .snav-group { width: 100%; }
 .snav-group-toggle { justify-content: space-between; }
@@ -1080,25 +1084,38 @@ body.new-nav { padding-left: 220px; }
 }
 .snav-group.open .snav-group-items { max-height: 300px; }
 .snav-item {
-  display: flex; align-items: center; gap: 8px;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
   width: 100%; text-align: left;
-  padding: 8px 10px; border-radius: var(--radius-md); border: none;
+  padding: 9px 12px; border-radius: 0 4px 4px 0; border: none;
+  border-left: 2px solid transparent;
   background: transparent; cursor: pointer;
-  font-size:var(--fs-base); font-weight: 500; color: var(--sidebar-sub);
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 13.5px; font-weight: 400; color: var(--sidebar-sub);
   transition: background-color 150ms ease;
 }
-.snav-item:hover { background-color: rgba(255,255,255,0.08); }
-.snav-item.active { background: rgba(255,255,255,0.08); color: var(--sidebar-accent); font-weight: 600; }
-.snav-sub { padding-left: 26px; font-size: 12.5px; color: var(--sidebar-sub); }
-.snav-sub.active { color: var(--sidebar-accent); }
-.snav-icon { font-size:var(--fs-base); width: 16px; text-align: center; flex-shrink: 0; line-height: 1; }
+.snav-item:hover { background-color: var(--sidebar-hover); }
+.snav-item.active { border-left-color: var(--sidebar-accent); background: var(--sidebar-hover); color: #fff; font-weight: 600; }
+.snav-sub { padding-left: 26px; }
+.snav-badge, .snav-meta {
+  font-family: 'IBM Plex Mono', monospace; font-size: 9px; letter-spacing: 0.05em;
+  color: var(--sidebar-label); flex-shrink: 0;
+}
+.snav-badge:empty, .snav-meta:empty { display: none; }
+.snav-dot { width: 6px; height: 6px; border-radius: 50%; background: transparent; flex-shrink: 0; }
+.snav-live-dot {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--success); display: inline-block;
+  flex-shrink: 0; animation: pulseDot 2.4s ease-in-out infinite;
+}
 .snav-spacer { flex: 1 1 auto; min-height: 16px; }
-.snav-footer { padding: 4px 10px 8px; border-top: 1px solid rgba(255,255,255,0.08); flex-shrink: 0; margin-top: 14px; }
 .snav-scanner-zone {
   padding: 4px 10px 14px; flex-shrink: 0;
   border-top: 1px solid rgba(255,255,255,0.18);
   margin-top: auto;
+}
+.snav-system-active {
+  display: flex; align-items: center; gap: 6px;
+  margin-top: 10px; padding: 10px 2px 0; border-top: 1px solid rgba(255,255,255,.1);
+  font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; letter-spacing: 0.12em;
+  color: var(--sidebar-label);
 }
 /* Hamburger trigger (mobile only) */
 .snav-hamburger {
@@ -1137,8 +1154,16 @@ body.new-nav { padding-left: 220px; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
-  #auth-gate input::placeholder { color:var(--blue); }
-  #auth-gate input:focus { border-color:var(--blue); }
+  /* FIX RETROACTIF PHASE 0 (pas Phase 1) : cette regle #auth-gate input::placeholder/:focus
+     datait d'avant la refonte de l'ecran de connexion. Verifie concretement (Playwright, prod)
+     avant de conclure : seule la couleur du placeholder etait reellement cassee (aucun
+     !important sur cette regle => ordre de source gagne => le bleu de l'ancien systeme
+     ecrasait silencieusement le blanc-alpha voulu, confirme par capture d'ecran et
+     getComputedStyle en prod : rgb(147,168,212) = var(--blue)). Le focus n'a JAMAIS ete
+     affecte : la regle Phase 0 correspondante a un !important explicite, qui gagne quel que
+     soit l'ordre de source -- confirme aussi en prod (border-color: rgba(255,255,255,.3) au
+     focus, comme prevu). Suppression sure dans les deux cas, mais l'explication initiale
+     ("le focus aussi") etait fausse -- gardee ici pour ne pas la re-ecrire une deuxieme fois. */
   #auth-gate button:hover { opacity:.92; }
   .nav-signout { background:transparent; border:1px solid var(--border-mid); color:var(--muted); padding:7px 14px; border-radius:var(--radius-md); font-size:var(--fs-base); cursor:pointer; font-family:'Plus Jakarta Sans',sans-serif; margin-left:8px; }
   .nav-signout:hover { color:var(--navy); border-color:var(--navy); }
@@ -1171,7 +1196,7 @@ body.new-nav { padding-left: 220px; }
     <p style="text-align:center;color:rgba(255,255,255,.5);font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:0.22em;margin:0 0 28px;">PARTNER DEMO · PRIVATE ACCESS</p>
     <form onsubmit="doLogin(event)">
       <label for="login-email" style="display:block;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:0.18em;color:rgba(255,255,255,.5);margin-bottom:5px;">EMAIL</label>
-      <input id="login-email" type="email" placeholder="you@company.com" autocomplete="email" required style="width:100%;box-sizing:border-box;padding:13px 14px;margin-bottom:14px;border:1px solid rgba(255,255,255,.14);border-radius:var(--radius-sm);background:rgba(255,255,255,.07);color:#fff;font-size:15px;font-family:'Instrument Sans',sans-serif;outline:none;transition:border-color .15s;">
+      <input id="login-email" type="email" autocomplete="email" required style="width:100%;box-sizing:border-box;padding:13px 14px;margin-bottom:14px;border:1px solid rgba(255,255,255,.14);border-radius:var(--radius-sm);background:rgba(255,255,255,.07);color:#fff;font-size:15px;font-family:'Instrument Sans',sans-serif;outline:none;transition:border-color .15s;">
       <label for="login-password" style="display:block;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:0.18em;color:rgba(255,255,255,.5);margin-bottom:5px;">PASSWORD</label>
       <input id="login-password" type="password" autocomplete="current-password" required style="width:100%;box-sizing:border-box;padding:13px 14px;margin-bottom:18px;border:1px solid rgba(255,255,255,.14);border-radius:var(--radius-sm);background:rgba(255,255,255,.07);color:#fff;font-size:15px;font-family:'Instrument Sans',sans-serif;outline:none;transition:border-color .15s;">
       <button id="login-btn" type="submit" style="width:100%;padding:13px;border:none;border-radius:var(--radius-sm);background:#fff;color:var(--ink);font-weight:700;font-size:15px;cursor:pointer;font-family:'Instrument Sans',sans-serif;">Sign in</button>
@@ -1237,7 +1262,7 @@ body.new-nav { padding-left: 220px; }
   </div>
 </div>
 
-<!-- ═══ NEW SIDEBAR (visible only with ?newnav=1) ═══ -->
+<!-- ═══ SIDEBAR (Phase 1 refonte — regroupee INTELLIGENCE/ORCHESTRATION, sans emoji ni icone) ═══ -->
 <aside class="new-sidebar" id="new-sidebar" aria-label="Main navigation">
   <div class="snav-logo">
     <div class="snav-logo-mark"><span></span><span></span><span></span><span></span></div>
@@ -1245,58 +1270,70 @@ body.new-nav { padding-left: 220px; }
   </div>
   <div class="snav-section">
     <button class="snav-item" data-nav="priorities" onclick="_switchNewNav('priorities')">
-      <span class="snav-icon">⭐</span><span data-en="Priorities" data-fr="Priorités">Priorities</span>
+      <span data-en="Today" data-fr="Aujourd'hui">Today</span>
     </button>
     <button class="snav-item" data-nav="pipeline" onclick="_switchNewNav('pipeline')">
-      <span class="snav-icon">📊</span> Pipeline
+      <span>Pipeline</span>
     </button>
     <button class="snav-item" data-nav="send" onclick="_switchNewNav('send')">
-      <span class="snav-icon">📤</span><span data-en="Send" data-fr="Envoyer">Send</span>
+      <span data-en="Send" data-fr="Envoyer">Send</span>
+      <span class="snav-badge" id="snav-badge-send"></span>
     </button>
     <button class="snav-item" data-nav="inbox" onclick="_switchNewNav('inbox')">
-      <span class="snav-icon">📩</span><span data-en="Inbox" data-fr="Boîte de réception">Inbox</span>
+      <span data-en="Inbox" data-fr="Boîte de réception">Inbox</span>
+      <span class="snav-badge" id="snav-badge-inbox"></span>
     </button>
   </div>
   <div class="snav-section">
     <span class="snav-section-label">Intelligence</span>
     <button class="snav-item snav-sub" data-nav="system-signals" onclick="_switchNewNav('system','signals')">
-      <span class="snav-icon">🚨</span><span data-en="Signals" data-fr="Signaux">Signals</span>
+      <span data-en="Signals" data-fr="Signaux">Signals</span>
+      <span class="snav-badge" id="snav-badge-signals"></span>
     </button>
     <button class="snav-item snav-sub" data-nav="system-pipeintel" onclick="_switchNewNav('system','pipeintel')">
-      <span class="snav-icon">📈</span><span data-en="Pipeline health" data-fr="Santé du pipeline">Pipeline health</span>
+      <span data-en="Pipeline health" data-fr="Santé du pipeline">Pipeline health</span>
+      <span class="snav-dot" id="snav-dot-pipeintel" aria-hidden="true"></span>
     </button>
     <button class="snav-item snav-sub" data-nav="system-weekly" onclick="_switchNewNav('system','weekly')">
-      <span class="snav-icon">📋</span><span data-en="Reports" data-fr="Rapports">Reports</span>
+      <span data-en="Reports" data-fr="Rapports">Reports</span>
     </button>
   </div>
   <div class="snav-section">
-    <span class="snav-section-label">Agents</span>
+    <span class="snav-section-label">Orchestration</span>
     <button class="snav-item" data-nav="agents" onclick="_switchNewNav('agents')">
-      <span class="snav-icon">🤖</span><span data-en="Agents" data-fr="Agents">Agents</span>
+      <span data-en="Agents" data-fr="Agents">Agents</span>
+      <span class="snav-meta" id="snav-meta-agents"></span>
     </button>
-  </div>
-  <div class="snav-footer">
     <button class="snav-item" data-nav="clients" onclick="_switchNewNav('clients')">
-      <span class="snav-icon">🏢</span> Clients
-    </button>
-    <button class="snav-item" data-nav="stats" onclick="_switchNewNav('stats')">
-      <span class="snav-icon">📈</span> Stats
+      <span>Clients</span>
     </button>
     <button class="snav-item" data-nav="integrations" onclick="_switchNewNav('integrations')">
-      <span class="snav-icon">🔗</span> Integrations
+      <span>Integrations</span>
+    </button>
+    <!-- "Stats" n'a pas de place dans la nouvelle IA (README) -- son contenu utile (funnel,
+         repartition par secteur/pays) sera absorbe par la refonte de Pipeline en Phase 4.
+         Garde ici en attendant pour ne pas retirer un acces qui fonctionne encore -- ecart
+         signale explicitement, pas applique en silence (voir echange sur ce chantier). -->
+    <button class="snav-item" data-nav="stats" onclick="_switchNewNav('stats')">
+      <span>Stats</span>
     </button>
   </div>
   <div class="snav-scanner-zone">
     <button class="snav-item" onclick="openScannerPanel()" aria-label="Open company scanner">
-      <span class="snav-icon"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></span> Scanner
+      <span>Scanner</span>
     </button>
     <button class="snav-item" onclick="_openAskPanel(null)" aria-label="Ask Corridor">
-      <span class="snav-icon"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span><span data-en="Ask Corridor" data-fr="Demander à Corridor">Ask Corridor</span>
+      <span data-en="Ask Corridor" data-fr="Demander à Corridor">Ask Corridor</span>
+      <span class="snav-live-dot" aria-hidden="true"></span>
     </button>
+    <div class="snav-system-active">
+      <span class="snav-live-dot" aria-hidden="true"></span>
+      <span data-en="System active" data-fr="Système actif">System active</span>
+    </div>
   </div>
 </aside>
 
-<!-- Hamburger + backdrop (mobile, ?newnav=1) -->
+<!-- Hamburger + backdrop (mobile) -->
 <button class="snav-hamburger" id="snav-hamburger" onclick="_toggleSnavMenu()" aria-label="Open navigation">
   <span></span><span></span><span></span>
 </button>
