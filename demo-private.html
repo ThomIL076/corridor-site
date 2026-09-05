@@ -8849,6 +8849,10 @@ const _inboxProspectsById = {};
 const _inboxDraftOriginals = {};
 const _inboxRawPayloads = {};
 const _inboxFeedbackByDraftId = {};
+// "Other angles" (README) : redirige vers l'agent Objection Handler existant avec
+// incoming_message pre-rempli -- zero nouvelle logique inline. Besoin d'un acces au texte par
+// draftId hors du HTML rendu (evite de re-parser un texte deja _esc() -- entites HTML).
+const _inboxIncomingById = {};
 let _inboxView = 'pending';
 
 async function loadInboxDrafts(view = 'pending') {
@@ -8902,6 +8906,7 @@ async function loadInboxDrafts(view = 'pending') {
     }
     drafts.forEach(d => {
       _inboxDraftOriginals[d.id] = d.suggested_reply || '';
+      _inboxIncomingById[d.id] = d.incoming_message || '';
       if (d.raw_payload) _inboxRawPayloads[d.id] = d.raw_payload;
     });
     if (view === 'history') {
@@ -8936,13 +8941,17 @@ function _renderInboxCards(drafts, view = 'pending') {
     if (view === 'history') {
       const fb = _inboxFeedbackByDraftId[draft.id] || null;
       const sentText = fb?.item_text || draft.suggested_reply || '';
+      // Chips History (arbitrage Thomas) : memes tokens deja utilises ailleurs dans le fichier
+      // (--bg/--border/--muted, --accent-bg/--accent-border/--accent, --success-bg/--border/
+      // --success) a la place des hex ad hoc -- structure/fonctionnement de la vue History
+      // inchanges, uniquement l'habillage couleur de ces 3 chips.
       let badgeHtml;
       if (draft.status === 'dismissed') {
-        badgeHtml = `<span style="font-size:var(--fs-xs);font-weight:700;padding:2px 8px;background:#f1f5f9;border:1px solid var(--border);border-radius:var(--radius-pill);color:var(--muted);">Dismissed</span>`;
+        badgeHtml = `<span style="font-size:var(--fs-xs);font-weight:700;padding:2px 8px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-pill);color:var(--muted);">Dismissed</span>`;
       } else if (fb?.vote === 'unlike' && fb?.comment === 'Edited before sending') {
-        badgeHtml = `<span style="font-size:var(--fs-xs);font-weight:700;padding:2px 8px;background:#dbeafe;border:1px solid #93c5fd;border-radius:var(--radius-pill);color:#1d4ed8;">Sent (edited)</span>`;
+        badgeHtml = `<span style="font-size:var(--fs-xs);font-weight:700;padding:2px 8px;background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:var(--radius-pill);color:var(--accent);">Sent (edited)</span>`;
       } else {
-        badgeHtml = `<span style="font-size:var(--fs-xs);font-weight:700;padding:2px 8px;background:#d1fae5;border:1px solid #6ee7b7;border-radius:var(--radius-pill);color:#065f46;">Sent</span>`;
+        badgeHtml = `<span style="font-size:var(--fs-xs);font-weight:700;padding:2px 8px;background:var(--success-bg);border:1px solid var(--success-border);border-radius:var(--radius-pill);color:var(--success);">Sent</span>`;
       }
       const dateStr = draft.updated_at ? new Date(draft.updated_at).toLocaleDateString(undefined, { day:'numeric', month:'short', year:'numeric' }) : '';
       return `<div class="priority-card" id="inbox-card-${draft.id}"
@@ -8959,11 +8968,14 @@ function _renderInboxCards(drafts, view = 'pending') {
       </div>`;
     }
 
+    // Agent's draft (README) : bloc distinct -- fond sunken (--bg, meme token que le reste du
+    // fichier pour cet usage) + radius 8px. Pas de ligne de provenance (hors scope confirme :
+    // aucun champ agent/timestamp reel sur reply_drafts, meme constat que sur Send).
     const replyHtml = draft.suggested_reply
       ? `<div style="margin-top:12px;">
            <div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);margin-bottom:4px;">Suggested reply</div>
            <textarea id="inbox-reply-${draft.id}"
-             style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:var(--fs-sm);font-family:inherit;color:var(--text);background:var(--card-bg);resize:vertical;min-height:80px;line-height:1.5;"
+             style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-md);font-size:var(--fs-sm);font-family:inherit;color:var(--text);background:var(--bg);resize:vertical;min-height:80px;line-height:1.5;"
              onfocus="this.style.borderColor='var(--navy)'" onblur="this.style.borderColor='var(--border)'"
            >${_esc(draft.suggested_reply)}</textarea>
          </div>`
@@ -8971,16 +8983,22 @@ function _renderInboxCards(drafts, view = 'pending') {
            <span style="font-size:var(--fs-xs);font-style:italic;color:var(--muted);">Brouillon non généré — message source non reconnu</span>
            ${CLIENT_ID === 'thomas' && draft.raw_payload ? `<button onclick="_inboxShowRaw('${draft.id}')" style="font-size:var(--fs-xs);padding:3px 8px;border-radius:var(--radius-pill);border:1px solid var(--border);background:none;color:var(--text);cursor:pointer;">Voir raw_payload</button>` : ''}
          </div>`;
+    // "Other angles" (README) : redirige vers l'Objection Handler existant (_activateAgent),
+    // incoming_message pre-rempli dans son textarea -- jamais auto-envoye, meme principe que les
+    // prompt pills d'Ask Corridor (l'utilisateur garde la main). Gate sur incoming_message (pas
+    // suggested_reply) : utile meme quand aucun brouillon n'a ete genere.
     const actionBtns = `<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
         ${draft.suggested_reply && draft.prospect_id ? `<button id="inbox-send-${draft.id}" onclick="_inboxSend('${draft.id}','${draft.prospect_id}')"
           style="padding:7px 16px;border-radius:var(--radius-pill);background:var(--navy);color:#fff;border:none;font-size:var(--fs-sm);font-weight:600;cursor:pointer;">Send</button>` : ''}
+        ${draft.incoming_message ? `<button id="inbox-angles-${draft.id}" onclick="_inboxOtherAngles('${draft.id}')"
+          style="padding:7px 16px;border-radius:var(--radius-pill);background:none;border:1px solid var(--border);color:var(--text);font-size:var(--fs-sm);cursor:pointer;">Other angles</button>` : ''}
         <button id="inbox-dismiss-${draft.id}" onclick="_inboxDismiss('${draft.id}')"
           style="padding:7px 16px;border-radius:var(--radius-pill);background:none;border:1px solid var(--border);color:var(--text);font-size:var(--fs-sm);cursor:pointer;">Dismiss</button>
       </div>`;
     return `<div class="priority-card" id="inbox-card-${draft.id}"
         style="background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius-md);padding:18px 20px;margin-bottom:12px;">
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;">${nameHtml}</div>
-      ${draft.incoming_message ? `<div style="font-size:var(--fs-sm);color:var(--muted);border-left:3px solid var(--border);padding-left:10px;line-height:1.5;">${_esc(draft.incoming_message)}</div>` : ''}
+      ${draft.incoming_message ? `<div style="font-size:var(--fs-sm);font-style:italic;color:var(--muted);border-left:2px solid var(--border);padding-left:10px;line-height:1.6;">${_esc(draft.incoming_message)}</div>` : ''}
       ${replyHtml}
       ${actionBtns}
     </div>`;
@@ -9041,6 +9059,17 @@ async function _inboxSend(draftId, prospectId) {
     if (sendBtn) sendBtn.disabled = false;
     if (dismissBtn) dismissBtn.disabled = false;
   }
+}
+
+// "Other angles" (README, arbitrage Thomas) : redirige vers l'Objection Handler existant plutot
+// que d'inventer une logique inline -- switchAgent() seul ne change pas l'onglet principal
+// (verifie : ne touche que .agent-panel/.agent-tab-btn), donc switchTab('agents') d'abord.
+function _inboxOtherAngles(draftId) {
+  const text = _inboxIncomingById[draftId] || '';
+  switchTab('agents');
+  _activateAgent('objection');
+  const input = document.getElementById('input-objection');
+  if (input) input.value = text;
 }
 
 async function _inboxDismiss(draftId) {
