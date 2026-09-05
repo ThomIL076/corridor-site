@@ -222,6 +222,22 @@ nav {
 .spine-stage.active .spine-rail { background: var(--accent); }
 @media (max-width: 760px) { .journey-spine { min-width: 660px; } }
 
+/* ── Today: layout (README) : contenu + rail 296px, passe en colonne sous 1180px. Structure
+   statique -- classes CSS ici, contrairement aux cartes generees en JS (priority-card) qui
+   restent en styles inline, convention deja etablie dans ce fichier. */
+.today-layout { display: flex; gap: 28px; align-items: flex-start; }
+.today-main { flex: 1; min-width: 0; }
+.today-rail { width: 296px; flex-shrink: 0; border-left: 1px solid var(--border); padding-left: 20px; }
+@media (max-width: 1180px) {
+  .today-layout { flex-direction: column; }
+  .today-rail { width: 100%; border-left: none; border-top: 1px solid var(--border); padding-left: 0; padding-top: 20px; margin-top: 4px; }
+}
+.today-step-divider { display: flex; align-items: center; gap: 10px; margin: 22px 0 14px; }
+.today-step-divider:first-child { margin-top: 0; }
+.today-step-label { font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+.today-step-rule { flex: 1; height: 1px; background: var(--border); }
+.today-step-count { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--dim); white-space: nowrap; }
+
 /* ── TIROIR PROSPECT (restructuration scroll, chunk 2) ──
    Remplace .dtab/.dtab-panel : header fixe (.pd-*) + corps qui scrolle en 5 sections +
    footer fixe, comme specifie. #drawer reste position:fixed/flex-direction:column (inchange). */
@@ -1900,7 +1916,7 @@ body.new-nav { padding-left: 220px; }
 
   <!-- ══ TAB: PRIORITIES VIEW ══ -->
   <div class="tab-panel" id="tab-priorities">
-    <div style="padding:24px 16px 0;max-width:800px;margin:0 auto;">
+    <div style="padding:24px 16px 0;max-width:1120px;margin:0 auto;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
         <h2 style="font-size:var(--fs-lg);font-weight:700;color:var(--navy);margin:0;">Today's Priorities</h2>
         <button id="priorities-next-btn" onclick="_prioritiesNext()" disabled
@@ -1908,14 +1924,36 @@ body.new-nav { padding-left: 220px; }
           Next batch →
         </button>
       </div>
-      <div class="card" style="margin-bottom:16px;">
-        <div class="card-header" style="display:flex;align-items:center;gap:8px;">
-          <span class="card-title">Agents at work</span>
-          <span class="card-badge badge-auto">LIVE</span>
+      <div class="today-layout">
+        <div class="today-main">
+          <div class="today-step-divider">
+            <span class="today-step-label">Step 1 · High-conviction signals</span>
+            <span class="today-step-rule"></span>
+          </div>
+          <div id="priorities-container"></div>
+          <!-- Step 2 : masque par defaut, revele par _loadFollowUpsDue() seulement s'il existe
+               au moins un prospect avec reminder_date <= aujourd'hui (cf. arbitrage Thomas). -->
+          <div class="today-step-divider" id="today-followup-divider" hidden>
+            <span class="today-step-label">Step 2 · Follow-ups due (J+5)</span>
+            <span class="today-step-rule"></span>
+            <span class="today-step-count" id="today-followup-count"></span>
+          </div>
+          <div id="today-followups-container"></div>
         </div>
-        <div id="agents-at-work-list" style="font-size:var(--fs-sm);color:var(--muted);">Loading...</div>
+        <div class="today-rail">
+          <div class="card" style="margin-bottom:16px;">
+            <div class="card-header" style="display:flex;align-items:center;gap:8px;">
+              <span class="card-title">Agents at work</span>
+              <span class="card-badge badge-auto">LIVE</span>
+            </div>
+            <div id="agents-at-work-list" style="font-size:var(--fs-sm);color:var(--muted);">Loading...</div>
+          </div>
+          <div class="card">
+            <div class="card-header"><span class="card-title">Today's capacity</span></div>
+            <div id="today-capacity-bars" style="font-size:var(--fs-sm);color:var(--muted);">Loading...</div>
+          </div>
+        </div>
       </div>
-      <div id="priorities-container"></div>
     </div>
   </div>
 
@@ -3461,7 +3499,7 @@ function switchTab(name, fromClick = false) {
   if (name === 'pipeline') { const sh = document.getElementById('kanban-swipe-hint'); if (sh) { sh.style.opacity = '1'; setTimeout(() => { sh.style.opacity = '0'; }, 3000); } }
   if (name === 'send') loadSendView();
   if (name === 'agents') _showAgentsMap();
-  if (name === 'priorities') { loadDailyPriorities(); _loadAgentsAtWork(); }
+  if (name === 'priorities') { loadDailyPriorities(); _loadAgentsAtWork(); _fetchTodaySendCounts().catch(err => console.error('_fetchTodaySendCounts:', err)); _loadFollowUpsDue(); }
   if (name === 'inbox') loadInboxDrafts();
   if (name === 'stats') { if (!_kanbanLoaded) { loadKanban().then(() => renderStats()); } else { renderStats(); } }
   if (name === 'clients') loadClientsKanban();
@@ -6930,13 +6968,40 @@ const EMAIL_DAILY_LIMIT   = 40;
 let _todaySendCounts = { invitesSent: 0, messagesSent: 0, emailsSent: 0 };
 
 function _updateSentCounter() {
-  const el = document.getElementById('sent-counter');
-  if (!el) return;
   const { invitesSent: inv, messagesSent: msg, emailsSent: em } = _todaySendCounts;
-  el.textContent = `Invites: ${inv}/${INVITE_DAILY_LIMIT} · LinkedIn: ${msg}/${MESSAGE_DAILY_LIMIT} · Emails: ${em}/${EMAIL_DAILY_LIMIT}`;
-  if (inv >= 28 || msg >= 38 || em >= 38)      { el.style.color = 'var(--red)'; }
-  else if (inv >= 25 || msg >= 35 || em >= 35) { el.style.color = '#ea580c'; }
-  else                                          { el.style.color = 'var(--muted)'; }
+  const el = document.getElementById('sent-counter');
+  if (el) {
+    el.textContent = `Invites: ${inv}/${INVITE_DAILY_LIMIT} · LinkedIn: ${msg}/${MESSAGE_DAILY_LIMIT} · Emails: ${em}/${EMAIL_DAILY_LIMIT}`;
+    if (inv >= 28 || msg >= 38 || em >= 38)      { el.style.color = 'var(--red)'; }
+    else if (inv >= 25 || msg >= 35 || em >= 35) { el.style.color = '#ea580c'; }
+    else                                          { el.style.color = 'var(--muted)'; }
+  }
+  // TODAY'S CAPACITY (README) : rendu partage Today/Send -- une seule fonction, appelee ici pour
+  // ne pas dupliquer la logique de calcul (_todaySendCounts / limites deja definies plus haut).
+  // Le rendu texte plat de Send (#sent-counter, ci-dessus) reste inchange pour cette passe --
+  // seul Today recoit le nouveau widget en barres, cf. scope arbitre (pass Today uniquement).
+  _renderCapacityBars('today-capacity-bars', inv, msg, em);
+}
+
+function _renderCapacityBars(containerId, inv, msg, em) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  const bar = (label, val, max) => {
+    const pct = Math.min(100, Math.round((val / max) * 100));
+    const color = pct >= 93 ? 'var(--danger)' : (pct >= 83 ? '#ea580c' : 'var(--accent)');
+    return `<div style="margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;font-size:var(--fs-xs);color:var(--muted);margin-bottom:4px;">
+        <span>${_esc(label)}</span><span style="font-family:'IBM Plex Mono',monospace;">${val}/${max}</span>
+      </div>
+      <div style="height:4px;border-radius:2px;background:var(--border);overflow:hidden;">
+        <div style="height:100%;width:${pct}%;background:${color};border-radius:2px;"></div>
+      </div>
+    </div>`;
+  };
+  el.innerHTML =
+    bar('LinkedIn invites', inv, INVITE_DAILY_LIMIT) +
+    bar('LinkedIn messages', msg, MESSAGE_DAILY_LIMIT) +
+    bar('Emails', em, EMAIL_DAILY_LIMIT);
 }
 
 async function _fetchTodaySendCounts() {
@@ -8502,9 +8567,12 @@ function _renderPriorityCards(prospects) {
 
   container.innerHTML = prospects.map(p => {
     const scoreVal = (p.icp_score || 0).toFixed(1);
+    // Tier bar (README) : danger >=9, warn 8-8.9, neutre en dessous -- pas de 3e couleur
+    // inventee, on retombe sur --border quand aucun des deux seuils n'est atteint.
+    const tierColor = (p.icp_score || 0) >= 9 ? 'var(--danger)' : ((p.icp_score || 0) >= 8 ? 'var(--amber)' : 'var(--border)');
     const signalHtml = p.signal
       ? `<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:4px;line-height:1.4;">`
-        + (p.signal_type ? `<span style="font-weight:600;color:var(--indigo);">[${_esc(p.signal_type)}]</span> ` : '')
+        + (p.signal_type ? `<span style="font-weight:600;padding:1px 6px;border-radius:var(--radius-badge);background:var(--chip-bg);color:var(--indigo);margin-right:5px;">${_esc(p.signal_type)}</span>` : '')
         + _esc(p.signal.replace(/<[^>]*>/g, '').slice(0, 160))
         + `</div>`
       : '';
@@ -8525,10 +8593,19 @@ function _renderPriorityCards(prospects) {
            </button>
          </div>`;
 
+    // README met le contenu de actionHtml dans une colonne action 196px a droite (channel +
+    // CTA court). On ne l'y force pas : next_action_cache est un texte multi-lignes genere par
+    // l'IA, pas un court libelle -- le comprimer dans 196px degraderait la lisibilite sans
+    // apporter de risque justifie pour ce premier ecran. Reste en pleine largeur sous le corps,
+    // comme avant ; seuls tier-bar/colonne score/corps sont restructures.
     return `<div class="priority-card" data-id="${p.id}"
-        style="background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius-md);
-               padding:18px 20px;margin-bottom:12px;">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+        style="display:flex;background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius-md);margin-bottom:12px;overflow:hidden;">
+      <div style="width:3px;flex-shrink:0;background:${tierColor};"></div>
+      <div style="width:74px;flex-shrink:0;border-right:1px solid var(--border);padding:16px 8px;text-align:center;">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;color:var(--navy);">${scoreVal}</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:0.16em;text-transform:uppercase;color:var(--muted);margin-top:2px;">ICP</div>
+      </div>
+      <div style="flex:1;min-width:0;padding:16px 20px;">
         <div style="min-width:0;flex:1;">
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
             <button onclick="_openDrawerFromPriority('${p.id}')"
@@ -8547,12 +8624,59 @@ function _renderPriorityCards(prospects) {
           ${signalHtml}
           ${p.email ? `<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:3px;"><a href="mailto:${_esc(p.email)}" style="color:inherit;text-decoration:underline;">${_esc(p.email)}</a></div>` : ''}
         </div>
-        <div style="text-align:right;flex-shrink:0;">
-          <div style="font-size:var(--fs-base);font-weight:700;color:var(--navy);">${scoreVal}</div>
-          <div style="font-size:var(--fs-xs);color:var(--muted);">ICP</div>
-        </div>
+        ${actionHtml}
       </div>
-      ${actionHtml}
+    </div>`;
+  }).join('');
+}
+
+// ── Today, Step 2 : Follow-ups due (README) ──────────────────────────────────────────────────
+// Critere arbitre par Thomas : reminder_date <= aujourd'hui (colonne deja utilisee par la bande
+// "No reminder set" du tiroir), stages fermes exclus. Pas de reprise de _isProspectStalled() ici
+// (garde last_contact/stage!=='Identified' en plus) -- critere volontairement plus simple, tel
+// que specifie. Requete dediee car aucune liste "reminders dus" n'existait deja dans le fichier
+// (le pipeline snapshot IA passe par /api/pipeline-prospects, un chemin different, usage different).
+async function _loadFollowUpsDue() {
+  const el = document.getElementById('today-followups-container');
+  const divider = document.getElementById('today-followup-divider');
+  const countEl = document.getElementById('today-followup-count');
+  if (!el) return;
+  try {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    let q = sbClient.from('prospects')
+      .select('id,name,company,icp_score,stage,reminder_date,last_contact,linkedin,email')
+      .eq('client_id', CLIENT_ID).eq('archived', false)
+      .lte('reminder_date', todayStr)
+      .neq('stage', 'Closed').neq('stage', 'Archived');
+    q = _applyMandateFilter(q);
+    const { data, error } = await q.order('reminder_date', { ascending: true }).limit(10);
+    if (error) throw error;
+    const rows = data || [];
+    rows.forEach(p => { if (!_prospectsById[p.id]) _prospectsById[p.id] = p; });
+    if (divider) divider.hidden = rows.length === 0;
+    if (countEl) countEl.textContent = rows.length ? rows.length + ' due' : '';
+    _renderFollowUpRows(rows);
+  } catch(e) {
+    console.warn('[_loadFollowUpsDue]', e);
+    if (divider) divider.hidden = true;
+    el.innerHTML = '';
+  }
+}
+
+function _renderFollowUpRows(rows) {
+  const el = document.getElementById('today-followups-container');
+  if (!el) return;
+  el.innerHTML = rows.map(p => {
+    const initials = _esc((p.name || '?').trim().split(/\s+/).map(s => s[0] || '').slice(0, 2).join('').toUpperCase() || '?');
+    const rem = _fmtReminder(p.reminder_date);
+    return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);">
+      <div style="width:30px;height:30px;border-radius:50%;background:var(--navy-light);color:var(--ink);font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${initials}</div>
+      <div style="min-width:0;flex:1;">
+        <button onclick="_openDrawerFromPriority('${p.id}')" style="background:none;border:none;padding:0;cursor:pointer;font-weight:700;font-size:var(--fs-base);color:var(--navy);text-decoration:underline;">${_esc(p.name || '—')}</button>
+        <span style="font-size:var(--fs-sm);color:var(--muted);margin-left:6px;">${_esc(p.company || '—')}</span>
+        ${rem ? `<div style="font-family:'IBM Plex Mono',monospace;font-size:var(--fs-xs);color:${rem.overdue ? 'var(--danger)' : 'var(--muted)'};margin-top:2px;">${_esc(rem.label)}</div>` : ''}
+      </div>
+      <button onclick="_openDrawerFromPriority('${p.id}','send')" style="flex-shrink:0;padding:6px 14px;border-radius:var(--radius-pill);background:#f2f9f5;border:1px solid #cfe0d8;color:#166b48;font-size:var(--fs-sm);font-weight:600;cursor:pointer;">Send follow-up</button>
     </div>`;
   }).join('');
 }
@@ -8600,7 +8724,7 @@ async function _priorityGenerate(prospectId) {
   }
 }
 
-function _openDrawerFromPriority(prospectId) {
+function _openDrawerFromPriority(prospectId, initialTab = 'activity') {
   const p = _prospectsById[prospectId];
   if (!p) return;
   const fakeCard = document.createElement('div');
@@ -8611,7 +8735,7 @@ function _openDrawerFromPriority(prospectId) {
   fakeCard.innerHTML =
     `<span class="k-card-name">${_esc(p.name || '')}</span>` +
     `<span class="k-card-company">${_esc(p.company || '')}</span>`;
-  openDrawer(fakeCard, 'activity');
+  openDrawer(fakeCard, initialTab);
 }
 
 // ── INBOX ─────────────────────────────────────────────────────────────────────
