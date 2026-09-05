@@ -169,9 +169,10 @@ nav {
   border-bottom: 1px solid var(--border);
 }
 .mandate-bar-label {
-  font-size:var(--fs-sm);
-  font-weight: 700;
-  letter-spacing: 0.5px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
   color: var(--muted);
 }
 #mandate-select {
@@ -882,9 +883,9 @@ body.ask-open { overflow:hidden; }
 /* ── USER PROFILE NAV ── */
 .user-profile{display:flex;align-items:center;gap:10px;cursor:pointer;padding:6px 10px;border-radius:var(--radius-md);transition:background 0.15s;flex-shrink:0;}
 .user-profile:hover{background:var(--navy-light);}
-.user-avatar{width:56px;height:56px;border-radius:50%;background:var(--navy);color:#fff;font-size:20px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;border:2px solid #e2e8f0;}
+.user-avatar{width:32px;height:32px;border-radius:50%;background:var(--navy);color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;border:1.5px solid #e2e8f0;}
 .user-avatar img{width:100%;height:100%;object-fit:cover;object-position:center top;}
-.user-avatar.has-photo{width:56px;height:56px;border:2px solid #e2e8f0;}
+.user-avatar.has-photo{width:32px;height:32px;border:1.5px solid #e2e8f0;}
 .user-info{display:flex;flex-direction:column;line-height:1.3;min-width:80px;}
 .user-display-name{font-size:15px;font-weight:700;color:var(--navy);}
 .user-company{font-size:var(--fs-sm);color:var(--dim);}
@@ -1369,14 +1370,21 @@ body.new-nav { padding-left: 220px; }
 
 <!-- MANDATE SELECTOR BAR -->
 <div class="mandate-bar" id="mandate-bar" style="display:none;">
-  <span class="mandate-bar-label">📁 MANDATE</span>
+  <span class="mandate-bar-label">MANDATE</span>
   <select class="input-select" id="mandate-select" onchange="_onMandateChange()">
     <option value="">Consolidated view (all)</option>
   </select>
   <select class="input-select" id="deal-select" style="display:none;" onchange="_onDealChange()">
     <option value="">No specific deal</option>
   </select>
-  <button onclick="_openAskFromMandate()" style="flex-shrink:0;display:flex;align-items:center;gap:6px;font-size:var(--fs-xs);font-weight:700;padding:4px 12px;border:1px solid var(--blue);border-radius:var(--radius-pill);background:transparent;color:var(--blue);cursor:pointer;height:28px;" data-en="Ask Corridor" data-fr="Demander à Corridor">Ask Corridor</button>
+  <!-- Pastille Ask Corridor (Phase 1, chunk top bar) : fond ink + point live, comme la spec.
+       Reste dans .mandate-bar pour l'instant plutot que fusionnee avec <nav> dans une seule
+       barre 58px -- fusion + relocalisation du logo/Sign out laissees pour une passe separee,
+       signalees explicitement plutot que tentees a la va-vite dans ce chunk. -->
+  <button onclick="_openAskFromMandate()" style="flex-shrink:0;display:flex;align-items:center;gap:7px;font-size:var(--fs-xs);font-weight:600;padding:6px 14px;border:none;border-radius:var(--radius-pill);background:var(--ink);color:#fff;cursor:pointer;height:30px;margin-left:auto;">
+    <span data-en="Ask Corridor" data-fr="Demander à Corridor">Ask Corridor</span>
+    <span style="width:6px;height:6px;border-radius:50%;background:var(--success);display:inline-block;flex-shrink:0;animation:pulseDot 2.4s ease-in-out infinite;"></span>
+  </button>
 </div>
 
 
