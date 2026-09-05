@@ -111,6 +111,11 @@
   --success-border: #a8e0c4;
   --danger-bg: #fdf1f1;
   --danger-border: #eab3b3;
+  /* --accent n'avait pas de derive clair (contrairement a success/danger ci-dessus) --
+     invente sur le meme modele (teinte de la couleur de base) pour la boite "AI Insight"
+     du tiroir prospect, qui a besoin de se distinguer visuellement du reste. */
+  --accent-bg: #eaf1ff;
+  --accent-border: #b3cbff;
 }
 
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -224,7 +229,7 @@ nav {
 .pd-head-top { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
 .pd-name-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
 .pd-name { font-size:18px; font-weight:600; color:var(--ink); }
-.pd-stage-chip { font-family:'IBM Plex Mono',monospace; font-size:9px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; padding:2px 8px; border-radius:var(--radius-pill); background:var(--navy-light); color:var(--navy); }
+.pd-stage-chip { font-family:'IBM Plex Mono',monospace; font-size:9px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; padding:2px 8px; border-radius:var(--radius-pill); background:var(--navy-light); color:var(--ink); }
 .pd-role { font-size:13px; color:var(--muted); margin-top:2px; }
 .pd-firmo { font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:0.04em; color:var(--dim); margin-top:5px; }
 .pd-close { flex-shrink:0; width:28px; height:28px; border-radius:var(--radius-sm); border:1px solid var(--border); background:#fff; color:var(--muted); cursor:pointer; font-size:14px; display:flex; align-items:center; justify-content:center; }
@@ -260,6 +265,35 @@ nav {
 .pd-footer { display:flex; gap:8px; padding:14px 22px; border-top:1px solid var(--border); flex-shrink:0; background:#fff; }
 .pd-plus { display:flex; align-items:center; gap:6px; font-size:12px; font-weight:600; color:var(--accent); background:none; border:none; cursor:pointer; padding:4px 0; }
 .pd-plus:hover { text-decoration:underline; }
+
+/* ── Drawer prospect : pass visuel (tokens nouvelle direction) ──
+   Reutilise les patterns Ask Corridor (geometrie, .pd-close deja communs). Structure/logique JS
+   inchangees -- uniquement palette/typo. Portee via #drawer pour les classes bouton, ai-box et
+   dp-inp, partagees avec Scanner/Send/Add Prospect/autres panels agents non encore redessines ;
+   les classes int- et pd-stage-chip sont editees directement (usage exclusif au tiroir, verifie). */
+#drawer .btn-primary { font-family:'Instrument Sans',sans-serif; background:var(--ink); }
+#drawer .btn-primary:hover { background:#16233d; }
+#drawer .btn-secondary { font-family:'Instrument Sans',sans-serif; color:var(--ink); background:#fff; border-color:var(--border); }
+#drawer .btn-secondary:hover { background:var(--bg); border-color:var(--accent); color:var(--accent); }
+#drawer .btn-accent { font-family:'Instrument Sans',sans-serif; background:var(--accent); color:#fff; }
+#drawer .btn-accent:hover { background:#1d4fd6; box-shadow:none; }
+#drawer .ai-box-header { background:var(--bg); }
+#drawer .ai-box-label { color:var(--ink); }
+#drawer .ai-spinner { border-top-color:var(--ink); }
+#drawer .dp-inp:focus { border-color:var(--accent); }
+.int-type-btn:hover { border-color:var(--ink); color:var(--ink); }
+.int-type-btn.selected { background:var(--ink); border-color:var(--ink); }
+.int-note-input:focus { border-color:var(--accent); }
+.int-save-btn { color:var(--ink); border-color:var(--ink); }
+.int-save-btn:hover { background:var(--ink); }
+/* renderMarkdown() est global (Scanner/Kanban/Today/tiroir) et pose des couleurs navy/blue en style inline sur
+   ses titres/puces -- non modifiable sans affecter les vues non refaites. Scope via #drawer (racine exclusive
+   au tiroir) + selecteur d'attribut cible uniquement les elements avec cette couleur precise, sans toucher au reste. */
+#drawer h3[style*="var(--navy)"], #drawer h4[style*="var(--navy)"] { color:var(--ink) !important; }
+#drawer span[style*="color:var(--blue)"] { color:var(--accent) !important; }
+/* Touch-selector (_renderManualSection) est aussi partage avec la vue Send ; #dpanel-send = conteneur
+   exclusif au tiroir (verifie : seule _renderManualSection y ecrit), donc pas de fuite vers Send. */
+#dpanel-send button[style*="var(--navy)"] { border-color:var(--ink) !important; background:var(--ink) !important; }
 
 /* ── MAIN CONTENT ── */
 .main { max-width:1160px; margin:0 auto; padding:52px 48px 80px; }
@@ -856,9 +890,9 @@ footer a { color:var(--navy); text-decoration:none; font-weight:600; }
 
 /* ── PIPELINE DRAWER (multi-touch timeline) ── */
 .k-card { cursor:pointer; }
-#drawer-overlay { position:fixed; inset:0; background:rgba(26,43,94,0.35); z-index:9500; opacity:0; pointer-events:none; transition:opacity 0.25s; }
+#drawer-overlay { position:fixed; inset:0; background:rgba(14,26,46,.34); z-index:9500; opacity:0; pointer-events:none; transition:opacity 0.25s; }
 #drawer-overlay.open { opacity:1; pointer-events:auto; }
-#drawer { position:fixed; top:0; right:0; height:100%; width:var(--drawer-width); max-width:95vw; background:var(--white); box-shadow:-8px 0 30px rgba(26,43,94,0.18); z-index:9600; transform:translateX(100%); transition:transform 0.3s cubic-bezier(0.4,0,0.2,1); display:flex; flex-direction:column; overflow:hidden; }
+#drawer { position:fixed; top:0; right:0; height:100%; width:var(--drawer-width); max-width:95vw; background:var(--white); border-left:1px solid var(--border); box-shadow:-8px 0 40px rgba(14,26,46,.14); z-index:9600; transform:translateX(100%); transition:transform 0.3s cubic-bezier(0.4,0,0.2,1); display:flex; flex-direction:column; overflow:hidden; font-family:'Instrument Sans',sans-serif; }
 #drawer.open { transform:translateX(0); }
 body.drawer-open { overflow:hidden; }
 /* ── Scanner overlay panel ── */
@@ -7390,7 +7424,7 @@ function _reminderBannerHTML(reminderDate) {
   return `<div id="reminder-banner" style="margin:12px 16px 0;border-radius:var(--radius-md);overflow:hidden;border:1px solid ${bdr}">
     <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:${bg};font-size:var(--fs-sm);color:${tc}">
       <span style="display:flex;align-items:center;gap:6px">${clockSvg}${_esc(label)}</span>
-      <a href="#" style="font-size:var(--fs-xs);color:var(--navy);text-decoration:underline;text-underline-offset:2px;white-space:nowrap;margin-left:8px"
+      <a href="#" style="font-size:var(--fs-xs);color:var(--ink);text-decoration:underline;text-underline-offset:2px;white-space:nowrap;margin-left:8px"
         onclick="event.preventDefault();var row=document.getElementById('reminder-edit-row');row.style.display=row.style.display==='flex'?'none':'flex'">${r?'Edit':'Set'}</a>
     </div>
     <div id="reminder-edit-row" style="display:none;align-items:center;gap:8px;padding:8px 12px;background:#f8f9fb;border-top:1px solid ${bdr}">
@@ -7494,8 +7528,8 @@ function _renderBuyingCommittee(prospectId, byRole, loading) {
     const label = _BC_ROLE_LABELS[role];
     if (r && r.name) {
       const nameHtml = r.linkedin
-        ? '<a href="' + _esc(r.linkedin) + '" target="_blank" rel="noopener" style="color:var(--navy);text-decoration:underline;font-weight:600;">' + _esc(r.name) + '</a>'
-        : '<span style="font-weight:600;color:var(--navy);">' + _esc(r.name) + '</span>';
+        ? '<a href="' + _esc(r.linkedin) + '" target="_blank" rel="noopener" style="color:var(--ink);text-decoration:underline;font-weight:600;">' + _esc(r.name) + '</a>'
+        : '<span style="font-weight:600;color:var(--ink);">' + _esc(r.name) + '</span>';
       return '<div style="display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);font-size:var(--fs-sm);">'
         + '<span style="color:var(--muted);flex-shrink:0;">' + label + '</span>'
         + '<span style="text-align:right;min-width:0;">' + nameHtml + (r.title ? '<div style="font-size:var(--fs-xs);color:var(--muted);">' + _esc(r.title) + '</div>' : '') + '</span>'
@@ -7539,7 +7573,7 @@ async function openDrawer(card, initialTab = 'activity') {
   const lcStr = lastContact ? _relDate(lastContact) : null;
   const _hasCachedAction = !!(_p.next_action_cache);
   const _cachedRendered = _p.next_action_cache
-    ? renderMarkdown(_p.next_action_cache).replace(/([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})/g, '<a href="mailto:$1" style="color:var(--navy);text-decoration:underline">$1</a>')
+    ? renderMarkdown(_p.next_action_cache).replace(/([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})/g, '<a href="mailto:$1" style="color:var(--ink);text-decoration:underline">$1</a>')
     : null;
 
   // Interactions + replies charges AVANT le template (restructuration scroll) : Touches et
@@ -8353,7 +8387,7 @@ async function _drawerAI() {
     if (_drOut) {
       const _rendered = renderMarkdown(text).replace(
         /([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})/g,
-        '<a href="mailto:$1" style="color:var(--navy);text-decoration:underline">$1</a>'
+        '<a href="mailto:$1" style="color:var(--ink);text-decoration:underline">$1</a>'
       );
       _drOut.innerHTML = _rendered;
       _drOut.classList.add('loaded');
@@ -9032,7 +9066,7 @@ Rules: no em-dashes, no markdown headers, factual only, base everything on the n
     </div>
     ${verdictActions}
     <pre style="font-size:var(--fs-sm);line-height:1.6;white-space:pre-wrap;margin:0 0 10px;font-family:inherit;">${_esc(formatted)}</pre>
-    ${emailBody ? `<a href="${gmailHref}" target="_blank" rel="noopener" style="display:inline-block;font-size:var(--fs-sm);padding:6px 14px;background:var(--navy);color:#fff;border-radius:var(--radius-sm);text-decoration:none;font-weight:600;">Open Gmail compose</a>` : ''}
+    ${emailBody ? `<a href="${gmailHref}" target="_blank" rel="noopener" style="display:inline-block;font-size:var(--fs-sm);padding:6px 14px;background:var(--ink);color:#fff;border-radius:var(--radius-sm);text-decoration:none;font-weight:600;">Open Gmail compose</a>` : ''}
   </div>`;
 
   // Persist debrief to interactions table
@@ -10045,14 +10079,14 @@ async function _setOrigin(pid, origin) {
   const btnNetwork  = document.getElementById('origin-network-'  + pid);
   const btnOutbound = document.getElementById('origin-outbound-' + pid);
   if (btnNetwork) {
-    btnNetwork.style.background  = origin === 'network' ? 'var(--navy)' : 'var(--white)';
+    btnNetwork.style.background  = origin === 'network' ? 'var(--ink)' : 'var(--white)';
     btnNetwork.style.color       = origin === 'network' ? '#fff'    : 'var(--text)';
-    btnNetwork.style.borderColor = origin === 'network' ? 'var(--navy)' : 'var(--border)';
+    btnNetwork.style.borderColor = origin === 'network' ? 'var(--ink)' : 'var(--border)';
   }
   if (btnOutbound) {
-    btnOutbound.style.background  = origin !== 'network' ? 'var(--navy)' : 'var(--white)';
+    btnOutbound.style.background  = origin !== 'network' ? 'var(--ink)' : 'var(--white)';
     btnOutbound.style.color       = origin !== 'network' ? '#fff'    : 'var(--text)';
-    btnOutbound.style.borderColor = origin !== 'network' ? 'var(--navy)' : 'var(--border)';
+    btnOutbound.style.borderColor = origin !== 'network' ? 'var(--ink)' : 'var(--border)';
   }
   const { error: _originErr } = await sbClient.from('prospects').update({ origin }).eq('id', pid).eq('client_id', CLIENT_ID);
   if (_originErr) { console.error('[_setOrigin] update failed:', _originErr); showToast('Error updating origin'); return; }
@@ -10064,7 +10098,7 @@ function _renderSignalLink(signalText, signalUrl) {
   const parenMatch = (signalText || '').match(/\((https?:\/\/[^\s)]+)\)/);
   const url = signalUrl || _extractSigUrl(signalText) || (parenMatch ? parenMatch[1] : null);
   wrap.innerHTML = url
-    ? `<a href="${_esc(url)}" target="_blank" rel="noopener noreferrer" style="color:var(--navy);text-decoration:underline;font-weight:600;">${(typeof currentLang!=='undefined'&&currentLang==='fr')?'Voir le post →':'View post →'}</a>`
+    ? `<a href="${_esc(url)}" target="_blank" rel="noopener noreferrer" style="color:var(--ink);text-decoration:underline;font-weight:600;">${(typeof currentLang!=='undefined'&&currentLang==='fr')?'Voir le post →':'View post →'}</a>`
     : '';
 }
 function _drawerProfileHTML(id, p, colStage, fb){
@@ -10084,12 +10118,12 @@ function _drawerProfileHTML(id, p, colStage, fb){
       `<input id="ed-title" class="dp-inp" value="${v(p.title)}" placeholder="Title">` +
       `<div style="display:flex;gap:8px">` +
         `<input id="ed-email" class="dp-inp" value="${v(p.email)}" placeholder="Email" style="flex:1;min-width:0">` +
-        `<button id="find-email-${id}" onclick="_findEmailDrawer('${id}')" style="font-size:var(--fs-sm);white-space:nowrap;min-width:95px;padding:6px 12px;background:var(--navy);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer">Find email</button>` +
+        `<button id="find-email-${id}" onclick="_findEmailDrawer('${id}')" style="font-size:var(--fs-sm);white-space:nowrap;min-width:95px;padding:6px 12px;background:var(--ink);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer">Find email</button>` +
       `</div>` +
       `<span id="email-status-${id}" style="font-size:var(--fs-xs);color:var(--muted)"></span>` +
       `<div style="display:flex;gap:8px">` +
         `<input id="ed-phone" class="dp-inp" value="${v(p.phone)}" placeholder="Phone" style="flex:1;min-width:0">` +
-        `<button id="find-phone-${id}" onclick="_findPhoneDrawer('${id}')" style="font-size:var(--fs-sm);white-space:nowrap;min-width:95px;padding:6px 12px;background:var(--navy);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer">Find phone</button>` +
+        `<button id="find-phone-${id}" onclick="_findPhoneDrawer('${id}')" style="font-size:var(--fs-sm);white-space:nowrap;min-width:95px;padding:6px 12px;background:var(--ink);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer">Find phone</button>` +
       `</div>` +
       `<span id="phone-status-${id}" style="font-size:var(--fs-xs);color:var(--muted)"></span>` +
       `<input id="ed-linkedin" class="dp-inp" value="${v(p.linkedin)}" placeholder="LinkedIn URL">`
@@ -10116,7 +10150,7 @@ function _drawerProfileHTML(id, p, colStage, fb){
           const _emailDom2 = _emailRaw2.includes('@') ? _emailRaw2.split('@')[1].trim().toLowerCase() : null;
           const _hasDom = (_dom && !_dom.includes('linkedin.com') && _dom.includes('.')) || (_emailDom2 && _emailDom2.includes('.'));
           return _hasDom
-            ? `<button id="co-enrich-${id}" onclick="_enrichCompanyDrawer('${id}')" style="font-size:var(--fs-sm);white-space:nowrap;padding:6px 12px;background:var(--navy);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer">Enrich Company</button>`
+            ? `<button id="co-enrich-${id}" onclick="_enrichCompanyDrawer('${id}')" style="font-size:var(--fs-sm);white-space:nowrap;padding:6px 12px;background:var(--ink);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer">Enrich Company</button>`
             : `<button disabled style="font-size:var(--fs-sm);white-space:nowrap;padding:6px 12px;background:var(--border);color:var(--muted);border:none;border-radius:var(--radius-sm);cursor:not-allowed">No domain on file</button>`;
         })() +
         `<span id="co-enrich-status-${id}" style="font-size:var(--fs-xs);color:var(--muted)"></span>` +
@@ -10124,21 +10158,21 @@ function _drawerProfileHTML(id, p, colStage, fb){
       `<div>` +
         `<p style="font-size:var(--fs-xs);color:var(--muted);font-weight:600;letter-spacing:0.02em;margin:0 0 6px">Contact type</p>` +
         `<div style="display:flex;gap:8px">` +
-          `<button id="origin-network-${id}" onclick="_setOrigin('${id}','network')" style="font-size:var(--fs-sm);padding:5px 12px;border-radius:var(--radius-sm);cursor:pointer;border:1px solid ${p.origin==='network'?'var(--navy)':'var(--border)'};background:${p.origin==='network'?'var(--navy)':'var(--white)'};color:${p.origin==='network'?'#fff':'var(--text)'}">Known contact</button>` +
-          `<button id="origin-outbound-${id}" onclick="_setOrigin('${id}','outbound')" style="font-size:var(--fs-sm);padding:5px 12px;border-radius:var(--radius-sm);cursor:pointer;border:1px solid ${p.origin!=='network'?'var(--navy)':'var(--border)'};background:${p.origin!=='network'?'var(--navy)':'var(--white)'};color:${p.origin!=='network'?'#fff':'var(--text)'}">New prospect</button>` +
+          `<button id="origin-network-${id}" onclick="_setOrigin('${id}','network')" style="font-size:var(--fs-sm);padding:5px 12px;border-radius:var(--radius-sm);cursor:pointer;border:1px solid ${p.origin==='network'?'var(--ink)':'var(--border)'};background:${p.origin==='network'?'var(--ink)':'var(--white)'};color:${p.origin==='network'?'#fff':'var(--text)'}">Known contact</button>` +
+          `<button id="origin-outbound-${id}" onclick="_setOrigin('${id}','outbound')" style="font-size:var(--fs-sm);padding:5px 12px;border-radius:var(--radius-sm);cursor:pointer;border:1px solid ${p.origin!=='network'?'var(--ink)':'var(--border)'};background:${p.origin!=='network'?'var(--ink)':'var(--white)'};color:${p.origin!=='network'?'#fff':'var(--text)'}">New prospect</button>` +
         `</div>` +
       `</div>`
     )}
     ${card(
       lbl('Signal / Context') +
       `<textarea id="drawer-signal" class="dp-inp" rows="3" placeholder="e.g. New CRO hired from PE-backed SaaS, scaled $4M to $28M ARR" style="font-size:var(--fs-base);min-height:60px;resize:vertical">${v(stripHtml(p.signal))}</textarea>` +
-      `<div id="signal-link-wrap" style="font-size:var(--fs-xs)">${(() => { const _u = p.signal_url || _extractSigUrl(p.signal); return _u ? `<a href="${_esc(_u)}" target="_blank" rel="noopener noreferrer" style="color:var(--navy);text-decoration:underline;font-weight:600;">${(typeof currentLang!=='undefined'&&currentLang==='fr')?'Voir le post →':'View post →'}</a>` : ''; })()}</div>` +
+      `<div id="signal-link-wrap" style="font-size:var(--fs-xs)">${(() => { const _u = p.signal_url || _extractSigUrl(p.signal); return _u ? `<a href="${_esc(_u)}" target="_blank" rel="noopener noreferrer" style="color:var(--ink);text-decoration:underline;font-weight:600;">${(typeof currentLang!=='undefined'&&currentLang==='fr')?'Voir le post →':'View post →'}</a>` : ''; })()}</div>` +
       (p.signal_date && _relDate(p.signal_date) ? `<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:2px">Signal: ${_esc(_relDate(p.signal_date))}</div>` : '') +
       `<select id="drawer-signal-type" style="font-size:var(--fs-sm);padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);color:var(--text)">` +
         `<option value="">-- Signal type --</option>` +
         `${(_signalTaxonomy && Object.keys(_signalTaxonomy).length ? Object.values(_signalTaxonomy) : [{code:'S1',label:'S1'},{code:'S2',label:'S2'},{code:'S3',label:'S3'},{code:'S4',label:'S4'},{code:'activity',label:currentLang==='fr'?'Engagement passif (réaction/commentaire)':'Passive engagement (reaction/comment)',icon:'👁'}]).map(t => `<option value="${_esc(t.code)}"${(p.signal_type||'').toUpperCase()===(t.code||'').toUpperCase()?' selected':''}>${_esc(t.icon||'')} ${_esc(t.code)} — ${_esc(t.label||t.code)}</option>`).join('')}` +
       `</select>` +
-      (p.signalInterpretation ? `<div style="background:var(--navy-light);border:1px solid var(--blue);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--navy);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:10px;opacity:0.65;display:block;margin-bottom:3px">✦ ${currentLang==='fr'?'Analyse IA':'AI Insight'}</span>${v(stripHtml(p.signalInterpretation))}</div>` : '')
+      (p.signalInterpretation ? `<div style="background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--ink);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:10px;opacity:0.65;display:block;margin-bottom:3px">✦ ${currentLang==='fr'?'Analyse IA':'AI Insight'}</span>${v(stripHtml(p.signalInterpretation))}</div>` : '')
     )}
     ${card(
       lbl('Deal Value') +
@@ -10173,7 +10207,7 @@ function _drawerProfileHTML(id, p, colStage, fb){
       <div id="dvg-shared" class="dv-field-group" style="display:none">
         <div class="dv-field-row"><label>Our share</label><input type="number" id="dv-share-pct" min="0" max="100" step="1" placeholder="50" oninput="recalcDealValue()"><span class="dv-pct">%</span></div>
         <div class="dv-field-row"><label>Based on</label><select id="dv-sub-type" onchange="_dvShowFields();recalcDealValue()"><option value="retainer_only">Retainer only</option><option value="retainer_success">Retainer + Performance fee</option><option value="prep_success">Upfront fee + Performance fee</option><option value="success_only">Performance fee only</option><option value="fixed">Fixed amount</option></select></div>
-        <div class="dv-field-row" id="dvg-gross-row" style="display:none"><label style="color:var(--muted)">Gross fee</label><span id="dv-gross-fee" style="font-size:var(--fs-sm);font-weight:600;color:var(--navy)">—</span></div>
+        <div class="dv-field-row" id="dvg-gross-row" style="display:none"><label style="color:var(--muted)">Gross fee</label><span id="dv-gross-fee" style="font-size:var(--fs-sm);font-weight:600;color:var(--ink)">—</span></div>
       </div>
       <div id="dvg-referral" class="dv-field-group" style="display:none">
         <div class="dv-field-row"><label>Monthly base</label><input type="number" id="dv-referral-base" min="0" placeholder="0" oninput="recalcDealValue()"></div>
