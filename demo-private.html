@@ -7148,6 +7148,13 @@ function _fmtReminder(iso) {
   if (days === 1) return { label:'Tomorrow', overdue:false };
   return { label:'In ' + days + ' days — ' + d.toLocaleDateString('en-GB',{day:'numeric',month:'short'}), overdue:false };
 }
+// Tiroir prospect (restructuration scroll) : meme definition de "au point mort" que le scoring
+// de priorite quotidienne (hasOverdueReminder, cf. _scoreLead) -- pas une nouvelle notion, reuse
+// exacte pour decider quand afficher le CTA Escalation Handler dans Next action.
+function _isProspectStalled(p) {
+  if (!p) return false;
+  return !!(p.reminder_date && new Date(p.reminder_date) < new Date() && (p.last_contact || p.stage !== 'Identified'));
+}
 const _VERDICT_COLORS = {
   positive: { bg: '#F0FDF4', border: '#86EFAC', text: '#15803D' },
   neutral:  { bg: '#FFFBEB', border: '#FCD34D', text: 'var(--amber)' },
@@ -8712,9 +8719,12 @@ Output the HTML content only. No preamble, no doctype, no wrapper div.`;
       body: JSON.stringify({ to: _ownerInboxEmail(), subject: 'Discovery call brief — ' + (p.name || 'prospect'), html: emailHtml })
     });
     if (!wRes.ok) throw new Error('Webhook ' + wRes.status);
+    // Le brief complet (pas un texte de statut) est persiste ici : la carte "Call prep brief"
+    // du tiroir (restructuration scroll) le relit depuis cette meme interaction, a tout moment --
+    // l'envoi email reste en plus, mais n'est plus la seule trace du contenu genere.
     await sbClient.from('interactions').insert({
       client_id: CLIENT_ID, prospect_id: p.id, mandate_id: p.mandate_id ?? null,
-      type: 'discovery_brief', note: 'Discovery call brief sent by email'
+      type: 'discovery_brief', note: briefHtml
     });
     showToast('Brief sent to your inbox');
   } catch(e) {
