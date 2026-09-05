@@ -6414,6 +6414,15 @@ function _sendCardHTML(p, touchType, expanded = false) {
           <button class="btn-primary btn-md" onclick="_sendViaLinkedIn('${p.id}','${touchType}')" id="sli-${p.id}" ${sendDisabled?'disabled':''} ${sendBlocked?`style="opacity:0.4;cursor:not-allowed" title="${sendTitle}"`:''}>Send via LinkedIn</button>
           <button class="btn-secondary btn-md" onclick="_markSent('${p.id}','${touchType}')" id="sms-${p.id}">✓ Mark as sent</button>
         </div>
+        <!-- Emplacement reserve pour le statut "Researching {company}..." (bug trouve en test
+             reel : Regenerate sur un touch invite/j0 declenche une recherche web dans
+             _generateSequenceMessage(), qui INSERAIT cet element au premier clic -- un saut de
+             layout mesure a 22px, permanent, jamais un vrai re-render de carte/liste (verifie
+             par MutationObserver : la carte ne quitte jamais le DOM). En le pre-declarant ici,
+             vide, _generateSequenceMessage() le retrouve via getElementById (son "if (!srchEl)"
+             existant) au lieu de l'inserer -- zero saut, comportement de generation inchange.
+             Meme style inline que celui pose dynamiquement, pour ne rien faire bouger au clic. -->
+        <div id="srch-${p.id}" style="font-size:var(--fs-sm);color:#8892b0;margin-top:6px;min-height:16px;"></div>
       </div>
       <div class="send-actions">
         <button class="btn-secondary btn-md" onclick="_toggleSendCard('${p.id}')" style="width:100%">${expanded ? '▲ Collapse' : (hasBody ? '▼ Review & send' : '▼ Draft message')}</button>
