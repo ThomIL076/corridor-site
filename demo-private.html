@@ -4899,6 +4899,7 @@ function _askRenderWelcome(ctx) {
     ? 'Posez-moi une question sur votre pipeline, un prospect ou un signal de marché.'
     : 'Ask me anything about your pipeline, a prospect, or a market signal.';
   msgs.innerHTML = '<div class="chat-msg assistant"><div class="chat-avatar">C</div><div class="chat-bubble">' + _esc(welcome) + '<div class="ask-provenance">ASK CORRIDOR</div></div></div>';
+  _askRenderSuggestedPills(ctx);
   const pill = document.getElementById('ask-ctx-label');
   if (!pill) return;
   if (ctx) {
@@ -4909,6 +4910,71 @@ function _askRenderWelcome(ctx) {
     if (label) { pill.textContent = label; pill.style.display = ''; return; }
   }
   pill.style.display = 'none';
+}
+
+// Pills "Suggested" (volet cablage) : questions d'action reelles adaptees au contexte reellement
+// ouvert (nom/societe/mandat deja presents dans ctx, jamais inventes) plutot que des exemples
+// abstraits. Le texte des pills est une QUESTION, jamais une donnee affichee -- rien a verifier
+// cote fabrication de chiffres ici, seule la reponse s'appuiera sur les vraies sources.
+function _askBuildSuggestedPills(ctx) {
+  const fr = (typeof currentLang !== 'undefined' && currentLang === 'fr');
+  if (ctx && ctx.type === 'prospect') {
+    const who = ctx.name || (fr ? 'ce prospect' : 'this prospect');
+    return fr ? [
+      'Quelle est la meilleure prochaine action pour ' + who + ' ?',
+      'Résume le signal pour ' + who,
+      'Rédige un message de relance pour ' + who,
+      'Pourquoi ' + who + ' semble-t-il bloqué ?'
+    ] : [
+      'What’s the best next action for ' + who + '?',
+      'Summarize the signal for ' + who,
+      'Draft a follow-up message for ' + who,
+      'Why does ' + who + ' seem stalled?'
+    ];
+  }
+  if (ctx && ctx.type === 'mandate') {
+    const m = ctx.name || (fr ? 'ce mandat' : 'this mandate');
+    return fr ? [
+      'Quel secteur convertit le mieux sur ' + m + ' ?',
+      'Quels prospects de ' + m + ' ont besoin d’attention ?',
+      'Résume le pipeline de ' + m,
+      'Quel est le taux de conversion sur ' + m + ' ?'
+    ] : [
+      'Which sector converts best on ' + m + '?',
+      'Which prospects on ' + m + ' need attention?',
+      'Summarize the pipeline for ' + m,
+      'What’s the conversion rate on ' + m + '?'
+    ];
+  }
+  return fr ? [
+    'Quels deals ont besoin d’attention aujourd’hui ?',
+    'Quel secteur convertit le mieux ?',
+    'Résume la santé de mon pipeline',
+    'Qu’est-ce qui est en retard de relance ?'
+  ] : [
+    'What deals need attention today?',
+    'Which sector converts best?',
+    'Summarize my pipeline health',
+    'What’s overdue for follow-up?'
+  ];
+}
+function _askRenderSuggestedPills(ctx) {
+  const wrap = document.getElementById('ask-suggested-wrap');
+  const pillsEl = document.getElementById('ask-suggested-pills');
+  if (!wrap || !pillsEl) return;
+  const prompts = _askBuildSuggestedPills(ctx);
+  pillsEl.innerHTML = prompts.map(p =>
+    '<button class="ask-pill" onclick="_askFillPrompt(this.dataset.prompt)" data-prompt="' + _esc(p) + '">' + _esc(p) + '</button>'
+  ).join('');
+  wrap.style.display = prompts.length ? '' : 'none';
+}
+// Clic sur une pill : remplit l'input, ne l'envoie jamais -- l'utilisateur garde la main pour
+// editer avant d'envoyer (decision explicite, pas d'auto-envoi).
+function _askFillPrompt(text) {
+  const input = document.getElementById('ask-input');
+  if (!input) return;
+  input.value = text;
+  input.focus();
 }
 
 function _openAskFromDrawer() {
@@ -4974,6 +5040,17 @@ function _formatPipelineInsights(rows) {
   return 'PIPELINE_INSIGHTS:\n' + lines.join('\n');
 }
 
+// Provenance "READ N ENGAGED DEALS" (volet cablage) : meme filtre exact que spine-count-indeal
+// (renderKanban) -- reutilise _allProspects deja charge, aucune requete supplementaire, respecte
+// deja le filtre mandat actif puisque _allProspects vient de loadKanban().
+function _askEngagedDealsCount() {
+  if (!Array.isArray(_allProspects)) return 0;
+  return _allProspects.filter(p => {
+    const r = _stageRank[_stageKey(p.stage)] || 0;
+    return r >= _stageRank['Engaged'] && _stageKey(p.stage) !== 'Closed';
+  }).length;
+}
+
 async function _buildAskSystemPrompt(ctx, pipelineSnapshot, pipelineInsightsBlock) {
   const mandateBlock = (typeof _mandateContext === 'function') ? _mandateContext() : '';
   let ctxBlock = '';
@@ -5020,7 +5097,11 @@ async function _buildAskSystemPrompt(ctx, pipelineSnapshot, pipelineInsightsBloc
   if (pipelineInsightsBlock) {
     insightsBlock = '\n\n' + pipelineInsightsBlock + '\n\nYou have access to PIPELINE_INSIGHTS above: the real conversion rates computed on the user\'s actual pipeline, by sector, signal type, and country. Each row has an is_reliable field: if false, the sample is too small (fewer than 15 prospects contacted) for the number to mean anything — in that case, never present that number as an actionable fact. Say explicitly that there isn\'t enough data yet on that dimension instead of citing an unreliable percentage. Never calculate, estimate, or invent a conversion rate yourself — use only the numbers provided in PIPELINE_INSIGHTS. If PIPELINE_INSIGHTS has no rows, tell the user honestly that the pipeline doesn\'t have enough activity yet to compute this, rather than staying silent or guessing. Breakdown by time of day or day of week is NOT available yet — if asked about it, say so explicitly instead of improvising an answer.';
   }
-  return 'LANGUAGE RULE (non-negotiable): Respond exclusively in the language of the user\'s latest message — regardless of the language of any data injected below (which may be in French). French context data does not mean French response. Detect only the user message language.\n\nYou are Corridor\'s assistant helping with GTM pipeline management.\n' + mandateBlock + ctxBlock + liveSearchCtx + insightsBlock + '\n\nBe factual and concise. Never use em-dashes (—) or horizontal rules (---) in your response.\nNever state a fact about a prospect, company, mandate, or signal that is not explicitly present in the context provided or in what the user has told you in this conversation. If you don\'t have enough information to answer accurately, say so directly rather than guessing or inferring plausibly-sounding details. Do not invent URLs, dates, numbers, or attributions. When asked about something outside the provided context (general market knowledge, definitions, how-to questions), you may answer from general knowledge, but never blend invented specifics about THIS prospect/mandate/signal with general knowledge in a way that makes them indistinguishable.\n\nFINAL REMINDER: your entire response must be in the language of the user\'s message above, not in the language of the context data.';
+  const prompt = 'LANGUAGE RULE (non-negotiable): Respond exclusively in the language of the user\'s latest message — regardless of the language of any data injected below (which may be in French). French context data does not mean French response. Detect only the user message language.\n\nYou are Corridor\'s assistant helping with GTM pipeline management.\n' + mandateBlock + ctxBlock + liveSearchCtx + insightsBlock + '\n\nBe factual and concise. Never use em-dashes (—) or horizontal rules (---) in your response.\nNever state a fact about a prospect, company, mandate, or signal that is not explicitly present in the context provided or in what the user has told you in this conversation. If you don\'t have enough information to answer accurately, say so directly rather than guessing or inferring plausibly-sounding details. Do not invent URLs, dates, numbers, or attributions. When asked about something outside the provided context (general market knowledge, definitions, how-to questions), you may answer from general knowledge, but never blend invented specifics about THIS prospect/mandate/signal with general knowledge in a way that makes them indistinguishable.\n\nFINAL REMINDER: your entire response must be in the language of the user\'s message above, not in the language of the context data.';
+  // Provenance "N AGENTS CONSULTED" (volet cablage) : liveSearchUsed expose ici car c'est la
+  // seule des 3 sources reelles (snapshot/insights/recherche live) decidee a l'interieur de
+  // cette fonction -- les deux autres sont deja visibles de l'appelant (_sendAskMessage).
+  return { prompt, liveSearchUsed: !!liveSearchCtx };
 }
 
 async function _buildPipelineSnapshot() {
@@ -5127,26 +5208,81 @@ async function _sendAskMessage() {
   if (_isPipelinePerfQuestion(msg)) {
     try { _askInsightsBlock = _formatPipelineInsights(await _fetchPipelineInsights()); } catch(e) { console.warn('[pipeline-insights] error:', e); }
   }
+  const bubbleEl = () => document.getElementById(thinkId)?.querySelector('.chat-bubble');
   try {
+    const { prompt: systemPrompt, liveSearchUsed } = await _buildAskSystemPrompt(_askCtx, _askSnapshot, _askInsightsBlock);
     const res = await fetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'claude-sonnet-5',
         max_tokens: 4000,
-        system: await _buildAskSystemPrompt(_askCtx, _askSnapshot, _askInsightsBlock),
+        stream: true,
+        system: systemPrompt,
         messages: _askHistory
       })
     });
-    const data = await res.json();
-    const reply = (Array.isArray(data.content) ? data.content.filter(function(b){ return b.type === 'text'; }).map(function(b){ return b.text; }).join('\n').trim() : '') || (fr ? 'Pas de réponse.' : 'No response.');
+    if (!res.ok) throw new Error('API error ' + res.status);
+
+    // Streaming reel (meme mecanisme SSE que runMorningScan, reutilise tel quel) : rendu
+    // incremental en texte brut pendant le flux (un rendu markdown a mi-chemin casserait sur
+    // une balise non fermee), passage a renderMarkdown() une fois le flux termine.
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = '', text = '', err = null, stop = false, seenStop = false, stopReason = null;
+    const startEl = bubbleEl();
+    if (startEl) { startEl.style.color = ''; startEl.style.fontStyle = ''; startEl.textContent = ''; }
+    try {
+      while (!stop) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        const lines = buf.split('\n');
+        buf = lines.pop();
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const payload = line.slice(6).trim();
+          if (!payload) continue;
+          try {
+            const ev = JSON.parse(payload);
+            if (ev.type === 'error') { err = ev.error?.message || 'stream error'; stop = true; break; }
+            if (ev.type === 'content_block_delta' && ev.delta?.type === 'text_delta') {
+              text += ev.delta.text;
+              const el = bubbleEl();
+              if (el) { el.textContent = text; msgs.scrollTop = msgs.scrollHeight; }
+            }
+            if (ev.type === 'message_delta' && ev.delta?.stop_reason) stopReason = ev.delta.stop_reason;
+            if (ev.type === 'message_stop') seenStop = true;
+          } catch (e) { /* ignore partial SSE chunks */ }
+        }
+      }
+    } catch (e) {
+      err = e.message || 'stream read error';
+    } finally {
+      reader.releaseLock();
+    }
+    // Erreur fatale seulement si le flux s'est arrete sans aucun signal de fin ET sans aucun
+    // texte recu -- un flux coupe apres avoir livre du texte reste affiche plutot que jete.
+    if (!err && !seenStop && stopReason === null && !text) err = 'stream truncated — response incomplete, retry';
+    if (err) throw new Error(err);
+
+    const reply = text.trim() || (fr ? 'Pas de réponse.' : 'No response.');
     _askHistory.push({ role: 'assistant', content: reply });
-    const thinkEl = document.getElementById(thinkId);
-    if (thinkEl) thinkEl.querySelector('.chat-bubble').innerHTML = renderMarkdown(reply);
+
+    // Provenance reelle (volet cablage) : jamais statique. READ N = _askEngagedDealsCount()
+    // (meme filtre que spine-count-indeal) ; CONSULTED N = nombre de sources qui ont
+    // effectivement tourne pour CE message (snapshot pipeline / insights conversion / recherche
+    // web live) -- 0, 1, 2 ou 3 selon la question, jamais une valeur fixe.
+    const engagedDeals = _askEngagedDealsCount();
+    const agentsConsulted = [_askSnapshot, _askInsightsBlock, liveSearchUsed].filter(Boolean).length;
+    const provenance = 'ASK CORRIDOR · READ ' + engagedDeals + ' ENGAGED DEALS · ' + agentsConsulted + ' AGENT' + (agentsConsulted === 1 ? '' : 'S') + ' CONSULTED';
+
+    const finalEl = bubbleEl();
+    if (finalEl) finalEl.innerHTML = renderMarkdown(reply) + '<div class="ask-provenance">' + _esc(provenance) + '</div>';
   } catch(e) {
     console.error('[_sendAskMessage]', e);
-    const thinkEl = document.getElementById(thinkId);
-    if (thinkEl) thinkEl.querySelector('.chat-bubble').textContent = 'Error: ' + e.message;
+    const el = bubbleEl();
+    if (el) { el.style.color = 'var(--danger)'; el.style.fontStyle = 'normal'; el.textContent = 'Error: ' + e.message; }
   } finally {
     if (btn) btn.disabled = false;
     msgs.scrollTop = msgs.scrollHeight;
