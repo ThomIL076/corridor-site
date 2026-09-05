@@ -6319,6 +6319,13 @@ function _applySendFilters() {
   let readyJ5Low = _sendProspects.filter(p => {
     if (p.stage !== '1st Contact') return false;
     if (!p.last_contact || p.last_contact > fiveDaysAgo) return false;
+    // Memes exclusions "deja envoye" que readyJ5High ci-dessus (bug pre-existant, jamais
+    // reprises ici avant ce fix -- readyJ5Low restait rempli indefiniment pour tout prospect
+    // deja envoye, quel que soit l'ICP, tant que stage/last_contact ne changeaient pas
+    // -- _startEmailSeq() ne fait jamais avancer le stage). Sans ces deux lignes, un bas ICP
+    // envoye ne disparaissait jamais de Follow-up (J+5).
+    if (_sendJ5Sent[p.id]) return false;
+    if ((_sendSequences[p.id]||[]).some(s => s.touch === 'j5')) return false;
     if (parseFloat(p.icp_score) >= 8) return false;
     return passesFilters(p);
   });
@@ -6483,15 +6490,12 @@ async function _loadRecentlySent() {
     const { data, error } = await q;
     if (error) throw error;
     let items = (data || []).map(s => ({ prospect_id: s.prospect_id, touch: s.touch, sent_at: s.sent_at || s.created_at }));
-    // ICP<8 exclu ici : _startEmailSeq() ne fait jamais avancer le stage (verifie -- ecrit
-    // uniquement dans interactions), donc un prospect bas ICP reste indefiniment visible dans
-    // la section Follow-up (J+5) ci-dessus avec son propre statut "Sent Xd ago" (readyJ5Low n'a
-    // pas de fenetre temporelle). Le montrer aussi ici serait un doublon pur, pas juste un
-    // chevauchement -- contrairement aux hauts ICP qui disparaissent de la queue une fois
-    // envoyes (readyJ5High exclut _sendJ5Sent) et n'ont plus que Recently sent comme visibilite.
+    // Plus de distinction haut/bas ICP ici (retire -- pansement du commit precedent, devenu
+    // inutile) : readyJ5Low exclut desormais _sendJ5Sent au meme titre que readyJ5High
+    // (cf. fix ci-dessus), donc un bas ICP envoye disparait bien de Follow-up (J+5) et n'a plus
+    // que Recently sent comme visibilite -- symetrique aux hauts ICP, plus de doublon possible.
     Object.entries(_sendJ5Sent).forEach(([pid, rec]) => {
-      const icp = parseFloat(_prospectsById[pid]?.icp_score || 0);
-      if (icp >= 8 && rec.created_at && rec.created_at >= sevenDaysAgo) items.push({ prospect_id: pid, touch: 'j5', sent_at: rec.created_at });
+      if (rec.created_at && rec.created_at >= sevenDaysAgo) items.push({ prospect_id: pid, touch: 'j5', sent_at: rec.created_at });
     });
     items.sort((a, b) => new Date(b.sent_at) - new Date(a.sent_at));
     items = items.slice(0, 20);
