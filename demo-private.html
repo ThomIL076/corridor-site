@@ -3320,6 +3320,20 @@ const agentWelcome = {
 function applyLang() {
   document.querySelectorAll('[data-en]').forEach(el => {
     const v = (currentLang === 'fr' && el.dataset.fr != null) ? el.dataset.fr : el.dataset.en;
+    // Ne resynchronise que si le texte actuel correspond encore au placeholder EN ou FR (fix
+    // "-1 days ago"-like bug, cf. Pipeline health) : plusieurs panels (Scan New Prospects,
+    // Pipeline Reviewer, Scanner) reutilisent un element data-en comme etat initial puis ecrivent
+    // du vrai contenu dedans (callAI, runPipelineIntel...) sans jamais remettre ces attributs a
+    // jour. Un appel global a applyLang() (ex. depuis openDrawer(), _applySendFilters()) ecrasait
+    // silencieusement ce vrai contenu en le ramenant au placeholder. Des qu'un texte ne
+    // correspond plus a aucun des deux placeholders connus, l'element est considere "reclame"
+    // par du contenu dynamique et n'est plus resynchronise -- jusqu'a ce qu'un reset explicite
+    // (ex. _scannerSetMode()) le fasse redevenir un placeholder, auquel cas la synchro reprend
+    // normalement.
+    if (!el.hasAttribute('data-html')) {
+      const current = el.textContent;
+      if (current !== el.dataset.en && current !== el.dataset.fr) return;
+    }
     if (el.hasAttribute('data-html')) el.innerHTML = v; else el.textContent = v;
   });
   document.querySelectorAll('[data-en-ph]').forEach(el => {
