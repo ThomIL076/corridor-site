@@ -7623,8 +7623,11 @@ function _pdToggleLogInteraction() {
 }
 // Message history (section 3) : vraies donnees seulement -- SENT depuis les interactions
 // sortantes reellement loggees (linkedin/email), REPLY depuis reply_drafts (meme table que
-// l'Inbox), DEBRIEF depuis les interactions type 'call' avec un verdict parse. Aucune distinction
-// inventee : ce sont les trois seules sources reelles. Les lignes DEBRIEF restent cliquables
+// l'Inbox), DEBRIEF depuis les interactions type 'call' avec un verdict parse, LOGGED pour les
+// 3 types restants du formulaire "+ Log interaction" (note, meeting, call sans verdict) --
+// bug corrige : ces 3 types etaient silencieusement absents (aucune des trois branches
+// ci-dessus ne les matchait), pas seulement 'note' remonte en review. Aucune distinction
+// inventee : ce sont toujours les seules sources reelles. Les lignes DEBRIEF restent cliquables
 // (expand/collapse du texte complet), exactement comme dans l'ancien onglet Activity -- meme
 // _toggleDebrief/_VERDICT_COLORS/_parseDebrief reutilises tels quels, pas reecrits.
 function _pdBuildMessageHistoryHTML() {
@@ -7633,7 +7636,9 @@ function _pdBuildMessageHistoryHTML() {
       .map(i => ({ kind: 'msg', dir: 'SENT', channel: i.type.toUpperCase(), date: i.created_at, text: i.note || '' })),
     ..._drawerReplies.map(r => ({ kind: 'msg', dir: 'REPLY', channel: 'LINKEDIN', date: r.updated_at || r.created_at, text: (r.incoming_message || '').replace(/<[^>]*>/g, '') })),
     ..._drawerInteractions.filter(i => i.type === 'call' && _parseDebrief(i.note))
-      .map(i => ({ kind: 'debrief', uid: i.id, date: i.created_at, debrief: _parseDebrief(i.note) }))
+      .map(i => ({ kind: 'debrief', uid: i.id, date: i.created_at, debrief: _parseDebrief(i.note) })),
+    ..._drawerInteractions.filter(i => (i.type === 'note' || i.type === 'meeting' || i.type === 'call') && !_parseDebrief(i.note))
+      .map(i => ({ kind: 'msg', dir: 'LOGGED', channel: i.type.toUpperCase(), date: i.created_at, text: i.note || '' }))
   ].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 4);
   if (!_histRows.length) return `<div class="pd-empty">No messages logged yet.</div>`;
   return _histRows.map(r => {
@@ -7680,18 +7685,23 @@ function _pdCopyBrief() {
 // inline directement dans Buying committee, meme _promoteContact(id, i) inchange derriere.
 function _pdAdditionalContactsHTML(id, p) {
   const ac = Array.isArray(p.additional_contacts) ? p.additional_contacts : [];
-  if (!ac.length) return '';
-  return `<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
-    <div class="pd-row-mono" style="margin-bottom:6px">${currentLang === 'fr' ? 'Autres décideurs identifiés' : 'Other decision-makers found'}</div>
-    ${ac.map((c, i) => `
+  // Shape guard (cleanup) : masque silencieusement toute entree sans nom reel (ex. residu
+  // historique du script de fusion de doublons du 31/07, {note,old_id,created_at}) -- jamais de
+  // ligne fantome cliquable qui creerait un prospect sans nom via _promoteContact. L'index passe
+  // a _promoteContact reste celui du tableau original (p.additional_contacts), pas du filtre.
+  const rows = ac.map((c, i) => (c && c.name && String(c.name).trim()) ? `
       <div class="pd-row" style="align-items:center">
         <div style="min-width:0">
-          <div class="pd-row-name">${c.name ? _esc(c.name) : ''}</div>
+          <div class="pd-row-name">${_esc(c.name)}</div>
           <div class="pd-row-mono" style="text-transform:none;letter-spacing:0">${c.title ? _esc(c.title) : ''}</div>
         </div>
         <button class="pd-stat-edit" id="promote-btn-${_esc(id)}-${i}" style="margin-left:auto;font-size:16px" onclick="_promoteContact('${_esc(id)}',${i})" title="Promote to prospect" aria-label="Promote to prospect">+</button>
       </div>
-    `).join('')}
+    ` : '').join('');
+  if (!rows.trim()) return '';
+  return `<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+    <div class="pd-row-mono" style="margin-bottom:6px">${currentLang === 'fr' ? 'Autres décideurs identifiés' : 'Other decision-makers found'}</div>
+    ${rows}
   </div>`;
 }
 
