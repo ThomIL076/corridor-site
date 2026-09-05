@@ -191,6 +191,37 @@ nav {
 .lang-btn:hover { color:var(--navy); border-color:var(--blue); }
 .lang-btn.active { background:var(--navy); color:#fff; border-color:var(--navy); }
 
+/* ── JOURNEY SPINE (Phase 1) ──
+   Vit dans .top-chrome-wrapper (position:fixed) plutot que dans un vrai shell flex/100vh --
+   le ResizeObserver existant (_syncBodyPadding) absorbe automatiquement le changement de
+   hauteur, sans reecrire le modele de scroll des 10 vues. */
+.journey-spine {
+  display: flex;
+  background: #fff;
+  border-bottom: 1px solid var(--border);
+  padding: 16px 26px 15px;
+  min-width: 1120px;
+  overflow-x: auto;
+  box-sizing: border-box;
+}
+.journey-spine[hidden] { display: none; }
+.spine-stage {
+  flex: 1; position: relative;
+  border: none; background: none; text-align: left;
+  font-family: 'Instrument Sans', sans-serif; cursor: pointer; padding: 0;
+}
+.spine-stage + .spine-stage { border-left: 1px solid var(--border); padding-left: 16px; margin-left: 16px; }
+.spine-dot { width: 7px; height: 7px; border-radius: 50%; background: #c6d1e2; display: inline-block; margin-bottom: 6px; }
+.spine-label { display: block; font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+.spine-row { display: flex; align-items: baseline; gap: 8px; white-space: nowrap; }
+.spine-count { font-family: 'IBM Plex Mono', monospace; font-size: 21px; font-weight: 600; color: var(--ink); }
+.spine-note { font-size: 13px; color: var(--muted); }
+.spine-rail { position: absolute; left: 16px; right: 16px; bottom: -15px; height: 2px; background: transparent; }
+.spine-stage.active .spine-dot { background: var(--accent); }
+.spine-stage.active .spine-count { color: var(--accent); }
+.spine-stage.active .spine-rail { background: var(--accent); }
+@media (max-width: 760px) { .journey-spine { min-width: 660px; } }
+
 /* ── MAIN CONTENT ── */
 .main { max-width:1160px; margin:0 auto; padding:52px 48px 80px; }
 .tab-panel { display:none; }
@@ -1387,6 +1418,48 @@ body.new-nav { padding-left: 220px; }
   </button>
 </div>
 
+<!-- JOURNEY SPINE (Phase 1) -->
+<div class="journey-spine" id="journey-spine">
+  <button class="spine-stage" data-spine="signal" onclick="_switchNewNav('system','signals')">
+    <span class="spine-dot"></span>
+    <span class="spine-label">Signal</span>
+    <!-- Pas de .spine-row ici volontairement : aucune source persistee ne correspond a ce que
+         la vue Signals affiche reellement (voir chunk 2). Un compte vide a cote d'une note
+         statique "new this week" ressemblerait a un bug de chargement plutot qu'a une absence
+         deliberee -- on affiche donc juste le point + le libelle, rien d'invente. -->
+    <span class="spine-rail"></span>
+  </button>
+  <button class="spine-stage" data-spine="qualify" onclick="_switchNewNav('pipeline')">
+    <span class="spine-dot"></span>
+    <span class="spine-label">Qualify</span>
+    <div class="spine-row"><span class="spine-count" id="spine-count-qualify"></span><span class="spine-note">to qualify</span></div>
+    <span class="spine-rail"></span>
+  </button>
+  <button class="spine-stage" data-spine="send" onclick="_switchNewNav('send')">
+    <span class="spine-dot"></span>
+    <span class="spine-label">Send</span>
+    <div class="spine-row"><span class="spine-count" id="spine-count-send"></span><span class="spine-note">due today</span></div>
+    <span class="spine-rail"></span>
+  </button>
+  <button class="spine-stage" data-spine="reply" onclick="_switchNewNav('inbox')">
+    <span class="spine-dot"></span>
+    <span class="spine-label">Reply</span>
+    <div class="spine-row"><span class="spine-count" id="spine-count-reply"></span><span class="spine-note">to triage</span></div>
+    <span class="spine-rail"></span>
+  </button>
+  <button class="spine-stage" data-spine="indeal" onclick="_switchNewNav('pipeline')">
+    <span class="spine-dot"></span>
+    <span class="spine-label">In deal</span>
+    <div class="spine-row"><span class="spine-count" id="spine-count-indeal"></span><span class="spine-note">engaged +</span></div>
+    <span class="spine-rail"></span>
+  </button>
+  <button class="spine-stage" data-spine="client" onclick="_switchNewNav('clients')">
+    <span class="spine-dot"></span>
+    <span class="spine-label">Client</span>
+    <div class="spine-row"><span class="spine-count" id="spine-count-client"></span><span class="spine-note" id="spine-note-client"></span></div>
+    <span class="spine-rail"></span>
+  </button>
+</div>
 
 </div><!-- /.top-chrome-wrapper -->
 
@@ -2285,6 +2358,32 @@ function _newNavActive(key) {
   document.querySelectorAll('.snav-item').forEach(el => el.classList.remove('active'));
   const el = document.querySelector('.snav-item[data-nav="' + key + '"]');
   if (el) el.classList.add('active');
+  _updateSpineActive(key);
+}
+
+// Tweakable (README) : bascule pour A/B tester la spine sans toucher au HTML/CSS.
+const SHOW_SPINE = true;
+
+// Etape active de la spine par vue, comme specifie -- IN DEAL s'allume sur Pipeline health
+// (pas sur Pipeline), QUALIFY s'allume sur Pipeline. Today/Agents/Reports/Stats/Integrations/
+// Scanner n'allument aucune etape (cockpits transverses ou hors funnel).
+const SPINE_ACTIVE_MAP = {
+  'pipeline': 'qualify',
+  'send': 'send',
+  'inbox': 'reply',
+  'clients': 'client',
+  'system-signals': 'signal',
+  'system-pipeintel': 'indeal',
+};
+function _updateSpineActive(key) {
+  const spine = document.getElementById('journey-spine');
+  if (!spine) return;
+  spine.querySelectorAll('.spine-stage').forEach(el => el.classList.remove('active'));
+  const active = SPINE_ACTIVE_MAP[key];
+  if (active) {
+    const el = spine.querySelector('.spine-stage[data-spine="' + active + '"]');
+    if (el) el.classList.add('active');
+  }
 }
 
 let _morningItems = [];
@@ -2965,11 +3064,13 @@ async function showDemo(){
     _setSigFilter('signal');
   }
   if (!_kanbanLoaded) loadKanban();
+  if (!SHOW_SPINE) { const _spineEl = document.getElementById('journey-spine'); if (_spineEl) _spineEl.hidden = true; }
   // Badges sidebar (Phase 1 chunk 2) : meme loaders que les vues elles-memes, appeles une fois
   // en avance en plus de leur declenchement normal a la navigation -- aucune logique dupliquee,
   // meme principe que loadKanban() ci-dessus. Fire-and-forget, ne bloque jamais l'ecran Today.
   loadSendView();
   loadInboxDrafts('pending');
+  loadClientsKanban(); // idem, alimente aussi le compte CLIENT de la spine (Phase 1)
   _initHpFilters();
   // Init unique post-login : Priorities par défaut + scroll en haut (PWA démarre proprement)
   if (!_demoStarted) {
@@ -5737,6 +5838,8 @@ let _drawerSendPid = null;
 function _setSendBadge(n) {
   const el = document.getElementById('snav-badge-send');
   if (el) el.textContent = n > 0 ? n : '';
+  const spineEl = document.getElementById('spine-count-send');
+  if (spineEl) spineEl.textContent = n;
 }
 
 async function loadSendView() {
@@ -8267,10 +8370,12 @@ async function loadInboxDrafts(view = 'pending') {
     }
     const { data: drafts, error } = await query;
     if (error) throw error;
-    // Badge sidebar : meme requete/meme definition de "pending" que la vue Inbox elle-meme.
+    // Badge sidebar + spine : meme requete/meme definition de "pending" que la vue Inbox elle-meme.
     if (view === 'pending') {
       const badgeEl = document.getElementById('snav-badge-inbox');
       if (badgeEl) badgeEl.textContent = (drafts && drafts.length) ? drafts.length : '';
+      const spineEl = document.getElementById('spine-count-reply');
+      if (spineEl) spineEl.textContent = drafts ? drafts.length : 0;
     }
     if (!drafts || !drafts.length) {
       container.innerHTML = `<div style="padding:40px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">${view === 'pending' ? 'No pending replies.' : 'No history yet.'}</div>`;
@@ -10558,6 +10663,14 @@ function renderKanban(rows){
   const na = total - emea;
   const inConv = rows.filter(p => (_stageRank[_stageKey(p.stage)] || 0) >= _stageRank['1st Contact']).length;
   const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  // Spine (Phase 1) : file d'attente par etape, jamais la population -- QUALIFY = uniquement
+  // la colonne Kanban Identified, IN DEAL = Engaged ou au-dela hors Closed. Meme rows deja
+  // chargees pour Pipeline, aucune requete supplementaire.
+  setTxt('spine-count-qualify', rows.filter(p => _stageKey(p.stage) === 'Identified').length);
+  setTxt('spine-count-indeal', rows.filter(p => {
+    const r = _stageRank[_stageKey(p.stage)] || 0;
+    return r >= _stageRank['Engaged'] && _stageKey(p.stage) !== 'Closed';
+  }).length);
   // Séparateur .numsplit : " / " sur desktop, passage à deux lignes en ≤480px (évite le débordement "408 / 344").
   const pair = (a, b) => a + '<span class="numsplit"> / </span>' + b;
   setTxt('kpi-active', total);
@@ -11415,6 +11528,12 @@ async function loadClientsKanban(force) {
       rows.forEach(row => container.insertAdjacentHTML('beforeend', _buildCrmCard(row, status)));
     });
     const _crmTotal = Object.values(buckets).reduce((s,a) => s + a.length, 0);
+    // Spine (Phase 1) : meme total que le zero-stat de la vue Clients, aucune requete de plus.
+    // Note dynamique -- "none yet" n'est vrai que si le compte est reellement 0.
+    const _spineClientCount = document.getElementById('spine-count-client');
+    if (_spineClientCount) _spineClientCount.textContent = _crmTotal;
+    const _spineClientNote = document.getElementById('spine-note-client');
+    if (_spineClientNote) _spineClientNote.textContent = _crmTotal === 0 ? 'none yet' : 'under management';
     const _crmEmptyEl = document.getElementById('crm-empty-state');
     const _crmScrollEl = document.getElementById('crm-kanban-scroll');
     const _crmFilterBar = document.getElementById('crm-filter-bar');
