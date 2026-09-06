@@ -746,10 +746,10 @@ footer a { color:var(--navy); text-decoration:none; font-weight:600; }
 }
 
 /* ── SYSTEM IN ACTION (Module 07) ── */
-.sys-tabs { display:flex; gap:3px; background:var(--navy-light); border-radius:9px; padding:4px; margin:0 0 24px; border:1px solid var(--border); }
+.sys-tabs { display:flex; gap:3px; background:var(--bg); border-radius:9px; padding:4px; margin:0 0 24px; border:1px solid var(--border); }
 .sys-tab { padding:8px 16px; font-size:var(--fs-xs); font-weight:700; letter-spacing:0.5px; text-transform:uppercase; color:var(--muted); background:transparent; border:none; border-radius:var(--radius-sm); cursor:pointer; font-family:inherit; transition:background 0.15s,color 0.15s,box-shadow 0.15s; flex:1; text-align:center; }
-.sys-tab:hover { color:var(--navy); }
-.sys-tab.active { background:var(--white); color:var(--navy); box-shadow:0 1px 3px rgba(26,43,94,0.12); }
+.sys-tab:hover { color:var(--ink); }
+.sys-tab.active { background:var(--white); color:var(--ink); box-shadow:0 1px 3px rgba(14,26,46,0.12); }
 .sys-live-badge { display:inline-block; background:#d1fae5; color:var(--green-brand); font-size:var(--fs-micro); font-weight:700; letter-spacing:0.8px; text-transform:uppercase; padding:2px 7px; border-radius:var(--radius-panel); vertical-align:middle; }
 .system-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; align-items:stretch; }
 /* ── Report sub-tabs (Weekly / Daily) ── */
@@ -2398,22 +2398,22 @@ body.new-nav { padding-left: 220px; }
           <span data-en="▶ Live Alert" data-fr="▶ Alerte en direct">▶ Live Alert</span>
         </button>
         <div class="ai-spinner" id="alert-spinner"></div>
+        <button class="btn-primary btn-lg system-btn" onclick="runPipelineIntel()" id="pipeintel-btn" style="flex:1;min-width:160px;margin-bottom:0;">
+          <span data-en="▶ Scan New Prospects" data-fr="▶ Scanner les nouveaux prospects">▶ Scan New Prospects</span>
+        </button>
+        <div class="ai-spinner" id="pipeintel-spinner"></div>
+      </div>
+      <div class="ai-box" style="margin-bottom:16px;">
+        <div class="ai-box-header">
+          <span class="ai-box-label" data-en="New This Week" data-fr="Nouveaux cette semaine">New This Week</span>
+        </div>
+        <div class="ai-box-body" id="pipeintel-output" data-en="Prospects will appear here..." data-fr="Les prospects apparaîtront ici...">Prospects will appear here...</div>
       </div>
       <div id="signals-feed"></div>
     </div>
 
     <!-- ── Pipeline health ── -->
     <div class="sys-panel" id="syspanel-pipeintel" style="display:none;">
-      <button class="btn-primary btn-lg system-btn system-card-btn" onclick="runPipelineIntel()" id="pipeintel-btn" style="margin-bottom:16px;">
-        <span data-en="▶ Scan New Prospects" data-fr="▶ Scanner les nouveaux prospects">▶ Scan New Prospects</span>
-      </button>
-      <div class="ai-box" style="margin-bottom:24px;">
-        <div class="ai-box-header">
-          <span class="ai-box-label" data-en="New This Week" data-fr="Nouveaux cette semaine">New This Week</span>
-          <div class="ai-spinner" id="pipeintel-spinner"></div>
-        </div>
-        <div class="ai-box-body" id="pipeintel-output" data-en="Prospects will appear here..." data-fr="Les prospects apparaîtront ici...">Prospects will appear here...</div>
-      </div>
       <div class="card system-review-card">
         <div class="card-header" style="min-height:60px;align-items:flex-start;">
           <span class="card-title" data-en="📊 Pipeline Reviewer" data-fr="📊 Revue pipeline">📊 Pipeline Reviewer</span>
@@ -2636,7 +2636,7 @@ function _renderSignalsFeed() {
     const tsStr = isNaN(ts) ? '' : ts.toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
     const badge = item.type === 'live'
       ? '<span style="display:inline-flex;align-items:center;gap:5px;flex-shrink:0;"><span style="width:7px;height:7px;border-radius:50%;background:var(--green-brand);flex-shrink:0;display:inline-block;"></span><span style="font-size:var(--fs-micro);font-weight:700;color:var(--green-brand);letter-spacing:0.05em;text-transform:uppercase;">Live</span></span>'
-      : '<span style="display:inline-flex;align-items:center;gap:5px;flex-shrink:0;"><span style="width:7px;height:7px;border-radius:50%;background:var(--blue-brand);flex-shrink:0;display:inline-block;"></span><span style="font-size:var(--fs-micro);font-weight:700;color:var(--blue-brand);letter-spacing:0.05em;text-transform:uppercase;">Morning</span></span>';
+      : '<span style="display:inline-flex;align-items:center;gap:5px;flex-shrink:0;"><span style="width:7px;height:7px;border-radius:50%;background:var(--accent);flex-shrink:0;display:inline-block;"></span><span style="font-size:var(--fs-micro);font-weight:700;color:var(--accent);letter-spacing:0.05em;text-transform:uppercase;">Morning</span></span>';
     // Suppress label for morning prospect cards — name/company is already in the card body
     const labelHtml = (item.label && !(item.type === 'morning' && item.prospectId))
       ? `<span style="font-weight:600;font-size:var(--fs-sm);color:var(--text-primary);flex:1;min-width:0;overflow-wrap:break-word;">${_esc(item.label)}</span>`
@@ -2647,7 +2647,7 @@ function _renderSignalsFeed() {
     const header = `<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:10px;">${badge}${labelHtml}${linkedinLink}<span style="font-size:var(--fs-xs);color:var(--text-secondary);white-space:nowrap;margin-left:auto;">${tsStr}</span></div>`;
     const bodyHtml = item.type === 'morning'
       ? `<div>${item.htmlContent || renderMarkdown(item.content)}${item.linkHtml || ''}</div>`
-      : `<div style="font-size:var(--fs-base);line-height:1.6;color:var(--text-primary);">${item.signal ? _sanitizeSignal(item.signal) + '<br>' : ''}${_esc(item.content)}${item.signalUrl ? '<br><a href="' + _esc(item.signalUrl) + '" target="_blank" rel="noopener" style="font-size:var(--fs-xs);color:var(--fill-accent);text-decoration:none;font-weight:600;">🔗 ' + ((typeof currentLang!=='undefined'&&currentLang==='fr')?'Voir le post':'View post') + '</a>' : ''}<br><button data-ctx="${_esc(JSON.stringify({type:'signal',signal:item.signal||'',signalUrl:item.signalUrl||'',signalInterpretation:item.signalInterpretation||'',prospectName:item.prospectName||'',company:item.prospectCompany||''}))}" onclick="_openAskPanel(JSON.parse(this.dataset.ctx))" style="margin-top:8px;font-size:var(--fs-xs);font-weight:700;padding:3px 10px;border:1px solid var(--blue);border-radius:var(--radius-pill);background:transparent;color:var(--blue);cursor:pointer;">${(typeof currentLang!=='undefined'&&currentLang==='fr')?'Demander à Corridor':'Ask Corridor'}</button></div>`;
+      : `<div style="font-size:var(--fs-base);line-height:1.6;color:var(--text-primary);">${item.signal ? _sanitizeSignal(item.signal) + '<br>' : ''}${_esc(item.content)}${item.signalUrl ? '<br><a href="' + _esc(item.signalUrl) + '" target="_blank" rel="noopener" style="font-size:var(--fs-xs);color:var(--fill-accent);text-decoration:none;font-weight:600;">🔗 ' + ((typeof currentLang!=='undefined'&&currentLang==='fr')?'Voir le post':'View post') + '</a>' : ''}<br><button data-ctx="${_esc(JSON.stringify({type:'signal',signal:item.signal||'',signalUrl:item.signalUrl||'',signalInterpretation:item.signalInterpretation||'',prospectName:item.prospectName||'',company:item.prospectCompany||''}))}" onclick="_openAskPanel(JSON.parse(this.dataset.ctx))" style="margin-top:8px;font-size:var(--fs-xs);font-weight:700;padding:3px 10px;border:1px solid var(--accent);border-radius:var(--radius-pill);background:transparent;color:var(--accent);cursor:pointer;">${(typeof currentLang!=='undefined'&&currentLang==='fr')?'Demander à Corridor':'Ask Corridor'}</button></div>`;
     const _sfKey = item.type + '|' + (item.prospectId || '') + '|' + (item.timestamp || idx);
     window._feedItemsById[idx] = item;
     const _sfVoted = window._feedVotes[_sfKey];
@@ -2698,12 +2698,12 @@ async function _submitSignalFeedback(btn, vote, idx, stableKey) {
         const capsule = document.createElement('div');
         capsule.dataset.fbId = json.id;
         capsule.dataset.fbCid = cid || '';
-        capsule.style.cssText = 'margin-top:8px;padding:8px 10px;background:var(--navy-light);border-radius:var(--radius-sm);border:1px solid var(--border);';
+        capsule.style.cssText = 'margin-top:8px;padding:8px 10px;background:var(--bg);border-radius:var(--radius-sm);border:1px solid var(--border);';
         capsule.innerHTML =
           '<div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">' + (currentLang==="fr" ? 'Qu’est-ce qui n’était pas pertinent ?' : "What wasn't relevant?") + ' <em style="font-style:normal;opacity:.7">(optional)</em></div>' +
           '<textarea rows="2" maxlength="500" placeholder="e.g. wrong sector, weak signal..." style="width:100%;box-sizing:border-box;font-size:12px;padding:6px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-panel);color:var(--text-primary);resize:vertical;"></textarea>' +
           '<div style="display:flex;justify-content:flex-end;margin-top:6px;">' +
-          '<button style="font-size:12px;padding:3px 12px;border:none;border-radius:var(--radius-sm);background:var(--blue);color:#fff;cursor:pointer;">Send</button>' +
+          '<button style="font-size:12px;padding:3px 12px;border:none;border-radius:var(--radius-sm);background:var(--accent);color:#fff;cursor:pointer;">Send</button>' +
           '</div>';
         capsule.querySelector('button').addEventListener('click', function() { _sendSignalComment(capsule); });
         card.appendChild(capsule);
@@ -5860,13 +5860,13 @@ Populate stakeholder_* fields ONLY when new_stakeholder is true; set to null oth
         : p.signal.replace(/<[^>]*>/g,'').trim().slice(0,90) + (p.signal.replace(/<[^>]*>/g,'').trim().length > 90 ? '…' : '');
       const icpBadge =
         '<span style="position:relative;display:inline-block;" onmouseover="this.querySelector(\'.icp-tt\').style.display=\'block\'" onmouseout="this.querySelector(\'.icp-tt\').style.display=\'none\'">' +
-          '<span style="font-size:var(--fs-xs);font-weight:700;background:var(--navy-light);color:var(--navy);border:1px solid var(--blue);border-radius:var(--radius-pill);padding:1px 8px;white-space:nowrap;cursor:default;">ICP ' + p.icp_score + '</span>' +
-          '<span class="icp-tt" style="display:none;position:absolute;bottom:100%;right:0;margin-bottom:6px;background:var(--navy);color:#fff;font-size:var(--fs-xs);font-weight:400;padding:6px 10px;border-radius:var(--radius-sm);white-space:normal;width:220px;line-height:1.4;z-index:20;box-shadow:0 2px 8px rgba(0,0,0,0.15);">' + (p.icp_reason ? 'ICP ' + p.icp_score + '/10 — ' + _esc(p.icp_reason) : 'ICP Score: ' + p.icp_score + '/10 — scored by Corridor pipeline: role seniority, sector fit, company size, signal activity, and mandate alignment') + '</span>' +
+          '<span style="font-size:var(--fs-xs);font-weight:700;background:var(--accent-bg);color:var(--ink);border:1px solid var(--accent-border);border-radius:var(--radius-pill);padding:1px 8px;white-space:nowrap;cursor:default;">ICP ' + p.icp_score + '</span>' +
+          '<span class="icp-tt" style="display:none;position:absolute;bottom:100%;right:0;margin-bottom:6px;background:var(--ink);color:#fff;font-size:var(--fs-xs);font-weight:400;padding:6px 10px;border-radius:var(--radius-sm);white-space:normal;width:220px;line-height:1.4;z-index:20;box-shadow:0 2px 8px rgba(0,0,0,0.15);">' + (p.icp_reason ? 'ICP ' + p.icp_score + '/10 — ' + _esc(p.icp_reason) : 'ICP Score: ' + p.icp_score + '/10 — scored by Corridor pipeline: role seniority, sector fit, company size, signal activity, and mandate alignment') + '</span>' +
         '</span>';
       const _reminderBadge = p.isReminder ? '<span style="font-size:var(--fs-xs);font-weight:700;color:#B45309;background:#FEF3C7;border:1px solid #FCD34D;border-radius:var(--radius-pill);padding:1px 7px;white-space:nowrap;">Rappel</span>' : '';
       const cardHtml =
         '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">' +
-          '<span onclick="_prOpenProspect(\'' + p.id + '\')" style="font-weight:700;font-size:var(--fs-sm);color:var(--navy);cursor:pointer;" onmouseover="this.style.textDecoration=\'underline\'" onmouseout="this.style.textDecoration=\'none\'">' + _esc(p.name||'') + '</span>' +
+          '<span onclick="_prOpenProspect(\'' + p.id + '\')" style="font-weight:700;font-size:var(--fs-sm);color:var(--ink);cursor:pointer;" onmouseover="this.style.textDecoration=\'underline\'" onmouseout="this.style.textDecoration=\'none\'">' + _esc(p.name||'') + '</span>' +
           '<span style="margin-left:auto;display:flex;align-items:center;gap:6px;">' + _reminderBadge + icpBadge + '</span>' +
         '</div>' +
         '<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:2px;">' + (p.company ? '<strong>' + _esc(p.company) + '</strong>' : '') + (p.sector ? _esc(' · ' + p.sector) : '') + _esc(' · Stage: ' + (p.stage||'Identified')) + '</div>' +
@@ -5959,7 +5959,7 @@ Populate stakeholder_* fields ONLY when new_stakeholder is true; set to null oth
             })
             .map(({ s, idx }) => {
             window._msSigCache[idx] = s;
-            const color = TAG_COLORS[s.tag] || 'var(--navy)';
+            const color = TAG_COLORS[s.tag] || 'var(--ink)';
             const canAdd = !!(s.stakeholder_name && s.stakeholder_company);
             const hasStakeholderInfo = !!(s.stakeholder_name || s.stakeholder_title);
             const addBtnHtml = canAdd
@@ -6002,7 +6002,7 @@ Populate stakeholder_* fields ONLY when new_stakeholder is true; set to null oth
       const _params = [_mandateParam, 'filter=signals'].filter(Boolean).join('&');
       const _msLink = window.location.origin + window.location.pathname + (_params ? '?' + _params : '');
       const _lastPItem = _topProspectItems[_topProspectItems.length - 1];
-      if (_lastPItem) _lastPItem.linkHtml = `<div style="margin-top:8px;"><a href="${_msLink}" style="color:var(--navy);font-size:var(--fs-sm);text-decoration:underline;">View prospects with signals (${eligibleTotal}) →</a></div>`;
+      if (_lastPItem) _lastPItem.linkHtml = `<div style="margin-top:8px;"><a href="${_msLink}" style="color:var(--ink);font-size:var(--fs-sm);text-decoration:underline;">View prospects with signals (${eligibleTotal}) →</a></div>`;
     }
     _renderSignalsFeed();
     if (_topProspectData.length) {
@@ -6080,7 +6080,7 @@ async function runLiveAlert() {
   try {
     let _msQuery = sbClient
       .from('prospects')
-      .select('id, name, company, sector, country, region, stage, icp_score, signal, signal_url, signal_type, signal_interpretation, scan_intelligence, updated_at, linkedin')
+      .select('id, name, company, sector, country, region, stage, icp_score, icp_confidence, signal, signal_url, signal_type, signal_interpretation, scan_intelligence, updated_at, linkedin')
       .eq('client_id', CLIENT_ID);
     _msQuery = _applyMandateFilter(_msQuery);
     const { data: signalProspects, error } = await _msQuery
@@ -6130,7 +6130,7 @@ async function runLiveAlert() {
         prospectName: p.name || '',
         prospectCompany: co,
         linkedinUrl: p.linkedin || '',
-        content: `ICP ${p.icp_score || 'N/A'}${p.sector ? ' · ' + p.sector : ''} · ${p.country || p.region || 'Location unknown'} · Stage: ${p.stage || 'Identified'}`
+        content: `ICP ${p.icp_score || 'N/A'}${p.icp_confidence ? ' (' + p.icp_confidence + ' confidence)' : ''}${p.sector ? ' · ' + p.sector : ''} · ${p.country || p.region || 'Location unknown'} · Stage: ${p.stage || 'Identified'}`
       };
     });
     _renderSignalsFeed();
@@ -8178,11 +8178,11 @@ async function _aiScoreProspect(company, title, mandate) {
       const parsed = m ? JSON.parse(m[0]) : null;
       if (parsed && parsed.role_score != null) {
         const score = _calcComposite(parsed.role_score, parsed.size_score, parsed.signal_strength_score, parsed.mandate_fit_score, 5, 5);
-        return { score, reason: parsed.rationale || null };
+        return { score, reason: parsed.rationale || null, confidence: parsed.confidence || null };
       }
     }
   } catch(e) { console.warn('[_aiScoreProspect] failed:', e); }
-  return { score: null, reason: null };
+  return { score: null, reason: null, confidence: null };
 }
 async function _generateSignalInterpretation(signalText, company, title) {
   if (!signalText || !signalText.trim()) return { interpretation: null, date: null };
@@ -8285,6 +8285,7 @@ async function _addStakeholderToPipeline(idx, btn) {
       origin: 'morning_scan',
       icp_score: scoreResult.score,
       icp_reason: scoreResult.reason,
+      icp_confidence: scoreResult.confidence,
       signal: _sigText,
       signal_type: s.tag || null,
       signal_interpretation: _sigInterp.interpretation,
