@@ -3704,8 +3704,16 @@ async function doLogin(e){
 }
 async function signOut(){ await sbClient.auth.signOut(); showLogin(); }
 sbClient.auth.getSession().then(({ data }) => { checkAccess(data.session); });
+let _lastAuthUserId = null;
 sbClient.auth.onAuthStateChange((_e, session) => {
-  console.log('[DIAG] onAuthStateChange event:', _e);
+  const uid = session?.user?.id || null;
+  if (uid && uid === _lastAuthUserId) return; // meme utilisateur deja connu -- ignore les re-emissions
+                                                // SIGNED_IN declenchees par _recoverAndRefresh au retour
+                                                // de visibilite d'onglet (confirme en conditions reelles,
+                                                // pas un TOKEN_REFRESHED comme l'hypothese initiale le
+                                                // supposait) -- evite de reconstruire toute la vue Send
+                                                // (et Kanban/Inbox/Clients) a chaque changement de focus.
+  _lastAuthUserId = uid;
   checkAccess(session);
 });
 window.addEventListener('popstate', async () => {
@@ -6609,7 +6617,6 @@ function _setSendBadge(n) {
 }
 
 async function loadSendView() {
-  console.trace('[DIAG] loadSendView appelée');
   const listEl = document.getElementById('send-list');
   const countEl = document.getElementById('send-count');
   if (!listEl) return;
@@ -6695,7 +6702,6 @@ function _isJ5Eligible(p, fiveDaysAgo) {
 }
 
 function _applySendFilters() {
-  console.trace('[DIAG] _applySendFilters appelée');
   const listEl = document.getElementById('send-list');
   if (!listEl || !_sendProspects.length) return;
 
