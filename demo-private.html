@@ -1220,6 +1220,18 @@ h1, h2, .k-card-name, .k-card-company { overflow-wrap:break-word; word-break:bre
   #pipe-intlna { font-size:var(--fs-xl); line-height:1.15; }
   #pipe-intlna .numsplit { font-size:0; }
   #pipe-intlna .numsplit::after { content:''; display:block; }
+  /* 11. pipe-stats-row (Conversion/In conversation/High priority/Intl NA) : jamais traite --
+     4 colonnes flex:1 sans min-width:0 debordaient de leur propre ligne (mesure : 397px de
+     contenu pour 274px disponibles a 375px, 4e tuile a right:439px, hors de la carte). Grille
+     2x2 plutot que de comprimer 4 colonnes dans 274px ; regles nth-child pour que les bordures
+     ressemblent a une vraie grille (gauche entre colonnes, haut entre rangees) plutot qu'un flex
+     casse avec les bordures de la version desktop mal placees. Complementaire a la regle
+     #pipe-intlna ci-dessus (qui traite le chiffre a l'interieur de la 4e tuile), pas redondante. */
+  .pipe-stats-row { flex-wrap: wrap; row-gap: 14px; }
+  .pipe-stat { flex: 1 1 50%; min-width: 0; }
+  .pipe-stat:nth-child(2) { border-left: 1px solid var(--border); }
+  .pipe-stat:nth-child(3) { padding-left: 0; border-left: none; }
+  .pipe-stat:nth-child(3), .pipe-stat:nth-child(4) { padding-top: 14px; border-top: 1px solid var(--border); }
   /* 10. titres de module centrés */
   .module-header { text-align:center; }
 }
