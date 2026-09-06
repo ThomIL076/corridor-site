@@ -755,8 +755,8 @@ footer a { color:var(--navy); text-decoration:none; font-weight:600; }
 /* ── Report sub-tabs (Weekly / Daily) ── */
 .rpt-subtab-bar { display:flex; gap:6px; margin-bottom:18px; }
 .rpt-subtab { font-size:var(--fs-xs); font-weight:700; letter-spacing:0.4px; padding:6px 14px; border-radius:var(--radius-sm); border:1.5px solid var(--border); background:var(--white); color:var(--muted); cursor:pointer; transition:all 0.15s; }
-.rpt-subtab:hover { color:var(--navy); border-color:var(--navy); }
-.rpt-subtab.active { background:var(--navy); border-color:var(--navy); color:#fff; }
+.rpt-subtab:hover { color:var(--ink); border-color:var(--ink); }
+.rpt-subtab.active { background:var(--ink); border-color:var(--ink); color:#fff; }
 .rpt-metric-badge { font-size:10px; font-weight:700; border-radius:var(--radius-pill); padding:2px 9px; white-space:nowrap; border:1px solid transparent; }
 .rpt-vote-btn { font-size:15px; line-height:1; padding:4px 8px; border-radius:var(--radius-sm); border:1.5px solid var(--border); background:var(--white); cursor:pointer; transition:background 0.12s,border-color 0.12s; }
 .rpt-vote-btn.active-like { background:#d1fae5; border-color:#6ee7b7; }
@@ -2447,16 +2447,22 @@ body.new-nav { padding-left: 220px; }
       </div>
       <!-- Weekly panel -->
       <div id="rpt-panel-weekly">
-        <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;">
-          <button class="btn-primary btn-lg system-btn system-card-btn" onclick="runWeeklyReport()" id="weekly-btn" style="margin-bottom:0;">
-            <span data-en="▶ Generate Report" data-fr="▶ Générer le rapport">▶ Generate Report</span>
-          </button>
-          <div class="ai-spinner" id="weekly-spinner"></div>
+        <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;justify-content:space-between;flex-wrap:wrap;">
+          <div style="display:flex;gap:8px;align-items:center;">
+            <button class="btn-primary btn-lg system-btn system-card-btn" onclick="runWeeklyReport()" id="weekly-btn" style="margin-bottom:0;">
+              <span data-en="▶ Generate Report" data-fr="▶ Générer le rapport">▶ Generate Report</span>
+            </button>
+            <div class="ai-spinner" id="weekly-spinner"></div>
+          </div>
+          <span class="ask-provenance" style="margin-top:0;padding-top:0;border-top:none;">Weekly Report</span>
         </div>
         <div id="weekly-reports-list"></div>
       </div>
       <!-- Daily panel -->
       <div id="rpt-panel-daily" style="display:none;">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
+          <span class="ask-provenance" style="margin-top:0;padding-top:0;border-top:none;">Daily Digest</span>
+        </div>
         <div id="daily-reports-list"></div>
       </div>
     </div>
@@ -2745,6 +2751,38 @@ function _sendSignalComment(root) {
   });
 }
 
+// ISO-8601 week number -- utilise pour l'etiquette "LATEST . WEEK N" du dernier rapport.
+function _isoWeekNum(d) {
+  const target = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const dayNr = (target.getUTCDay() + 6) % 7;
+  target.setUTCDate(target.getUTCDate() - dayNr + 3);
+  const firstThursday = target.valueOf();
+  target.setUTCMonth(0, 1);
+  if (target.getUTCDay() !== 4) target.setUTCMonth(0, 1 + ((4 - target.getUTCDay()) + 7) % 7);
+  return 1 + Math.round((firstThursday - target.valueOf()) / 604800000);
+}
+function _weekLabelOf(r) {
+  const d = new Date(r.week_start || r.created_at);
+  const mon = new Date(d);
+  mon.setDate(mon.getDate() - (mon.getDay() === 0 ? 6 : mon.getDay() - 1));
+  return { mon, label: 'Week of ' + mon.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) };
+}
+function _weeklyRecsHtml(r, vm) {
+  const existingVote = vm[r.id] || null;
+  if (!r.recommendations_text) return '';
+  return `
+    <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:14px;">
+      <div style="font-size:var(--fs-xs);font-weight:700;color:var(--muted);letter-spacing:0.5px;text-transform:uppercase;margin-bottom:8px;">Recommendations</div>
+      <div style="font-size:var(--fs-base);line-height:1.6;">${r.recommendations_text}</div>
+      <div style="display:flex;gap:8px;margin-top:10px;align-items:center;">
+        <button class="rpt-vote-btn ${existingVote === 'like' ? 'active-like' : ''}" id="vote-like-${_esc(r.id)}" onclick="_weeklyVote('${_esc(r.id)}','like')" title="Useful">👍</button>
+        <button class="rpt-vote-btn ${existingVote === 'unlike' ? 'active-unlike' : ''}" id="vote-unlike-${_esc(r.id)}" onclick="_weeklyVote('${_esc(r.id)}','unlike')" title="Not useful">👎</button>
+        <span id="vote-status-${_esc(r.id)}" style="font-size:var(--fs-xs);color:var(--muted);">${existingVote ? (existingVote === 'like' ? 'Marked useful' : 'Marked not useful') : ''}</span>
+      </div>
+    </div>`;
+}
+// Dernier rapport affiche deplie en place ("LATEST . WEEK N"), les precedents dans une
+// archive compacte (nom/kind/date/Open) -- README section 7, arbitrage confirme.
 function _renderWeeklyList(reports, voteMap) {
   const list = document.getElementById('weekly-reports-list');
   if (!list) return;
@@ -2753,40 +2791,43 @@ function _renderWeeklyList(reports, voteMap) {
     return;
   }
   const vm = voteMap || {};
-  list.innerHTML = reports.map((r, idx) => {
-    const d = new Date(r.week_start || r.created_at);
-    const mon = new Date(d);
-    mon.setDate(mon.getDate() - (mon.getDay() === 0 ? 6 : mon.getDay() - 1));
-    const weekLabel = 'Week of ' + mon.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+  const [latest, ...past] = reports;
+  const latestInfo = _weekLabelOf(latest);
+
+  const latestHtml = `<div style="border:1px solid var(--border);border-radius:var(--radius-panel);padding:18px 20px;margin-bottom:16px;">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:var(--fs-xs);font-weight:700;letter-spacing:0.06em;color:var(--accent);">LATEST &middot; WEEK ${_isoWeekNum(latestInfo.mon)}</span>
+      <span style="font-size:var(--fs-xs);color:var(--muted);">${_esc(latestInfo.label)}</span>
+    </div>
+    <div style="font-size:19px;font-weight:600;line-height:1.4;color:var(--ink);margin-bottom:12px;">${_esc(latest.summary || '')}</div>
+    <div style="font-size:var(--fs-base);line-height:1.6;">${latest.full_report || ''}</div>
+    ${_weeklyRecsHtml(latest, vm)}
+  </div>`;
+
+  const archiveRows = past.map((r, idx) => {
+    const info = _weekLabelOf(r);
     const rowId = 'weekly-full-' + (r.id || idx);
-    const existingVote = vm[r.id] || null;
-    const recs = r.recommendations_text ? `
-      <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:14px;">
-        <div style="font-size:var(--fs-xs);font-weight:700;color:var(--muted);letter-spacing:0.5px;text-transform:uppercase;margin-bottom:8px;">Recommendations</div>
-        <div style="font-size:var(--fs-base);line-height:1.6;">${r.recommendations_text}</div>
-        <div style="display:flex;gap:8px;margin-top:10px;align-items:center;">
-          <button class="rpt-vote-btn ${existingVote === 'like' ? 'active-like' : ''}" id="vote-like-${_esc(r.id)}" onclick="_weeklyVote('${_esc(r.id)}','like')" title="Useful">👍</button>
-          <button class="rpt-vote-btn ${existingVote === 'unlike' ? 'active-unlike' : ''}" id="vote-unlike-${_esc(r.id)}" onclick="_weeklyVote('${_esc(r.id)}','unlike')" title="Not useful">👎</button>
-          <span id="vote-status-${_esc(r.id)}" style="font-size:var(--fs-xs);color:var(--muted);">${existingVote ? (existingVote === 'like' ? 'Marked useful' : 'Marked not useful') : ''}</span>
-        </div>
-      </div>` : '';
-    return `<div style="border:1px solid var(--border);border-radius:var(--radius-panel);padding:14px 16px;margin-bottom:10px;">
-      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:0;">
-        <span style="font-size:var(--fs-xs);font-weight:700;color:var(--text-secondary);white-space:nowrap;">${_esc(weekLabel)}</span>
-        <span style="flex:1;font-size:var(--fs-base);color:var(--text-primary);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${_esc(r.summary || '')}">${_esc(r.summary || '')}</span>
-        <button onclick="_toggleWeeklyView('${rowId}',this)" style="font-size:var(--fs-xs);font-weight:700;padding:4px 12px;background:var(--border);color:var(--text-primary);border:none;border-radius:var(--radius-sm);cursor:pointer;white-space:nowrap;flex-shrink:0;">View</button>
+    return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);">
+        <span style="flex:1;min-width:0;font-size:var(--fs-sm);font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${_esc(info.label)}">${_esc(info.label)}</span>
+        <span style="width:64px;flex-shrink:0;font-size:var(--fs-xs);color:var(--muted);text-transform:uppercase;">Weekly</span>
+        <span style="width:80px;flex-shrink:0;font-size:var(--fs-xs);color:var(--muted);">${info.mon.toLocaleDateString('en-GB',{day:'numeric',month:'short'})}</span>
+        <button onclick="_toggleWeeklyView('${rowId}',this)" style="font-size:var(--fs-xs);font-weight:700;padding:4px 12px;background:var(--border);color:var(--text);border:none;border-radius:var(--radius-sm);cursor:pointer;white-space:nowrap;flex-shrink:0;">Open</button>
       </div>
-      <div id="${rowId}" style="display:none;margin-top:14px;border-top:1px solid var(--border);padding-top:14px;font-size:var(--fs-base);line-height:1.6;">${r.full_report || ''}</div>
-      ${recs}
-    </div>`;
+      <div id="${rowId}" style="display:none;padding:12px 0;border-bottom:1px solid var(--border);font-size:var(--fs-base);line-height:1.6;">${r.full_report || ''}${_weeklyRecsHtml(r, vm)}</div>`;
   }).join('');
+
+  const archiveHtml = past.length
+    ? `<div style="border:1px solid var(--border);border-radius:var(--radius-panel);padding:2px 16px;">${archiveRows}</div>`
+    : '';
+
+  list.innerHTML = latestHtml + archiveHtml;
 }
 function _toggleWeeklyView(id, btn) {
   const full = document.getElementById(id);
   if (!full) return;
   const open = full.style.display === 'none';
   full.style.display = open ? '' : 'none';
-  if (btn) btn.textContent = open ? 'Close' : 'View';
+  if (btn) btn.textContent = open ? 'Close' : 'Open';
 }
 async function _loadWeeklyReports() {
   const list = document.getElementById('weekly-reports-list');
@@ -2870,12 +2911,17 @@ function _renderDailyList(rows) {
       `<span class="rpt-metric-badge" style="background:${m.color}18;color:${m.color};border-color:${m.color}30;">${_esc(String(metrics[m.key]))} ${_esc(m.label)}</span>`
     ).join('');
     const summaryHtml = r.summary_text ? `<div style="font-size:var(--fs-base);line-height:1.6;color:var(--text-primary);margin-top:${badges ? '10px' : '0'};">${_esc(r.summary_text).replace(/\n/g, '<br>')}</div>` : '';
+    // Pas de colonne de timestamp d'ecriture verifiee sur daily_activity_summaries (table
+    // alimentee hors de ce fichier) -- on reutilise r.date, seul champ confirme, plutot que
+    // d'inventer un nom de colonne non verifie.
+    const provenanceHtml = `<div class="ask-provenance">WRITTEN ${_esc(dateLabel.toUpperCase())} &middot; NO ACTION REQUIRED</div>`;
     return `<div style="border:1px solid var(--border);border-radius:var(--radius-panel);padding:14px 16px;margin-bottom:8px;">
       <div style="display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap;">
         <span style="font-size:var(--fs-xs);font-weight:700;color:var(--text-secondary);white-space:nowrap;flex-shrink:0;padding-top:2px;">${_esc(dateLabel)}</span>
         ${badges ? `<div style="display:flex;gap:6px;flex-wrap:wrap;">${badges}</div>` : ''}
       </div>
       ${summaryHtml}
+      ${provenanceHtml}
     </div>`;
   }).join('');
 }
