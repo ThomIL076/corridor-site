@@ -2427,6 +2427,7 @@ body.new-nav { padding-left: 220px; }
         <option value="all">All touches</option>
         <option value="invite">Invite</option>
         <option value="j0">J+0</option>
+        <option value="j5">J+5</option>
       </select>
       <select id="send-filter-lang" style="padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:var(--fs-sm);font-family:inherit;color:var(--text);background:#fff;">
         <option value="EN" selected>EN</option>
@@ -6561,6 +6562,7 @@ function _extractSigUrl(s) {
 const TOUCH_LABELS = {
   invite: { label:'Invite',  class:'touch-invite', day:null },
   j0:     { label:'J+0',     class:'touch-j0',     day:0    },
+  j5:     { label:'J+5',     class:'touch-j5',     day:5    },
   ambassador: { label:'Ambassador', class:'touch-ambassador', day:null },
   redirect:   { label:'Redirect',   class:'touch-redirect',   day:null },
 };
@@ -6664,6 +6666,18 @@ function _sortEMEAFirst(arr) {
   });
 }
 
+// Eligibilite J+5 partagee entre passesFilters (derivation de qt) et readyJ5High/readyJ5Low
+// (ci-dessous) -- ne couvre pas icp_score, qui reste ce qui distingue High/Low. Les deux
+// exclusions "deja envoye" etaient absentes de readyJ5Low avant un fix anterieur (readyJ5Low
+// restait rempli indefiniment pour tout prospect deja envoye, _startEmailSeq() ne faisant jamais
+// avancer le stage) -- centralisees ici, elles ne peuvent plus diverger entre les deux listes.
+function _isJ5Eligible(p, fiveDaysAgo) {
+  return p.stage === '1st Contact'
+    && !!p.last_contact && p.last_contact <= fiveDaysAgo
+    && !_sendJ5Sent[p.id]
+    && !(_sendSequences[p.id]||[]).some(s => s.touch === 'j5');
+}
+
 function _applySendFilters() {
   const listEl = document.getElementById('send-list');
   if (!listEl || !_sendProspects.length) return;
@@ -6674,13 +6688,19 @@ function _applySendFilters() {
   const touchFilter  = document.getElementById('send-filter-touch')?.value || 'all';
   const todayOnly    = document.getElementById('send-filter-today')?.checked ?? true;
   const today        = new Date();
+  // Deplacee ici (avant passesFilters, qui en a besoin pour deriver qt='j5') -- etait plus bas,
+  // juste avant readyJ5High/Low. Sans ce deplacement : ReferenceError des le premier rendu, car
+  // passesFilters est deja appelee dans le .filter() de readyInvite, plus haut dans le fichier.
+  const fiveDaysAgo = new Date(Date.now() - 5 * 86400000).toISOString();
 
   const passesFilters = p => {
     if (regionFilter && _regionTag(p.region) !== regionFilter) return false;
     if (icpFilter > 0 && !(parseFloat(p.icp_score) >= icpFilter)) return false;
     if (originFilter !== 'all' && p.origin !== originFilter) return false;
     if (touchFilter !== 'all') {
-      const qt = (p.linkedin_tag === 'connection-accepted' && !p.last_contact) ? 'j0' : _suggestTouch(p);
+      const qt = _isJ5Eligible(p, fiveDaysAgo)
+        ? 'j5'
+        : (p.linkedin_tag === 'connection-accepted' && !p.last_contact) ? 'j0' : _suggestTouch(p);
       if (qt !== touchFilter) return false;
     }
     return true;
@@ -6716,28 +6736,17 @@ function _applySendFilters() {
   });
   readyJ0 = _sortEMEAFirst(readyJ0);
 
-  // File 3 — Follow-up J+5
-  const fiveDaysAgo = new Date(Date.now() - 5 * 86400000).toISOString();
+  // File 3 — Follow-up J+5 (eligibilite commune dans _isJ5Eligible, ci-dessus -- seul icp_score
+  // distingue High/Low)
   let readyJ5High = _sendProspects.filter(p => {
-    if (p.stage !== '1st Contact') return false;
-    if (!p.last_contact || p.last_contact > fiveDaysAgo) return false;
-    if (_sendJ5Sent[p.id]) return false;
-    if ((_sendSequences[p.id]||[]).some(s => s.touch === 'j5')) return false;
+    if (!_isJ5Eligible(p, fiveDaysAgo)) return false;
     if (!(parseFloat(p.icp_score) >= 8)) return false;
     return passesFilters(p);
   });
   readyJ5High = _sortEMEAFirst(readyJ5High);
 
   let readyJ5Low = _sendProspects.filter(p => {
-    if (p.stage !== '1st Contact') return false;
-    if (!p.last_contact || p.last_contact > fiveDaysAgo) return false;
-    // Memes exclusions "deja envoye" que readyJ5High ci-dessus (bug pre-existant, jamais
-    // reprises ici avant ce fix -- readyJ5Low restait rempli indefiniment pour tout prospect
-    // deja envoye, quel que soit l'ICP, tant que stage/last_contact ne changeaient pas
-    // -- _startEmailSeq() ne fait jamais avancer le stage). Sans ces deux lignes, un bas ICP
-    // envoye ne disparaissait jamais de Follow-up (J+5).
-    if (_sendJ5Sent[p.id]) return false;
-    if ((_sendSequences[p.id]||[]).some(s => s.touch === 'j5')) return false;
+    if (!_isJ5Eligible(p, fiveDaysAgo)) return false;
     if (parseFloat(p.icp_score) >= 8) return false;
     return passesFilters(p);
   });
@@ -6763,11 +6772,11 @@ function _applySendFilters() {
     const dueNow = queue[0];
     const scheduled = queue.slice(1);
     html += `<div class="today-step-divider"><span class="today-step-label">Due now</span><span class="today-step-rule"></span></div>`;
-    html += dueNow.touch === 'j5' ? _j5CardHTML(dueNow.p) : _sendCardHTML(dueNow.p, dueNow.touch, true);
+    html += _sendCardHTML(dueNow.p, dueNow.touch, true);
     if (totalInvite > 25) html += `<div style="text-align:center;font-size:var(--fs-sm);color:var(--muted);padding:8px 0 16px">${totalInvite - 25} more invitation${totalInvite - 25 > 1 ? 's' : ''} not shown -- raise ICP filter or mark some as sent to see the next batch.</div>`;
     if (scheduled.length) {
       html += `<div class="today-step-divider"><span class="today-step-label">Scheduled today</span><span class="today-step-rule"></span><span class="today-step-count">${scheduled.length}</span></div>`;
-      html += scheduled.map(item => item.touch === 'j5' ? _j5CardHTML(item.p) : _sendCardHTML(item.p, item.touch, false)).join('');
+      html += scheduled.map(item => _sendCardHTML(item.p, item.touch, false)).join('');
     }
   } else {
     html += '<div style="padding:32px 0;text-align:center;color:var(--muted);font-size:var(--fs-base)">Nothing due. Adjust filters or check back tomorrow.</div>';
@@ -6792,9 +6801,13 @@ function _sendCardHTML(p, touchType, expanded = false) {
   const isReady = seq && seq.status === 'ready';
   const seqId   = seq ? seq.id : null;
   const isConnected = p.linkedin_tag === 'connection-accepted';
-  const sendBlocked = touchType !== 'invite' && !isConnected;
+  // j5 = seul touch email de cette fonction (etape 3 du chantier J+5 pas commencee : garde
+  // _startEmailSeq() tel quel, meme comportement que l'ancien _j5CardHTML) -- son blocage
+  // depend de p.email, pas de linkedin_tag.
+  const isEmailTouch = touchType === 'j5';
+  const sendBlocked = isEmailTouch ? !p.email : (touchType !== 'invite' && !isConnected);
   const sendDisabled = !isReady || sendBlocked;
-  const sendTitle = sendBlocked ? 'Connection not yet accepted' : '';
+  const sendTitle = sendBlocked ? (isEmailTouch ? 'No email on record' : 'Connection not yet accepted') : '';
   // Emphase DUE NOW (README : bordure/ombre renforcees) vs ligne dense SCHEDULED TODAY (padding
   // resserre) -- purement cosmetique, memes tokens que le reste du fichier (--accent).
   const cardStyle = expanded
@@ -6823,7 +6836,10 @@ function _sendCardHTML(p, touchType, expanded = false) {
           <button class="btn-primary btn-md" onclick="_generateSequenceMessage('${p.id}','${touchType}')" id="sg-${p.id}">${hasBody ? '🔄 Regenerate' : '▶ Generate'}</button>
           <button class="btn-secondary btn-md" onclick="_saveSequenceDraft('${p.id}','${touchType}')" id="sv-${p.id}" disabled style="opacity:0.45;cursor:not-allowed">Save draft</button>
           <button class="btn-secondary btn-md" onclick="_markReady('${p.id}')" id="sr-${p.id}" ${isReady?'style="border-color:var(--green);color:var(--green)"':''}>${isReady ? '✓ Ready' : 'Mark ready'}</button>
-          <button class="btn-primary btn-md" onclick="_sendViaLinkedIn('${p.id}','${touchType}')" id="sli-${p.id}" ${sendDisabled?'disabled':''} ${sendBlocked?`style="opacity:0.4;cursor:not-allowed" title="${sendTitle}"`:''}>Send via LinkedIn</button>
+          ${isEmailTouch
+            ? `<button class="btn-primary btn-md" onclick="_startEmailSeq('${p.id}')" id="start-seq-${p.id}" ${sendDisabled?'disabled':''} ${sendBlocked?`style="opacity:0.4;cursor:not-allowed" title="${sendTitle}"`:''}>Send email</button>`
+            : `<button class="btn-primary btn-md" onclick="_sendViaLinkedIn('${p.id}','${touchType}')" id="sli-${p.id}" ${sendDisabled?'disabled':''} ${sendBlocked?`style="opacity:0.4;cursor:not-allowed" title="${sendTitle}"`:''}>Send via LinkedIn</button>`
+          }
           <button class="btn-secondary btn-md" onclick="_markSent('${p.id}','${touchType}')" id="sms-${p.id}">✓ Mark as sent</button>
         </div>
         <!-- Emplacement reserve pour le statut "Researching {company}..." (bug trouve en test
@@ -6838,27 +6854,6 @@ function _sendCardHTML(p, touchType, expanded = false) {
       </div>
       <div class="send-actions">
         <button class="btn-secondary btn-md" onclick="_toggleSendCard('${p.id}')" style="width:100%">${expanded ? '▲ Collapse' : (hasBody ? '▼ Review & send' : '▼ Write message')}</button>
-      </div>
-    </div>`;
-}
-
-// Carte J+5 (extraite de l'ancien _renderJ5Section, comportement inchange) : pas de brouillon
-// editable pour ce canal (_startEmailSeq() genere et envoie cote serveur en un clic) -- donc pas
-// de Edit/Regenerate ici, contrairement a _sendCardHTML. Reutilisee telle quelle pour DUE NOW et
-// SCHEDULED TODAY quand le premier/les suivants de la queue sont un follow-up J+5.
-function _j5CardHTML(p) {
-  return `
-    <div class="card send-card" id="sc-j5-${p.id}">
-      <div class="send-row">
-        <div class="send-avatar" style="background:${_sendAvatarColor(p.name)}">${_esc(_sendInitials(p.name))}</div>
-        <div class="send-id">
-          <div class="send-name">${_esc(p.name)}</div>
-          <div class="send-company">${_esc(p.company)}${p.region ? ' · ' + _esc(p.region) : ''}</div>
-        </div>
-        <span class="send-touch touch-j5">J+5</span>
-      </div>
-      <div class="send-actions">
-        <button class="btn-primary btn-md" id="start-seq-${p.id}" onclick="_startEmailSeq('${p.id}')" style="width:100%;background:var(--green-brand);">Send follow-up</button>
       </div>
     </div>`;
 }
