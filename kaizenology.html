@@ -1320,6 +1320,10 @@ body.new-nav { padding-left: 220px; }
   <!-- ══ TAB 3: OUTREACH GENERATOR ══ -->
   <!-- ══ TAB 4: AI AGENTS ══ -->
   <div class="tab-panel" id="tab-agents">
+    <div class="module-header" style="margin-bottom:20px;">
+      <div class="module-title">Orchestration</div>
+      <div class="section-sub"><span id="agents-total-count">0</span> agents configured for your brand. The Orchestrator decides which ones run, and when.</div>
+    </div>
     <div id="agents-map" class="agent-map">
       <!-- CMO Hub -->
       <button class="agent-hub-card" onclick="_activateAgent('cmo')">
@@ -1649,8 +1653,11 @@ body.new-nav { padding-left: 220px; }
   <!-- ══ TAB: INBOX ══ -->
   <div class="tab-panel" id="tab-inbox">
     <div style="padding:24px 16px 0;max-width:800px;margin:0 auto;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
-        <h2 style="font-size:var(--fs-lg);font-weight:700;color:var(--navy);margin:0;">Inbox</h2>
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
+        <div class="module-header" style="margin-bottom:0;">
+          <div class="module-title">Inbox</div>
+          <div class="section-sub">Every reply classified and answered by an agent. You approve, edit, or dismiss.</div>
+        </div>
         <div style="display:flex;gap:6px;">
           <button id="inbox-toggle-pending" onclick="loadInboxDrafts('pending')"
             style="padding:5px 14px;border-radius:var(--radius-pill);font-size:var(--fs-sm);font-weight:600;cursor:pointer;border:1px solid var(--navy);background:var(--navy);color:#fff;">Pending</button>
@@ -1664,6 +1671,10 @@ body.new-nav { padding-left: 220px; }
 
   <!-- ══ TAB 5: PIPELINE VIEW ══ -->
   <div class="tab-panel" id="tab-pipeline">
+    <div class="module-header" style="margin-bottom:20px;">
+      <div class="module-title">Pipeline</div>
+      <div class="section-sub"><span id="pipeline-total-count">0</span> prospects under management. Movement is written by agents, corrected by you.</div>
+    </div>
     <div class="csv-actions" style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px;">
       <div class="toolbar-filters" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
         <input type="text" id="kanban-search" placeholder="Search prospects..." data-en-ph="Search prospects..." data-fr-ph="Rechercher un prospect..."
@@ -3093,6 +3104,9 @@ const _AGENT_META = {
 };
 
 function _initAgentPanelHeaders() {
+  // Header Orchestration (section-sub) : compte reel du roster, jamais en dur.
+  const _agentsCountEl = document.getElementById('agents-total-count');
+  if (_agentsCountEl) _agentsCountEl.textContent = Object.keys(_AGENT_META).length;
   for (const [key, m] of Object.entries(_AGENT_META)) {
     const panel = document.getElementById('agent-' + key);
     if (!panel || panel.querySelector('.agent-panel-header')) continue;
@@ -10392,6 +10406,9 @@ function renderKanban(rows){
   const na = total - emea;
   const inConv = rows.filter(p => (_stageRank[_stageKey(p.stage)] || 0) >= _stageRank['1st Contact']).length;
   const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  // Header Pipeline (section-sub) : meme rows/total deja calcules ci-dessus, aucune requete ni
+  // recalcul supplementaire -- jamais un chiffre fige.
+  setTxt('pipeline-total-count', total);
   // Séparateur .numsplit : " / " sur desktop, passage à deux lignes en ≤480px (évite le débordement "408 / 344").
   const pair = (a, b) => a + '<span class="numsplit"> / </span>' + b;
   setTxt('kpi-active', total);
