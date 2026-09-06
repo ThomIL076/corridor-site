@@ -8253,7 +8253,7 @@ async function openDrawer(card, initialTab = 'activity') {
       <span class="pd-row-mono">${_p.signal_type ? _esc(_p.signal_type.toUpperCase()) : 'SIGNAL'}</span>
       <span class="pd-row-mono" style="margin-left:auto">${_p.signal_date ? _esc(_relDate(_p.signal_date) || '') : ''}</span>
     </div>
-    <div class="pd-row-main" style="margin:-4px 0 4px">${_sigText}</div>
+    <div class="pd-row-main" style="margin:4px 0">${_sigText}</div>
   ` : `<div class="pd-empty">No signal recorded yet.</div>`;
 
   const stageAgeLbl = '—'; // pas de stage_changed_at en base -- pas invente, cf. echange cleanup
@@ -8510,7 +8510,7 @@ function _pdBuildMessageHistoryHTML() {
       <span class="pd-row-mono" style="color:${r.dir === 'REPLY' ? 'var(--success)' : 'var(--muted)'}">${r.dir} · ${_esc(r.channel)}</span>
       <span class="pd-row-mono" style="margin-left:auto">${_esc(_relDate(r.date) || '')}</span>
     </div>
-    <div class="pd-row-main" style="margin:-4px 0 4px">${_esc((r.text || '').slice(0, 160))}${(r.text || '').length > 160 ? '…' : ''}</div>`;
+    <div class="pd-row-main" style="margin:4px 0">${_esc((r.text || '').slice(0, 160))}${(r.text || '').length > 160 ? '…' : ''}</div>`;
   }).join('');
 }
 function _pdRefreshMessageHistory() {
