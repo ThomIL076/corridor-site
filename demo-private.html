@@ -1735,6 +1735,42 @@ body.new-nav { padding-left: 220px; }
         </div>
       </div>
 
+      <!-- Pipeline Group (4 automatisations reelles, pas des agents de chat -- clic navigue
+           vers leur ecran reel, README 8. Agents, arbitrage confirme) -->
+      <div class="agent-group">
+        <div class="agent-group-label" style="color:#9F3FBF;">Pipeline</div>
+        <div class="agent-grid">
+          <button class="agent-card" style="--accent-color:#9F3FBF" onclick="_switchNewNav('system','signals')">
+            <span class="agent-status-dot" id="dot-morningscan"></span>
+            <span class="ac-icon">🌅</span>
+            <span class="ac-name">Morning Scan</span>
+            <span class="ac-desc">Daily prospect signals and pipeline highlights</span>
+            <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-morningscan">—</span><span class="agent-card-footer-action">Open</span></div>
+          </button>
+          <button class="agent-card" style="--accent-color:#9F3FBF" onclick="_switchNewNav('system','pipeintel')">
+            <span class="agent-status-dot" id="dot-pipelinereviewer"></span>
+            <span class="ac-icon">📊</span>
+            <span class="ac-name">Pipeline Reviewer</span>
+            <span class="ac-desc">Classifies every active deal red/amber/green</span>
+            <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-pipelinereviewer">—</span><span class="agent-card-footer-action">Open</span></div>
+          </button>
+          <button class="agent-card" style="--accent-color:#9F3FBF" onclick="_switchNewNav('system','weekly');_switchRptTab('daily')">
+            <span class="agent-status-dot" id="dot-dailydigest"></span>
+            <span class="ac-icon">📰</span>
+            <span class="ac-name">Daily Digest</span>
+            <span class="ac-desc">One-sentence factual summary of today's activity</span>
+            <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-dailydigest">—</span><span class="agent-card-footer-action">Open</span></div>
+          </button>
+          <button class="agent-card" style="--accent-color:#9F3FBF" onclick="_switchNewNav('system','weekly')">
+            <span class="agent-status-dot" id="dot-weeklyreport"></span>
+            <span class="ac-icon">🗒️</span>
+            <span class="ac-name">Weekly Report</span>
+            <span class="ac-desc">Weekly pipeline narrative and recommendations</span>
+            <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-weeklyreport">—</span><span class="agent-card-footer-action">Open</span></div>
+          </button>
+        </div>
+      </div>
+
       <!-- Activity -->
       <div class="agent-group">
         <div class="agent-group-label" style="color:var(--ink);">Activity</div>
@@ -3776,10 +3812,38 @@ async function _renderAgentsStatus() {
       if (dot) dot.classList.toggle('is-active', !!last);
       if (status) status.textContent = last ? ('Ran ' + _relTimeShort(last)) : 'Idle';
     });
+    // Groupe Pipeline : 3 des 4 loguent aussi dans agent_activity_log (meme requete, meme
+    // lastByAgent) -- seul Daily Digest n'y logue jamais (daily_activity_summaries est
+    // alimentee hors de ce fichier), traite separement juste apres.
+    [['morningscan', 'Morning Scan'], ['pipelinereviewer', 'Pipeline Reviewer'], ['weeklyreport', 'Weekly Report']].forEach(([key, label]) => {
+      const dot = document.getElementById('dot-' + key);
+      const status = document.getElementById('status-' + key);
+      const last = lastByAgent[label];
+      if (dot) dot.classList.toggle('is-active', !!last);
+      if (status) status.textContent = last ? ('Ran ' + _relTimeShort(last)) : 'Idle';
+    });
   } catch(e) {
     console.warn('[_renderAgentsStatus]', e);
     if (heroRun) heroRun.textContent = '—';
     if (heroActions) heroActions.textContent = '—';
+  }
+  // Daily Digest : pas de ligne dans agent_activity_log, created_at le plus recent de
+  // daily_activity_summaries sert de proxy "dernier passage" (meme colonne que la ligne de
+  // provenance Reports).
+  try {
+    const dot = document.getElementById('dot-dailydigest');
+    const status = document.getElementById('status-dailydigest');
+    const { data, error } = await sbClient.from('daily_activity_summaries')
+      .select('created_at')
+      .eq('client_id', CLIENT_ID)
+      .order('created_at', { ascending: false })
+      .limit(1);
+    if (error) throw error;
+    const last = data && data[0] && data[0].created_at;
+    if (dot) dot.classList.toggle('is-active', !!last);
+    if (status) status.textContent = last ? ('Ran ' + _relTimeShort(last)) : 'Idle';
+  } catch(e) {
+    console.warn('[_renderAgentsStatus:dailydigest]', e);
   }
 }
 
