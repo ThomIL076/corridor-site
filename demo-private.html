@@ -2911,10 +2911,13 @@ function _renderDailyList(rows) {
       `<span class="rpt-metric-badge" style="background:${m.color}18;color:${m.color};border-color:${m.color}30;">${_esc(String(metrics[m.key]))} ${_esc(m.label)}</span>`
     ).join('');
     const summaryHtml = r.summary_text ? `<div style="font-size:var(--fs-base);line-height:1.6;color:var(--text-primary);margin-top:${badges ? '10px' : '0'};">${_esc(r.summary_text).replace(/\n/g, '<br>')}</div>` : '';
-    // Pas de colonne de timestamp d'ecriture verifiee sur daily_activity_summaries (table
-    // alimentee hors de ce fichier) -- on reutilise r.date, seul champ confirme, plutot que
-    // d'inventer un nom de colonne non verifie.
-    const provenanceHtml = `<div class="ask-provenance">WRITTEN ${_esc(dateLabel.toUpperCase())} &middot; NO ACTION REQUIRED</div>`;
+    // created_at (timestamp with time zone) = quand le resume a ete ecrit ; date (date simple)
+    // = le jour metier couvert, deja utilise pour dateLabel -- deux questions differentes,
+    // confirme sur le schema reel.
+    const writtenAt = r.created_at
+      ? new Date(r.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).toUpperCase()
+      : dateLabel.toUpperCase();
+    const provenanceHtml = `<div class="ask-provenance">WRITTEN ${_esc(writtenAt)} &middot; NO ACTION REQUIRED</div>`;
     return `<div style="border:1px solid var(--border);border-radius:var(--radius-panel);padding:14px 16px;margin-bottom:8px;">
       <div style="display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap;">
         <span style="font-size:var(--fs-xs);font-weight:700;color:var(--text-secondary);white-space:nowrap;flex-shrink:0;padding-top:2px;">${_esc(dateLabel)}</span>
