@@ -5868,18 +5868,18 @@ function _staticFollowUp(touch, firstName, company, lang, note) {
     if (CLIENT_ID === 'kaizenology') {
       if (lang === 'FR') {
         const coLine = co ? ' sur le dossier ' + co : '';
-        return `${firstName}, je reviens brièvement.\n\nLa plupart des transactions n'échouent pas faute d'opportunité, mais faute de processus : la bonne structure, les bons interlocuteurs, le bon timing pour faire aboutir une opération.\n\nC'est exactement là que je peux vous aider${coLine}. Ça vaut 20 minutes pour faire le point ensemble ?\n\nStéphane Rogovsky, CAIA`;
+        return `${firstName}, je reviens brièvement.\n\nUne transaction n'échoue pas faute d'opportunité. Elle échoue faute de processus : la bonne structure, les bons interlocuteurs, le bon timing pour la faire aboutir.\n\nC'est exactement là que je peux vous aider${coLine}. Ça vaut 20 minutes pour faire le point ensemble ?\n\nStéphane Rogovsky, CAIA`;
       } else {
         const coLine = co ? ' on the ' + co + ' situation' : '';
-        return `${firstName}, following up briefly.\n\nMost transactions don't stall for lack of opportunity — they stall for lack of process: the right structure, the right counterparties, the right timing to actually get a deal done.\n\nThat's exactly where I can help${coLine}. Worth 20 minutes to walk through where things stand?\n\nStéphane Rogovsky, CAIA`;
+        return `${firstName}, following up briefly.\n\nA transaction doesn't stall for lack of opportunity. It stalls for lack of process: the right structure, the right counterparties, the right timing to get it done.\n\nThat's exactly where I can help${coLine}. Worth 20 minutes to walk through where things stand?\n\nStéphane Rogovsky, CAIA`;
       }
     }
     if (lang === 'FR') {
       const coLine = co ? ` sur les marchés cibles de ${co}` : '';
-      return `${firstName}, je reviens brèvement.\n\nLa plupart des pipelines ne manquent pas de prospects. Ils manquent de système : les bons signaux, les bons contacts, le bon moment, et une séquence qui tourne sans que tout repose sur une ou deux personnes.\n\nC'est exactement ce que j'ai construit. Ça vaut 20 minutes pour vous montrer ce que ça donne${coLine} ?\n\nThomas`;
+      return `${firstName}, je reviens brèvement.\n\nLe marché n'est pas le problème ici. Ce qui manque, c'est le système derrière : les bons signaux, les bons contacts, le bon moment, et une séquence qui tourne sans reposer sur une seule personne.\n\nC'est exactement ce que j'ai construit. Ça vaut 20 minutes pour vous montrer ce que ça donne${coLine} ?\n\nThomas`;
     } else {
       const coLine = co ? ` on ${co}'s target markets` : '';
-      return `${firstName}, following up briefly.\n\nMost pipelines don't fail because the market doesn't exist. They fail because the commercial engine was never built — the right signals, the right contacts, the right timing, running without depending on any single person.\n\nThat's exactly what I built. Worth 20 minutes to show you what it looks like${coLine}?\n\nThomas`;
+      return `${firstName}, following up briefly.\n\nThe market isn't the constraint here. The system behind it is: the right signals, the right contacts, the right timing, and a sequence that runs without depending on one person.\n\nThat's exactly what I built. Worth 20 minutes to show you what it looks like${coLine}?\n\nThomas`;
     }
   }
 }
