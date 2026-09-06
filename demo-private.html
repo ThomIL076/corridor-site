@@ -3704,7 +3704,10 @@ async function doLogin(e){
 }
 async function signOut(){ await sbClient.auth.signOut(); showLogin(); }
 sbClient.auth.getSession().then(({ data }) => { checkAccess(data.session); });
-sbClient.auth.onAuthStateChange((_e, session) => { checkAccess(session); });
+sbClient.auth.onAuthStateChange((_e, session) => {
+  console.log('[DIAG] onAuthStateChange event:', _e);
+  checkAccess(session);
+});
 window.addEventListener('popstate', async () => {
   if (!_demoStarted) return;
   const val = new URLSearchParams(window.location.search).get('mandate') || '';
