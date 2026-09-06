@@ -11169,8 +11169,9 @@ function getMomentumClass(p){
 // Score ICP dérivé quand icp_score est null : hash déterministe → 7.5–9.5 (parité cartes statiques).
 // Scoring ICP unifié (réel Supabase prioritaire, sinon calcul sur critères — aligné App.jsx)
 function _calcRecency(p) {
-  if (!p.last_contact) return 0;
-  const days = (Date.now() - new Date(p.last_contact).getTime()) / 86400000;
+  const lastTouch = p.updated_at || p.created_at;
+  if (!lastTouch) return 0;
+  const days = (Date.now() - new Date(lastTouch).getTime()) / 86400000;
   if (days <= 7)  return 10;
   if (days <= 30) return 7;
   if (days <= 90) return 4;
@@ -11244,7 +11245,7 @@ function _calcICP(p) {
     else if (dv > 0 && dvFarAbove)                 dealValueScore = 2;
     else if (dv > 0)                               dealValueScore = 3;
   }
-  return _calcComposite(roleScore, sizeScore, 0, 5, 5, completenessScore, dealValueScore).toFixed(1);
+  return _calcComposite(roleScore, sizeScore, 0, 5, _calcRecency(p), completenessScore, dealValueScore).toFixed(1);
 }
 function _calcConfidence(p) {
   const icp = parseFloat(_calcICP(p));
