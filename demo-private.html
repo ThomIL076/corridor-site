@@ -154,14 +154,18 @@
   --fundraising-bg: #eef3fb;
   --signals-purple: #6b4bc0;
   --signals-purple-bg: #f3f0fb;
-  /* Groupe Agents (Agents/Orchestration) : 3 teintes de reperage de groupe de navigation
-     (Content/GTM/Pipeline), deliberement separees des paires semantiques ci-dessus -- arbitrage
+  /* Groupe Agents (Agents/Orchestration) : 4 teintes de reperage de groupe de navigation
+     (Content/GTM/Pipeline/Hub), deliberement separees des paires semantiques ci-dessus -- arbitrage
      Thomas 06/09 : rattacher "Content" a POSITIVE ou "Pipeline" a FUNDRAISING creerait un faux
      sens (lecteur qui connait la palette croirait que la couleur dit un statut). Jamais reutilisees
      pour du statut/signal ailleurs dans le produit. */
   --agent-group-content: #1d9e75;
   --agent-group-gtm: #2568b5;
   --agent-group-pipeline: #9f3fbf;
+  /* Hub = CMO Orchestrator uniquement (_AGENT_META.cmo.color, panneau de chat via --panel-accent) --
+     ne surface dans aucune grille .agent-card (le hero CMO reste en ink plein) donc jamais vue
+     nulle part avant ce token : documentee ici pour rester trouvable par un futur grep --agent-group-. */
+  --agent-group-hub: #3b5bdb;
 }
 
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -2311,9 +2315,9 @@ body.new-nav { padding-left: 220px; }
       <button class="hp-btn btn-sm" onclick="_setHpFilter('neutral')" id="hp-btn-neutral">Neutral</button>
       <button class="hp-btn btn-sm" onclick="_setHpFilter('cold')" id="hp-btn-cold">Cold</button>
       <span style="width:1px;height:18px;background:var(--border);margin:0 2px;"></span>
-      <button class="sig-btn btn-sm active" onclick="_setSigFilter('all')" id="sig-btn-all">Tout</button>
+      <button class="sig-btn btn-sm active" onclick="_setSigFilter('all')" id="sig-btn-all">All</button>
       <button class="sig-btn btn-sm" onclick="_setSigFilter('signal')" id="sig-btn-signal">Signal</button>
-      <button class="sig-btn btn-sm" onclick="_setSigFilter('queue')" id="sig-btn-queue">File d'attente</button>
+      <button class="sig-btn btn-sm" onclick="_setSigFilter('queue')" id="sig-btn-queue">Queue</button>
     </div>
 
     <div class="kanban-scroll">
@@ -7051,12 +7055,24 @@ async function _fetchProspectMemory(pid) {
 }
 
 function _staticFollowUp(touch, firstName, company, lang, note) {
+  company = company ? company.charAt(0).toUpperCase() + company.slice(1) : '';
+  const co = (company || '').trim();
   const callNote = (note || '').trim() || '[what you shared]';
   if (touch === 'postcall') {
     if (lang === 'FR') {
       return `${firstName}, merci pour l'échange.\n\nAu vu de ce que vous m'avez partagé sur ${callNote}, ça vaut la peine de vous montrer ce que le système donne sur vos marchés et votre ICP réels. Je peux avoir une démo personnalisée prête en 48h.\n\nSi vous voulez avancer, répondez simplement et on fixe un créneau.\n\nEn attendant, vous pouvez suivre Corridor sur LinkedIn : linkedin.com/company/corridor-gtm-system\n\nThomas`;
     } else {
       return `${firstName}, good talking just now.\n\nBased on what you shared about ${callNote}, I think it makes sense to show you what the system looks like on your actual markets and ICP. I can have a personalised demo ready within 48 hours.\n\nIf you want to move forward, just reply and we'll set a time.\n\nIn the meantime, you can follow Corridor on LinkedIn: linkedin.com/company/corridor-gtm-system\n\nThomas`;
+    }
+  } else if (touch === 'j5') {
+    // Porte tel quel le texte generique (branche non-Kaizenology) de kaizenology.html:5853-5870 --
+    // le bloc if (CLIENT_ID === 'kaizenology') specifique a cette instance n'a pas lieu d'etre ici.
+    if (lang === 'FR') {
+      const coLine = co ? ` sur les marchés cibles de ${co}` : '';
+      return `${firstName}, je reviens brèvement.\n\nLa plupart des pipelines ne manquent pas de prospects. Ils manquent de système : les bons signaux, les bons contacts, le bon moment, et une séquence qui tourne sans que tout repose sur une ou deux personnes.\n\nC'est exactement ce que j'ai construit. Ça vaut 20 minutes pour vous montrer ce que ça donne${coLine} ?\n\nThomas`;
+    } else {
+      const coLine = co ? ` on ${co}'s target markets` : '';
+      return `${firstName}, following up briefly.\n\nMost pipelines don't fail because the market doesn't exist. They fail because the commercial engine was never built — the right signals, the right contacts, the right timing, running without depending on any single person.\n\nThat's exactly what I built. Worth 20 minutes to show you what it looks like${coLine}?\n\nThomas`;
     }
   }
 }
@@ -7116,7 +7132,32 @@ async function _generateSequenceMessage(pid, touch, forceGenerate = false, elPre
   const touchDescriptions = {
     invite: `a LinkedIn connection request. MANDATORY STRUCTURE: 1 sentence of observation (max 15 words, factual, based on signal) + 1 short question (max 10 words) + sign-off "Thomas" on its own line. Total: under 200 chars. No greeting. No pitch. No Corridor. No URL. No closing line. Nothing else.`,
     j0:     'a first LinkedIn message after connection accepted (open conversation, no pitch, under 75 words)',
+    j5:     'a LinkedIn follow-up message (one new angle, soft CTA, under 75 words)',
   };
+
+  // Deplacees ici (avant les 3 lectures reseau plus bas) : ne servent qu'au court-circuit
+  // statique J+5 juste apres, qui doit pouvoir rendre sans la moindre requete quand il s'applique.
+  const isAmbassador = (touch === 'ambassador');
+  const isRedirect = (touch === 'redirect');
+  const nameParts = (p.name || '').trim().split(/\s+/);
+  const firstName = nameParts[0] || '';
+  const lastName = nameParts.slice(1).join(' ') || '';
+
+  // Static template for standard J+5 -- skip API call, web search, AND the 3 reads below
+  // (intCtx/_fetchProspectMemory/prevMsgBlock, qui ne servent qu'au chemin IA plus bas). Investor
+  // exclu ici -> toujours IA, meme au premier clic. !forceGenerate : premier Generate = statique,
+  // Regenerate explicite = chemin IA complet plus bas.
+  if (touch === 'j5' && !isAmbassador && !isRedirect && !forceGenerate && (p.sector||'').toLowerCase() !== 'investor') {
+    const staticMsg = _staticFollowUp(touch, firstName, p.company, lang);
+    if (out) out.textContent = staticMsg;
+    await _saveSequenceDraft(pid, touch, staticMsg, elPrefix);
+    const saveBtn = document.getElementById(elPrefix + 'sv-' + pid);
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.style.opacity = '0.45'; saveBtn.style.cursor = 'not-allowed'; }
+    if (btn) btn.disabled = false;
+    if (spin) spin.classList.remove('active');
+    return;
+  }
+
   let intCtx = '';
   try {
     const { data } = await sbClient.from('interactions')
@@ -7127,9 +7168,23 @@ async function _generateSequenceMessage(pid, touch, forceGenerate = false, elPre
 
   const memoryBlock = await _fetchProspectMemory(pid);
 
-  // prevMsgBlock reste declare (toujours vide desormais) : investorPrompts.j0 plus bas
-  // l'interpole encore, ce n'est pas un reste orphelin du seul chemin j5.
+  // Previous LinkedIn message — J+5 only (porte tel quel depuis kaizenology.html, deja valide
+  // pour le segment investor la-bas)
   let prevMsgBlock = '';
+  if (touch === 'j5') {
+    try {
+      const { data: prevData } = await sbClient.from('interactions')
+        .select('note,created_at')
+        .eq('prospect_id', pid)
+        .in('type', ['LinkedIn', 'linkedin'])
+        .order('created_at', { ascending: false })
+        .limit(1);
+      const prevNote = prevData?.[0]?.note?.trim();
+      if (prevNote) {
+        prevMsgBlock = `\nPREVIOUS MESSAGE SENT TO THIS PROSPECT:\n${prevNote}\nThe follow-up must feel like a natural continuation of this conversation thread, not a fresh outreach.\n`;
+      }
+    } catch(e) {}
+  }
 
   // Invitation context — J+0 only
   let inviteBlock = '';
@@ -7151,13 +7206,8 @@ async function _generateSequenceMessage(pid, touch, forceGenerate = false, elPre
   // Web search enrichment — J+5 and J+0 network
   let liveContext = '';
   let personContext = '';
-  const isAmbassador = (touch === 'ambassador');
-  const isRedirect = (touch === 'redirect');
   const isJ0Network = (touch === 'j0' && (p.origin === 'network' || p.origin === 'outbound'));
-  const _needsWebSearch = !isAmbassador && !isRedirect && (isJ0Network || touch === 'invite');
-  const nameParts = (p.name || '').trim().split(/\s+/);
-  const firstName = nameParts[0] || '';
-  const lastName = nameParts.slice(1).join(' ') || '';
+  const _needsWebSearch = !isAmbassador && !isRedirect && (touch === 'j5' || isJ0Network || touch === 'invite');
 
   if (_needsWebSearch) {
     let srchEl = document.getElementById('srch-' + pid);
@@ -7306,7 +7356,8 @@ ${langRule}
 
   const _sig = _interpretSignal(p.signal);
   const signalBlock = _sig ? (
-    (touch === 'j0' || touch === 'invite') ? `\nSTORED SIGNAL (detected and saved in database):\n"${_sig}"\nSignal type: ${p.signal_type || 'unclassified'}${p.signal_date ? '\nSignal date: ' + p.signal_date : ' (date unknown)'}\n\nBEFORE USING THIS SIGNAL, CLASSIFY IT:\n(a) a specific, dated event -- funding round, hire, product launch, expansion, explicit decision\n(b) generic activity -- LinkedIn engagement, general posting activity, no specific event or date\n\nPRIORITY RULE -- when both STORED SIGNAL and LIVE CONTEXT (below) are present:\n- Compare their recency: stored signal date vs. events mentioned in LIVE CONTEXT\n- Lead with the MORE RECENT of the two as your opening hook -- do NOT default to either source systematically\n- If LIVE CONTEXT contains a more recent specific event, prefer it even if the stored signal is type (a)\n- If stored signal is more recent, or LIVE CONTEXT is thin/generic, lead with the stored signal\n- If only one source is present, use it\n\nIf (a) and leading with stored signal: use the signal date as timing justification (e.g. "I saw that last [month]...")\nIf (b): use stored signal only as a soft opener; rely on LIVE CONTEXT for substance. If LIVE CONTEXT is also empty, write a short neutral message.\n\nRULES:\n- Total message under 75 words\n- NO closing line, NO signature, NO Corridor mention, NO URL.\n` : ''
+    (touch === 'j0' || touch === 'invite') ? `\nSTORED SIGNAL (detected and saved in database):\n"${_sig}"\nSignal type: ${p.signal_type || 'unclassified'}${p.signal_date ? '\nSignal date: ' + p.signal_date : ' (date unknown)'}\n\nBEFORE USING THIS SIGNAL, CLASSIFY IT:\n(a) a specific, dated event -- funding round, hire, product launch, expansion, explicit decision\n(b) generic activity -- LinkedIn engagement, general posting activity, no specific event or date\n\nPRIORITY RULE -- when both STORED SIGNAL and LIVE CONTEXT (below) are present:\n- Compare their recency: stored signal date vs. events mentioned in LIVE CONTEXT\n- Lead with the MORE RECENT of the two as your opening hook -- do NOT default to either source systematically\n- If LIVE CONTEXT contains a more recent specific event, prefer it even if the stored signal is type (a)\n- If stored signal is more recent, or LIVE CONTEXT is thin/generic, lead with the stored signal\n- If only one source is present, use it\n\nIf (a) and leading with stored signal: use the signal date as timing justification (e.g. "I saw that last [month]...")\nIf (b): use stored signal only as a soft opener; rely on LIVE CONTEXT for substance. If LIVE CONTEXT is also empty, write a short neutral message.\n\nRULES:\n- Total message under 75 words\n- NO closing line, NO signature, NO Corridor mention, NO URL.\n` :
+    touch === 'j5' ? `\nORIGINAL SIGNAL CONTEXT (do NOT repeat this angle -- build a new one):\nSignal: "${_sig}"${p.signal_date ? '\nSignal date: ' + p.signal_date : ''}\nJ+0 was sent based on this signal. J+5 must introduce a completely different angle.\nUse what you know about the company/person to find a second hook that is equally specific.\nNever use: "following up", "checking in", "touching base", "just wanted to".\n` : ''
   ) : '';
   const _hcp = (touch === 'invite') ? await _humanConnectionPoint(p) : null;
   const hcpBlock = _hcp
@@ -7324,7 +7375,7 @@ Prospect: ${p.name}, ${p.title||'unknown title'} at ${p.company}${(p.sector || p
 ${intCtx ? 'Recent interactions: ' + intCtx : ''}
 ${_senderBio()}
 ${_activeMandate ? 'ACTIVE MANDATE CONTEXT (defines the purpose of every message; the signal below informs the angle but must not contradict this mandate):' + '\n' + _mandateContext() + '\n---\n' : ''}
-${liveBlock}${personBlock}${prevMsgBlock}${inviteBlock}${originBlock}${memoryBlock}${touch === 'invite' ? `CRITICAL INVITE RULE (non-negotiable): LinkedIn connection request. STRUCTURE: one factual observation (max 15 words) + one short question (max 10 words) + sign off "Thomas" on its own line. TOTAL under 200 characters. NO greeting. NO Corridor. NO URL. NO closing line. NO "Sent via". Output ONLY the 2-sentence message + Thomas, nothing else.` : ''}\n${p.next_action_cache ? 'RECOMMENDED APPROACH (from prior analysis -- use as guidance for channel and angle unless recent interactions suggest a different approach; do not contradict it without reason):\n' + p.next_action_cache + '\n' : ''}\nRules: NEVER use em-dashes (—) in any message, replace with a period or comma. No bullet points. No mention of "Alliance Grid" or "Corridor" in the main message body (sentences 1 and 2 only -- the mandatory closing line appended below is the only exception and must be reproduced exactly as given). ${langRule} Replace every vague claim with something specific and provable. Never write 'I help companies grow' or 'I drive results'. Write what you actually observed about this company and why it is relevant right now.${(touch === 'invite' || touch === 'j0') ? ' Strip all marketing language. No buzzwords, no value propositions, no product claims. Rewrite as a text a peer would send to another peer -- direct, human, zero corporate tone.' : ''} NEVER claim or imply that the prospect asked a question, made a specific statement, or expressed a specific interest unless that exact information is explicitly given in the prompt -- if no such detail is provided, do not invent one. NEVER state or imply a specific niche focus for the sender (e.g. a named industry, a named type of deal) that is not listed in their background above. NEVER use generic AI-sounding filler phrases (e.g. "passionate about", "excited to connect", "love what you're building") -- ground every claim in a real fact from the sender's background above or the prospect's own title/company/signal. NEVER open with false familiarity — "I've been following your work", "I've been following your journey", "I came across your profile", "I noticed your work", and all variants are prohibited: they imply sustained prior attention that did not exist and collapse under any verification question from the prospect. Output the message only, no preamble.${j0LinkedInNote}${j0CtaNote}${j0NoContextNote}${stealthBlock}${signalBlock}${hcpBlock}`);
+${liveBlock}${personBlock}${prevMsgBlock}${inviteBlock}${originBlock}${memoryBlock}${touch === 'invite' ? `CRITICAL INVITE RULE (non-negotiable): LinkedIn connection request. STRUCTURE: one factual observation (max 15 words) + one short question (max 10 words) + sign off "Thomas" on its own line. TOTAL under 200 characters. NO greeting. NO Corridor. NO URL. NO closing line. NO "Sent via". Output ONLY the 2-sentence message + Thomas, nothing else.` : ''}\n${p.next_action_cache ? 'RECOMMENDED APPROACH (from prior analysis -- use as guidance for channel and angle unless recent interactions suggest a different approach; do not contradict it without reason):\n' + p.next_action_cache + '\n' : ''}\nRules: NEVER use em-dashes (—) in any message, replace with a period or comma. No bullet points. No mention of "Alliance Grid" or "Corridor" in the main message body (sentences 1 and 2 only -- the mandatory closing line appended below is the only exception and must be reproduced exactly as given). ${langRule} Replace every vague claim with something specific and provable. Never write 'I help companies grow' or 'I drive results'. Write what you actually observed about this company and why it is relevant right now.${(touch === 'invite' || touch === 'j0') ? ' Strip all marketing language. No buzzwords, no value propositions, no product claims. Rewrite as a text a peer would send to another peer -- direct, human, zero corporate tone.' : ''} NEVER claim or imply that the prospect asked a question, made a specific statement, or expressed a specific interest unless that exact information is explicitly given in the prompt -- if no such detail is provided, do not invent one. NEVER state or imply a specific niche focus for the sender (e.g. a named industry, a named type of deal) that is not listed in their background above. NEVER use generic AI-sounding filler phrases (e.g. "passionate about", "excited to connect", "love what you're building") -- ground every claim in a real fact from the sender's background above or the prospect's own title/company/signal. NEVER open with false familiarity — "I've been following your work", "I've been following your journey", "I came across your profile", "I noticed your work", and all variants are prohibited: they imply sustained prior attention that did not exist and collapse under any verification question from the prospect. Output the message only, no preamble.${touch === 'j5' ? '\n\nFOLLOW-UP TONE RULES (mandatory):\n- NEVER use: "follow up", "following up", "checking in", "touching base", "circling back", "just wanted to", "I wanted to reach out", "hope this finds you well"\n- Do NOT open with a reference to the previous message (e.g. "I sent you a note last week")\n- Write as if continuing a conversation, not tracking an unanswered message\n- Introduce a NEW angle, observation, or question — never repeat the idea from the previous message\n- Conversational tone: peer to peer, not vendor to prospect\n- j5: one specific observation or question that opens a thread — no CTA harder than "thoughts?" or "does this resonate?"\n- The closing question must be different from the J+0 question. Never use "Curious what the growth focus looks like" or any variation of it.\n- Previous message sent: "' + (intCtx || 'not available') + '" — do not repeat its angle, observation, or closing question.' : ''}${j0LinkedInNote}${j0CtaNote}${j0NoContextNote}${stealthBlock}${signalBlock}${hcpBlock}`);
   console.log('[gen] calling Anthropic. touch:', touch, 'prompt chars:', prompt.length);
   try {
     const res = await fetch(API_URL, {

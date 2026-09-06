@@ -1796,9 +1796,9 @@ body.new-nav { padding-left: 220px; }
       <button class="hp-btn" onclick="_setHpFilter('neutral')" id="hp-btn-neutral">Neutral</button>
       <button class="hp-btn" onclick="_setHpFilter('cold')" id="hp-btn-cold">Cold</button>
       <span style="width:1px;height:18px;background:var(--border);margin:0 2px;"></span>
-      <button class="sig-btn active" onclick="_setSigFilter('all')" id="sig-btn-all">Tout</button>
+      <button class="sig-btn active" onclick="_setSigFilter('all')" id="sig-btn-all">All</button>
       <button class="sig-btn" onclick="_setSigFilter('signal')" id="sig-btn-signal">Signal</button>
-      <button class="sig-btn" onclick="_setSigFilter('queue')" id="sig-btn-queue">File d'attente</button>
+      <button class="sig-btn" onclick="_setSigFilter('queue')" id="sig-btn-queue">Queue</button>
     </div>
 
     <div class="kanban-scroll">
@@ -5929,6 +5929,28 @@ async function _generateSequenceMessage(pid, touch, forceGenerate = false, elPre
     j0:     'a first LinkedIn message after connection accepted (open conversation, no pitch, under 75 words)',
     j5:     'a LinkedIn follow-up message (one new angle, soft CTA, under 75 words)',
   };
+
+  // Deplacees ici (avant les 3 lectures reseau plus bas) : ne servent qu'au court-circuit
+  // statique J+5 juste apres, qui doit pouvoir rendre sans la moindre requete quand il s'applique.
+  const isAmbassador = (touch === 'ambassador');
+  const isRedirect = (touch === 'redirect');
+  const nameParts = (p.name || '').trim().split(/\s+/);
+  const firstName = nameParts[0] || '';
+  const lastName = nameParts.slice(1).join(' ') || '';
+
+  // Static template for standard J+5 -- skip API call, web search, AND the 3 reads below
+  // (intCtx/_fetchProspectMemory/prevMsgBlock, qui ne servent qu'au chemin IA plus bas).
+  if (touch === 'j5' && !isAmbassador && !isRedirect && !forceGenerate && (p.sector||'').toLowerCase() !== 'investor') {
+    const staticMsg = _staticFollowUp(touch, firstName, p.company, lang);
+    if (out) out.textContent = staticMsg;
+    await _saveSequenceDraft(pid, touch, staticMsg, elPrefix);
+    const saveBtn = document.getElementById(elPrefix + 'sv-' + pid);
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.style.opacity = '0.45'; saveBtn.style.cursor = 'not-allowed'; }
+    if (btn) btn.disabled = false;
+    if (spin) spin.classList.remove('active');
+    return;
+  }
+
   let intCtx = '';
   try {
     const { data } = await sbClient.from('interactions')
@@ -5976,25 +5998,8 @@ async function _generateSequenceMessage(pid, touch, forceGenerate = false, elPre
   // Web search enrichment — J+5 and J+0 network
   let liveContext = '';
   let personContext = '';
-  const isAmbassador = (touch === 'ambassador');
-  const isRedirect = (touch === 'redirect');
   const isJ0Network = (touch === 'j0' && (p.origin === 'network' || p.origin === 'outbound'));
   const _needsWebSearch = !isAmbassador && !isRedirect && (touch === 'j5' || isJ0Network || touch === 'invite');
-  const nameParts = (p.name || '').trim().split(/\s+/);
-  const firstName = nameParts[0] || '';
-  const lastName = nameParts.slice(1).join(' ') || '';
-
-  // Static template for standard J+5 -- skip API call and web search
-  if (touch === 'j5' && !isAmbassador && !isRedirect && (p.sector||'').toLowerCase() !== 'investor') {
-    const staticMsg = _staticFollowUp(touch, firstName, p.company, lang);
-    if (out) out.textContent = staticMsg;
-    await _saveSequenceDraft(pid, touch, staticMsg, elPrefix);
-    const saveBtn = document.getElementById(elPrefix + 'sv-' + pid);
-    if (saveBtn) { saveBtn.disabled = true; saveBtn.style.opacity = '0.45'; saveBtn.style.cursor = 'not-allowed'; }
-    if (btn) btn.disabled = false;
-    if (spin) spin.classList.remove('active');
-    return;
-  }
 
   if (_needsWebSearch) {
     let srchEl = document.getElementById(elPrefix + 'srch-' + pid);
