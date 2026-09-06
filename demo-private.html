@@ -8326,7 +8326,7 @@ async function _addScannerToPipeline() {
       sector: d.sector || null,
       region: d.region || null,
       stage: 'Identified',
-      icp_score: d.icp_score != null ? d.icp_score : null,
+      icp_score: d.icp_score != null ? Math.round(d.icp_score) : null,
       signal: d.signal || null,
       signal_interpretation: _sigInterp.interpretation,
       signal_date: _sigInterp.date,
@@ -8340,7 +8340,12 @@ async function _addScannerToPipeline() {
     loadKanban(true);
   } catch(e) {
     console.warn('[_addScannerToPipeline] failed:', e);
-    if (btn) { btn.disabled = false; }
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '⚠ Add failed — retry';
+      btn.style.background = 'var(--red)';
+      btn.title = e?.message || 'Unknown error — check console';
+    }
   }
 }
 async function _addCommitteeStakeholderToPipeline(s, company, sector, icpScore, btn) {
