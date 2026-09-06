@@ -804,8 +804,11 @@ footer a { color:var(--navy); text-decoration:none; font-weight:600; }
 .system-alert-box { border-color:var(--red-light); background:var(--red-bg); }
 .system-alert-header { background:var(--red-bg); border-bottom-color:var(--red-light); }
 .system-alert-header .ai-box-label { color:var(--red); }
-.badge-review { background:var(--navy-light); color:var(--navy); border:1px solid var(--border); }
+.badge-review { background:var(--accent-bg); color:var(--ink); border:1px solid var(--accent-border); }
 .system-review-card { border-color:var(--border); }
+#syspanel-pipeintel .ai-box-header { background:var(--bg); }
+#syspanel-pipeintel .ai-box-label { color:var(--ink); }
+#syspanel-pipeintel .ai-spinner { border-top-color:var(--ink); }
 .pr-kpi-bar { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
 .pr-kpi { flex:1; min-width:72px; text-align:center; border-radius:var(--radius-md); padding:8px 6px; border:1px solid; }
 .pr-kpi-num { font-size:var(--fs-xl); font-weight:800; line-height:1; }
@@ -819,12 +822,12 @@ footer a { color:var(--navy); text-decoration:none; font-weight:600; }
 .pr-kpi-green { background:var(--green-bg); border-color:var(--green-border); }
 .pr-kpi-green .pr-kpi-num { color:var(--green); }
 .pr-kpi-green .pr-kpi-lbl { color:var(--green); }
-.pr-kpi-total { background:var(--navy-light); border-color:var(--blue); }
-.pr-kpi-total .pr-kpi-num { color:var(--navy); }
-.pr-kpi-total .pr-kpi-lbl { color:var(--navy); }
+.pr-kpi-total { background:var(--accent-bg); border-color:var(--accent-border); }
+.pr-kpi-total .pr-kpi-num { color:var(--ink); }
+.pr-kpi-total .pr-kpi-lbl { color:var(--ink); }
 .pr-prospect-row { display:flex; gap:8px; align-items:flex-start; padding:8px 0; border-bottom:1px solid var(--border); cursor:pointer; }
 .pr-prospect-row:last-child { border-bottom:none; }
-.pr-prospect-row:hover { background:var(--navy-light); margin:0 -8px; padding:8px; border-radius:var(--radius-sm); }
+.pr-prospect-row:hover { background:var(--bg); margin:0 -8px; padding:8px; border-radius:var(--radius-sm); }
 .pr-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; margin-top:5px; }
 .pr-dot-red   { background:var(--red); }
 .pr-dot-amber { background:#f59e0b; }
@@ -838,7 +841,7 @@ footer a { color:var(--navy); text-decoration:none; font-weight:600; }
 .pr-group-label-red   { color:var(--red); }
 .pr-group-label-amber { color:var(--amber-mid); }
 .pr-group-label-green { color:var(--green); }
-.pr-summary { background:var(--navy-light); border:1px solid var(--blue-light); border-radius:var(--radius-panel); padding:12px 14px; margin-bottom:14px; font-size:var(--fs-base); line-height:1.65; color:var(--text); }
+.pr-summary { background:var(--accent-bg); border:1px solid var(--accent-border); border-radius:var(--radius-panel); padding:12px 14px; margin-bottom:14px; font-size:var(--fs-base); line-height:1.65; color:var(--text); }
 .pr-more { font-size:var(--fs-xs); color:var(--muted); text-align:center; padding:8px 0; font-style:italic; }
 .signal-badge { display:inline-block; vertical-align:middle; font-size:var(--fs-micro); font-weight:700; text-transform:uppercase; letter-spacing:.06em; padding:2px 7px; border-radius:var(--radius-pill); border:1px solid; white-space:nowrap; max-width:180px; overflow:hidden; text-overflow:ellipsis; }
 .signal-s1 { background:#FEF3C7; color:var(--amber-text); border-color:#FCD34D; }
@@ -5599,7 +5602,7 @@ async function _runPipelineReview() {
       const nameEsc = (p.name||'?').replace(/</g,'&lt;');
       const compEsc = (p.company||'?').replace(/</g,'&lt;');
       const actEsc  = (p.action||'').replace(/</g,'&lt;');
-      const deal = p.deal_value ? ' <span style="font-size:var(--fs-micro);background:var(--navy-light);color:var(--navy);padding:1px 6px;border-radius:var(--radius-badge);margin-left:4px;">' + (p.deal_currency || 'EUR') + ' ' + Math.round(parseInt(p.deal_value)/1000) + 'k</span>' : '';
+      const deal = p.deal_value ? ' <span style="font-size:var(--fs-micro);background:var(--accent-bg);color:var(--ink);padding:1px 6px;border-radius:var(--radius-badge);margin-left:4px;">' + (p.deal_currency || 'EUR') + ' ' + Math.round(parseInt(p.deal_value)/1000) + 'k</span>' : '';
       return '<div class="pr-prospect-row" onclick="_prOpenProspect(\'' + p.id + '\')">' +
         '<div class="pr-dot ' + dotClass + '"></div>' +
         '<div style="flex:1;min-width:0;">' +
