@@ -6856,7 +6856,7 @@ function _sendCardHTML(p, touchType, expanded = false) {
           <div class="ai-box-body" id="so-${p.id}" contenteditable="true" spellcheck="false" data-pid="${p.id}" oninput="const b=document.getElementById('sv-'+this.dataset.pid);if(b){b.disabled=false;b.style.opacity='1';b.style.cursor='pointer';}" style="min-height:80px;outline:none;cursor:text">${_esc(seq?.body||'')}</div>
         </div>
         <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-          <button class="btn-primary btn-md" onclick="_generateSequenceMessage('${p.id}','${touchType}')" id="sg-${p.id}">${hasBody ? '🔄 Regenerate' : '▶ Generate'}</button>
+          <button class="btn-primary btn-md" onclick="_generateSequenceMessage('${p.id}','${touchType}'${touchType === 'j5' && hasBody ? ',true' : ''})" id="sg-${p.id}">${hasBody ? '🔄 Regenerate' : '▶ Generate'}</button>
           <button class="btn-secondary btn-md" onclick="_saveSequenceDraft('${p.id}','${touchType}')" id="sv-${p.id}" disabled style="opacity:0.45;cursor:not-allowed">Save draft</button>
           <button class="btn-secondary btn-md" onclick="_markReady('${p.id}')" id="sr-${p.id}" ${isReady?'style="border-color:var(--green);color:var(--green)"':''}>${isReady ? '✓ Ready' : 'Mark ready'}</button>
           ${isEmailTouch
