@@ -4026,13 +4026,13 @@ Language instruction: Write your entire response in ${currentLang === 'fr' ? 'Fr
           const _companyBrief = (document.getElementById('scanner-ai-output')?.textContent || '').trim();
           const _contactBrief = (() => { const t = (document.getElementById('scanner-contact-output')?.textContent || '').trim(); return (t && !t.startsWith('Researching')) ? t : ''; })();
           const _patchBrief = [_companyBrief, _contactBrief ? '---\n' + _contactBrief : ''].filter(Boolean).join('\n\n').slice(0, 3000);
-          const _patch = { icp_score: Math.round(_scanScoreVal), icp_reason: (_scoreResult?.rationale || '').slice(0, 100) };
+          const _patch = { icp_score: Math.round(_scanScoreVal), icp_reason: (_scoreResult?.rationale || '').slice(0, 100), icp_confidence: _scoreResult?.confidence || null };
           if (_patchBrief) _patch.scan_intelligence = _patchBrief;
           sbClient.from('prospects').update(_patch).eq('id', _existing.id).eq('client_id', CLIENT_ID).then(() => {}).catch(e => console.warn('[scan] patch failed:', e));
         }
         _actDiv.innerHTML = `<button onclick="_viewInPipeline('${_existing.id}')" style="width:100%;padding:11px;background:var(--navy-light);color:var(--navy);border:1px solid var(--border);border-radius:var(--radius-md);font-size:var(--fs-base);font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="m9 12 2 2 4-4"/></svg>Already in pipeline · ${_esc(_existing.stage)} — View prospect</button>`;
       } else {
-        window._scannerAddData = { company: _scanCo, name: _scanPer, sector: _scanSec, icp_score: _scanScoreVal, signal: _scanSummary };
+        window._scannerAddData = { company: _scanCo, name: _scanPer, sector: _scanSec, icp_score: _scanScoreVal, icp_confidence: _scoreResult?.confidence || null, signal: _scanSummary };
         _actDiv.innerHTML = `<button onclick="_addScannerToPipeline()" style="width:100%;padding:11px;background:var(--navy);color:#fff;border:none;border-radius:var(--radius-md);font-size:var(--fs-base);font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>Add to pipeline</button>`;
       }
       const _resDiv = document.getElementById('scanner-results'); if (_resDiv) _resDiv.appendChild(_actDiv);
@@ -8327,6 +8327,7 @@ async function _addScannerToPipeline() {
       region: d.region || null,
       stage: 'Identified',
       icp_score: d.icp_score != null ? Math.round(d.icp_score) : null,
+      icp_confidence: d.icp_confidence || null,
       signal: d.signal || null,
       signal_interpretation: _sigInterp.interpretation,
       signal_date: _sigInterp.date,
