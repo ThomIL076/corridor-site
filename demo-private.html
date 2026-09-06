@@ -6606,6 +6606,7 @@ function _setSendBadge(n) {
 }
 
 async function loadSendView() {
+  console.trace('[DIAG] loadSendView appelée');
   const listEl = document.getElementById('send-list');
   const countEl = document.getElementById('send-count');
   if (!listEl) return;
@@ -6691,6 +6692,7 @@ function _isJ5Eligible(p, fiveDaysAgo) {
 }
 
 function _applySendFilters() {
+  console.trace('[DIAG] _applySendFilters appelée');
   const listEl = document.getElementById('send-list');
   if (!listEl || !_sendProspects.length) return;
 
