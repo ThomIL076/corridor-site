@@ -8283,7 +8283,7 @@ async function _addStakeholderToPipeline(idx, btn) {
       linkedin: s.stakeholder_linkedin_url || null,
       stage: 'Identified',
       origin: 'morning_scan',
-      icp_score: scoreResult.score,
+      icp_score: scoreResult.score != null ? Math.round(scoreResult.score) : null,
       icp_reason: scoreResult.reason,
       icp_confidence: scoreResult.confidence,
       signal: _sigText,
@@ -8299,7 +8299,13 @@ async function _addStakeholderToPipeline(idx, btn) {
     if (inserted?.id) _prOpenProspect(inserted.id);
   } catch(e) {
     console.warn('[_addStakeholderToPipeline] failed:', e);
-    if (btn) { btn.disabled = false; btn.textContent = '+ Add to pipeline'; }
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '⚠ Add failed — retry';
+      btn.style.color = 'var(--red)';
+      btn.style.borderColor = 'var(--red)';
+      btn.title = e?.message || 'Unknown error — check console';
+    }
   }
 }
 async function _addScannerToPipeline() {
