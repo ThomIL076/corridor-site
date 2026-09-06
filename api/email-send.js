@@ -21,7 +21,7 @@ export default async function handler(req, res) {
 
   console.log('Function started', req.method, JSON.stringify(req.body));
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-  const { email, first_name, last_name, company_name, campaign_id } = req.body || {};
+  const { email, first_name, last_name, company_name, campaign_id, custom_fields } = req.body || {};
   if (!email) return res.status(400).json({ error: 'email required' });
 
   const apiKey = process.env.SMARTLEAD_API_KEY;
@@ -35,7 +35,7 @@ export default async function handler(req, res) {
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey },
-        body: JSON.stringify({ lead_list: [{ email, first_name, last_name, company_name }] })
+        body: JSON.stringify({ lead_list: [{ email, first_name, last_name, company_name, custom_fields }] })
       }
     );
     const data = await r.json();

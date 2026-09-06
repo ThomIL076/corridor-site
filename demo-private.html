@@ -8415,7 +8415,7 @@ async function openDrawer(card, initialTab = 'activity') {
           </div>
         </div>
         <span id="seq-status-${prospectId}" style="font-size:var(--fs-xs);color:var(--muted)"></span>
-        <button class="btn-lg" id="start-seq-${prospectId}" onclick="_startEmailSeq('${prospectId}')" style="width:100%;margin-top:8px;background:var(--green-brand);color:#FFFFFF;border:none;border-radius:var(--radius-sm);font-weight:500;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;font-family:inherit">
+        <button class="btn-lg" id="start-seq-${prospectId}" onclick="_startEmailSeq('${prospectId}', false)" style="width:100%;margin-top:8px;background:var(--green-brand);color:#FFFFFF;border:none;border-radius:var(--radius-sm);font-weight:500;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;font-family:inherit">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 6l-10 7L2 6"/></svg>
           Start email sequence
         </button>
@@ -12325,26 +12325,33 @@ function _checkEmailSeqState(pid, interactions) {
   }
 }
 
-async function _startEmailSeq(id) {
+async function _startEmailSeq(id, requireDraft = true) {
   const p = _prospectsById[id];
   const statusEl = document.getElementById('seq-status-' + id);
   const btn = document.getElementById('start-seq-' + id);
   if (!p) { if (statusEl) statusEl.textContent = 'Prospect not found'; return; }
   if (!p.email) { if (statusEl) statusEl.textContent = 'No email on record'; return; }
+  const seq = (_sendSequences[id] || []).find(s => s.touch === 'j5');
+  if (requireDraft && (!seq || !seq.body)) {
+    showToast('Generate and mark the message ready first');
+    return;
+  }
   if (!confirm(`Start the email sequence for ${p.name} at ${p.company}?\nThis will send the first email immediately.`)) return;
   if (btn) { btn.disabled = true; btn.textContent = 'Sending...'; btn.style.background = 'var(--muted)'; }
   if (statusEl) statusEl.textContent = '';
   try {
     const nameParts = (p.name || '').trim().split(/\s+/);
+    const payload = {
+      email: p.email,
+      first_name: nameParts[0] || '',
+      last_name: nameParts.slice(1).join(' ') || '',
+      company_name: p.company || '',
+      campaign_id: _clientProfile?.email_campaign_id || EMAIL_CAMPAIGN_ID
+    };
+    if (seq && seq.body) payload.custom_fields = { j5_personalized_body: seq.body };
     const r = await fetch('/api/email-send', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: p.email,
-        first_name: nameParts[0] || '',
-        last_name: nameParts.slice(1).join(' ') || '',
-        company_name: p.company || '',
-        campaign_id: _clientProfile?.email_campaign_id || EMAIL_CAMPAIGN_ID
-      })
+      body: JSON.stringify(payload)
     });
     const data = await r.json();
     if (r.ok && !data.error) {
