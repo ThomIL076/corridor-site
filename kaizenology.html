@@ -486,6 +486,7 @@ button, [role="button"], select, input { min-height: var(--btn-h-sm); }
 .momentum-warm { background:#f59e0b; }
 .momentum-neutral { background:#94a3b8; }
 .momentum-cold { background:#ef4444; opacity:0.7; }
+.momentum-dot-inline { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; vertical-align:middle; }
 .kanban-legend { display:flex; gap:10px; flex-wrap:wrap; font-size:var(--fs-micro); opacity:0.6; margin:2px 0 8px; }
 .kanban-legend .lg-dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:3px; vertical-align:middle; }
 /* ── CRM CLIENTS KANBAN ── */
@@ -3484,6 +3485,15 @@ Language instruction: Write your entire response in ${currentLang === 'fr' ? 'Fr
         _scoreResult.mandate_fit_score, 5, 5
       );
       document.getElementById('sc-total').textContent = _composite.toFixed(1) + '/10';
+      const _breakdown = {
+        role_fit: _scoreResult.role_score * 10,
+        signal_strength: _scoreResult.signal_strength_score * 10,
+        mandate_fit: _scoreResult.mandate_fit_score * 10,
+      };
+      if (_scoreResult.size_score != null && _scoreResult.size_score >= 0) {
+        _breakdown.company_size_fit = _scoreResult.size_score * 10;
+      }
+      _renderBreakdownPanel(_breakdown);
     } else {
       const _stEl = document.getElementById('sc-total');
       if (_stEl) { _stEl.textContent = 'Failed'; _stEl.title = 'Scoring failed — check console'; }
@@ -6653,7 +6663,7 @@ async function runWeeklyReport(){
         .in('id', uniqueIds);
       const pById = {};
       (freshProspects || []).forEach(p => { pById[p.id] = p; });
-      const _wrTypeLabel = { LinkedIn: 'linkedin', email_j5: 'J+5 follow-up' };
+      const _wrTypeLabel = { linkedin: 'LinkedIn', LinkedIn: 'LinkedIn', email: 'Email', call: 'Call', meeting: 'Meeting', email_j5: 'J+5 follow-up', note: 'Note' };
       interactionLines = ints.map(i => {
         const p = pById[i.prospect_id] || {};
         const _lbl = _wrTypeLabel[i.type] || i.type || 'interaction';
@@ -6662,7 +6672,7 @@ async function runWeeklyReport(){
       // Factual summary computed from raw data — no AI parsing needed
       const _byType = {};
       ints.forEach(i => { _byType[i.type] = (_byType[i.type] || 0) + 1; });
-      const _typeParts = Object.entries(_byType).sort((a, b) => b[1] - a[1]).map(([t, n]) => n + ' ' + t).join(' · ');
+      const _typeParts = Object.entries(_byType).sort((a, b) => b[1] - a[1]).map(([t, n]) => n + ' ' + (_wrTypeLabel[t] || t)).join(' · ');
       _wrComputedSummary = uniqueIds.length + ' prospect' + (uniqueIds.length !== 1 ? 's' : '') + ' contacted · ' + ints.length + ' touch' + (ints.length !== 1 ? 'es' : '') + (_typeParts ? ' (' + _typeParts + ')' : '');
       const _liSvgWR = '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>';
       contactedHtml = uniqueIds.length
@@ -10307,6 +10317,7 @@ function buildCard(p){
   return `<div class="k-card" data-id="${_esc(id)}" data-last-contact="${_esc(p.last_contact || '')}" data-reminder-date="${_esc(p.reminder_date || '')}" data-client-id="${CLIENT_ID}" data-linkedin-tag="${_esc(p.linkedin_tag || '')}" data-name="${_esc(p.name || '')}" data-company="${_esc(p.company || '')}" data-sector="${_esc(p.sector || '')}" data-region="${_esc(p.region || '')}" data-stage="${_esc(p.stage || '')}" data-icp-score="${score}" data-country="${_esc(p.country || '')}" data-signal-type="${_esc(p.signal_type || '')}" data-origin="${_esc(p.origin || '')}" data-deal="${Number(p.deal_value) || 0}" data-confidence="${_calcConfidence(p)}" data-job-title="${_esc(p.title || '')}" data-next-action="${p.next_action ? '1' : '0'}" data-next-action-date="${_esc(p.next_action_date || '')}" data-has-signal="${!!(p.signal_type) && !!(p.signal) && !_GENERIC_SIGNAL_TYPES.has(p.signal_type) ? 'true' : 'false'}">`
     + `<input type="checkbox" class="k-card-select" data-pid="${_esc(id)}" onchange="_onCardSelect(this)" onclick="event.stopPropagation()" style="position:absolute;top:10px;left:8px;width:14px;height:14px;cursor:pointer;z-index:2;accent-color:var(--navy);">`
     + _dial
+    + `<span class="momentum-dot-inline momentum-${momentum}"></span>`
     + `<div class="k-card-name">${_esc(p.name || '—')}</div>`
     + `<div class="k-card-company">${_esc(p.company || '')}${place ? ' · ' + _esc(place) : ''}</div>`
     + (p.signal ? `<div class="k-card-signal">${_sigBadge(p.signal_type)}</div>` : '')
@@ -10371,8 +10382,10 @@ async function _replyIntel(id) {
     if (analyzeBtn) { analyzeBtn.disabled = false; analyzeBtn.textContent = 'Analyze'; }
   }
 }
-// Légendes momentum par colonne (le dot est posé inline par buildCard, donc on n'appelle pas
-// applyMomentum() ici : elle écraserait le momentum réel par une valeur mock).
+// Légendes momentum par colonne : le dot réel (.momentum-dot-inline, cf. buildCard) est posé en
+// flux normal à côté du nom, distinct de .momentum-dot (absolu, utilisé par applyMomentum() ci-
+// dessus pour les cartes de démo/mock) -- on n'appelle pas applyMomentum() ici pour ne pas
+// écraser le momentum réel par une valeur mockée.
 function addKanbanLegends(){
   document.querySelectorAll('#kanban-board .kanban-col').forEach(col => {
     if (col.querySelector('.kanban-legend')) return;
