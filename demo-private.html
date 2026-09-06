@@ -481,15 +481,27 @@ button, [role="button"], select, input { min-height: 28px; }
 
 /* ── Agent Map ──────────────────────────────────────────────────────────── */
 .agent-map { padding:20px 16px 24px; max-width:900px; margin:0 auto; }
-.agent-hub-card {
-  display:flex; align-items:center; gap:16px;
-  background:#3B5BDB; color:#fff;
-  border-radius:var(--radius-lg); padding:20px 24px;
-  cursor:pointer; margin-bottom:24px;
-  transition:box-shadow 0.18s, transform 0.15s;
-  border:none; width:100%; text-align:left;
+/* ── Orchestrator hero (README 8. Agents) ── */
+.agent-hero {
+  display:flex; align-items:center; justify-content:space-between; gap:20px; flex-wrap:wrap;
+  background:var(--ink); color:#fff;
+  border-radius:12px; padding:24px 26px; margin-bottom:24px;
 }
-.agent-hub-card:hover { box-shadow:0 6px 20px rgba(59,91,219,.3); transform:translateY(-1px); }
+.agent-hero-status {
+  display:flex; align-items:center; gap:8px;
+  font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:700;
+  letter-spacing:0.06em; text-transform:uppercase;
+}
+.agent-hero-dot { width:8px; height:8px; border-radius:50%; background:var(--success); box-shadow:0 0 0 3px rgba(31,138,92,.3); flex-shrink:0; }
+.agent-hero-desc { font-size:13px; color:rgba(255,255,255,.6); margin-top:8px; max-width:520px; line-height:1.5; }
+.agent-hero-right { display:flex; align-items:center; gap:22px; flex-wrap:wrap; }
+.agent-hero-stats { display:flex; gap:22px; }
+.agent-hero-stat { text-align:center; }
+.agent-hero-stat span { display:block; font-family:'IBM Plex Mono',monospace; font-size:19px; font-weight:700; line-height:1; }
+.agent-hero-stat label { display:block; font-size:9px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:rgba(255,255,255,.55); margin-top:4px; }
+.agent-hero-btn { font-family:inherit; font-size:var(--fs-sm); font-weight:700; padding:9px 18px; border-radius:var(--radius-md); border:none; background:var(--accent); color:#fff; cursor:pointer; white-space:nowrap; }
+.agent-hero-btn:hover { filter:brightness(1.08); }
+@media(max-width:1180px) { .agent-hero { flex-direction:column; align-items:flex-start; } .agent-hero-right { width:100%; justify-content:space-between; } }
 .agent-group { margin-bottom:24px; }
 .agent-group-label {
   font-size:var(--fs-xs); font-weight:700; letter-spacing:0.8px; text-transform:uppercase;
@@ -501,19 +513,29 @@ button, [role="button"], select, input { min-height: 28px; }
 }
 .agent-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(172px, 1fr)); gap:10px; }
 .agent-card {
+  position:relative;
   background:var(--white); border:1.5px solid var(--border);
   border-radius:var(--radius-md); padding:14px 16px;
   cursor:pointer; transition:border-color 0.15s, box-shadow 0.15s, transform 0.15s;
   display:flex; flex-direction:column; gap:4px; text-align:left; width:100%;
 }
 .agent-card:hover {
-  border-color:var(--accent-color, var(--navy));
-  box-shadow:0 2px 8px rgba(26,43,94,.08); transform:translateY(-1px);
+  border-color:var(--accent-color, var(--ink));
+  box-shadow:0 2px 8px rgba(14,26,46,.08); transform:translateY(-1px);
 }
 .agent-card .ac-icon { font-size:22px; line-height:1; }
-.agent-card .ac-name { font-size:var(--fs-sm); font-weight:700; color:var(--navy); line-height:1.3; margin-top:4px; }
+.agent-card .ac-name { font-size:var(--fs-sm); font-weight:700; color:var(--ink); line-height:1.3; margin-top:4px; }
 .agent-card .ac-desc { font-size:var(--fs-xs); color:var(--muted); line-height:1.4; }
-.agent-card .ac-bar { height:2px; border-radius:1px; margin-top:8px; background:var(--accent-color, var(--navy)); opacity:0.5; }
+.agent-card .ac-bar { height:2px; border-radius:1px; margin-top:8px; background:var(--accent-color, var(--ink)); opacity:0.5; }
+.agent-status-dot { position:absolute; top:12px; right:12px; width:7px; height:7px; border-radius:50%; background:#cdd5e0; }
+.agent-status-dot.is-active { background:var(--success); }
+.agent-card-footer {
+  display:flex; align-items:center; justify-content:space-between; gap:6px;
+  margin-top:6px; padding-top:8px; border-top:1px solid var(--border);
+  font-family:'IBM Plex Mono',monospace; font-size:9.5px; letter-spacing:0.04em;
+}
+.agent-card-footer-status { color:var(--muted); text-transform:uppercase; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.agent-card-footer-action { color:var(--accent); font-weight:700; text-transform:uppercase; flex-shrink:0; }
 .badge-new {
   font-size:10px; font-weight:700; letter-spacing:0.2px;
   background:#fef3c7; color:#b45309; border:1px solid #fde68a;
@@ -525,7 +547,7 @@ button, [role="button"], select, input { min-height: 28px; }
   font-size:var(--fs-xs); color:var(--muted); background:none; border:none;
   cursor:pointer; padding:0; display:inline-flex; align-items:center; gap:4px;
 }
-.agent-back-btn:hover { color:var(--navy); text-decoration:underline; }
+.agent-back-btn:hover { color:var(--ink); text-decoration:underline; }
 @media(max-width:600px) { .agent-grid { grid-template-columns:repeat(2, 1fr); } }
 
 /* ── Agent Panel Header ─────────────────────────────────────────────────── */
@@ -534,10 +556,10 @@ button, [role="button"], select, input { min-height: 28px; }
   padding:18px 20px 14px; max-width:900px; margin:0 auto 16px;
 }
 .agent-panel-header .aph-icon { font-size:30px; line-height:1; flex-shrink:0; }
-.agent-panel-header .aph-label { font-size:var(--fs-lg); font-weight:700; color:var(--navy); line-height:1.2; }
+.agent-panel-header .aph-label { font-size:var(--fs-lg); font-weight:700; color:var(--ink); line-height:1.2; }
 .agent-panel-header .aph-group { font-size:var(--fs-xs); color:var(--muted); margin-top:2px; text-transform:uppercase; letter-spacing:0.6px; font-weight:600; }
 /* ── Agent panel accent cascade (--panel-accent set per-panel by _initAgentPanelHeaders) ── */
-.agent-panel { --panel-accent: var(--navy); }
+.agent-panel { --panel-accent: var(--ink); }
 .agent-panel .card { border-top:3px solid var(--panel-accent); border-top-left-radius:0; border-top-right-radius:0; }
 .agent-panel .chat-msg.assistant .chat-avatar { background:var(--panel-accent); }
 .agent-panel .chat-input:focus { border-color:var(--panel-accent); }
@@ -1613,61 +1635,74 @@ body.new-nav { padding-left: 220px; }
   <!-- ══ TAB 4: AI AGENTS ══ -->
   <div class="tab-panel" id="tab-agents">
     <div id="agents-map" class="agent-map">
-      <!-- CMO Hub -->
-      <button class="agent-hub-card" onclick="_activateAgent('cmo')">
-        <span style="font-size:28px;line-height:1;flex-shrink:0;">🎯</span>
-        <div style="flex:1;min-width:0;">
-          <div style="font-size:var(--fs-base);font-weight:700;margin-bottom:3px;">CMO Orchestrator</div>
-          <div style="font-size:var(--fs-xs);opacity:0.85;line-height:1.4;">GTM strategy coordination — weekly priorities, brand positioning, channel mix. Start here.</div>
+      <!-- CMO Orchestrator hero -->
+      <div class="agent-hero">
+        <div>
+          <div class="agent-hero-status"><span class="agent-hero-dot"></span>CMO ORCHESTRATOR &middot; RUNNING</div>
+          <div class="agent-hero-desc">GTM strategy coordination — weekly priorities, brand positioning, channel mix. Start here.</div>
         </div>
-        <span style="font-size:18px;opacity:0.45;flex-shrink:0;">›</span>
-      </button>
+        <div class="agent-hero-right">
+          <div class="agent-hero-stats">
+            <div class="agent-hero-stat"><span id="agent-hero-run24h">—</span><label>Agents run 24h</label></div>
+            <div class="agent-hero-stat"><span id="agent-hero-actions24h">—</span><label>Actions produced</label></div>
+            <div class="agent-hero-stat"><span id="agent-hero-awaiting">—</span><label>Awaiting you</label></div>
+          </div>
+          <button class="agent-hero-btn" onclick="_activateAgent('cmo')">Open session</button>
+        </div>
+      </div>
 
       <!-- Content Group -->
       <div class="agent-group">
         <div class="agent-group-label" style="color:#1D9E75;">Content</div>
         <div class="agent-grid">
           <button class="agent-card" style="--accent-color:#1D9E75" onclick="_activateAgent('positioning')">
+            <span class="agent-status-dot" id="dot-positioning"></span>
             <span class="ac-icon">🧭</span>
             <span class="ac-name">Positioning Analyst</span>
             <span class="ac-desc">Value proposition and differentiation</span>
-            <div class="ac-bar"></div>
+            <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-positioning">—</span><span class="agent-card-footer-action">Open</span></div>
           </button>
           <button class="agent-card" style="--accent-color:#1D9E75" onclick="_activateAgent('content')">
+            <span class="agent-status-dot" id="dot-content"></span>
             <span class="ac-icon">✍️</span>
             <span class="ac-name">Content Strategist</span>
             <span class="ac-desc">Thought leadership calendar and content mix</span>
-            <div class="ac-bar"></div>
+            <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-content">—</span><span class="agent-card-footer-action">Open</span></div>
           </button>
           <button class="agent-card" style="--accent-color:#1D9E75" onclick="_activateAgent('copywriter')">
+            <span class="agent-status-dot" id="dot-copywriter"></span>
             <span class="ac-icon">✏️</span>
             <span class="ac-name">Copywriter</span>
             <span class="ac-desc">LinkedIn posts, emails, landing page copy</span>
-            <div class="ac-bar"></div>
+            <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-copywriter">—</span><span class="agent-card-footer-action">Open</span></div>
           </button>
           <button class="agent-card" style="--accent-color:#1D9E75" onclick="_activateAgent('repurposing')">
+            <span class="agent-status-dot" id="dot-repurposing"></span>
             <span class="ac-icon">♻️</span>
             <span class="ac-name">Repurposing Engine</span>
             <span class="ac-desc">Turn one piece of content into ten formats</span>
-            <div class="ac-bar"></div>
+            <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-repurposing">—</span><span class="agent-card-footer-action">Open</span></div>
           </button>
           <button class="agent-card" style="--accent-color:#1D9E75" onclick="_activateAgent('seo')">
+            <span class="agent-status-dot" id="dot-seo"></span>
             <span class="ac-icon">🔎</span>
             <span class="ac-name">SEO &amp; AEO</span>
             <span class="ac-desc">Rank on search engines, get cited by AI</span>
-            <div class="ac-bar"></div>
+            <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-seo">—</span><span class="agent-card-footer-action">Open</span></div>
           </button>
           <button class="agent-card" style="--accent-color:#1D9E75" onclick="_activateAgent('distribution')">
+            <span class="agent-status-dot" id="dot-distribution"></span>
             <span class="ac-icon">📡</span>
             <span class="ac-name">Distribution</span>
             <span class="ac-desc">Right channel, right timing for each piece</span>
-            <div class="ac-bar"></div>
+            <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-distribution">—</span><span class="agent-card-footer-action">Open</span></div>
           </button>
           <button class="agent-card" style="--accent-color:#1D9E75" onclick="_activateAgent('performance')">
+            <span class="agent-status-dot" id="dot-performance"></span>
             <span class="ac-icon">📊</span>
             <span class="ac-name">Performance Analyst</span>
             <span class="ac-desc">Pre-publication checklist and diagnostics</span>
-            <div class="ac-bar"></div>
+            <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-performance">—</span><span class="agent-card-footer-action">Open</span></div>
           </button>
         </div>
       </div>
@@ -1677,31 +1712,34 @@ body.new-nav { padding-left: 220px; }
         <div class="agent-group-label" style="color:#2568B5;">GTM</div>
         <div class="agent-grid">
           <button class="agent-card" style="--accent-color:#2568B5" onclick="_activateAgent('competitive')">
+            <span class="agent-status-dot" id="dot-competitive"></span>
             <span class="ac-icon">⚔️</span>
             <span class="ac-name">Competitive Intel</span>
             <span class="ac-desc">Landscape mapping and differentiated messaging</span>
-            <div class="ac-bar"></div>
+            <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-competitive">—</span><span class="agent-card-footer-action">Open</span></div>
           </button>
           <button class="agent-card" style="--accent-color:#2568B5" onclick="_activateAgent('prospect')">
+            <span class="agent-status-dot" id="dot-prospect"></span>
             <span class="ac-icon">🔍</span>
             <span class="ac-name">Prospect Agent</span>
             <span class="ac-desc">Deep-dive on any prospect before the call</span>
-            <div class="ac-bar"></div>
+            <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-prospect">—</span><span class="agent-card-footer-action">Open</span></div>
           </button>
           <button class="agent-card" style="--accent-color:#2568B5" onclick="_activateAgent('objection')">
+            <span class="agent-status-dot" id="dot-objection"></span>
             <span class="ac-icon">🛡️</span>
             <span class="ac-name">Objection Handler</span>
             <span class="ac-desc">3 ready-to-send responses for any objection</span>
-            <div class="ac-bar"></div>
+            <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-objection">—</span><span class="agent-card-footer-action">Open</span></div>
           </button>
         </div>
       </div>
 
       <!-- Activity -->
       <div class="agent-group">
-        <div class="agent-group-label" style="color:var(--navy);">Activity</div>
+        <div class="agent-group-label" style="color:var(--ink);">Activity</div>
         <div class="agent-grid">
-          <button class="agent-card" style="--accent-color:var(--navy)" onclick="_switchNewNav('inbox')">
+          <button class="agent-card" style="--accent-color:var(--ink)" onclick="_switchNewNav('inbox')">
             <span class="ac-icon">📩</span>
             <span class="ac-name">Inbox<span class="badge-new">New</span></span>
             <span class="ac-desc">LinkedIn reply drafts from active prospects</span>
@@ -1718,7 +1756,7 @@ body.new-nav { padding-left: 220px; }
     <div class="agent-panel" id="agent-cmo">
       <div class="card" style="padding:16px 20px">
         <div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:12px;line-height:1.6">
-          <strong style="color:var(--navy)">CMO Orchestrator</strong> - Coordinates your full GTM strategy. Weekly planning, brand positioning, channel mix, and cross-agent priorities. Start here when you need to think at the CMO level.
+          <strong style="color:var(--ink)">CMO Orchestrator</strong> - Coordinates your full GTM strategy. Weekly planning, brand positioning, channel mix, and cross-agent priorities. Start here when you need to think at the CMO level.
         </div>
         <div class="chat-messages" id="chat-cmo">
           <div class="chat-msg assistant">
@@ -1737,7 +1775,7 @@ body.new-nav { padding-left: 220px; }
     <div class="agent-panel" id="agent-positioning">
       <div class="card" style="padding:16px 20px">
         <div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:12px;line-height:1.6">
-          <strong style="color:var(--navy)">Positioning Analyst</strong> - Sharpens your value proposition, messaging hierarchy, and differentiation for specific markets and buyer personas.
+          <strong style="color:var(--ink)">Positioning Analyst</strong> - Sharpens your value proposition, messaging hierarchy, and differentiation for specific markets and buyer personas.
         </div>
         <div class="chat-messages" id="chat-positioning">
           <div class="chat-msg assistant">
@@ -1756,7 +1794,7 @@ body.new-nav { padding-left: 220px; }
     <div class="agent-panel" id="agent-content">
       <div class="card" style="padding:16px 20px">
         <div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:12px;line-height:1.6">
-          <strong style="color:var(--navy)">Content Strategist</strong> - Builds your thought leadership calendar, identifies topics that attract your ICP, and designs the content mix across formats and channels.
+          <strong style="color:var(--ink)">Content Strategist</strong> - Builds your thought leadership calendar, identifies topics that attract your ICP, and designs the content mix across formats and channels.
         </div>
         <div class="chat-messages" id="chat-content">
           <div class="chat-msg assistant">
@@ -1775,7 +1813,7 @@ body.new-nav { padding-left: 220px; }
     <div class="agent-panel" id="agent-copywriter">
       <div class="card" style="padding:16px 20px">
         <div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:12px;line-height:1.6">
-          <strong style="color:var(--navy)">Copywriter</strong> - Writes LinkedIn posts, email sequences, landing page copy, and ad headlines calibrated to your voice and your buyer's language. Drafts on demand, edits on feedback.
+          <strong style="color:var(--ink)">Copywriter</strong> - Writes LinkedIn posts, email sequences, landing page copy, and ad headlines calibrated to your voice and your buyer's language. Drafts on demand, edits on feedback.
         </div>
         <div class="chat-messages" id="chat-copywriter">
           <div class="chat-msg assistant">
@@ -1794,7 +1832,7 @@ body.new-nav { padding-left: 220px; }
     <div class="agent-panel" id="agent-repurposing">
       <div class="card" style="padding:16px 20px">
         <div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:12px;line-height:1.6">
-          <strong style="color:var(--navy)">Repurposing Engine</strong> - Turns one piece of content into ten. Paste a post, article, or interview and get LinkedIn variants, email hooks, short-form clips, and slide ideas without losing the original voice.
+          <strong style="color:var(--ink)">Repurposing Engine</strong> - Turns one piece of content into ten. Paste a post, article, or interview and get LinkedIn variants, email hooks, short-form clips, and slide ideas without losing the original voice.
         </div>
         <div class="chat-messages" id="chat-repurposing">
           <div class="chat-msg assistant">
@@ -1813,7 +1851,7 @@ body.new-nav { padding-left: 220px; }
     <div class="agent-panel" id="agent-seo">
       <div class="card" style="padding:16px 20px">
         <div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:12px;line-height:1.6">
-          <strong style="color:var(--navy)">SEO &amp; AEO Expert</strong> - Optimises your content for search engines and AI-generated answers. Identifies queries your ICP is asking, structures content to rank, and adapts copy for zero-click and featured-snippet formats.
+          <strong style="color:var(--ink)">SEO &amp; AEO Expert</strong> - Optimises your content for search engines and AI-generated answers. Identifies queries your ICP is asking, structures content to rank, and adapts copy for zero-click and featured-snippet formats.
         </div>
         <div class="chat-messages" id="chat-seo">
           <div class="chat-msg assistant">
@@ -1832,7 +1870,7 @@ body.new-nav { padding-left: 220px; }
     <div class="agent-panel" id="agent-distribution">
       <div class="card" style="padding:16px 20px">
         <div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:12px;line-height:1.6">
-          <strong style="color:var(--navy)">Distribution Manager</strong> - Selects the right channels, formats, and posting schedule for each piece of content based on your ICP's actual consumption habits. Gets content in front of the right people without wasted reach.
+          <strong style="color:var(--ink)">Distribution Manager</strong> - Selects the right channels, formats, and posting schedule for each piece of content based on your ICP's actual consumption habits. Gets content in front of the right people without wasted reach.
         </div>
         <div class="chat-messages" id="chat-distribution">
           <div class="chat-msg assistant">
@@ -1851,7 +1889,7 @@ body.new-nav { padding-left: 220px; }
     <div class="agent-panel" id="agent-performance">
       <div class="card" style="padding:16px 20px">
         <div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:12px;line-height:1.6">
-          <strong style="color:var(--navy)">Performance Analyst</strong> - Reviews your content and campaigns against a fixed pre-publication checklist. Flags what will underperform before it goes out, and surfaces what is working in retrospect.
+          <strong style="color:var(--ink)">Performance Analyst</strong> - Reviews your content and campaigns against a fixed pre-publication checklist. Flags what will underperform before it goes out, and surfaces what is working in retrospect.
         </div>
         <div class="chat-messages" id="chat-performance">
           <div class="chat-msg assistant">
@@ -1870,7 +1908,7 @@ body.new-nav { padding-left: 220px; }
     <div class="agent-panel" id="agent-competitive">
       <div class="card" style="padding:16px 20px">
         <div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:12px;line-height:1.6">
-          <strong style="color:var(--navy)">Competitive Intel</strong> - Maps your competitive landscape, identifies positioning gaps, and helps you build differentiated messaging against specific competitors.
+          <strong style="color:var(--ink)">Competitive Intel</strong> - Maps your competitive landscape, identifies positioning gaps, and helps you build differentiated messaging against specific competitors.
         </div>
         <div class="chat-messages" id="chat-competitive">
           <div class="chat-msg assistant">
@@ -1889,7 +1927,7 @@ body.new-nav { padding-left: 220px; }
     <div class="agent-panel" id="agent-prospect">
       <div class="card" style="padding:16px 20px">
         <div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:12px;line-height:1.6">
-          <strong style="color:var(--navy)">Prospect Agent</strong> - Deep-dives on any specific prospect: company context, stakeholder mapping, objection handling, and the best entry point for your offer.
+          <strong style="color:var(--ink)">Prospect Agent</strong> - Deep-dives on any specific prospect: company context, stakeholder mapping, objection handling, and the best entry point for your offer.
         </div>
         <div class="chat-messages" id="chat-prospect">
           <div class="chat-msg assistant">
@@ -1908,7 +1946,7 @@ body.new-nav { padding-left: 220px; }
     <div class="agent-panel" id="agent-objection">
       <div class="card" style="padding:16px 20px">
         <div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:12px;line-height:1.6">
-          <strong style="color:var(--navy)">Objection Handler</strong> - Paste a prospect's reply and get 3 ready-to-send responses, matched to their objection type and your pipeline stage.
+          <strong style="color:var(--ink)">Objection Handler</strong> - Paste a prospect's reply and get 3 ready-to-send responses, matched to their objection type and your pipeline stage.
         </div>
         <div class="chat-messages" id="chat-objection">
           <div class="chat-msg assistant">
@@ -3698,6 +3736,51 @@ function _showAgentsMap() {
   if (map) map.style.display = '';
   const backBar = document.getElementById('agents-back-bar');
   if (backBar) backBar.style.display = 'none';
+  _renderAgentsStatus();
+}
+
+// Hero + statut par carte (README 8. Agents). AWAITING YOU = somme des deux compteurs deja
+// calcules par la spine (Send "due today" + Inbox "to triage") -- jamais un recalcul
+// independant, lu directement sur le DOM deja peuple par loadSendView()/loadInboxDrafts().
+async function _renderAgentsStatus() {
+  const heroAwaiting = document.getElementById('agent-hero-awaiting');
+  if (heroAwaiting) {
+    const sendN = parseInt(document.getElementById('spine-count-send')?.textContent, 10) || 0;
+    const replyN = parseInt(document.getElementById('spine-count-reply')?.textContent, 10) || 0;
+    heroAwaiting.textContent = sendN + replyN;
+  }
+  const heroRun = document.getElementById('agent-hero-run24h');
+  const heroActions = document.getElementById('agent-hero-actions24h');
+  try {
+    let q = sbClient.from('agent_activity_log')
+      .select('agent_name, occurred_at')
+      .eq('client_id', CLIENT_ID)
+      .order('occurred_at', { ascending: false })
+      .limit(500);
+    if (activeMandateId && activeMandateId !== '__ALL__') q = q.eq('mandate_id', activeMandateId);
+    const { data, error } = await q;
+    if (error) throw error;
+    const rows = data || [];
+    const lastByAgent = {};
+    rows.forEach(r => { if (!(r.agent_name in lastByAgent)) lastByAgent[r.agent_name] = r.occurred_at; });
+    const dayAgoMs = Date.now() - 86400000;
+    const recent = rows.filter(r => new Date(r.occurred_at).getTime() >= dayAgoMs);
+    if (heroRun) heroRun.textContent = new Set(recent.map(r => r.agent_name)).size;
+    if (heroActions) heroActions.textContent = recent.length;
+
+    Object.entries(_AGENT_META).forEach(([key, m]) => {
+      if (key === 'cmo') return;
+      const dot = document.getElementById('dot-' + key);
+      const status = document.getElementById('status-' + key);
+      const last = lastByAgent[m.label];
+      if (dot) dot.classList.toggle('is-active', !!last);
+      if (status) status.textContent = last ? ('Ran ' + _relTimeShort(last)) : 'Idle';
+    });
+  } catch(e) {
+    console.warn('[_renderAgentsStatus]', e);
+    if (heroRun) heroRun.textContent = '—';
+    if (heroActions) heroActions.textContent = '—';
+  }
 }
 
 
