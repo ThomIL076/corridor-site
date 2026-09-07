@@ -1500,6 +1500,8 @@ body.new-nav { padding-left: 220px; }
   .k-ri-toggle { font-size:var(--fs-xs);color:var(--navy);background:none;border:none;padding:0;cursor:pointer;font-family:inherit;font-weight:600; }
   .k-ri-toggle:hover { color:var(--blue); }
   .k-reply-intel h1,.k-reply-intel h2,.k-reply-intel h3,.k-reply-intel h4,.k-reply-intel strong { color:var(--text) !important; }
+  .pri-score-tooltip { display:none; position:absolute; top:4px; left:calc(100% + 8px); z-index:30; box-shadow:0 6px 20px rgba(14,26,46,.14); text-align:left; }
+  .pri-score-wrap:hover .pri-score-tooltip { display:block; }
 </style>
 </head>
 <body>
@@ -9161,7 +9163,7 @@ async function loadDailyPriorities() {
       if (mdata?.daily_priority_count) N = mdata.daily_priority_count;
     }
 
-    const COLS = 'id,name,company,sector,icp_score,score_signal_strength,signal,signal_type,signal_date,mandate_id,stage,next_action_cache,next_action_generated_at,priority_batch_number,last_priority_shown_at,email,reminder_date,last_contact,linkedin,company_verified,identity_confidence';
+    const COLS = 'id,name,company,sector,icp_score,score_signal_strength,score_role,score_size,score_recency,score_mandate_fit,score_completeness,signal,signal_type,signal_date,mandate_id,stage,next_action_cache,next_action_generated_at,priority_batch_number,last_priority_shown_at,email,reminder_date,last_contact,linkedin,company_verified,identity_confidence';
 
     let qA = sbClient.from('prospects_scan_window').select(COLS)
       .eq('client_id', CLIENT_ID).eq('archived', false)
@@ -9260,13 +9262,21 @@ function _renderPriorityCards(prospects) {
     // l'IA, pas un court libelle -- le comprimer dans 196px degraderait la lisibilite sans
     // apporter de risque justifie pour ce premier ecran. Reste en pleine largeur sous le corps,
     // comme avant ; seuls tier-bar/colonne score/corps sont restructures.
+    // Ventilation ICP (README) : pas de place pour un panneau complet dans une colonne de 74px --
+    // tooltip au survol (CSS :hover, cf. .pri-score-wrap/.pri-score-tooltip) qui reutilise
+    // _renderBreakdownPanel (targetId=null -> juste le HTML, pas d'ecriture DOM) plutot que de
+    // recalculer l'affichage. Rien si aucune des 6 colonnes score_* n'est renseignee.
+    const _bd = _icpBreakdownFromColumns(p);
+    const scoreColHtml = `<div style="width:74px;flex-shrink:0;border-right:1px solid var(--border);padding:16px 8px;text-align:center;${_bd ? 'position:relative;' : ''}" class="${_bd ? 'pri-score-wrap' : ''}">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;color:var(--navy);">${scoreVal}</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:0.16em;text-transform:uppercase;color:var(--muted);margin-top:2px;">ICP</div>
+        ${_bd ? `<div class="pri-score-tooltip" style="width:200px;">${_renderBreakdownPanel(_bd, null)}</div>` : ''}
+      </div>`;
+
     return `<div class="priority-card" data-id="${p.id}"
         style="display:flex;background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius-md);margin-bottom:12px;overflow:hidden;">
       <div style="width:3px;flex-shrink:0;background:${tierColor};"></div>
-      <div style="width:74px;flex-shrink:0;border-right:1px solid var(--border);padding:16px 8px;text-align:center;">
-        <div style="font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;color:var(--navy);">${scoreVal}</div>
-        <div style="font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:0.16em;text-transform:uppercase;color:var(--muted);margin-top:2px;">ICP</div>
-      </div>
+      ${scoreColHtml}
       <div style="flex:1;min-width:0;padding:16px 20px;">
         <div style="min-width:0;flex:1;">
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
@@ -10969,6 +10979,7 @@ function _drawerProfileHTML(id, p, colStage, fb){
       (p.icp_reason ? `<div style="background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--ink);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:10px;opacity:0.65;display:block;margin-bottom:3px">✦ ${currentLang==='fr'?'Justification du score':'Score rationale'}</span>${v(stripHtml(p.icp_reason))}</div>` : '') +
       (p.hard_criteria_met ? `<div style="background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--ink);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:10px;opacity:0.65;display:block;margin-bottom:3px">✦ ${currentLang==='fr'?'Critères remplis':'Criteria met'}</span><ul style="margin:0;padding-left:16px">${p.hard_criteria_met.split(';').map(c => c.trim()).filter(Boolean).map(c => `<li>${v(stripHtml(c))}</li>`).join('')}</ul></div>` : '')
     )}
+    ${(() => { const _bd = _icpBreakdownFromColumns(p); return _bd ? _renderBreakdownPanel(_bd, null) : ''; })()}
     ${card(
       lbl('Deal Value') +
       `<div class="dv-field-row" style="margin-bottom:6px">
@@ -12430,9 +12441,11 @@ async function _startEmailSeq(id, requireDraft = true) {
   }
 }
 
-function _renderBreakdownPanel(scores) {
-  const panel = document.getElementById('breakdown-panel');
-  if (!panel) return;
+// targetId undefined -> ecrit dans le panneau global du Scanner ('breakdown-panel', comportement
+// d'origine). targetId === null -> ne touche pas le DOM, retourne juste le HTML (permet de
+// l'embarquer directement dans un template string construit avant insertion, ex: tiroir/priority
+// cards, sans dependre d'un element deja present dans le DOM).
+function _renderBreakdownPanel(scores, targetId) {
   const rows = Object.entries(scores || {}).map(([k, v]) => {
     const label = k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
     const pct = Math.min(100, Math.max(0, Number(v) || 0));
@@ -12447,11 +12460,39 @@ function _renderBreakdownPanel(scores) {
       </div>
     </div>`;
   }).join('');
-  panel.innerHTML = `<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius-panel);padding:14px 16px;margin-top:4px;">
+  const html = `<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius-panel);padding:14px 16px;margin-top:4px;">
     <p style="font-size:var(--fs-xs);font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:0 0 10px;">Explainable ICP Score</p>
     ${rows || '<p style="font-size:var(--fs-sm);color:var(--muted);margin:0">No breakdown available</p>'}
   </div>`;
-  panel.style.display = '';
+  if (targetId !== null) {
+    const panel = document.getElementById(targetId || 'breakdown-panel');
+    if (panel) { panel.innerHTML = html; panel.style.display = ''; }
+  }
+  return html;
+}
+
+// Colonnes score_* (entiers 0-10, en base) -> objet breakdown attendu par _renderBreakdownPanel
+// (memes cles/labels que celles utilisees par runScanner : role_fit, signal_strength, mandate_fit,
+// company_size_fit). Ne renvoie que les sous-scores reellement renseignes -- beaucoup de fiches
+// anciennes n'ont pas encore ces colonnes remplies, pas de "0" trompeur pour elles -- et null si
+// aucune des 6 colonnes n'est renseignee (rien a afficher).
+function _icpBreakdownFromColumns(p) {
+  if (!p) return null;
+  const MAP = {
+    score_role: 'role_fit',
+    score_size: 'company_size_fit',
+    score_signal_strength: 'signal_strength',
+    score_recency: 'recency',
+    score_mandate_fit: 'mandate_fit',
+    score_completeness: 'completeness',
+  };
+  const out = {};
+  let has = false;
+  for (const dbKey in MAP) {
+    const v = p[dbKey];
+    if (v != null) { out[MAP[dbKey]] = Number(v) * 10; has = true; }
+  }
+  return has ? out : null;
 }
 
 function cleanAIOutput(text) {
@@ -13003,7 +13044,7 @@ async function loadKanban(force){
     while (true) {
       let _kQuery = sbClient
         .from('prospects')
-        .select('id, name, company, title, sector, region, country, stage, linkedin, email, phone, deal_value, deal_currency, deal_structure, deal_weighted, notes, last_contact, reminder_date, icp_score, icp_reason, archived, client_id, linkedin_tag, origin, signal, signal_type, signal_interpretation, signal_date, created_at, draft_invite_note, company_size, next_action, next_action_date, score_signal_strength, score_growth, signal_url, website_url, funding_stage, last_funding_date, total_funding, additional_contacts, import_source, next_action_cache, next_action_generated_at, company_verified, identity_confidence')
+        .select('id, name, company, title, sector, region, country, stage, linkedin, email, phone, deal_value, deal_currency, deal_structure, deal_weighted, notes, last_contact, reminder_date, icp_score, icp_reason, archived, client_id, linkedin_tag, origin, signal, signal_type, signal_interpretation, signal_date, created_at, draft_invite_note, company_size, next_action, next_action_date, score_signal_strength, score_growth, score_role, score_size, score_recency, score_mandate_fit, score_completeness, signal_url, website_url, funding_stage, last_funding_date, total_funding, additional_contacts, import_source, next_action_cache, next_action_generated_at, company_verified, identity_confidence')
         .eq('client_id', CLIENT_ID);
       _kQuery = _applyMandateFilter(_kQuery);
       const { data: chunk, error } = await _kQuery
