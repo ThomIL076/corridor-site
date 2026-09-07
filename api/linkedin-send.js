@@ -72,6 +72,8 @@ async function resolveConfig(clientId, touch) {
 
   const campaignId = (touch === 'invite') ? campaignConnections : campaignMessages;
 
+  console.log('[linkedin-send DEBUG]', JSON.stringify({ clientId, isThomas, dbConnections, campaignConnections, campaignId }));
+
   if (!apiKey) {
     throw new Error(isThomas
       ? 'HEYREACH_API_KEY not configured (env or clients table)'
