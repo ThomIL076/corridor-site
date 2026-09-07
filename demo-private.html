@@ -9325,7 +9325,7 @@ async function _loadFollowUpsDue() {
   try {
     const todayStr = new Date().toISOString().slice(0, 10);
     let q = sbClient.from('prospects')
-      .select('id,name,company,icp_score,stage,reminder_date,last_contact,linkedin,email')
+      .select('id,name,company,icp_score,stage,reminder_date,last_contact,linkedin,email,mandate_id')
       .eq('client_id', CLIENT_ID).eq('archived', false)
       .lte('reminder_date', todayStr)
       .neq('stage', 'Closed').neq('stage', 'Archived');
@@ -9357,7 +9357,7 @@ function _renderFollowUpRows(rows) {
         <span style="font-size:var(--fs-sm);color:var(--muted);margin-left:6px;">${_esc(p.company || '—')}</span>
         ${rem ? `<div style="font-family:'IBM Plex Mono',monospace;font-size:var(--fs-xs);color:${rem.overdue ? 'var(--danger)' : 'var(--muted)'};margin-top:2px;">${_esc(rem.label)}</div>` : ''}
       </div>
-      <button onclick="_openDrawerFromPriority('${p.id}','send')" style="flex-shrink:0;padding:6px 14px;border-radius:var(--radius-pill);background:#f2f9f5;border:1px solid #cfe0d8;color:#166b48;font-size:var(--fs-sm);font-weight:600;cursor:pointer;">Send follow-up</button>
+      <button onclick="_startEmailSeq('${p.id}')" style="flex-shrink:0;padding:6px 14px;border-radius:var(--radius-pill);background:#f2f9f5;border:1px solid #cfe0d8;color:#166b48;font-size:var(--fs-sm);font-weight:600;cursor:pointer;">Send follow-up</button>
     </div>`;
   }).join('');
 }
@@ -12400,8 +12400,8 @@ async function _startEmailSeq(id, requireDraft = true) {
   const p = _prospectsById[id];
   const statusEl = document.getElementById('seq-status-' + id);
   const btn = document.getElementById('start-seq-' + id);
-  if (!p) { if (statusEl) statusEl.textContent = 'Prospect not found'; return; }
-  if (!p.email) { if (statusEl) statusEl.textContent = 'No email on record'; return; }
+  if (!p) { if (statusEl) statusEl.textContent = 'Prospect not found'; else showToast('Prospect not found'); return; }
+  if (!p.email) { if (statusEl) statusEl.textContent = 'No email on record'; else showToast('No email on record'); return; }
   const seq = (_sendSequences[id] || []).find(s => s.touch === 'j5');
   if (requireDraft && (!seq || !seq.body)) {
     showToast('Generate and mark the message ready first');
@@ -12411,6 +12411,7 @@ async function _startEmailSeq(id, requireDraft = true) {
   if (btn) { btn.disabled = true; btn.textContent = 'Sending...'; btn.style.background = 'var(--muted)'; }
   if (statusEl) statusEl.textContent = '';
   try {
+    const now = new Date().toISOString();
     const nameParts = (p.name || '').trim().split(/\s+/);
     const payload = {
       email: p.email,
@@ -12433,20 +12434,36 @@ async function _startEmailSeq(id, requireDraft = true) {
       if (_seqInsErr) {
         console.error('[_startEmailSeq] Supabase insert failed:', _seqInsErr);
         if (statusEl) statusEl.textContent = '⚠ Sent but not tracked — ' + _seqInsErr.message;
+        showToast('Sent but not tracked — ' + _seqInsErr.message);
       } else {
+        // Meme forme que ce que loadSendView() charge depuis interactions (prospect_id, created_at) --
+        // sans ca, _sendJ5Sent[id] reste absent en memoire jusqu'au prochain loadSendView() (reload
+        // page / reouverture onglet Send), et _renderJ5LowSection() continue d'afficher "Scheduled"
+        // pour un prospect deja relance tant que l'onglet reste ouvert.
+        _sendJ5Sent[id] = { prospect_id: id, created_at: now };
+        // Patch defensif : #sc-j5-${id} (carte bas-ICP, lecture seule, cf. _renderJ5LowSection)
+        // n'affiche jamais ce prospect au moment de l'envoi -- _isJ5Eligible l'exclut deja de
+        // readyJ5Low/High des qu'un brouillon sequences touch='j5' existe, ce qui est le cas ici
+        // (requireDraft). Gardee pour le cas marginal ou elle serait quand meme dans le DOM.
+        const lowCard = document.getElementById('sc-j5-' + id);
+        const lowStatus = lowCard?.querySelector('span');
+        if (lowStatus) lowStatus.textContent = '✓ Sent ' + (_relDate(now) || '');
         _todaySendCounts.emailsSent++;
         _updateSentCounter();
         if (btn) { btn.disabled = true; btn.textContent = '✓ Sequence started'; btn.style.background = 'var(--green-brand)'; }
         if (statusEl) statusEl.textContent = '';
+        showToast('Follow-up email sent ✓');
       }
     } else {
       if (btn) { btn.disabled = false; btn.textContent = 'Start Email Sequence'; btn.style.background = 'var(--green-brand)'; }
       if (statusEl) statusEl.textContent = '⚠ ' + (data.error || 'Error, retry');
+      showToast('Email send error: ' + (data.error || 'Error, retry'));
     }
   } catch(e) {
     console.error('[_startEmailSeq]', e);
     if (btn) { btn.disabled = false; btn.textContent = 'Start Email Sequence'; btn.style.background = 'var(--green-brand)'; }
     if (statusEl) statusEl.textContent = '⚠ Network error, retry';
+    showToast('Network error — retry');
   }
 }
 
