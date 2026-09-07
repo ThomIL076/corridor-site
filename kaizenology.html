@@ -6979,16 +6979,11 @@ async function openDrawer(card, initialTab = 'activity') {
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
             Schedule call
           </button>
-          <button onclick="_requestBriefing('${prospectId}')" id="briefing-btn-${prospectId}" style="flex:1;font-size:12.5px;padding:9px;display:flex;align-items:center;justify-content:center;gap:6px;background:var(--white);color:var(--text);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;font-family:inherit">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 2h6a1 1 0 0 1 1 1v2H8V3a1 1 0 0 1 1-1z"/><rect x="5" y="4" width="14" height="18" rx="2"/></svg>
-            Call briefing
-          </button>
         </div>
         <button id="start-seq-${prospectId}" onclick="_startEmailSeq('${prospectId}')" style="width:100%;background:var(--green-brand);color:#FFFFFF;border:none;border-radius:var(--radius-sm);font-size:12.5px;font-weight:500;display:flex;align-items:center;justify-content:center;gap:6px;padding:9px;cursor:pointer;font-family:inherit">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 6l-10 7L2 6"/></svg>
           Start email sequence
         </button>
-        <span id="briefing-status-${prospectId}" style="font-size:var(--fs-xs);color:#6b7a99"></span>
         <span id="seq-status-${prospectId}" style="font-size:var(--fs-xs);color:#6b7a99"></span>
       </div>
       <div style="border-top:1px solid var(--border);padding-top:16px;">
@@ -9511,38 +9506,6 @@ function _scheduleCall(pid) {
     + '&text=' + title + '&dates=' + dt + '/' + end + '&details=' + details;
   window.open(url, '_blank');
 }
-async function _requestBriefing(pid) {
-  const p = _prospectsById[pid];
-  if (!p) return;
-  const btn = document.getElementById('briefing-btn-' + pid);
-  const status = document.getElementById('briefing-status-' + pid);
-  if (btn) btn.disabled = true;
-  if (status) status.textContent = 'Sending...';
-  const callDate = p.callDate || p.reminder_date || new Date().toISOString().slice(0, 10);
-  const prospect = {
-    name: p.name || '', company: p.company || '', title: p.title || '',
-    stage: p.stage || '', linkedin: p.linkedin || '', email: p.email || '',
-    country: p.country || '', sector: p.sector || '', notes: p.notes || '',
-    callDate, icp: _calcICP(p)
-  };
-  try {
-    const r = await fetch('/api/workflow-proxy?action=call-briefing', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(prospect)
-    });
-    if (r.ok) {
-      if (status) status.textContent = 'Briefing sent to your inbox';
-      showToast('Call briefing sent');
-    } else {
-      if (status) status.textContent = 'Error ' + r.status;
-      if (btn) btn.disabled = false;
-    }
-  } catch(e) {
-    console.warn('[_requestBriefing]', e);
-    if (status) status.textContent = 'Network error';
-    if (btn) btn.disabled = false;
-  }
-}
 // Formulaire d'édition injecté en tête du drawer.
 async function _setOrigin(pid, origin) {
   const p = _prospectsById[pid];
@@ -9671,7 +9634,9 @@ function _drawerProfileHTML(id, p, colStage, fb){
         `<option value="">-- Signal type --</option>` +
         `${(_signalTaxonomy && Object.keys(_signalTaxonomy).length ? Object.values(_signalTaxonomy) : [{code:'S1',label:'S1'},{code:'S2',label:'S2'},{code:'S3',label:'S3'},{code:'S4',label:'S4'},{code:'activity',label:currentLang==='fr'?'Engagement passif (réaction/commentaire)':'Passive engagement (reaction/comment)',icon:'👁'}]).map(t => `<option value="${_esc(t.code)}"${(p.signal_type||'').toUpperCase()===(t.code||'').toUpperCase()?' selected':''}>${_esc(t.icon||'')} ${_esc(t.code)} — ${_esc(t.label||t.code)}</option>`).join('')}` +
       `</select>` +
-      (p.signalInterpretation ? `<div style="background:var(--navy-light);border:1px solid var(--blue);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--navy);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:10px;opacity:0.65;display:block;margin-bottom:3px">✦ ${currentLang==='fr'?'Analyse IA':'AI Insight'}</span>${v(stripHtml(p.signalInterpretation))}</div>` : '')
+      (p.signalInterpretation ? `<div style="background:var(--navy-light);border:1px solid var(--blue);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--navy);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:10px;opacity:0.65;display:block;margin-bottom:3px">✦ ${currentLang==='fr'?'Analyse IA':'AI Insight'}</span>${v(stripHtml(p.signalInterpretation))}</div>` : '') +
+      (p.icp_reason ? `<div style="background:var(--navy-light);border:1px solid var(--blue);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--navy);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:10px;opacity:0.65;display:block;margin-bottom:3px">✦ ${currentLang==='fr'?'Justification du score':'Score rationale'}</span>${v(stripHtml(p.icp_reason))}</div>` : '') +
+      (p.hard_criteria_met ? `<div style="background:var(--navy-light);border:1px solid var(--blue);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--navy);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:10px;opacity:0.65;display:block;margin-bottom:3px">✦ ${currentLang==='fr'?'Critères remplis':'Criteria met'}</span><ul style="margin:0;padding-left:16px">${p.hard_criteria_met.split(';').map(c => c.trim()).filter(Boolean).map(c => `<li>${v(stripHtml(c))}</li>`).join('')}</ul></div>` : '')
     )}
     <textarea id="ed-notes" class="dp-inp" placeholder="Notes" style="min-height:60px;resize:vertical">${v(p.notes)}</textarea>
     ${_acSection}
