@@ -8145,16 +8145,21 @@ async function _discoverBuyingCommittee(prospect) {
   } catch(_e) { return null; }
 }
 
-async function _loadBuyingCommittee(prospectId, p) {
-  const el = document.getElementById('bc-section-' + prospectId);
-  if (!el) return;
-  let byRole = {};
+async function _bcFetchByRole(prospectId) {
+  const byRole = {};
   try {
     const { data } = await sbClient.from('buying_committee_members')
       .select('role, name, title, linkedin, confidence, discovered_at')
       .eq('prospect_id', prospectId).eq('client_id', CLIENT_ID);
     (data || []).forEach(r => { byRole[r.role] = r; });
   } catch(e) { console.warn('[buying-committee] read error:', e); }
+  return byRole;
+}
+
+async function _loadBuyingCommittee(prospectId, p) {
+  const el = document.getElementById('bc-section-' + prospectId);
+  if (!el) return;
+  const byRole = await _bcFetchByRole(prospectId);
 
   const needsRefresh = (p.icp_score || 0) >= 4 && _BC_ROLES.some(r => _bcIsStale(byRole[r]));
   if (!needsRefresh) { _renderBuyingCommittee(prospectId, byRole); return; }
@@ -8209,6 +8214,62 @@ function _renderBuyingCommittee(prospectId, byRole, loading) {
       + '<span style="color:var(--dim);">Not identified</span>'
       + '</div>';
   }).join('');
+}
+
+// Pont Scanner -> Buying committee (README, chantier scan) : remappe les roles generiques
+// Influence/Approve/Sign retournes par _scannerMapCommittee() vers les 3 roles fixes de
+// buying_committee_members (economic_buyer/champion/technical_evaluator), sans jamais forcer
+// une correspondance approximative -- un role sans candidat plausible reste non assigne (pas de
+// "not_found" ecrit pour ne pas ecraser une donnee correcte deja trouvee par _discoverBuyingCommittee).
+function _bcMapScanToRoles(stakeholders) {
+  const _bcPriorityTitleRe = /\b(CEO|Owner|President|Managing Director)\b/i;
+  const _bcTechTitleRe = /\b(IT|CIO|CTO|Technical|Engineering|Operations)\b/i;
+  const result = { economic_buyer: null, champion: null, technical_evaluator: null };
+
+  const signCandidates = stakeholders.filter(s => (s.role || '').toLowerCase() === 'sign');
+  if (signCandidates.length) {
+    result.economic_buyer = signCandidates.find(s => _bcPriorityTitleRe.test(s.title || '')) || signCandidates[0];
+  }
+
+  const approveInfluenceRemaining = stakeholders.filter(s =>
+    s !== result.economic_buyer && ['approve', 'influence'].includes((s.role || '').toLowerCase())
+  );
+  result.technical_evaluator = approveInfluenceRemaining.find(s => _bcTechTitleRe.test(s.title || '')) || null;
+
+  const stillRemaining = stakeholders.filter(s => s !== result.economic_buyer && s !== result.technical_evaluator);
+  result.champion = stillRemaining[0] || null;
+
+  return result;
+}
+
+// N'ecrit que si le scan correspond a la societe du prospect actuellement ouvert dans le tiroir --
+// sinon aucun prospect_id fiable a rattacher, on ne fabrique jamais de lien approximatif.
+async function _bcPersistFromScan(stakeholders, company) {
+  const prospectId = _drawerProspect?.id;
+  if (!prospectId) return;
+  if ((_drawerProspect.company || '').trim().toLowerCase() !== (company || '').trim().toLowerCase()) return;
+
+  const mapped = _bcMapScanToRoles(stakeholders);
+  const nowIso = new Date().toISOString();
+  const upsertRows = _BC_ROLES.map(role => {
+    const s = mapped[role];
+    if (!s) return null;
+    return {
+      client_id: CLIENT_ID, prospect_id: prospectId, role,
+      name: s.name, title: s.title || null, linkedin: s.linkedin_url || null,
+      confidence: 'high', discovered_at: nowIso
+    };
+  }).filter(Boolean);
+  if (!upsertRows.length) return;
+
+  try {
+    await sbClient.from('buying_committee_members').upsert(upsertRows, { onConflict: 'prospect_id,role' });
+  } catch(e) { console.warn('[buying-committee] scan write error:', e); return; }
+
+  if (document.getElementById('bc-section-' + prospectId)) {
+    const byRole = await _bcFetchByRole(prospectId);
+    _renderBuyingCommittee(prospectId, byRole);
+  }
 }
 
 async function openDrawer(card, initialTab = 'activity') {
@@ -10176,6 +10237,7 @@ async function _scannerMapCommittee() {
       if (stakeholders && stakeholders.length) {
         await _resolveLinkedInUrls(stakeholders, company);
         _renderCommitteeCards(stakeholders, out, company, sector, null);
+        await _bcPersistFromScan(stakeholders, company);
       } else out.textContent = 'No verified stakeholders found with confirmed LinkedIn profiles.';
     }
   } catch(e) {
