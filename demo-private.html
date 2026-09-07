@@ -1500,8 +1500,13 @@ body.new-nav { padding-left: 220px; }
   .k-ri-toggle { font-size:var(--fs-xs);color:var(--navy);background:none;border:none;padding:0;cursor:pointer;font-family:inherit;font-weight:600; }
   .k-ri-toggle:hover { color:var(--blue); }
   .k-reply-intel h1,.k-reply-intel h2,.k-reply-intel h3,.k-reply-intel h4,.k-reply-intel strong { color:var(--text) !important; }
-  .pri-score-tooltip { display:none; position:absolute; top:4px; left:calc(100% + 8px); z-index:30; box-shadow:0 6px 20px rgba(14,26,46,.14); text-align:left; }
+  .pri-score-tooltip { display:none; position:absolute; top:calc(100% + 6px); left:0; z-index:30; box-shadow:0 6px 20px rgba(14,26,46,.14); text-align:left; }
   .pri-score-wrap:hover .pri-score-tooltip { display:block; }
+  /* Le panneau retourne par _renderBreakdownPanel est plus haut que la card (74px de colonne
+     score, panneau ~150px) -- overflow:hidden sur .priority-card (necessaire au reste du temps
+     pour que la barre de couleur tier respecte les coins arrondis) le tronquerait sinon. Rendu
+     visible seulement pendant le survol du score, via :has() (Chrome/Safari/Firefox tous a jour). */
+  .priority-card:has(.pri-score-wrap:hover) { overflow: visible; }
 </style>
 </head>
 <body>
@@ -12460,7 +12465,7 @@ function _renderBreakdownPanel(scores, targetId) {
       </div>
     </div>`;
   }).join('');
-  const html = `<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius-panel);padding:14px 16px;margin-top:4px;">
+  const html = `<div style="background:var(--white);border:1px solid var(--border);border-radius:var(--radius-panel);padding:14px 16px;margin-top:4px;">
     <p style="font-size:var(--fs-xs);font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:0 0 10px;">Explainable ICP Score</p>
     ${rows || '<p style="font-size:var(--fs-sm);color:var(--muted);margin:0">No breakdown available</p>'}
   </div>`;
