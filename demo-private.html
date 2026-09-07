@@ -1505,8 +1505,12 @@ body.new-nav { padding-left: 220px; }
   /* Le panneau retourne par _renderBreakdownPanel est plus haut que la card (74px de colonne
      score, panneau ~150px) -- overflow:hidden sur .priority-card (necessaire au reste du temps
      pour que la barre de couleur tier respecte les coins arrondis) le tronquerait sinon. Rendu
-     visible seulement pendant le survol du score, via :has() (Chrome/Safari/Firefox tous a jour). */
-  .priority-card:has(.pri-score-wrap:hover) { overflow: visible; }
+     visible seulement pendant le survol du score, via :has() (Chrome/Safari/Firefox tous a jour).
+     !important necessaire : overflow:hidden est pose en style inline sur .priority-card (pas une
+     classe), et un style inline gagne toujours contre une regle de feuille de style -- meme
+     :has() -- sauf !important. Sans lui cette regle etait un no-op silencieux (tooltip toujours
+     coupe des qu'il sortait de la boite de la card, cause exacte de la regression post-87bf09b). */
+  .priority-card:has(.pri-score-wrap:hover) { overflow: visible !important; }
 </style>
 </head>
 <body>
