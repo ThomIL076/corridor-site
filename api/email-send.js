@@ -27,7 +27,7 @@ export default async function handler(req, res) {
   const apiKey = process.env.SMARTLEAD_API_KEY;
   if (!apiKey) return res.status(200).json({ success: false, error: 'SMARTLEAD_API_KEY not configured' });
 
-  const campaignId = campaign_id || '3708966';
+  const campaignId = campaign_id || '3915129'; // Corridor -- J+5 Follow-up v2 (Active). Was '3708966' (Completed, no longer sending).
 
   try {
     const r = await fetch(
