@@ -7613,6 +7613,7 @@ async function _markSent(pid, touch, auto = false, msgText = '', elPrefix = '') 
     .eq('id', pid).eq('client_id', CLIENT_ID)
     .or('priority_batch_number.is.null,priority_batch_number.eq.0');
   if (ePriorityBatch) console.error('_markSent priority_batch_number:', ePriorityBatch);
+  else if (document.getElementById('tab-priorities')?.classList.contains('active')) loadDailyPriorities();
   if (card) card.style.opacity = '0.4';
   setTimeout(() => {
     if (card) card.remove();
@@ -12515,6 +12516,7 @@ async function _startEmailSeq(id, requireDraft = true) {
           .eq('id', id).eq('client_id', p.client_id || CLIENT_ID)
           .or('priority_batch_number.is.null,priority_batch_number.eq.0');
         if (ePriorityBatch) console.error('[_startEmailSeq] priority_batch_number:', ePriorityBatch);
+        else if (document.getElementById('tab-priorities')?.classList.contains('active')) loadDailyPriorities();
         if (btn) { btn.disabled = true; btn.textContent = '✓ Sequence started'; btn.style.background = 'var(--green-brand)'; }
         if (statusEl) statusEl.textContent = '';
         if (ePriorityBatch) {
