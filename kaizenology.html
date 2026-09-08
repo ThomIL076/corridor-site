@@ -1641,12 +1641,13 @@ body.new-nav { padding-left: 220px; }
   <div class="tab-panel" id="tab-priorities">
     <div style="padding:24px 16px 0;max-width:800px;margin:0 auto;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
-        <h2 style="font-size:var(--fs-lg);font-weight:700;color:var(--navy);margin:0;">Today's Priorities</h2>
+        <h2 style="font-size:var(--fs-lg);font-weight:700;color:var(--navy);margin:0;">Today's run</h2>
         <button id="priorities-next-btn" onclick="_prioritiesNext()" disabled
           style="padding:8px 18px;border-radius:var(--radius-pill);background:var(--navy);color:#fff;border:none;font-size:var(--fs-sm);font-weight:600;cursor:pointer;opacity:0.4;">
           Next batch →
         </button>
       </div>
+      <div class="section-sub"><span id="priorities-queued-count">0</span> actions queued by your agents. Work top to bottom. The system re-ranks after each send.</div>
       <div id="priorities-container"></div>
     </div>
   </div>
@@ -7947,6 +7948,12 @@ async function loadDailyPriorities() {
     const eligible = merged.filter(p => (p.priority_batch_number || 0) === 0);
     _priorityShownProspects = eligible.slice(0, N);
     _priorityShownProspects.forEach(p => { if (!_prospectsById[p.id]) _prospectsById[p.id] = p; });
+
+    // "N actions queued" (section-sub sous "Today's run") : meme _priorityShownProspects.length
+    // que ce qui alimente _renderPriorityCards()/_updatePrioritiesNextBtn() juste en dessous --
+    // pas un second comptage, la meme variable.
+    const _pqcEl = document.getElementById('priorities-queued-count');
+    if (_pqcEl) _pqcEl.textContent = _priorityShownProspects.length;
 
     _renderPriorityCards(_priorityShownProspects);
     _updatePrioritiesNextBtn();
