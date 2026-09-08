@@ -8036,11 +8036,13 @@ async function _bcPersistFromScan(stakeholders, company) {
 // Partagee entre openDrawer() et _renderPriorityCards() (Today) -- une seule construction du
 // bloc de liens, pas de logique dupliquee.
 function _buildProspectLinks(p) {
+  const site = (p.website_url || '').trim();
+  const siteHref = site && !/^https?:\/\//i.test(site) ? 'https://' + site : site;
   return [
     p.linkedin ? { label: 'LinkedIn', href: p.linkedin } : null,
     p.email ? { label: 'Email', href: 'mailto:' + p.email } : null,
     p.phone ? { label: 'Phone', href: 'tel:' + p.phone } : null,
-    p.website_url ? { label: 'Company site', href: p.website_url } : null,
+    siteHref ? { label: 'Company site', href: siteHref } : null,
   ].filter(Boolean);
 }
 
