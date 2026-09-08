@@ -2181,7 +2181,7 @@ body.new-nav { padding-left: 220px; }
           <!-- Step 2 : masque par defaut, revele par _loadFollowUpsDue() seulement s'il existe
                au moins un prospect avec reminder_date <= aujourd'hui (cf. arbitrage Thomas). -->
           <div class="today-step-divider" id="today-followup-divider" hidden>
-            <span class="today-step-label">Step 2 · Follow-ups due (J+5)</span>
+            <span class="today-step-label">Step 2 · Reminders due</span>
             <span class="today-step-rule"></span>
             <span class="today-step-count" id="today-followup-count"></span>
           </div>
@@ -6727,6 +6727,29 @@ function _isJ5Eligible(p, fiveDaysAgo) {
     && !(_sendSequences[p.id]||[]).some(s => s.touch === 'j5');
 }
 
+// Version legere de la portion de loadSendView() qui alimente _sendJ5Sent/_sendSequences --
+// utilisee par Today (_loadFollowUpsDue) pour evaluer _isJ5Eligible() sur une poignee de
+// prospects sans payer le cout d'un chargement complet de la queue Send (tous prospects,
+// pagine). Memes tables/filtres que loadSendView(), juste restreints aux ids demandes : pas une
+// deuxieme regle d'eligibilite, juste une hydratation ciblee des memes globals.
+async function _hydrateJ5EligibilityFor(ids) {
+  if (!ids || !ids.length) return;
+  const [{ data: seqs }, { data: j5ints }, { data: j5seqsSent }] = await Promise.all([
+    sbClient.from('sequences').select('id, prospect_id, touch, body, status, sent_at')
+      .eq('client_id', CLIENT_ID).in('prospect_id', ids).in('status', ['draft', 'ready']),
+    sbClient.from('interactions').select('prospect_id, created_at')
+      .eq('client_id', CLIENT_ID).eq('type', 'email_j5').in('prospect_id', ids),
+    sbClient.from('sequences').select('prospect_id, sent_at, created_at')
+      .eq('client_id', CLIENT_ID).eq('touch', 'j5').eq('status', 'sent').in('prospect_id', ids),
+  ]);
+  (seqs || []).forEach(s => {
+    if (!_sendSequences[s.prospect_id]) _sendSequences[s.prospect_id] = [];
+    if (!_sendSequences[s.prospect_id].some(x => x.id === s.id)) _sendSequences[s.prospect_id].push(s);
+  });
+  (j5ints || []).forEach(i => { if (!_sendJ5Sent[i.prospect_id]) _sendJ5Sent[i.prospect_id] = i; });
+  (j5seqsSent || []).forEach(s => { if (!_sendJ5Sent[s.prospect_id]) _sendJ5Sent[s.prospect_id] = { prospect_id: s.prospect_id, created_at: s.sent_at || s.created_at }; });
+}
+
 function _applySendFilters() {
   const listEl = document.getElementById('send-list');
   if (!listEl || !_sendProspects.length) return;
@@ -9350,12 +9373,16 @@ function _renderPriorityCards(prospects) {
   }).join('');
 }
 
-// ── Today, Step 2 : Follow-ups due (README) ──────────────────────────────────────────────────
+// ── Today, Step 2 : Reminders due (README) ────────────────────────────────────────────────────
 // Critere arbitre par Thomas : reminder_date <= aujourd'hui (colonne deja utilisee par la bande
 // "No reminder set" du tiroir), stages fermes exclus. Pas de reprise de _isProspectStalled() ici
 // (garde last_contact/stage!=='Identified' en plus) -- critere volontairement plus simple, tel
 // que specifie. Requete dediee car aucune liste "reminders dus" n'existait deja dans le fichier
 // (le pipeline snapshot IA passe par /api/pipeline-prospects, un chemin different, usage different).
+// Nommee "Reminders due" (pas "Follow-ups (J+5)") : reminder_date est pose sur n'importe quel
+// stage/statut de connexion, sans rapport garanti avec l'eligibilite reelle a la sequence email
+// J+5 -- _isJ5Eligible() (cf. plus haut) tranche prospect par prospect quel bouton d'action est
+// honnete pour chacun (_renderFollowUpRows).
 async function _loadFollowUpsDue() {
   const el = document.getElementById('today-followups-container');
   const divider = document.getElementById('today-followup-divider');
@@ -9373,6 +9400,9 @@ async function _loadFollowUpsDue() {
     if (error) throw error;
     const rows = data || [];
     rows.forEach(p => { if (!_prospectsById[p.id]) _prospectsById[p.id] = p; });
+    await _hydrateJ5EligibilityFor(rows.map(p => p.id));
+    const fiveDaysAgo = new Date(Date.now() - 5 * 86400000).toISOString();
+    rows.forEach(p => { p._j5Eligible = _isJ5Eligible(p, fiveDaysAgo); });
     if (divider) divider.hidden = rows.length === 0;
     if (countEl) countEl.textContent = rows.length ? rows.length + ' due' : '';
     _renderFollowUpRows(rows);
@@ -9389,6 +9419,14 @@ function _renderFollowUpRows(rows) {
   el.innerHTML = rows.map(p => {
     const initials = _esc((p.name || '?').trim().split(/\s+/).map(s => s[0] || '').slice(0, 2).join('').toUpperCase() || '?');
     const rem = _fmtReminder(p.reminder_date);
+    // Seuls les prospects reellement _isJ5Eligible() (stage 1st Contact, last_contact >= 5j, pas
+    // deja envoye) ont droit au bouton "Send follow-up" -> _goToJ5Followup(), qui suppose une
+    // card J+5 existante cote Send. Pour les autres (reminder pose sur un autre stage, contact
+    // trop recent, deja envoye...), un bouton pointant vers Send n'a rien a tenir -- on ouvre le
+    // tiroir a la place (memes actions log/reminder deja disponibles la, rien de duplique).
+    const actionBtn = p._j5Eligible
+      ? `<button onclick="_goToJ5Followup('${p.id}')" style="flex-shrink:0;padding:6px 14px;border-radius:var(--radius-pill);background:#f2f9f5;border:1px solid #cfe0d8;color:#166b48;font-size:var(--fs-sm);font-weight:600;cursor:pointer;">Send follow-up</button>`
+      : `<button onclick="_openDrawerFromPriority('${p.id}')" style="flex-shrink:0;padding:6px 14px;border-radius:var(--radius-pill);background:none;border:1px solid var(--border);color:var(--text);font-size:var(--fs-sm);font-weight:600;cursor:pointer;">Review prospect</button>`;
     return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);">
       <div style="width:30px;height:30px;border-radius:50%;background:var(--navy-light);color:var(--ink);font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${initials}</div>
       <div style="min-width:0;flex:1;">
@@ -9396,7 +9434,7 @@ function _renderFollowUpRows(rows) {
         <span style="font-size:var(--fs-sm);color:var(--muted);margin-left:6px;">${_esc(p.company || '—')}</span>
         ${rem ? `<div style="font-family:'IBM Plex Mono',monospace;font-size:var(--fs-xs);color:${rem.overdue ? 'var(--danger)' : 'var(--muted)'};margin-top:2px;">${_esc(rem.label)}</div>` : ''}
       </div>
-      <button onclick="_goToJ5Followup('${p.id}')" style="flex-shrink:0;padding:6px 14px;border-radius:var(--radius-pill);background:#f2f9f5;border:1px solid #cfe0d8;color:#166b48;font-size:var(--fs-sm);font-weight:600;cursor:pointer;">Send follow-up</button>
+      ${actionBtn}
     </div>`;
   }).join('');
 }
@@ -9413,6 +9451,11 @@ async function _goToJ5Followup(id) {
   await loadSendView();
   const card = document.getElementById('sc-' + id) || document.getElementById('sc-j5-' + id);
   if (!card) {
+    // _applySendFilters() always expands the head-of-queue card (whichever prospect that is,
+    // unrelated to the one we were looking for) -- never leave someone else's ready-to-send
+    // message expanded and clickable right when we're telling the user their prospect isn't
+    // in this queue at all.
+    document.querySelectorAll('#send-list .send-expand').forEach(expEl => { expEl.style.display = 'none'; });
     showToast("Not in the Send queue right now — it may have changed stage or already been sent.");
     return;
   }
