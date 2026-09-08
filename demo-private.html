@@ -9559,6 +9559,19 @@ function _renderInboxCards(drafts, view = 'pending') {
          <span style="font-size:var(--fs-sm);color:var(--muted);">${_esc(p.company || '—')}</span>`
       : `<span style="font-size:var(--fs-sm);font-weight:600;padding:2px 8px;background:#fef3c7;border:1px solid #fde68a;border-radius:var(--radius-pill);color:#b45309;">Prospect non identifié</span>`;
 
+    // Bloc de liens (pending + history, cf. regression du commit 0bc0490 -- history en avait
+    // perdu tout lien) : _buildProspectLinks() + "Full thread" en 4e entree. "Full thread" gate
+    // sur p (pas prospect_id seul) : _openDrawerFromPriority() renvoie silencieusement si le
+    // prospect n'est pas dans _prospectsById, mais rien n'ouvrirait de toute facon -- pas de
+    // lien cliquable dans le vide sur une carte "Prospect non identifie".
+    const cardLinks = _buildProspectLinks(p || {});
+    const fullThreadHtml = p
+      ? `<button class="pd-link" onclick="_openDrawerFromPriority('${draft.prospect_id}')" style="background:none;border:none;padding:0;font:inherit;cursor:pointer;">Full thread</button>`
+      : '';
+    const linksHtml = (cardLinks.length || fullThreadHtml)
+      ? `<div class="pd-links">${cardLinks.map(l => `<a class="pd-link" href="${_esc(l.href)}" target="_blank" rel="noopener noreferrer">${l.label}</a>`).join('')}${fullThreadHtml}</div>`
+      : '';
+
     if (view === 'history') {
       const fb = _inboxFeedbackByDraftId[draft.id] || null;
       const sentText = fb?.item_text || draft.suggested_reply || '';
@@ -9586,6 +9599,7 @@ function _renderInboxCards(drafts, view = 'pending') {
         </div>
         ${draft.incoming_message ? `<div style="font-size:var(--fs-sm);color:var(--muted);border-left:3px solid var(--border);padding-left:10px;line-height:1.5;margin-bottom:10px;">${_esc(draft.incoming_message)}</div>` : ''}
         ${sentText ? `<div style="font-size:var(--fs-sm);color:var(--text);background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;line-height:1.5;white-space:pre-wrap;">${_esc(sentText)}</div>` : ''}
+        ${linksHtml}
       </div>`;
     }
 
@@ -9616,10 +9630,6 @@ function _renderInboxCards(drafts, view = 'pending') {
         <button id="inbox-dismiss-${draft.id}" onclick="_inboxDismiss('${draft.id}')"
           style="padding:7px 16px;border-radius:var(--radius-pill);background:none;border:1px solid var(--border);color:var(--text);font-size:var(--fs-sm);cursor:pointer;">Dismiss</button>
       </div>`;
-    const cardLinks = _buildProspectLinks(p || {});
-    const linksHtml = cardLinks.length
-      ? `<div class="pd-links">${cardLinks.map(l => `<a class="pd-link" href="${_esc(l.href)}" target="_blank" rel="noopener noreferrer">${l.label}</a>`).join('')}</div>`
-      : '';
     return `<div class="priority-card" id="inbox-card-${draft.id}"
         style="background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius-md);padding:18px 20px;margin-bottom:12px;">
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;">${nameHtml}</div>
