@@ -263,7 +263,6 @@ button, [role="button"], select, input { min-height: var(--btn-h-sm); }
   min-height:80px; font-weight:400; overflow-wrap:break-word; word-break:break-word;
 }
 .ai-box-body.loaded { color:var(--text); }
-#intel-ai-output { max-height:500px; overflow-y:auto; }
 
 /* ── SCORE DISPLAY ── */
 .score-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px; }
@@ -3440,96 +3439,9 @@ Language instruction: Write your entire response in ${currentLang === 'fr' ? 'Fr
   }
 }
 
-// ── MODULE 2: PROSPECT INTELLIGENCE ──
-async function runIntelligence() {
-  const name = document.getElementById('intel-name').value.trim() || 'Jason Dorfman';
-  let company = document.getElementById('intel-company').value.trim();
-  if (!company && window.activeCompany) { company = window.activeCompany; const _icf = document.getElementById('intel-company'); if (_icf) _icf.value = company; }
-  if (!company) company = 'Keeyns';
-  const title = document.getElementById('intel-title').value.trim() || 'CEO & Co-founder';
-  const corridor = document.getElementById('intel-corridor').value;
-
-  document.getElementById('intel-results').style.display = 'block';
-  document.getElementById('intel-btn').disabled = true;
-
-  // Quick fill pain points etc
-  const pains = document.getElementById('intel-pains');
-  const triggers = document.getElementById('intel-triggers');
-  const angles = document.getElementById('intel-angles');
-  pains.textContent = '⏳ Generating...';
-  triggers.textContent = '⏳ Generating...';
-  angles.textContent = '⏳ Generating...';
-
-  const prompt = `You are Corridor's prospect intelligence system. Build a complete brief for this contact:
-
-Name: ${name}
-Title: ${title}
-Company: ${company}
-Target market: ${corridor}
-
-Return EXACTLY this format (use the exact headers):
-
-PAIN POINTS:
-• [3 specific pain points for a ${title} expanding into ${corridor}]
-
-BUYING TRIGGERS:
-• [3 specific signals that mean they're ready to buy GTM advisory now]
-
-CONVERSATION ANGLES:
-• [3 specific opening angles, one per line]
-
-BEHAVIOURAL PROFILE & STRATEGY:
-[2 paragraphs: first on their likely decision-making style as ${title}; second on the exact approach strategy — what to lead with, what to avoid, what the close looks like]
-
-Be specific, commercial, and direct. No fluff.
-
-Rules: Never use em-dashes (—) or horizontal rules (---) in your response.
-
-IMPORTANT: Always use these exact English section headers regardless of language:
-PAIN POINTS:
-BUYING TRIGGERS:
-CONVERSATION ANGLES:
-BEHAVIOURAL PROFILE & STRATEGY:
-Write all content in ${currentLang === 'fr' ? 'French' : 'English'} but keep the headers exactly as above.`;
-
-  pains.textContent = 'Researching ' + company + '...';
-  const _intLive = await _prefetchWebContext(company, corridor || '');
-  const _intNoCtx = _intLive ? '' : '\nNO LIVE CONTEXT AVAILABLE: Do not invent company-specific facts, partnerships, or events.\n';
-  pains.textContent = '⏳ Generating...';
-  document.getElementById('intel-spinner').classList.add('active');
-  try {
-    const res = await fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-5',
-        max_tokens: 1500,
-        messages: [{ role: 'user', content: _intLive + _intNoCtx + prompt }]
-      })
-    });
-    const data = await res.json();
-    const text = (Array.isArray(data.content) ? data.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim() : '');
-
-    // Parse sections
-    const painMatch = text.match(/(?:PAIN POINTS|POINTS DE DOULEUR)\s*:\n([\s\S]*?)(?=---|(?:\n(?:BUYING TRIGGERS|DÉCLENCHEURS D'ACHAT)))/i);
-    const triggerMatch = text.match(/(?:BUYING TRIGGERS|DÉCLENCHEURS D'ACHAT)\s*:\n([\s\S]*?)(?=---|(?:\n(?:CONVERSATION ANGLES|ANGLES DE CONVERSATION)))/i);
-    const anglesMatch = text.match(/(?:CONVERSATION ANGLES|ANGLES DE CONVERSATION)\s*:\n([\s\S]*?)(?=---|(?:\n(?:BEHAVIOURAL PROFILE|PROFIL COMPORTEMENTAL)))/i);
-    const profileMatch = text.match(/(?:BEHAVIOURAL PROFILE|PROFIL COMPORTEMENTAL)[^:]*:\n([\s\S]*?)$/i);
-
-    pains.innerHTML = painMatch ? renderMarkdown(painMatch[1].trim()) : renderMarkdown(text.substring(0, 200));
-    triggers.innerHTML = triggerMatch ? renderMarkdown(triggerMatch[1].trim()) : '';
-    angles.innerHTML = anglesMatch ? renderMarkdown(anglesMatch[1].trim()) : '';
-    const profileEl = document.getElementById('intel-ai-output');
-    profileEl.innerHTML = profileMatch ? renderMarkdown(profileMatch[1].trim()) : renderMarkdown(text);
-    profileEl.classList.add('loaded');
-  } catch(e) {
-    console.warn('[runIntelligence]', e);
-    pains.textContent = 'Error: ' + e.message;
-  } finally {
-    document.getElementById('intel-spinner').classList.remove('active');
-    document.getElementById('intel-btn').disabled = false;
-  }
-}
+// runIntelligence() (Module 2: Prospect Intelligence) retiree : jamais appelee (aucun onclick,
+// aucune reference), et aucun HTML id="intel-*" correspondant nulle part dans le fichier --
+// confirme avant suppression (grep sur les 11 id + sur le nom de fonction, rien d'autre trouve).
 
 // ── MODULE 3: OUTREACH GENERATOR ──
 // ── MODULE 4: AI AGENTS ──
