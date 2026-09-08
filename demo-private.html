@@ -3532,6 +3532,7 @@ async function showDemo(){
   if (_urlFilterParam === 'signals' && typeof _setSigFilter === 'function') {
     _setSigFilter('signal');
   }
+  _loadSignalTaxonomy(); // fire-and-forget, cache rempli avant le rendu des badges de signal (cartes Kanban/Today/Send)
   if (!_kanbanLoaded) loadKanban();
   if (!SHOW_SPINE) { const _spineEl = document.getElementById('journey-spine'); if (_spineEl) _spineEl.hidden = true; }
   // Badges sidebar (Phase 1 chunk 2) : meme loaders que les vues elles-memes, appeles une fois
