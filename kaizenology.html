@@ -6283,6 +6283,18 @@ async function _markSent(pid, touch, auto = false, msgText = '', elPrefix = '') 
     ({ error: eReminder } = await sbClient.from('prospects').update({ reminder_date: nextReminder }).eq('id', pid).eq('client_id', CLIENT_ID));
     if (eReminder) console.error('_markSent reminder_date:', eReminder);
   }
+  // Today/drawer/Send ne partagent pas le meme etat "deja traite" : un envoi n'excluait
+  // jamais le prospect du prochain calcul de Today, seul priority_batch_number (avance par
+  // _prioritiesNext()/_prioritiesSkip()) le fait. On l'avance ici aussi, quel que soit l'ecran
+  // d'origine de l'envoi -- sans ecraser un batch deja pose. _priorityCurrentBatch est
+  // initialisee a 1 des sa declaration (jamais undefined), le || 1 est une securite
+  // supplementaire si ca changeait.
+  const { error: ePriorityBatch } = await sbClient.from('prospects')
+    .update({ priority_batch_number: _priorityCurrentBatch || 1 })
+    .eq('id', pid).eq('client_id', CLIENT_ID)
+    .or('priority_batch_number.is.null,priority_batch_number.eq.0');
+  if (ePriorityBatch) console.error('_markSent priority_batch_number:', ePriorityBatch);
+  else if (document.getElementById('tab-priorities')?.classList.contains('active')) loadDailyPriorities();
   if (card) card.style.opacity = '0.4';
   setTimeout(() => {
     if (card) card.remove();
@@ -6290,7 +6302,7 @@ async function _markSent(pid, touch, auto = false, msgText = '', elPrefix = '') 
     const countEl = document.getElementById('send-count');
     if (countEl) countEl.textContent = remaining;
   }, 600);
-  if (eLastContact || eStage || eLinkedinTag || eReminder) {
+  if (eLastContact || eStage || eLinkedinTag || eReminder || ePriorityBatch) {
     showToast('⚠ Sent but not fully tracked');
   } else if (!auto) {
     showToast('Marked as sent ✓');
@@ -10834,6 +10846,15 @@ async function _startEmailSeq(id) {
         console.error('[_startEmailSeq] Supabase insert failed:', _seqInsErr);
         if (statusEl) statusEl.textContent = '⚠ Sent but not tracked — ' + _seqInsErr.message;
       } else {
+        // Meme fix que _markSent() (LinkedIn) : sans ca, un prospect relance en J+5 reste
+        // eligible au prochain calcul de Today (priority_batch_number jamais touche par cette
+        // fonction jusqu'ici). Meme technique -- ne pas ecraser un batch deja pose.
+        const { error: ePriorityBatch } = await sbClient.from('prospects')
+          .update({ priority_batch_number: _priorityCurrentBatch || 1 })
+          .eq('id', id).eq('client_id', p.client_id || CLIENT_ID)
+          .or('priority_batch_number.is.null,priority_batch_number.eq.0');
+        if (ePriorityBatch) console.error('[_startEmailSeq] priority_batch_number:', ePriorityBatch);
+        else if (document.getElementById('tab-priorities')?.classList.contains('active')) loadDailyPriorities();
         if (btn) { btn.disabled = true; btn.textContent = '✓ Sequence started'; btn.style.background = 'var(--green-brand)'; }
         if (statusEl) statusEl.textContent = '';
       }
