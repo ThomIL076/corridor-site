@@ -1629,6 +1629,10 @@ body.new-nav { padding-left: 220px; }
       <span data-en="Inbox" data-fr="Boîte de réception">Inbox</span>
       <span class="snav-badge" id="snav-badge-inbox"></span>
     </button>
+    <button class="snav-item" data-nav="proposals" onclick="_switchNewNav('proposals')">
+      <span data-en="Proposals" data-fr="Propositions">Proposals</span>
+      <span class="snav-badge" id="snav-badge-proposals"></span>
+    </button>
   </div>
   <div class="snav-section">
     <span class="snav-section-label">Intelligence</span>
@@ -2492,6 +2496,17 @@ body.new-nav { padding-left: 220px; }
     <div id="send-recently-sent"></div>
   </div>
 
+  <!-- ══ TAB: PROPOSALS ══ -->
+  <div class="tab-panel" id="tab-proposals">
+    <div style="padding:24px 16px 0;max-width:800px;margin:0 auto;">
+      <div class="module-header">
+        <div class="module-title">Proposals</div>
+        <div class="section-sub">Content drafted by agents, waiting for a variant to be approved or rejected.</div>
+      </div>
+      <div id="proposals-container"></div>
+    </div>
+  </div>
+
   <!-- ══ TAB: STATS ══ -->
   <!-- Absorption PARTIELLE (Phase 4, arbitrage Thomas) : le funnel (ex-Section A) et les 4 KPI
        (ex-Section C, dont "Building") migrent vers Pipeline (#pipeline-stats-card) -- une seule
@@ -2833,6 +2848,18 @@ body.new-nav { padding-left: 220px; }
       <button class="more-row" onclick="_switchNewNav('clients')"><span data-en="Clients" data-fr="Clients">Clients</span><span class="more-chevron">›</span></button>
       <button class="more-row" onclick="_switchNewNav('integrations')"><span data-en="Integrations" data-fr="Intégrations">Integrations</span><span class="more-chevron">›</span></button>
       <button class="more-row" onclick="_switchNewNav('stats')"><span>Stats</span><span class="more-chevron">›</span></button>
+      <!-- Proposals classe en MOBILE_TAB_SECONDARY (arbitrage Thomas : pas encore de trafic reel
+           pour justifier une place en barre primaire) -- pas de .mtab-item dedie comme Send/Inbox,
+           donc pas de badge natif possible a cet endroit. Meme pattern .mtab-badge reutilise ici,
+           a l'interieur du more-row (2 enfants flex space-between preserves : label+badge groupes
+           dans un wrapper, chevron seul). -->
+      <button class="more-row" onclick="_switchNewNav('proposals')">
+        <span style="display:flex;align-items:center;gap:8px;">
+          <span data-en="Proposals" data-fr="Propositions">Proposals</span>
+          <span class="mtab-badge" id="mtab-badge-proposals"></span>
+        </span>
+        <span class="more-chevron">›</span>
+      </button>
       <!-- Sign out (cleanup) : sidebar (donc Sign Out) inaccessible sous 768px -- seul point
            d'acces mobile, meme onclick="signOut()" que le bouton sidebar, aucune 2e logique. -->
       <button class="more-row" onclick="signOut()"><span data-en="Sign out" data-fr="Se déconnecter">Sign out</span><span class="more-chevron">›</span></button>
@@ -2862,7 +2889,7 @@ function _newNavActive(key) {
 // affichee, meme principe de derivation que la spine -- un seul point d'accroche (_newNavActive),
 // pas un troisieme mecanisme de navigation separe.
 const MOBILE_TAB_PRIMARY = { 'priorities': true, 'pipeline': true, 'send': true, 'inbox': true };
-const MOBILE_TAB_SECONDARY = { 'system-signals': true, 'system-pipeintel': true, 'system-weekly': true, 'agents': true, 'clients': true, 'integrations': true, 'stats': true, 'more': true };
+const MOBILE_TAB_SECONDARY = { 'system-signals': true, 'system-pipeintel': true, 'system-weekly': true, 'agents': true, 'clients': true, 'integrations': true, 'stats': true, 'proposals': true, 'more': true };
 function _updateMobileTabActive(key) {
   const bar = document.getElementById('mobile-tabbar');
   if (!bar) return;
@@ -3846,6 +3873,16 @@ function _relTimeShort(iso) {
   return _relDate(iso);
 }
 
+// agent_activity_log.agent_name est un label Title Case ("Morning Scan") -- pas la cle
+// _AGENT_META ("morningscan"). Marche pour les 4 agents Pipeline (cle = label sans espaces/
+// casse, meme convention que dot-morningscan etc. et le tableau de lookup ligne ~4053). Ne
+// marche PAS pour les agents chat (ex. "Positioning Analyst" -> "positioninganalyst" != la cle
+// "positioning") -- sans consequence, _loadAgentsAtWork() replie sur var(--blue-brand) dans ce
+// cas, meme comportement qu'avant ce fix pour ces agents-la.
+function _agentKeyFromName(name) {
+  return (name || '').toLowerCase().replace(/\s+/g, '');
+}
+
 async function _loadAgentsAtWork() {
   const el = document.getElementById('agents-at-work-list');
   if (!el) return;
@@ -3862,13 +3899,15 @@ async function _loadAgentsAtWork() {
       el.innerHTML = '<div style="color:var(--muted);">No agent activity logged yet — this shows up as soon as an agent runs.</div>';
       return;
     }
-    el.innerHTML = data.map(r =>
-      '<div style="border-left:2px solid var(--blue-brand);padding:4px 0 4px 10px;margin-bottom:8px;">'
-      + '<div style="font-family:monospace;font-size:var(--fs-xs);font-weight:600;color:var(--blue-brand);text-transform:uppercase;letter-spacing:0.04em;">' + _esc(r.agent_name || '') + '</div>'
-      + '<div style="color:var(--text);font-size:var(--fs-sm);">' + _esc(r.action_summary || '') + '</div>'
-      + '<div style="font-family:monospace;font-size:var(--fs-xs);color:var(--muted);">' + _relTimeShort(r.occurred_at) + '</div>'
-      + '</div>'
-    ).join('');
+    el.innerHTML = data.map(r => {
+      const _meta = _AGENT_META[_agentKeyFromName(r.agent_name)];
+      const _color = (_meta && _meta.color) || 'var(--blue-brand)';
+      return '<div style="border-left:2px solid ' + _color + ';padding:4px 0 4px 10px;margin-bottom:8px;">'
+        + '<div style="font-family:monospace;font-size:var(--fs-xs);font-weight:600;color:' + _color + ';text-transform:uppercase;letter-spacing:0.04em;">' + _esc(r.agent_name || '') + '</div>'
+        + '<div style="color:var(--text);font-size:var(--fs-sm);">' + _esc(r.action_summary || '') + '</div>'
+        + '<div style="font-family:monospace;font-size:var(--fs-xs);color:var(--muted);">' + _relTimeShort(r.occurred_at) + '</div>'
+        + '</div>';
+    }).join('');
   } catch(e) {
     console.warn('[agents-at-work]', e);
     el.innerHTML = '<div style="color:var(--muted);">Unable to load agent activity right now.</div>';
@@ -3892,6 +3931,7 @@ function switchTab(name, fromClick = false) {
   if (name === 'agents') _showAgentsMap();
   if (name === 'priorities') { loadDailyPriorities(); _loadAgentsAtWork(); _fetchTodaySendCounts().catch(err => console.error('_fetchTodaySendCounts:', err)); _loadFollowUpsDue(); }
   if (name === 'inbox') loadInboxDrafts();
+  if (name === 'proposals') loadProposalsView();
   if (name === 'stats') { if (!_kanbanLoaded) { loadKanban().then(() => renderStats()); } else { renderStats(); } }
   if (name === 'clients') loadClientsKanban();
   if (name === 'integrations') loadIntegrationsTab();
@@ -3972,14 +4012,23 @@ const _AGENT_META = {
   competitive:  { icon:'⚔️', color:'#2568B5', label:'Competitive Intel',   group:'GTM' },
   prospect:     { icon:'🔍', color:'#2568B5', label:'Prospect Agent',      group:'GTM' },
   objection:    { icon:'🛡️', color:'#2568B5', label:'Objection Handler',   group:'GTM' },
+  // Groupe Pipeline (4 automatisations, pas des agents chat -- pas de panel #agent-<key>, donc
+  // _initAgentPanelHeaders() les ignore sans effet de bord). color en var() (pas hex litteral) :
+  // on consomme enfin --agent-group-pipeline au lieu de le laisser mort (arbitrage Thomas).
+  morningscan:      { icon:'🌅', color:'var(--agent-group-pipeline)', label:'Morning Scan',     group:'Pipeline' },
+  pipelinereviewer: { icon:'📊', color:'var(--agent-group-pipeline)', label:'Pipeline Reviewer', group:'Pipeline' },
+  dailydigest:      { icon:'📰', color:'var(--agent-group-pipeline)', label:'Daily Digest',      group:'Pipeline' },
+  weeklyreport:     { icon:'🗒️', color:'var(--agent-group-pipeline)', label:'Weekly Report',     group:'Pipeline' },
 };
 
 function _initAgentPanelHeaders() {
   // Header Orchestration (section-sub) : compte reel du roster, jamais en dur (11 aujourd'hui,
   // pas le "Fifteen" du handoff -- incoherent en interne, 14/15 selon la section, et comptant
-  // les 4 automatisations Pipeline comme des agents alors que le code les distingue).
+  // les 4 automatisations Pipeline comme des agents alors que le code les distingue). Les 4 cles
+  // Pipeline ont ete ajoutees a _AGENT_META (pour consommer --agent-group-pipeline sur "Agents at
+  // work") mais restent exclues de ce compte -- ce sont des automatisations, pas des agents chat.
   const _agentsCountEl = document.getElementById('agents-total-count');
-  if (_agentsCountEl) _agentsCountEl.textContent = Object.keys(_AGENT_META).length;
+  if (_agentsCountEl) _agentsCountEl.textContent = Object.values(_AGENT_META).filter(m => m.group !== 'Pipeline').length;
   for (const [key, m] of Object.entries(_AGENT_META)) {
     const panel = document.getElementById('agent-' + key);
     if (!panel || panel.querySelector('.agent-panel-header')) continue;
@@ -4039,21 +4088,16 @@ async function _renderAgentsStatus() {
     if (heroRun) heroRun.textContent = new Set(recent.map(r => r.agent_name)).size;
     if (heroActions) heroActions.textContent = recent.length;
 
+    // Groupe Pipeline : 3 des 4 (morningscan/pipelinereviewer/weeklyreport) loguent aussi dans
+    // agent_activity_log et sont dans _AGENT_META (m.label = 'Morning Scan' etc.) -- couverts par
+    // cette meme boucle, plus de bloc separe en dur (ancien doublon retire). Seul Daily Digest n'y
+    // logue jamais (daily_activity_summaries est alimentee hors de ce fichier), traite separement
+    // juste apres.
     Object.entries(_AGENT_META).forEach(([key, m]) => {
       if (key === 'cmo') return;
       const dot = document.getElementById('dot-' + key);
       const status = document.getElementById('status-' + key);
       const last = lastByAgent[m.label];
-      if (dot) dot.classList.toggle('is-active', !!last);
-      if (status) status.textContent = last ? ('Ran ' + _relTimeShort(last)) : 'Idle';
-    });
-    // Groupe Pipeline : 3 des 4 loguent aussi dans agent_activity_log (meme requete, meme
-    // lastByAgent) -- seul Daily Digest n'y logue jamais (daily_activity_summaries est
-    // alimentee hors de ce fichier), traite separement juste apres.
-    [['morningscan', 'Morning Scan'], ['pipelinereviewer', 'Pipeline Reviewer'], ['weeklyreport', 'Weekly Report']].forEach(([key, label]) => {
-      const dot = document.getElementById('dot-' + key);
-      const status = document.getElementById('status-' + key);
-      const last = lastByAgent[label];
       if (dot) dot.classList.toggle('is-active', !!last);
       if (status) status.textContent = last ? ('Ran ' + _relTimeShort(last)) : 'Idle';
     });
@@ -9811,6 +9855,113 @@ async function _inboxDismiss(draftId) {
   if (afErr) console.error('[_inboxDismiss] agent_feedback insert failed:', afErr);
   const card = document.getElementById('inbox-card-' + draftId);
   if (card) card.remove();
+}
+
+// Badge sidebar + liste More (mobile) : meme source que loadProposalsView(), un seul setter
+// (meme discipline que _setSendBadge(), pas d'ecriture DOM dupliquee a la Inbox). Pas de
+// spine-count-proposals : Proposals est un cockpit transverse, hors funnel -- meme categorie
+// qu'Agents/Stats (cf. SPINE_ACTIVE_MAP, aucun .spine-row ne correspond a "proposals").
+function _setProposalsBadge(n) {
+  const el = document.getElementById('snav-badge-proposals');
+  if (el) el.textContent = n > 0 ? n : '';
+  const mtabEl = document.getElementById('mtab-badge-proposals');
+  if (mtabEl) mtabEl.textContent = n > 0 ? n : '';
+}
+
+async function loadProposalsView() {
+  const container = document.getElementById('proposals-container');
+  if (!container) return;
+  container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">Loading...</div>';
+  try {
+    const { data: proposals, error } = await sbClient.from('agent_proposals')
+      .select('*')
+      .eq('client_id', CLIENT_ID)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    if (!proposals || !proposals.length) {
+      container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">No proposals waiting.</div>';
+      _setProposalsBadge(0);
+      return;
+    }
+    // Batch-fetch prospects (meme pattern qu'Inbox, ligne ~9640) : un seul .in() sur les
+    // prospect_id uniques, pas une requete par carte.
+    const prospectIds = [...new Set(proposals.map(p => p.prospect_id).filter(Boolean))];
+    const prospectsById = {};
+    if (prospectIds.length) {
+      const { data: pRows, error: pErr } = await sbClient.from('prospects')
+        .select('id,name,company')
+        .eq('client_id', CLIENT_ID)
+        .in('id', prospectIds);
+      if (pErr) console.error('[proposals] prospects batch-fetch error:', pErr);
+      (pRows || []).forEach(p => { prospectsById[p.id] = p; });
+    }
+    container.innerHTML = proposals.map(p => _renderProposalCard(p, prospectsById[p.prospect_id])).join('');
+    _setProposalsBadge(proposals.length);
+  } catch(e) {
+    console.error('[loadProposalsView]', e);
+    container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">Unable to load proposals right now.</div>';
+  }
+}
+
+const _PROPOSAL_CONTENT_TYPE_LABELS = { outreach_opener: 'Outreach opener', linkedin_post: 'LinkedIn post' };
+
+function _renderProposalCard(prop, prospect) {
+  const name = (prospect && prospect.name) || '—';
+  const company = (prospect && prospect.company) || '';
+  const contentTypeLbl = _PROPOSAL_CONTENT_TYPE_LABELS[prop.content_type] || prop.content_type || '—';
+  const variants = Array.isArray(prop.variants) ? prop.variants : [];
+  const variantsHtml = variants.map((v, idx) => `
+    <div style="border:1px solid var(--border);border-radius:var(--radius-md);padding:12px 14px;margin-top:10px;">
+      <div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px;">${_esc(v.angle || 'Variant ' + (idx + 1))}</div>
+      <div style="font-size:var(--fs-sm);color:var(--text);line-height:1.5;white-space:pre-wrap;">${_esc(v.text || '')}</div>
+      <button onclick="_proposalUseVariant('${prop.id}', ${idx})"
+        style="margin-top:8px;padding:6px 14px;border-radius:var(--radius-pill);background:var(--navy);color:#fff;border:none;font-size:var(--fs-sm);font-weight:600;cursor:pointer;">Use this</button>
+    </div>`
+  ).join('');
+  return `<div class="priority-card proposal-card" id="proposal-card-${prop.id}"
+      style="background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius-md);padding:18px 20px;margin-bottom:12px;">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+      <span style="font-weight:700;font-size:var(--fs-base);color:var(--navy);">${_esc(name)}</span>
+      ${company ? `<span style="font-size:var(--fs-sm);color:var(--muted);">${_esc(company)}</span>` : ''}
+      <span class="card-badge badge-auto" style="margin-left:auto;">${_esc(contentTypeLbl.toUpperCase())}</span>
+    </div>
+    ${variantsHtml}
+    <div style="display:flex;gap:8px;margin-top:12px;">
+      <button onclick="_proposalReject('${prop.id}')"
+        style="padding:7px 16px;border-radius:var(--radius-pill);background:none;border:1px solid var(--border);color:var(--text);font-size:var(--fs-sm);cursor:pointer;">Reject</button>
+    </div>
+  </div>`;
+}
+
+// "Use this" (par variante) : approuve la proposition entiere sur cette variante -- une seule
+// proposition ne peut avoir qu'une variante choisie, pas une selection radio silencieuse (chaque
+// variante a son propre bouton, clic explicite, README/arbitrage Thomas).
+async function _proposalUseVariant(id, variantIndex) {
+  const { error } = await sbClient.from('agent_proposals')
+    .update({ status: 'approved', chosen_variant_index: variantIndex })
+    .eq('id', id);
+  if (error) { console.error('[_proposalUseVariant]', error); showToast('Error approving proposal'); return; }
+  _removeProposalCard(id);
+}
+
+// Reject porte sur la proposition entiere, pas sur une variante individuelle (contrairement a
+// "Use this") -- demande explicite : un seul niveau de rejet possible.
+async function _proposalReject(id) {
+  const { error } = await sbClient.from('agent_proposals')
+    .update({ status: 'rejected' })
+    .eq('id', id);
+  if (error) { console.error('[_proposalReject]', error); showToast('Error rejecting proposal'); return; }
+  _removeProposalCard(id);
+}
+
+// Meme technique que Send (_setSendBadge(remaining) sur document.querySelectorAll('.send-card')
+// apres retrait, ligne ~7751) : recompte le DOM plutot que de fier une variable n-1 fermee sur un
+// etat qui peut avoir change entre le chargement et le clic.
+function _removeProposalCard(id) {
+  const card = document.getElementById('proposal-card-' + id);
+  if (card) card.remove();
+  _setProposalsBadge(document.querySelectorAll('.proposal-card').length);
 }
 
 function _inboxShowRaw(draftId) {
