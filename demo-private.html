@@ -9566,7 +9566,7 @@ function _renderInboxCards(drafts, view = 'pending') {
     // lien cliquable dans le vide sur une carte "Prospect non identifie".
     const cardLinks = _buildProspectLinks(p || {});
     const fullThreadHtml = p
-      ? `<button class="pd-link" onclick="_openDrawerFromPriority('${draft.prospect_id}')" style="background:none;border:none;padding:0;font:inherit;cursor:pointer;">Full thread</button>`
+      ? `<button class="pd-link" onclick="_openDrawerFromPriority('${draft.prospect_id}')" style="background:none;border:none;padding:0;cursor:pointer;">Full thread</button>`
       : '';
     const linksHtml = (cardLinks.length || fullThreadHtml)
       ? `<div class="pd-links">${cardLinks.map(l => `<a class="pd-link" href="${_esc(l.href)}" target="_blank" rel="noopener noreferrer">${l.label}</a>`).join('')}${fullThreadHtml}</div>`
