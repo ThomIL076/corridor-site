@@ -9391,9 +9391,32 @@ function _renderFollowUpRows(rows) {
         <span style="font-size:var(--fs-sm);color:var(--muted);margin-left:6px;">${_esc(p.company || '—')}</span>
         ${rem ? `<div style="font-family:'IBM Plex Mono',monospace;font-size:var(--fs-xs);color:${rem.overdue ? 'var(--danger)' : 'var(--muted)'};margin-top:2px;">${_esc(rem.label)}</div>` : ''}
       </div>
-      <button onclick="_startEmailSeq('${p.id}')" style="flex-shrink:0;padding:6px 14px;border-radius:var(--radius-pill);background:#f2f9f5;border:1px solid #cfe0d8;color:#166b48;font-size:var(--fs-sm);font-weight:600;cursor:pointer;">Send follow-up</button>
+      <button onclick="_goToJ5Followup('${p.id}')" style="flex-shrink:0;padding:6px 14px;border-radius:var(--radius-pill);background:#f2f9f5;border:1px solid #cfe0d8;color:#166b48;font-size:var(--fs-sm);font-weight:600;cursor:pointer;">Send follow-up</button>
     </div>`;
   }).join('');
+}
+
+// "Send follow-up" (Today, Step 2) ne doit pas appeler _startEmailSeq directement : cette
+// fonction exige un brouillon deja genere+ready (requireDraft par defaut), jamais le cas venant
+// d'ici -- ca produisait un toast bloquant sans suite. Le critere d'eligibilite J+5 de Today
+// (reminder_date <= aujourd'hui) et celui de la queue Send (_isJ5Eligible : stage 1st Contact +
+// last_contact >= 5j) sont deux criteres distincts qui ne se recouvrent pas systematiquement --
+// la card peut donc ne pas exister dans Send au moment du clic, d'ou la verification explicite
+// plutot qu'un scroll vers rien.
+async function _goToJ5Followup(id) {
+  _switchNewNav('send');
+  await loadSendView();
+  const card = document.getElementById('sc-' + id) || document.getElementById('sc-j5-' + id);
+  if (!card) {
+    showToast("Not in the Send queue right now — it may have changed stage or already been sent.");
+    return;
+  }
+  const expandEl = document.getElementById('se-' + id);
+  if (expandEl && expandEl.style.display === 'none') _toggleSendCard(id);
+  card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  card.style.outline = '2px solid #f59e0b';
+  card.style.outlineOffset = '2px';
+  setTimeout(() => { card.style.outline = ''; card.style.outlineOffset = ''; }, 2000);
 }
 
 async function _priorityGenerate(prospectId) {
