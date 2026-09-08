@@ -2171,7 +2171,7 @@ body.new-nav { padding-left: 220px; }
           Next batch →
         </button>
       </div>
-      <div class="section-sub"><span id="priorities-queued-count">0</span> actions queued by your agents. Work top to bottom. The system re-ranks after each send.</div>
+      <div class="section-sub"><span id="priorities-queued-count">0</span> actions queued today. Work top to bottom. The system re-ranks after each send.</div>
       <div class="today-layout">
         <div class="today-main">
           <div class="today-step-divider">
@@ -8372,7 +8372,7 @@ async function openDrawer(card, initialTab = 'activity') {
   const _sigText = _p.signal ? _sanitizeSignal(_p.signal) : '';
   const signalTimelineHTML = _sigText ? `
     <div class="pd-row">
-      <span class="pd-row-mono">${_p.signal_type ? _esc(_p.signal_type.toUpperCase()) : 'SIGNAL'}</span>
+      <span class="pd-row-mono">${_p.signal_type ? _sigBadge(_p.signal_type) : 'SIGNAL'}</span>
       <span class="pd-row-mono" style="margin-left:auto">${_p.signal_date ? _esc(_relDate(_p.signal_date) || '') : ''}</span>
     </div>
     <div class="pd-row-main" style="margin:4px 0">${_sigText}</div>
@@ -9329,7 +9329,7 @@ function _renderPriorityCards(prospects) {
     const tierColor = (p.icp_score || 0) >= 9 ? 'var(--danger)' : ((p.icp_score || 0) >= 8 ? 'var(--amber)' : 'var(--border)');
     const signalHtml = p.signal
       ? `<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:4px;line-height:1.4;">`
-        + (p.signal_type ? `<span style="font-weight:600;padding:1px 6px;border-radius:var(--radius-badge);background:var(--chip-bg);color:var(--indigo);margin-right:5px;">${_esc(p.signal_type)}</span>` : '')
+        + (p.signal_type ? _sigBadge(p.signal_type) : '')
         + _esc(p.signal.replace(/<[^>]*>/g, '').slice(0, 160))
         + `</div>`
       : '';
