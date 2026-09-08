@@ -2707,6 +2707,11 @@ body.new-nav { padding-left: 220px; }
           <div class="ai-box-body" id="pr-output" data-en="Click to run the pipeline review..." data-fr="Cliquez pour lancer la revue pipeline...">Click to run the pipeline review...</div>
         </div>
       </div>
+      <div class="card" id="learned-preferences-card" style="margin-top:16px;display:none;">
+        <div class="card-header"><span class="card-title">Learned Preferences</span></div>
+        <div id="learned-preferences-body" style="font-size:var(--fs-sm);line-height:1.6;"></div>
+        <div id="learned-preferences-meta" style="font-size:var(--fs-xs);color:var(--muted);margin-top:10px;"></div>
+      </div>
       <div class="card" style="margin-top:16px;">
         <div class="card-header"><span class="card-title">Stage conversion</span></div>
         <div id="stage-conversion-list" style="font-size:var(--fs-sm);color:var(--muted);">Loading...</div>
@@ -3230,7 +3235,7 @@ function _switchSysTab(key) {
   const sidebarKey = key === 'reports' ? 'weekly' : key;
   _newNavActive('system-' + sidebarKey);
   if (key === 'reports') { _switchRptTab('weekly'); _loadWeeklyReports(); }
-  if (key === 'pipeintel') { _renderSignalLearningSummary(); _loadStageConversion(); }
+  if (key === 'pipeintel') { _renderSignalLearningSummary(); _loadLearnedPreferences(); _loadStageConversion(); }
 }
 
 // ── Stage conversion (Pipeline health) ──
@@ -11974,6 +11979,36 @@ async function renderStatsLearning() {
   html += '</tbody></table></div>';
   el.innerHTML = html;
 }
+// Learned Preferences (System > Pipeline health) : synthese IA du feedback vote accumule
+// (agent_feedback -> learned_preferences, resume cote n8n), distincte de la vitesse de
+// conversion par signal (_renderSignalLearningSummary ci-dessous) -- deux sources, deux blocs,
+// pas de fusion. Rien affiche du tout tant qu'aucune ligne n'existe : jamais de "no data yet",
+// la carte reste display:none par defaut dans le HTML.
+async function _loadLearnedPreferences() {
+  const card = document.getElementById('learned-preferences-card');
+  if (!card) return;
+  try {
+    const { data, error } = await sbClient.from('learned_preferences')
+      .select('summary_text,feedback_count,generated_at')
+      .eq('client_id', CLIENT_ID).is('mandate_id', null).eq('agent_name', 'signal_interpretation')
+      .maybeSingle();
+    if (error) throw error;
+    if (!data || !data.summary_text) { card.style.display = 'none'; return; }
+    const bodyEl = document.getElementById('learned-preferences-body');
+    const metaEl = document.getElementById('learned-preferences-meta');
+    if (bodyEl) bodyEl.innerHTML = renderMarkdown(data.summary_text);
+    if (metaEl) {
+      const votesLabel = (data.feedback_count != null) ? 'Based on ' + data.feedback_count + (data.feedback_count === 1 ? ' vote' : ' votes') : null;
+      const updatedLabel = data.generated_at ? 'updated ' + _relDate(data.generated_at) : null;
+      metaEl.textContent = [votesLabel, updatedLabel].filter(Boolean).join(', ');
+    }
+    card.style.display = '';
+  } catch(e) {
+    console.warn('[_loadLearnedPreferences]', e);
+    card.style.display = 'none';
+  }
+}
+
 async function _renderSignalLearningSummary() {
   const el = document.getElementById('signal-learning-summary');
   if (!el) return;
