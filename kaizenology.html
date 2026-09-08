@@ -6297,7 +6297,8 @@ async function _sendViaLinkedIn(pid, touch, elPrefix = '') {
       await _markSent(pid, touch, true, body, elPrefix);
       showToast('Sent via LinkedIn ✓');
     } else {
-      showToast('LinkedIn send error:' + (data.error||'unknown'));
+      console.error('[_sendViaLinkedIn] LinkedIn send failed:', data.error || 'unknown');
+      showToast('LinkedIn send failed — please try again or check your connection settings');
       if (btn) btn.disabled = false;
     }
   } catch(e) {
@@ -8262,7 +8263,8 @@ async function _inboxSend(draftId, prospectId) {
     });
     const data = await res.json();
     if (!data.success) {
-      showToast('LinkedIn send error: ' + (data.error || 'unknown'));
+      console.error('[_inboxSend] LinkedIn send failed:', data.error || 'unknown');
+      showToast('LinkedIn send failed — please try again or check your connection settings');
       if (sendBtn) sendBtn.disabled = false;
       if (dismissBtn) dismissBtn.disabled = false;
       return;
@@ -11068,7 +11070,8 @@ async function _startEmailSeq(id) {
       }
     } else {
       if (btn) { btn.disabled = false; btn.textContent = 'Start Email Sequence'; btn.style.background = 'var(--green-brand)'; }
-      if (statusEl) statusEl.textContent = '⚠ ' + (data.error || 'Error, retry');
+      console.error('[_startEmailSeq] Email sequence failed to start:', data.error || 'unknown');
+      if (statusEl) statusEl.textContent = '⚠ Email sequence failed to start — please try again';
     }
   } catch(e) {
     console.error('[_startEmailSeq]', e);
