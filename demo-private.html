@@ -2165,12 +2165,13 @@ body.new-nav { padding-left: 220px; }
   <div class="tab-panel" id="tab-priorities">
     <div style="padding:24px 16px 0;max-width:1120px;margin:0 auto;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
-        <h2 style="font-size:var(--fs-lg);font-weight:700;color:var(--navy);margin:0;">Today's Priorities</h2>
+        <h2 style="font-size:var(--fs-lg);font-weight:700;color:var(--navy);margin:0;">Today's run</h2>
         <button id="priorities-next-btn" onclick="_prioritiesNext()" disabled
           style="padding:8px 18px;border-radius:var(--radius-pill);background:var(--navy);color:#fff;border:none;font-size:var(--fs-sm);font-weight:600;cursor:pointer;opacity:0.4;">
           Next batch →
         </button>
       </div>
+      <div class="section-sub"><span id="priorities-queued-count">0</span> actions queued by your agents. Work top to bottom. The system re-ranks after each send.</div>
       <div class="today-layout">
         <div class="today-main">
           <div class="today-step-divider">
@@ -9216,6 +9217,22 @@ async function _drawerAI() {
 
 let _priorityCurrentBatch = 1;
 let _priorityShownProspects = [];
+// Step 2 (Reminders due) : promue en global au meme titre que _priorityShownProspects --
+// auparavant un `const rows` local a _loadFollowUpsDue(), invisible depuis loadDailyPriorities().
+// Les deux se chargent en parallele (switchTab('priorities')), donc le compteur combine
+// (_updateQueuedCount, plus bas) est appele par les deux au lieu d'etre calcule une seule fois :
+// selon l'ordre de resolution, l'un des deux tableaux vaut encore [] au premier appel.
+let _reminderShownProspects = [];
+
+// "N actions queued" (section-sub sous "Today's run") : Step 1 + Step 2, memes tableaux que ceux
+// qui alimentent deja _renderPriorityCards()/_updatePrioritiesNextBtn() et #today-followup-count
+// -- pas un second comptage. Appelee depuis loadDailyPriorities() ET _loadFollowUpsDue() (les
+// deux se chargent en parallele au switch d'onglet), donc toujours a jour quel que soit l'ordre
+// de resolution des deux appels.
+function _updateQueuedCount() {
+  const el = document.getElementById('priorities-queued-count');
+  if (el) el.textContent = _priorityShownProspects.length + _reminderShownProspects.length;
+}
 
 async function loadDailyPriorities() {
   const container = document.getElementById('priorities-container');
@@ -9280,6 +9297,8 @@ async function loadDailyPriorities() {
     const eligible = merged.filter(p => (p.priority_batch_number || 0) === 0);
     _priorityShownProspects = eligible.slice(0, N);
     _priorityShownProspects.forEach(p => { if (!_prospectsById[p.id]) _prospectsById[p.id] = p; });
+
+    _updateQueuedCount();
 
     _renderPriorityCards(_priorityShownProspects);
     _updatePrioritiesNextBtn();
@@ -9398,13 +9417,14 @@ async function _loadFollowUpsDue() {
     q = _applyMandateFilter(q);
     const { data, error } = await q.order('reminder_date', { ascending: true }).limit(10);
     if (error) throw error;
-    const rows = data || [];
+    const rows = _reminderShownProspects = data || [];
     rows.forEach(p => { if (!_prospectsById[p.id]) _prospectsById[p.id] = p; });
     await _hydrateJ5EligibilityFor(rows.map(p => p.id));
     const fiveDaysAgo = new Date(Date.now() - 5 * 86400000).toISOString();
     rows.forEach(p => { p._j5Eligible = _isJ5Eligible(p, fiveDaysAgo); });
     if (divider) divider.hidden = rows.length === 0;
     if (countEl) countEl.textContent = rows.length ? rows.length + ' due' : '';
+    _updateQueuedCount();
     _renderFollowUpRows(rows);
   } catch(e) {
     console.warn('[_loadFollowUpsDue]', e);
