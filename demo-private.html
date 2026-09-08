@@ -506,7 +506,6 @@ button, [role="button"], select, input { min-height: 28px; }
   min-height:80px; font-weight:400; overflow-wrap:break-word; word-break:break-word;
 }
 .ai-box-body.loaded { color:var(--text); }
-#intel-ai-output { max-height:500px; overflow-y:auto; }
 
 /* ── SCORE DISPLAY ── */
 .score-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px; }
@@ -3412,7 +3411,7 @@ async function _resolveMandate(mandateId, dealId = null) {
     try {
       const { data: deal } = await sbClient
         .from('mandate_deals')
-        .select('id, name, icp_criteria, sectors, geography, decision_makers, signals, exclusions, email_campaign_id, min_employees, max_employees, target_role_keywords, min_deal_value, max_deal_value')
+        .select('id, name, icp_criteria, sectors, geography, decision_makers, signals, exclusions, min_employees, max_employees, target_role_keywords, min_deal_value, max_deal_value')
         .eq('id', dealId)
         .eq('segment_id', mandateId)
         .single();
@@ -4174,6 +4173,7 @@ async function callAI(prompt, outputEl, spinnerId, maxTokens = 1000, renderAsTex
       : 'No response.';
     if (renderAsText) { outputEl.textContent = text; } else { outputEl.innerHTML = renderMarkdown(text); }
     outputEl.classList.add('loaded');
+    return text;
   } catch (e) {
     console.error('[callAI]', e);
     outputEl.textContent = 'Error: ' + e.message + '. Check API connection.';
@@ -4373,17 +4373,18 @@ async function runScanner() {
   const sigList = document.getElementById('scanner-signals-list');
   if (sigList) sigList.innerHTML = '';
 
+  const personStr = person ? `\nPrimary contact: ${person}\n` : '';
   const prompt = `You are Corridor's signal intelligence engine analysing a real prospect.
 
 Company: ${company}
 Sector: ${sector}
 Stage: ${stage}
-${fundingStr}${urlStr}${contextStr}
+${fundingStr}${urlStr}${personStr}${contextStr}
 
 STEP 1 — Use web search to find recent, verifiable facts about ${company}: funding rounds, expansion moves, key hires, leadership, recent news. Search the web before analysing.
-STEP 2 — Write a sharp 3-paragraph intelligence brief based ONLY on verified facts from your search and the context provided above. Do NOT invent figures, names, dates, or events. If web search returns nothing reliable about this specific company, say so explicitly at the very top — "⚠️ No verifiable public information found for ${company} — the brief below is generic, based only on sector and stage." — rather than fabricating details.
+STEP 2 — Write a sharp intelligence brief based ONLY on verified facts from your search and the context provided above. Do NOT invent figures, names, dates, or events. If web search returns nothing reliable about this specific company, say so explicitly at the very top — "⚠️ No verifiable public information found for ${company} — the brief below is generic, based only on sector and stage." — rather than fabricating details.
 
-Structure your response with exactly these three ## section headers:
+Structure your response with exactly these five ## section headers:
 
 ## WHY NOW
 Why this company is a strong fit for international GTM advisory right now. Be specific about the timing window, citing the verified signals you found.
@@ -4394,7 +4395,13 @@ The 2-3 most likely pain points they are experiencing at this stage.
 ## OPENING ANGLE
 The single best opening angle for outreach to this company.
 
-Be direct, commercial, and specific. No generic consulting language. Max 220 words.
+## BUYING TRIGGERS
+The 2-3 specific signals that indicate this company is ready to buy GTM advisory now.
+
+## BEHAVIOURAL PROFILE & STRATEGY
+Two short paragraphs: first on the likely decision-making style ${person ? `of ${person}, the primary contact` : `of the company's likely buying process (no contact name provided)`}; second on the exact approach strategy — what to lead with, what to avoid, what the close looks like.
+
+Be direct, commercial, and specific. No generic consulting language. Max 420 words.
 
 Rules: Never use em-dashes (—) or horizontal rules (---) in your response.
 
@@ -4406,10 +4413,35 @@ Language instruction: Write your entire response in ${currentLang === 'fr' ? 'Fr
   const _scanNoCtx = _scanLive ? '' : '\nNO LIVE CONTEXT AVAILABLE: Do not invent company-specific facts, figures, or events. If no verified data is found, state so explicitly.\n';
   const _sp1 = callAI(_scanLive + _scanNoCtx + prompt, _scanEl, 'scanner-spinner');
   const _sp2 = person ? _runContactIntelligence(company, person, _drawerProspect?.linkedin || null) : Promise.resolve();
-  await Promise.all([_sp1, _sp2]);
-  // Extract buying signals from the completed brief
-  const _scanAiOut = document.getElementById('scanner-ai-output');
-  const aiTxt = _scanAiOut ? (_scanAiOut.textContent || '') : '';
+  const [_scanRawText] = await Promise.all([_sp1, _sp2]);
+  const _scanFullText = _scanRawText || '';
+  // Affichage : Company Intelligence ne montre que WHY NOW/PAIN POINTS/OPENING ANGLE -- Buying
+  // Triggers/Behavioural Profile vivent exclusivement dans leur carte dediee plus bas. callAI() a
+  // deja rendu le texte COMPLET dans _scanEl (elle fait innerHTML=renderMarkdown() elle-meme, pas
+  // d'autre moyen de lui faire rendre une version tronquee) -- on ecrase donc son rendu ici avec
+  // la version tronquee, uniquement en cas de succes : si _scanRawText est vide/undefined, c'est
+  // que callAI() a affiche un message d'erreur dans _scanEl, on n'y touche pas.
+  if (_scanRawText && _scanEl) {
+    const _scanCoreText = _scanFullText.split(/\n##\s*BUYING TRIGGERS/i)[0].trim();
+    _scanEl.innerHTML = renderMarkdown(_scanCoreText);
+  }
+  // Buying Triggers / Behavioural Profile & Strategy (README ext.) : extraits de _scanFullText
+  // (texte BRUT complet, ## intact) -- jamais de _scanEl.textContent/aiTxt (## deja perdu au
+  // rendu, et desormais tronque en plus par le bloc juste au-dessus). Pas de fonction de decoupage
+  // par section partagee/reutilisable trouvee ailleurs dans le fichier (Module 2 faisait son
+  // propre regex inline sur un format "HEADER:\n" different, jamais un ## -- rien a reutiliser tel
+  // quel) ; regex ecrite ici specifiquement pour le format ## reellement produit par ce prompt.
+  const triggersMatch = _scanFullText.match(/^## BUYING TRIGGERS\s*\n([\s\S]*?)(?=\n##\s|$)/mi);
+  const strategyMatch = _scanFullText.match(/^## BEHAVIOURAL PROFILE & STRATEGY\s*\n([\s\S]*?)(?=\n##\s|$)/mi);
+  const _scanTriggersEl = document.getElementById('scanner-triggers-output');
+  const _scanStrategyEl = document.getElementById('scanner-strategy-output');
+  if (_scanTriggersEl) _scanTriggersEl.innerHTML = triggersMatch ? renderMarkdown(triggersMatch[1].trim()) : '';
+  if (_scanStrategyEl) _scanStrategyEl.innerHTML = strategyMatch ? renderMarkdown(strategyMatch[1].trim()) : '';
+  // Extract buying signals from the completed brief -- _scanFullText (texte brut complet), PAS
+  // scanner-ai-output.textContent : ce bloc ne contient plus que WHY NOW/PAIN POINTS/OPENING
+  // ANGLE depuis la troncature d'affichage ci-dessus, ce qui ferait perdre les signaux
+  // detectables uniquement dans Buying Triggers (ex. "fundraise"/"expansion" mentionnes la-bas).
+  const aiTxt = _scanFullText;
   const noInfo = /no verifiable|no public information|no information found|unable to find|cannot find/i.test(aiTxt);
   const sigs = [];
   if (!noInfo) {
@@ -4499,7 +4531,7 @@ Language instruction: Write your entire response in ${currentLang === 'fr' ? 'Fr
       const _scanScoreVal = (_scoreResult && _scoreResult.role_score != null)
         ? _calcComposite(_scoreResult.role_score, _scoreResult.size_score, _scoreResult.signal_strength_score, _scoreResult.mandate_fit_score, 5, 5)
         : null;
-      const _scanSummary = (document.getElementById('scanner-ai-output')?.textContent || '').slice(0, 800);
+      const _scanSummary = _scanFullText.slice(0, 800);
       const { data: _existingArr } = await sbClient.from('prospects').select('id, name, company, stage').eq('client_id', CLIENT_ID).ilike('company', _scanCo).limit(1);
       const _existing = _existingArr && _existingArr.length ? _existingArr[0] : null;
       const _actDiv = document.createElement('div');
@@ -4507,7 +4539,7 @@ Language instruction: Write your entire response in ${currentLang === 'fr' ? 'Fr
       _actDiv.style.cssText = 'margin-top:16px;';
       if (_existing) {
         if (_scanScoreVal != null) {
-          const _companyBrief = (document.getElementById('scanner-ai-output')?.textContent || '').trim();
+          const _companyBrief = _scanFullText.trim();
           const _contactBrief = (() => { const t = (document.getElementById('scanner-contact-output')?.textContent || '').trim(); return (t && !t.startsWith('Researching')) ? t : ''; })();
           const _patchBrief = [_companyBrief, _contactBrief ? '---\n' + _contactBrief : ''].filter(Boolean).join('\n\n').slice(0, 3000);
           const _patch = { icp_score: Math.round(_scanScoreVal), icp_reason: (_scoreResult?.rationale || '').slice(0, 100), icp_confidence: _scoreResult?.confidence || null };
@@ -4524,96 +4556,9 @@ Language instruction: Write your entire response in ${currentLang === 'fr' ? 'Fr
   }
 }
 
-// ── MODULE 2: PROSPECT INTELLIGENCE ──
-async function runIntelligence() {
-  const name = document.getElementById('intel-name').value.trim() || 'Jason Dorfman';
-  let company = document.getElementById('intel-company').value.trim();
-  if (!company && window.activeCompany) { company = window.activeCompany; const _icf = document.getElementById('intel-company'); if (_icf) _icf.value = company; }
-  if (!company) company = 'Keeyns';
-  const title = document.getElementById('intel-title').value.trim() || 'CEO & Co-founder';
-  const corridor = document.getElementById('intel-corridor').value;
-
-  document.getElementById('intel-results').style.display = 'block';
-  document.getElementById('intel-btn').disabled = true;
-
-  // Quick fill pain points etc
-  const pains = document.getElementById('intel-pains');
-  const triggers = document.getElementById('intel-triggers');
-  const angles = document.getElementById('intel-angles');
-  pains.textContent = '⏳ Generating...';
-  triggers.textContent = '⏳ Generating...';
-  angles.textContent = '⏳ Generating...';
-
-  const prompt = `You are Corridor's prospect intelligence system. Build a complete brief for this contact:
-
-Name: ${name}
-Title: ${title}
-Company: ${company}
-Target market: ${corridor}
-
-Return EXACTLY this format (use the exact headers):
-
-PAIN POINTS:
-• [3 specific pain points for a ${title} expanding into ${corridor}]
-
-BUYING TRIGGERS:
-• [3 specific signals that mean they're ready to buy GTM advisory now]
-
-CONVERSATION ANGLES:
-• [3 specific opening angles, one per line]
-
-BEHAVIOURAL PROFILE & STRATEGY:
-[2 paragraphs: first on their likely decision-making style as ${title}; second on the exact approach strategy — what to lead with, what to avoid, what the close looks like]
-
-Be specific, commercial, and direct. No fluff.
-
-Rules: Never use em-dashes (—) or horizontal rules (---) in your response.
-
-IMPORTANT: Always use these exact English section headers regardless of language:
-PAIN POINTS:
-BUYING TRIGGERS:
-CONVERSATION ANGLES:
-BEHAVIOURAL PROFILE & STRATEGY:
-Write all content in ${currentLang === 'fr' ? 'French' : 'English'} but keep the headers exactly as above.`;
-
-  pains.textContent = 'Researching ' + company + '...';
-  const _intLive = await _prefetchWebContext(company, corridor || '');
-  const _intNoCtx = _intLive ? '' : '\nNO LIVE CONTEXT AVAILABLE: Do not invent company-specific facts, partnerships, or events.\n';
-  pains.textContent = '⏳ Generating...';
-  document.getElementById('intel-spinner').classList.add('active');
-  try {
-    const res = await fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-5',
-        max_tokens: 1500,
-        messages: [{ role: 'user', content: _intLive + _intNoCtx + prompt }]
-      })
-    });
-    const data = await res.json();
-    const text = (Array.isArray(data.content) ? data.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim() : '');
-
-    // Parse sections
-    const painMatch = text.match(/(?:PAIN POINTS|POINTS DE DOULEUR)\s*:\n([\s\S]*?)(?=---|(?:\n(?:BUYING TRIGGERS|DÉCLENCHEURS D'ACHAT)))/i);
-    const triggerMatch = text.match(/(?:BUYING TRIGGERS|DÉCLENCHEURS D'ACHAT)\s*:\n([\s\S]*?)(?=---|(?:\n(?:CONVERSATION ANGLES|ANGLES DE CONVERSATION)))/i);
-    const anglesMatch = text.match(/(?:CONVERSATION ANGLES|ANGLES DE CONVERSATION)\s*:\n([\s\S]*?)(?=---|(?:\n(?:BEHAVIOURAL PROFILE|PROFIL COMPORTEMENTAL)))/i);
-    const profileMatch = text.match(/(?:BEHAVIOURAL PROFILE|PROFIL COMPORTEMENTAL)[^:]*:\n([\s\S]*?)$/i);
-
-    pains.innerHTML = painMatch ? renderMarkdown(painMatch[1].trim()) : renderMarkdown(text.substring(0, 200));
-    triggers.innerHTML = triggerMatch ? renderMarkdown(triggerMatch[1].trim()) : '';
-    angles.innerHTML = anglesMatch ? renderMarkdown(anglesMatch[1].trim()) : '';
-    const profileEl = document.getElementById('intel-ai-output');
-    profileEl.innerHTML = profileMatch ? renderMarkdown(profileMatch[1].trim()) : renderMarkdown(text);
-    profileEl.classList.add('loaded');
-  } catch(e) {
-    console.warn('[runIntelligence]', e);
-    pains.textContent = 'Error: ' + e.message;
-  } finally {
-    document.getElementById('intel-spinner').classList.remove('active');
-    document.getElementById('intel-btn').disabled = false;
-  }
-}
+// runIntelligence() (Module 2: Prospect Intelligence) retiree : jamais appelee (aucun onclick,
+// aucune reference), et aucun HTML id="intel-*" correspondant nulle part dans le fichier --
+// confirme avant suppression (grep sur les 11 id + sur le nom de fonction, rien d'autre trouve).
 
 // ── MODULE 3: OUTREACH GENERATOR ──
 // ── MODULE 4: AI AGENTS ──
@@ -8365,6 +8310,7 @@ async function openDrawer(card, initialTab = 'activity') {
         </div>
         <button class="btn-accent btn-lg" style="width:100%;justify-content:center;margin-top:10px"
           onclick="_drawerAI()" id="drawer-next-btn">${_hasCachedAction ? '🔄 Regenerate' : '▶ Next recommended action'}</button>
+        <div class="ai-spinner" id="drawer-spinner" style="margin:6px auto 0;"></div>
         ${_stalled ? `
         <button class="btn-secondary btn-md" style="width:100%;justify-content:center;margin-top:8px;border-color:var(--danger-border);color:var(--danger);" onclick="_escalateProspect()" id="drawer-escalate-btn">⚠ Prospect stalled — Escalation Handler</button>
         <div class="ai-box" id="escalate-box" style="display:none;margin-top:8px">
@@ -9566,7 +9512,7 @@ function _renderInboxCards(drafts, view = 'pending') {
     // lien cliquable dans le vide sur une carte "Prospect non identifie".
     const cardLinks = _buildProspectLinks(p || {});
     const fullThreadHtml = p
-      ? `<button class="pd-link" onclick="_openDrawerFromPriority('${draft.prospect_id}')" style="background:none;border:none;padding:0;cursor:pointer;">Full thread</button>`
+      ? `<button class="pd-link" onclick="_openDrawerFromPriority('${draft.prospect_id}')" style="background:none;border:none;padding:0;font-family:inherit;cursor:pointer;">Full thread</button>`
       : '';
     const linksHtml = (cardLinks.length || fullThreadHtml)
       ? `<div class="pd-links">${cardLinks.map(l => `<a class="pd-link" href="${_esc(l.href)}" target="_blank" rel="noopener noreferrer">${l.label}</a>`).join('')}${fullThreadHtml}</div>`
@@ -13902,6 +13848,21 @@ if ('serviceWorker' in navigator) {
             <div class="ai-box-body" id="scanner-contact-output"
               data-en="Enter a person name above to generate contact intelligence..." data-fr="Saisissez un nom ci-dessus pour générer la fiche contact...">Enter a person name above to generate contact intelligence...</div>
           </div>
+        </div>
+      </div>
+      <div class="card" id="scanner-strategy-card" style="margin-bottom:16px">
+        <div class="card-header"><span class="card-title" data-en="Buying Triggers &amp; Strategy" data-fr="Déclencheurs &amp; stratégie">Buying Triggers &amp; Strategy</span></div>
+        <div class="ai-box">
+          <div class="ai-box-header">
+            <span class="ai-box-label" data-en="Buying Triggers" data-fr="Déclencheurs d'achat">Buying Triggers</span>
+          </div>
+          <div class="ai-box-body" id="scanner-triggers-output" data-en="Will appear after you run a scan..." data-fr="Apparaîtra après un scan...">Will appear after you run a scan...</div>
+        </div>
+        <div class="ai-box" style="margin-top:12px">
+          <div class="ai-box-header">
+            <span class="ai-box-label" data-en="Behavioural Profile &amp; Strategy" data-fr="Profil comportemental &amp; stratégie">Behavioural Profile &amp; Strategy</span>
+          </div>
+          <div class="ai-box-body" id="scanner-strategy-output" data-en="Will appear after you run a scan..." data-fr="Apparaîtra après un scan...">Will appear after you run a scan...</div>
         </div>
       </div>
       <div class="card">
