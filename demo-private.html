@@ -840,16 +840,24 @@ button, [role="button"], select, input { min-height: 28px; }
 .pipe-funnel-bar { display:flex; gap:2px; height:9px; margin-top:18px; }
 .pipe-funnel-seg { border-radius:5px; }
 .pipe-funnel-legend { display:flex; gap:2px; margin-top:8px; }
-.pipe-funnel-leg-item { font-family:'IBM Plex Mono',monospace; font-size:9.5px; color:var(--muted); text-align:center; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
-/* Jamais traite pour mobile jusqu'ici (comme la spine avant ce fix). Chaque label herite du meme
-   flex proportionnel que son segment de barre (poses en inline par _renderPipelineStatsCard, pour
-   l'alignement colonne/segment) -- une etape a faible effectif recoit alors une fraction de pixel
-   de large, illisible quelle que soit la police (mesure : 0.45px pour "Closed" sur un total de
-   274px a 375px de large). Reduire la police ou juste wrap n'y change rien tant que la largeur
-   reste liee a ce flex. A cette largeur, on decouple : wrap + largeur au contenu (!important
-   necessaire, le flex proportionnel est pose en style inline par le JS, plus specifique qu'une
-   regle de feuille de style normale) -- l'alignement colonne/segment n'est plus garanti a cette
-   largeur, compromis accepte puisqu'il etait deja illisible pour les petites etapes de toute facon. */
+.pipe-funnel-leg-item { font-family:'IBM Plex Mono',monospace; font-size:9.5px; color:var(--muted); text-align:center; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; min-width:100px; }
+/* Meme cause partout : chaque label herite du meme flex proportionnel au comptage que son
+   segment de barre (pose en inline par _renderPipelineStatsCard, pour l'alignement colonne/
+   segment) -- une etape a faible effectif recoit alors une fraction de pixel de large, illisible
+   quelle que soit la police (mesure : 0.45px pour "Closed" sur un total de 274px a 375px de
+   large). Reduire la police ou juste wrap n'y change rien tant que la largeur reste liee a ce
+   flex. Deux compromis distincts selon la largeur :
+   - Desktop (regle ci-dessus, min-width:100px) : mesure sur donnees realistes (Chrome headless,
+     police IBM Plex Mono reelle) -- suffisant pour afficher "{Stage} · {count}" en clair sur les
+     7 etapes sans troncature a la largeur reelle de la carte (~1020px). Les segments a tres
+     faible effectif peuvent legerement deborder de leur proportion flex stricte plutot que de
+     tomber sous la largeur du texte -- compromis accepte. Pas reteste entre 480px et ~900px
+     (bande ou un debordement horizontal reste possible si "Identified" n'absorbe pas assez
+     l'espace restant).
+   - Mobile (media query ci-dessous, ≤480px) : wrap + largeur au contenu (!important necessaire,
+     le flex proportionnel est pose en style inline par le JS, plus specifique qu'une regle de
+     feuille de style normale) -- l'alignement colonne/segment n'est plus garanti a cette largeur,
+     compromis accepte puisqu'il etait deja illisible pour les petites etapes de toute facon. */
 @media (max-width: 480px) {
   .pipe-funnel-legend { flex-wrap: wrap; row-gap: 3px; }
   .pipe-funnel-leg-item { flex: 0 1 auto !important; width: auto !important; overflow: visible; text-overflow: clip; font-size: 8.5px; padding: 0 3px; }
@@ -2166,10 +2174,15 @@ body.new-nav { padding-left: 220px; }
     <div style="padding:24px 16px 0;max-width:1120px;margin:0 auto;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
         <h2 style="font-size:var(--fs-lg);font-weight:700;color:var(--navy);margin:0;">Today's run</h2>
-        <button id="priorities-next-btn" onclick="_prioritiesNext()" disabled
-          style="padding:8px 18px;border-radius:var(--radius-pill);background:var(--navy);color:#fff;border:none;font-size:var(--fs-sm);font-weight:600;cursor:pointer;opacity:0.4;">
-          Next batch →
-        </button>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <button id="priorities-skip-btn" class="btn-secondary" onclick="_prioritiesSkip()">
+            Skip batch
+          </button>
+          <button id="priorities-next-btn" onclick="_prioritiesNext()" disabled
+            style="padding:8px 18px;border-radius:var(--radius-pill);background:var(--navy);color:#fff;border:none;font-size:var(--fs-sm);font-weight:600;cursor:pointer;opacity:0.4;">
+            Next batch →
+          </button>
+        </div>
       </div>
       <div class="section-sub"><span id="priorities-queued-count">0</span> actions queued today. Work top to bottom. The system re-ranks after each send.</div>
       <div class="today-layout">
@@ -8312,6 +8325,17 @@ async function _bcPersistFromScan(stakeholders, company) {
   }
 }
 
+// Partagee entre openDrawer() et _renderPriorityCards() (Today) -- une seule construction du
+// bloc de liens, pas de logique dupliquee.
+function _buildProspectLinks(p) {
+  return [
+    p.linkedin ? { label: 'LinkedIn', href: p.linkedin } : null,
+    p.email ? { label: 'Email', href: 'mailto:' + p.email } : null,
+    p.phone ? { label: 'Phone', href: 'tel:' + p.phone } : null,
+    p.website_url ? { label: 'Company site', href: p.website_url } : null,
+  ].filter(Boolean);
+}
+
 async function openDrawer(card, initialTab = 'activity') {
   const prospectId   = card.dataset.id          || null;
   const name         = (card.querySelector('.k-card-name')?.textContent    || '').trim();
@@ -8380,12 +8404,7 @@ async function openDrawer(card, initialTab = 'activity') {
 
   const stageAgeLbl = '—'; // pas de stage_changed_at en base -- pas invente, cf. echange cleanup
   const dealValLbl = _p.deal_value ? `${_p.deal_currency || 'EUR'} ${Math.round(parseInt(_p.deal_value) / 1000)}k` : '—';
-  const links = [
-    _p.linkedin ? { label: 'LinkedIn', href: _p.linkedin } : null,
-    _p.email ? { label: 'Email', href: 'mailto:' + _p.email } : null,
-    _p.phone ? { label: 'Phone', href: 'tel:' + _p.phone } : null,
-    _p.website_url ? { label: 'Company site', href: _p.website_url } : null,
-  ].filter(Boolean);
+  const links = _buildProspectLinks(_p);
   const firmoParts = [sector, _p.country, _p.company_size ? _p.company_size + ' employees' : null].filter(Boolean);
 
   document.getElementById('drawer').innerHTML = `
@@ -9254,7 +9273,7 @@ async function loadDailyPriorities() {
       if (mdata?.daily_priority_count) N = mdata.daily_priority_count;
     }
 
-    const COLS = 'id,name,company,sector,icp_score,score_signal_strength,score_role,score_size,score_recency,score_mandate_fit,score_completeness,signal,signal_type,signal_interpretation,signal_date,mandate_id,stage,next_action_cache,next_action_generated_at,priority_batch_number,last_priority_shown_at,email,reminder_date,last_contact,linkedin,company_verified,identity_confidence';
+    const COLS = 'id,name,company,sector,icp_score,score_signal_strength,score_role,score_size,score_recency,score_mandate_fit,score_completeness,signal,signal_type,signal_interpretation,signal_date,mandate_id,stage,next_action_cache,next_action_generated_at,priority_batch_number,last_priority_shown_at,last_surfaced_in_scan_at,email,reminder_date,last_contact,linkedin,company_verified,identity_confidence,website_url';
 
     let qA = sbClient.from('prospects_scan_window').select(COLS)
       .eq('client_id', CLIENT_ID).eq('archived', false)
@@ -9333,6 +9352,17 @@ function _renderPriorityCards(prospects) {
         + _esc(p.signal.replace(/<[^>]*>/g, '').slice(0, 160))
         + `</div>`
       : '';
+    const cardLinks = _buildProspectLinks(p);
+    const linksHtml = cardLinks.length
+      ? `<div class="pd-links">${cardLinks.map(l => `<a class="pd-link" href="${_esc(l.href)}" target="_blank" rel="noopener noreferrer">${l.label}</a>`).join('')}</div>`
+      : '';
+    // "Surfaced by scan" seulement si last_surfaced_in_scan_at est renseigne (pas invente si la
+    // donnee manque, meme principe que le reste du fichier) -- toujours accroche a une date reelle
+    // (signal_date), jamais affiche seul.
+    const _relSignalDate = p.signal_date ? _relDate(p.signal_date) : null;
+    const metaHtml = _relSignalDate
+      ? `<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:6px;">${p.last_surfaced_in_scan_at ? 'Surfaced by scan · ' : ''}${_esc(_relSignalDate)}</div>`
+      : '';
     const cachedRendered = p.next_action_cache
       ? _renderNextActionHTML(p.next_action_cache, 'var(--navy)')
       : null;
@@ -9375,7 +9405,6 @@ function _renderPriorityCards(prospects) {
                      font-size:var(--fs-base);color:var(--navy);text-decoration:underline;text-align:left;">
               ${_esc(p.name || '—')}
             </button>
-            ${p.linkedin ? `<a href="${_esc(p.linkedin)}" target="_blank" rel="noopener" style="flex-shrink:0;color:var(--fill-accent);text-decoration:none;line-height:1;" title="LinkedIn"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg></a>` : ''}
             <span style="font-size:var(--fs-sm);color:var(--muted);">${_esc(p.company || '—')}</span>
             ${p.sector ? `<span style="font-size:var(--fs-xs);font-weight:600;padding:2px 8px;
               background:var(--chip-bg);border-radius:var(--radius-pill);color:var(--indigo);">
@@ -9384,7 +9413,8 @@ function _renderPriorityCards(prospects) {
             ${p.identity_confidence === 'low' ? `<span style="font-size:10px;font-weight:700;color:#6b7280;background:#f3f4f6;border:1px solid #d1d5db;border-radius:20px;padding:1px 6px;white-space:nowrap;" title="Identité non confirmée">? Identité à vérifier</span>` : ''}
           </div>
           ${signalHtml}
-          ${p.email ? `<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:3px;"><a href="mailto:${_esc(p.email)}" style="color:inherit;text-decoration:underline;">${_esc(p.email)}</a></div>` : ''}
+          ${linksHtml}
+          ${metaHtml}
         </div>
         ${actionHtml}
       </div>
@@ -9831,6 +9861,36 @@ async function _prioritiesNext() {
     );
   } catch(e) {
     console.error('[_prioritiesNext] batch advance failed:', e.message);
+  }
+
+  await loadDailyPriorities();
+}
+
+// Meme ecriture que _prioritiesNext() (avance priority_batch_number pour le batch affiche),
+// mais sans la condition allActionable : Skip batch reste cliquable meme si rien n'a ete
+// envoye/actionne sur le batch en cours (arbitrage Thomas).
+async function _prioritiesSkip() {
+  const btn = document.getElementById('priorities-skip-btn');
+  if (btn) { btn.disabled = true; btn.style.opacity = '0.4'; }
+
+  const newBatch = _priorityCurrentBatch + 1;
+  const shownIds = _priorityShownProspects.map(p => p.id);
+  const _pbMandateId = (activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null;
+
+  try {
+    if (shownIds.length) {
+      await sbClient.from('prospects')
+        .update({ priority_batch_number: newBatch })
+        .in('id', shownIds).eq('client_id', CLIENT_ID);
+    }
+    await sbClient.from('priority_batches').upsert(
+      { client_id: CLIENT_ID, mandate_id: _pbMandateId, current_batch: newBatch, updated_at: new Date().toISOString() },
+      { onConflict: 'client_id,mandate_id' }
+    );
+  } catch(e) {
+    console.error('[_prioritiesSkip] batch advance failed:', e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
   }
 
   await loadDailyPriorities();
