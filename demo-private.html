@@ -3090,7 +3090,7 @@ function _weeklyRecsHtml(r, vm) {
   return `
     <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:14px;">
       <div style="font-size:var(--fs-xs);font-weight:700;color:var(--muted);letter-spacing:0.5px;text-transform:uppercase;margin-bottom:8px;">Recommendations</div>
-      <div style="font-size:var(--fs-base);line-height:1.6;">${r.recommendations_text}</div>
+      <div style="font-size:var(--fs-base);line-height:1.6;">${renderMarkdown(r.recommendations_text || '')}</div>
       <div style="display:flex;gap:8px;margin-top:10px;align-items:center;">
         <button class="rpt-vote-btn ${existingVote === 'like' ? 'active-like' : ''}" id="vote-like-${_esc(r.id)}" onclick="_weeklyVote('${_esc(r.id)}','like')" title="Useful">👍</button>
         <button class="rpt-vote-btn ${existingVote === 'unlike' ? 'active-unlike' : ''}" id="vote-unlike-${_esc(r.id)}" onclick="_weeklyVote('${_esc(r.id)}','unlike')" title="Not useful">👎</button>
@@ -3117,7 +3117,7 @@ function _renderWeeklyList(reports, voteMap) {
       <span style="font-size:var(--fs-xs);color:var(--muted);">${_esc(latestInfo.label)}</span>
     </div>
     <div style="font-family:'Instrument Sans',sans-serif;font-size:19px;font-weight:600;letter-spacing:-.01em;line-height:1.4;color:var(--ink);margin-bottom:12px;max-width:42em;text-wrap:pretty;">${_esc(latest.summary || '')}</div>
-    <div style="font-family:'Instrument Sans',sans-serif;font-size:var(--fs-base);line-height:1.6;max-width:42em;text-wrap:pretty;">${latest.full_report || ''}</div>
+    <div style="font-family:'Instrument Sans',sans-serif;font-size:var(--fs-base);line-height:1.6;max-width:42em;text-wrap:pretty;">${renderMarkdown(latest.full_report || '')}</div>
     ${_weeklyRecsHtml(latest, vm)}
   </div>`;
 
@@ -3130,7 +3130,7 @@ function _renderWeeklyList(reports, voteMap) {
         <span style="width:80px;flex-shrink:0;font-size:var(--fs-xs);color:var(--muted);">${info.mon.toLocaleDateString('en-GB',{day:'numeric',month:'short'})}</span>
         <button class="btn-secondary btn-sm" onclick="_toggleWeeklyView('${rowId}',this)" style="flex-shrink:0;">Open</button>
       </div>
-      <div id="${rowId}" style="display:none;padding:12px 0;border-bottom:1px solid var(--border);font-size:var(--fs-base);line-height:1.6;">${r.full_report || ''}${_weeklyRecsHtml(r, vm)}</div>`;
+      <div id="${rowId}" style="display:none;padding:12px 0;border-bottom:1px solid var(--border);font-size:var(--fs-base);line-height:1.6;">${renderMarkdown(r.full_report || '')}${_weeklyRecsHtml(r, vm)}</div>`;
   }).join('');
 
   const archiveHtml = past.length
