@@ -8314,7 +8314,7 @@ async function openDrawer(card, initialTab = 'activity') {
   const lcStr = lastContact ? _relDate(lastContact) : null;
   const _hasCachedAction = !!(_p.next_action_cache);
   const _cachedRendered = _p.next_action_cache
-    ? renderMarkdown(_p.next_action_cache).replace(/([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})/g, '<a href="mailto:$1" style="color:var(--ink);text-decoration:underline">$1</a>')
+    ? _renderNextActionHTML(_p.next_action_cache, 'var(--ink)')
     : null;
 
   // Interactions + replies charges AVANT le template (restructuration scroll) : Touches et
@@ -9051,6 +9051,40 @@ async function _clearReminder() {
   showToast('Reminder cleared');
 }
 
+// Format next_action_cache (JSON {channel,action,why}) into HTML. Old cache entries predate the
+// JSON format and are plain markdown text -- JSON.parse fails on those, so we fall back to the
+// legacy markdown renderer rather than showing raw JSON or throwing. They self-heal on next
+// Regenerate, no migration needed.
+function _parseNextActionJSON(raw) {
+  if (!raw) return null;
+  const trimmed = raw.trim();
+  if (!trimmed.startsWith('{')) return null;
+  try {
+    const obj = JSON.parse(trimmed);
+    if (obj && typeof obj === 'object' && (obj.action || obj.why || obj.channel)) {
+      return { channel: String(obj.channel || ''), action: String(obj.action || ''), why: String(obj.why || '') };
+    }
+  } catch(_) {}
+  return null;
+}
+
+function _renderNextActionHTML(raw, linkColor) {
+  if (!raw) return null;
+  const linkify = html => html.replace(
+    /([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})/g,
+    '<a href="mailto:$1" style="color:' + linkColor + ';text-decoration:underline">$1</a>'
+  );
+  const parsed = _parseNextActionJSON(raw);
+  if (parsed) {
+    return '<div style="display:flex;flex-direction:column;gap:6px;">'
+      + (parsed.channel ? '<div style="display:flex;align-items:center;gap:8px;"><span style="font-family:\'IBM Plex Mono\',monospace;font-size:9.5px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);">Channel</span><span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:var(--radius-pill);background:var(--chip-bg);color:var(--indigo);">' + _esc(parsed.channel) + '</span></div>' : '')
+      + (parsed.action ? '<div style="font-size:var(--fs-sm);line-height:1.6;color:' + linkColor + ';">' + linkify(_esc(parsed.action)) + '</div>' : '')
+      + (parsed.why ? '<div style="font-size:var(--fs-xs);color:var(--muted);line-height:1.5;">' + linkify(_esc(parsed.why)) + '</div>' : '')
+      + '</div>';
+  }
+  return linkify(renderMarkdown(raw));
+}
+
 async function _generateNextAction(p) {
   const ctx = _drawerInteractions.slice(0,3)
     .map(i => `${i.type}${i.note ? ': '+i.note.slice(0,80) : ''} (${_relDate(i.created_at)||'recent'})`)
@@ -9059,6 +9093,11 @@ async function _generateNextAction(p) {
   const _fullP = _prospectsById[p.id] || {};
   const _signal = _fullP.signal || null;
   const _signalType = _fullP.signal_type || null;
+  const _signalInterp = _fullP.signal_interpretation
+    ? _fullP.signal_interpretation.replace(/<[^>]*>/g,'').trim().slice(0, 300)
+    : null;
+  const _companyUnverified = _fullP.company_verified === false;
+  const _lowIdentityConfidence = _fullP.identity_confidence === 'low';
 
   const [_drLive, _drMemory] = await Promise.all([
     _prefetchWebContext(p.company, p.sector),
@@ -9074,23 +9113,25 @@ async function _generateNextAction(p) {
 ANTI-HALLUCINATION RULES — strictly enforced:
 1. Do not state any company-specific fact (team size, location, acquisition, funding, product name, expansion plan) unless it appears word-for-word in the VERIFIED LIVE CONTEXT.
 2. If no verified context is available, base your output solely on stage, sector, score, and logged interactions. Do not fill gaps with plausible-sounding invented details.
-3. Two calls on the same prospect must produce consistent outputs — never contradict yourself by inventing different facts each time.`;
+3. Two calls on the same prospect must produce consistent outputs — never contradict yourself by inventing different facts each time.
+4. If SIGNAL INTERPRETATION is provided below, it has already been analyzed and verified — use it as given, do not re-derive or contradict it.
+5. If EMPLOYER UNCONFIRMED is flagged below, explicitly state in the "why" field that the employer is unconfirmed before recommending anything tied to the current company.
+6. If IDENTITY UNCONFIRMED is flagged below, explicitly state in the "why" field that this contact's identity is not reliably confirmed.`;
 
   const userMsg = `Prospect: ${p.name} at ${p.company||'unknown'} (${p.sector||'unknown sector'}). Stage: ${p.stage||'unknown'}. Score: ${p.score||'not set'}.${p.email ? ' Email: ' + p.email + '.' : ''}
 ${(_signalType || _signal) ? 'Signal: ' + (_signalType ? '[' + _signalType + '] ' : '') + (_signal ? _signal.replace(/<[^>]*>/g,'').slice(0, 200) : '') : ''}
+${_signalInterp ? 'SIGNAL INTERPRETATION (already analyzed — use as given, do not reinterpret): ' + _signalInterp : ''}
+${_companyUnverified ? 'EMPLOYER UNCONFIRMED: true — the data source has not confirmed this person still works at this company.' : ''}
+${_lowIdentityConfidence ? 'IDENTITY UNCONFIRMED: true — this contact\'s identity match is low-confidence.' : ''}
 ${ctx ? 'Recent interactions: ' + ctx : 'No interactions logged.'}
 ${rem ? 'Next reminder: ' + rem : ''}
 ${_drMemory ? '\nPROSPECT MEMORY:\n' + _drMemory : ''}
 ${contextBlock}
-Recommend the single best next action in exactly this format — use a blank line between each line:
+Recommend the single best next action. Respond with ONLY a strict JSON object — no markdown, no code fences, no text before or after:
 
-**Channel:** [${p.email ? 'LinkedIn / Email / Call' : 'LinkedIn / Call'}]
+{"channel": "${p.email ? 'LinkedIn | Email | Call' : 'LinkedIn | Call'}", "action": "one sentence, max 20 words — what to do and what angle to take; do not include the prospect's email address in this text", "why": "one sentence, max 15 words — why this moves this specific deal right now"}
 
-**Action:** [one sentence, max 20 words — what to do and what angle to take; do not include the prospect's email address in this text]
-
-**Why:** [one sentence, max 15 words — why this moves this specific deal right now]
-
-No other text. No em-dashes.
+No em-dashes.
 ${typeof _langLine === 'function' ? _langLine() : ''}`;
 
   const res = await fetch(API_URL, {
@@ -9134,11 +9175,7 @@ async function _drawerAI() {
   try {
     const text = await _generateNextAction(p);
     if (_drOut) {
-      const _rendered = renderMarkdown(text).replace(
-        /([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})/g,
-        '<a href="mailto:$1" style="color:var(--ink);text-decoration:underline">$1</a>'
-      );
-      _drOut.innerHTML = _rendered;
+      _drOut.innerHTML = _renderNextActionHTML(text, 'var(--ink)');
       _drOut.classList.add('loaded');
     }
   } catch(e) {
@@ -9172,7 +9209,7 @@ async function loadDailyPriorities() {
       if (mdata?.daily_priority_count) N = mdata.daily_priority_count;
     }
 
-    const COLS = 'id,name,company,sector,icp_score,score_signal_strength,score_role,score_size,score_recency,score_mandate_fit,score_completeness,signal,signal_type,signal_date,mandate_id,stage,next_action_cache,next_action_generated_at,priority_batch_number,last_priority_shown_at,email,reminder_date,last_contact,linkedin,company_verified,identity_confidence';
+    const COLS = 'id,name,company,sector,icp_score,score_signal_strength,score_role,score_size,score_recency,score_mandate_fit,score_completeness,signal,signal_type,signal_interpretation,signal_date,mandate_id,stage,next_action_cache,next_action_generated_at,priority_batch_number,last_priority_shown_at,email,reminder_date,last_contact,linkedin,company_verified,identity_confidence';
 
     let qA = sbClient.from('prospects_scan_window').select(COLS)
       .eq('client_id', CLIENT_ID).eq('archived', false)
@@ -9250,10 +9287,7 @@ function _renderPriorityCards(prospects) {
         + `</div>`
       : '';
     const cachedRendered = p.next_action_cache
-      ? renderMarkdown(p.next_action_cache).replace(
-          /([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})/g,
-          '<a href="mailto:$1" style="color:var(--navy);text-decoration:underline">$1</a>'
-        )
+      ? _renderNextActionHTML(p.next_action_cache, 'var(--navy)')
       : null;
     const actionHtml = cachedRendered
       ? `<div class="pri-action loaded" id="pri-action-${p.id}"
@@ -9384,11 +9418,7 @@ async function _priorityGenerate(prospectId) {
       if (btn) { btn.disabled = false; btn.textContent = 'Generate'; }
       return;
     }
-    const rendered = renderMarkdown(text).replace(
-      /([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})/g,
-      '<a href="mailto:$1" style="color:var(--navy);text-decoration:underline">$1</a>'
-    );
-    actionDiv.innerHTML = rendered;
+    actionDiv.innerHTML = _renderNextActionHTML(text, 'var(--navy)');
     actionDiv.style.fontSize = 'var(--fs-sm)';
     actionDiv.style.lineHeight = '1.65';
     actionDiv.style.color = 'var(--navy)';
