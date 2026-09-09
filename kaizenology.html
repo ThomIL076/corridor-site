@@ -1126,6 +1126,10 @@ body.new-nav { padding-left: 220px; }
     <button class="snav-item" data-nav="send" onclick="_switchNewNav('send')">
       <span class="snav-icon">📤</span><span data-en="Send" data-fr="Envoyer">Send</span>
     </button>
+    <button class="snav-item" data-nav="proposals" onclick="_switchNewNav('proposals')">
+      <span class="snav-icon">📝</span><span data-en="Proposals" data-fr="Propositions">Proposals</span>
+      <span class="send-badge-count" id="proposals-badge"><span id="proposals-count">0</span></span>
+    </button>
     <button class="snav-item" data-nav="inbox" onclick="_switchNewNav('inbox')">
       <span class="snav-icon">📩</span><span data-en="Inbox" data-fr="Boîte de réception">Inbox</span>
     </button>
@@ -1586,6 +1590,17 @@ body.new-nav { padding-left: 220px; }
         </div>
       </div>
       <div id="inbox-container"></div>
+    </div>
+  </div>
+
+  <!-- ══ TAB: PROPOSALS ══ -->
+  <div class="tab-panel" id="tab-proposals">
+    <div style="padding:24px 16px 0;max-width:800px;margin:0 auto;">
+      <div class="module-header">
+        <div class="module-title">Proposals</div>
+        <div class="section-sub">Content drafted by agents, waiting for a variant to be approved or rejected.</div>
+      </div>
+      <div id="proposals-container"></div>
     </div>
   </div>
 
@@ -2932,6 +2947,7 @@ function switchTab(name, fromClick = false) {
   if (name === 'send') loadSendView();
   if (name === 'agents') _showAgentsMap();
   if (name === 'inbox') loadInboxDrafts();
+  if (name === 'proposals') loadProposalsView();
   if (name === 'priorities') { loadDailyPriorities(); _fetchTodaySendCounts().catch(err => console.error('_fetchTodaySendCounts:', err)); }
   if (name === 'stats') { if (!_kanbanLoaded) { loadKanban().then(() => renderStats()); } else { renderStats(); } }
   if (name === 'clients') loadClientsKanban();
@@ -5421,6 +5437,163 @@ async function loadSendView() {
     console.error('loadSendView:', e);
     listEl.innerHTML = '<div style="padding:20px;color:var(--red);font-size:var(--fs-sm)">Error loading send queue. Try refreshing.</div>';
   }
+}
+
+// ── PROPOSALS (adaptation demo-private.html, pas une copie -- cf. arbitrage Thomas) ──
+function _setProposalsBadge(n) {
+  const el = document.getElementById('proposals-count');
+  if (el) el.textContent = n;
+}
+
+async function loadProposalsView() {
+  const container = document.getElementById('proposals-container');
+  if (!container) return;
+  container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">Loading...</div>';
+  try {
+    // Filtre par mandat actif (confirme par Thomas) -- contrairement a demo-private.html ou
+    // agent_proposals.mandate_id est toujours null, chaque proposition Kaizenology porte le
+    // mandat reel du prospect (ecrit par le workflow Copywriter — Daily Proposals Kaizenology).
+    let _propQuery = sbClient.from('agent_proposals')
+      .select('*')
+      .eq('client_id', CLIENT_ID)
+      .eq('status', 'pending');
+    _propQuery = _applyMandateFilter(_propQuery);
+    const { data: proposals, error } = await _propQuery.order('created_at', { ascending: false });
+    if (error) throw error;
+    if (!proposals || !proposals.length) {
+      container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">No proposals waiting.</div>';
+      _setProposalsBadge(0);
+      return;
+    }
+    // Batch-fetch prospects (meme pattern que demo-private.html) : un seul .in() sur les
+    // prospect_id uniques, pas une requete par carte.
+    const prospectIds = [...new Set(proposals.map(p => p.prospect_id).filter(Boolean))];
+    const prospectsById = {};
+    if (prospectIds.length) {
+      const { data: pRows, error: pErr } = await sbClient.from('prospects')
+        .select('id,name,company')
+        .eq('client_id', CLIENT_ID)
+        .in('id', prospectIds);
+      if (pErr) console.error('[proposals] prospects batch-fetch error:', pErr);
+      (pRows || []).forEach(p => { prospectsById[p.id] = p; });
+    }
+    container.innerHTML = proposals.map(p => _renderProposalCard(p, prospectsById[p.prospect_id])).join('');
+    _setProposalsBadge(proposals.length);
+  } catch(e) {
+    console.error('[loadProposalsView]', e);
+    container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">Unable to load proposals right now.</div>';
+  }
+}
+
+const _PROPOSAL_CONTENT_TYPE_LABELS = { outreach_opener: 'Outreach opener', linkedin_post: 'LinkedIn post' };
+
+function _renderProposalCard(prop, prospect) {
+  const name = (prospect && prospect.name) || '—';
+  const company = (prospect && prospect.company) || '';
+  const contentTypeLbl = _PROPOSAL_CONTENT_TYPE_LABELS[prop.content_type] || prop.content_type || '—';
+  const variants = Array.isArray(prop.variants) ? prop.variants : [];
+  // Meme garde-fou em-dash/double-tiret que _generateSequenceMessage() (outreach) et que le fix
+  // deja fait sur demo-private.html -- n'existait pas encore ici, cree a l'identique.
+  const _cleanVariantText = t => (t || '').replace(/—/g, ',').replace(/\s*--\s*/g, ', ');
+  const variantsHtml = variants.map((v, idx) => `
+    <div style="border:1px solid var(--border);border-radius:var(--radius-md);padding:12px 14px;margin-top:10px;">
+      <div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px;">${_esc(v.angle || 'Variant ' + (idx + 1))}</div>
+      <div style="font-size:var(--fs-sm);color:var(--text);line-height:1.5;white-space:pre-wrap;">${_esc(_cleanVariantText(v.text))}</div>
+      <button onclick="_proposalUseVariant('${prop.id}', ${idx})"
+        style="margin-top:8px;padding:6px 14px;border-radius:var(--radius-pill);background:var(--navy);color:#fff;border:none;font-size:var(--fs-sm);font-weight:600;cursor:pointer;">Use this</button>
+    </div>`
+  ).join('');
+  return `<div class="priority-card proposal-card" id="proposal-card-${prop.id}"
+      style="background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius-md);padding:18px 20px;margin-bottom:12px;">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+      <span style="font-weight:700;font-size:var(--fs-base);color:var(--navy);">${_esc(name)}</span>
+      ${company ? `<span style="font-size:var(--fs-sm);color:var(--muted);">${_esc(company)}</span>` : ''}
+      <span class="card-badge badge-auto" style="margin-left:auto;">${_esc(contentTypeLbl.toUpperCase())}</span>
+    </div>
+    ${variantsHtml}
+    <div style="display:flex;gap:8px;margin-top:12px;">
+      <button onclick="_proposalReject('${prop.id}')"
+        style="padding:7px 16px;border-radius:var(--radius-pill);background:none;border:1px solid var(--border);color:var(--text);font-size:var(--fs-sm);cursor:pointer;">Reject</button>
+    </div>
+  </div>`;
+}
+
+// "Use this" (par variante) : approuve la proposition entiere sur cette variante -- meme regle
+// que demo-private.html (un seul niveau d'approbation, pas de selection radio silencieuse).
+// linkedin_post -> presse-papier (contenu public, pas une etape de cadence 1:1). outreach_opener
+// -> pont vers sequences touch='invite'. Dans les deux cas, l'effet reel doit reussir AVANT de
+// marquer la proposition approved.
+async function _proposalUseVariant(id, variantIndex) {
+  const { data: prop, error: fetchErr } = await sbClient.from('agent_proposals')
+    .select('content_type, prospect_id, variants, mandate_id')
+    .eq('id', id).single();
+  if (fetchErr || !prop) { console.error('[_proposalUseVariant] fetch failed:', fetchErr); showToast('Error loading proposal'); return; }
+  const variantText = (Array.isArray(prop.variants) && prop.variants[variantIndex]) ? (prop.variants[variantIndex].text || '') : '';
+
+  if (prop.content_type === 'linkedin_post') {
+    try {
+      await navigator.clipboard.writeText(variantText);
+      showToast('Copied to clipboard ✓');
+    } catch(e) {
+      console.error('[_proposalUseVariant] clipboard failed:', e);
+      showToast('Error copying to clipboard');
+      return;
+    }
+  } else if (prop.content_type === 'outreach_opener') {
+    // Divergence deliberee vs demo-private.html : TOUJOURS prop.mandate_id en priorite, jamais
+    // activeMandateId en repli -- chaque proposition Kaizenology porte deja le mandat reel du
+    // prospect (confirme via le workflow Copywriter), activeMandateId ne reflete que le filtre UI
+    // courant au moment du clic, pas forcement le mandat de CETTE proposition precise.
+    const seqMandateId = prop.mandate_id ?? null;
+    // Filtre aussi sur mandate_id (pas seulement prospect_id) : un meme prospect peut exister sur
+    // plusieurs mandats Kaizenology -- sans ce filtre, le check-then-insert confondrait leurs
+    // sequences respectives. .is() plutot que .eq() quand seqMandateId est null (equivalence
+    // Postgres, meme convention que _applyMandateFilter() ci-dessus).
+    let _seqSelQ = sbClient.from('sequences')
+      .select('id').eq('prospect_id', prop.prospect_id).eq('touch', 'invite').eq('client_id', CLIENT_ID);
+    _seqSelQ = seqMandateId ? _seqSelQ.eq('mandate_id', seqMandateId) : _seqSelQ.is('mandate_id', null);
+    const { data: existingSeq, error: seqSelErr } = await _seqSelQ.maybeSingle();
+    if (seqSelErr) { console.error('[_proposalUseVariant] sequences select failed:', seqSelErr); showToast('Error checking send queue'); return; }
+    if (existingSeq) {
+      const { error: seqUpdErr } = await sbClient.from('sequences')
+        .update({ body: variantText, status: 'draft' }).eq('id', existingSeq.id);
+      if (seqUpdErr) { console.error('[_proposalUseVariant] sequences update failed:', seqUpdErr); showToast('Error updating send queue'); return; }
+      _sendSequences[prop.prospect_id] = _sendSequences[prop.prospect_id] || [];
+      const _existingEntry = _sendSequences[prop.prospect_id].find(s => s.id === existingSeq.id);
+      if (_existingEntry) { _existingEntry.body = variantText; _existingEntry.status = 'draft'; }
+      else _sendSequences[prop.prospect_id].push({ id: existingSeq.id, touch: 'invite', body: variantText, status: 'draft' });
+    } else {
+      const { data: newSeq, error: seqInsErr } = await sbClient.from('sequences')
+        .insert({ prospect_id: prop.prospect_id, client_id: CLIENT_ID, mandate_id: seqMandateId, touch: 'invite', body: variantText, status: 'draft' })
+        .select('id').single();
+      if (seqInsErr) { console.error('[_proposalUseVariant] sequences insert failed:', seqInsErr); showToast('Error adding to send queue'); return; }
+      _sendSequences[prop.prospect_id] = _sendSequences[prop.prospect_id] || [];
+      _sendSequences[prop.prospect_id].push({ id: newSeq.id, touch: 'invite', body: variantText, status: 'draft' });
+    }
+    showToast('Added to Send queue ✓');
+  }
+
+  const { error } = await sbClient.from('agent_proposals')
+    .update({ status: 'approved', chosen_variant_index: variantIndex })
+    .eq('id', id);
+  if (error) { console.error('[_proposalUseVariant]', error); showToast('Error approving proposal'); return; }
+  _removeProposalCard(id);
+}
+
+// Reject porte sur la proposition entiere, pas sur une variante individuelle -- meme regle que
+// demo-private.html.
+async function _proposalReject(id) {
+  const { error } = await sbClient.from('agent_proposals')
+    .update({ status: 'rejected' })
+    .eq('id', id);
+  if (error) { console.error('[_proposalReject]', error); showToast('Error rejecting proposal'); return; }
+  _removeProposalCard(id);
+}
+
+function _removeProposalCard(id) {
+  const card = document.getElementById('proposal-card-' + id);
+  if (card) card.remove();
+  _setProposalsBadge(document.querySelectorAll('.proposal-card').length);
 }
 
 // Tri EMEA d'abord, puis ICP décroissant
