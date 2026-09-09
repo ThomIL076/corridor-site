@@ -1573,10 +1573,15 @@ body.new-nav { padding-left: 220px; }
     <div style="padding:24px 16px 0;max-width:800px;margin:0 auto;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
         <h2 style="font-size:var(--fs-lg);font-weight:700;color:var(--navy);margin:0;">Today's run</h2>
-        <button id="priorities-next-btn" onclick="_prioritiesNext()" disabled
-          style="padding:8px 18px;border-radius:var(--radius-pill);background:var(--navy);color:#fff;border:none;font-size:var(--fs-sm);font-weight:600;cursor:pointer;opacity:0.4;">
-          Next batch →
-        </button>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <button id="priorities-skip-btn" class="btn-secondary" onclick="_prioritiesSkip()">
+            Skip batch
+          </button>
+          <button id="priorities-next-btn" onclick="_prioritiesNext()" disabled
+            style="padding:8px 18px;border-radius:var(--radius-pill);background:var(--navy);color:#fff;border:none;font-size:var(--fs-sm);font-weight:600;cursor:pointer;opacity:0.4;">
+            Next batch →
+          </button>
+        </div>
       </div>
       <div id="today-capacity-bars" style="max-width:280px;margin-bottom:18px;"></div>
       <div class="section-sub"><span id="priorities-queued-count">0</span> actions queued by your agents. Work top to bottom. The system re-ranks after each send.</div>
@@ -8734,6 +8739,36 @@ async function _prioritiesNext() {
     );
   } catch(e) {
     console.error('[_prioritiesNext] batch advance failed:', e.message);
+  }
+
+  await loadDailyPriorities();
+}
+
+// Meme ecriture que _prioritiesNext() (avance priority_batch_number pour le batch affiche),
+// mais sans la condition allActionable : Skip batch reste cliquable meme si rien n'a ete
+// envoye/actionne sur le batch en cours (arbitrage Thomas).
+async function _prioritiesSkip() {
+  const btn = document.getElementById('priorities-skip-btn');
+  if (btn) { btn.disabled = true; btn.style.opacity = '0.4'; }
+
+  const newBatch = _priorityCurrentBatch + 1;
+  const shownIds = _priorityShownProspects.map(p => p.id);
+  const _pbMandateId = (activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null;
+
+  try {
+    if (shownIds.length) {
+      await sbClient.from('prospects')
+        .update({ priority_batch_number: newBatch })
+        .in('id', shownIds).eq('client_id', CLIENT_ID);
+    }
+    await sbClient.from('priority_batches').upsert(
+      { client_id: CLIENT_ID, mandate_id: _pbMandateId, current_batch: newBatch, updated_at: new Date().toISOString() },
+      { onConflict: 'client_id,mandate_id' }
+    );
+  } catch(e) {
+    console.error('[_prioritiesSkip] batch advance failed:', e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
   }
 
   await loadDailyPriorities();
