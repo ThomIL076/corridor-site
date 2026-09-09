@@ -9723,10 +9723,14 @@ function _renderProposalCard(prop, prospect) {
   const company = (prospect && prospect.company) || '';
   const contentTypeLbl = _PROPOSAL_CONTENT_TYPE_LABELS[prop.content_type] || prop.content_type || '—';
   const variants = Array.isArray(prop.variants) ? prop.variants : [];
+  // Meme garde-fou em-dash/double-tiret que _generateSequenceMessage() (outreach, ligne ~7430) --
+  // reutilise exactement la meme regex/logique, pas une reformulation : le LLM source de ces
+  // propositions (copywriter) peut produire les memes caracteres que celui de l'outreach.
+  const _cleanVariantText = t => (t || '').replace(/—/g, ',').replace(/\s*--\s*/g, ', ');
   const variantsHtml = variants.map((v, idx) => `
     <div style="border:1px solid var(--border);border-radius:var(--radius-md);padding:12px 14px;margin-top:10px;">
       <div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px;">${_esc(v.angle || 'Variant ' + (idx + 1))}</div>
-      <div style="font-size:var(--fs-sm);color:var(--text);line-height:1.5;white-space:pre-wrap;">${_esc(v.text || '')}</div>
+      <div style="font-size:var(--fs-sm);color:var(--text);line-height:1.5;white-space:pre-wrap;">${_esc(_cleanVariantText(v.text))}</div>
       <button onclick="_proposalUseVariant('${prop.id}', ${idx})"
         style="margin-top:8px;padding:6px 14px;border-radius:var(--radius-pill);background:var(--navy);color:#fff;border:none;font-size:var(--fs-sm);font-weight:600;cursor:pointer;">Use this</button>
     </div>`
