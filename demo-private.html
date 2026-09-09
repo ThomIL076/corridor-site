@@ -992,7 +992,7 @@ footer a { color:var(--navy); text-decoration:none; font-weight:600; }
 /* ── SEND QUEUE (Module) ── */
 .send-card { display:flex; flex-direction:column; gap:10px; }
 .send-row { display:flex; align-items:center; gap:12px; }
-.send-avatar { width:38px; height:38px; border-radius:var(--radius-panel); flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:700; color:#fff; }
+.send-avatar { width:38px; height:38px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:700; color:#fff; }
 .send-id { flex:1; min-width:0; }
 .send-name { font-size:14px; font-weight:800; color:var(--navy); }
 .send-company { font-size:var(--fs-sm); color:var(--muted); }
@@ -5508,6 +5508,7 @@ async function _buildAskSystemPrompt(ctx, pipelineSnapshot, pipelineInsightsBloc
       const _sigBlind2 = /engaged with a linkedin post/i.test(ctx.signal || '') && !ctx.signalUrl;
       if (ctx.signal && !_sigBlind2)               parts.push('Signal: '                + ctx.signal);
       if (ctx.signalInterpretation && !_sigBlind2) parts.push('Signal interpretation: ' + ctx.signalInterpretation);
+      if (ctx.signalUrl) parts.push('Signal source (LinkedIn post): ' + ctx.signalUrl);
       if (ctx.scanIntelligence)     parts.push('Company intelligence (from Scan):\n' + ctx.scanIntelligence);
       ctxBlock = '\n\n' + parts.join('\n');
     }
@@ -6714,6 +6715,16 @@ function _applySendFilters() {
   });
   readyJ5Low = _sortEMEAFirst(readyJ5Low);
 
+  // "Follow-ups cleared" (README, maquette Send) : readyJ5High/readyJ5Low sont deja les seuls
+  // candidats J+5 restant a traiter (_isJ5Eligible exclut deja ceux avec un touch='j5' envoye) --
+  // additionnes a emailsSent (J+5 reellement envoyes aujourd'hui, cf. _fetchTodaySendCounts), ca
+  // donne le "du jour" complet pour la barre de capacite. Stocke en global (pas un retour de
+  // fonction) car _renderCapacityBars()/_updateSentCounter() sont appelees depuis plusieurs points
+  // d'entree (Today, apres un envoi) sans repasser par _applySendFilters() a chaque fois --
+  // rafraichi ici a chaque recalcul des filtres Send, comme _setSendBadge() juste en dessous.
+  _todayJ5PendingCount = readyJ5High.length + readyJ5Low.length;
+  _updateSentCounter();
+
   // 3 paliers (README, arbitrage Thomas) : DUE NOW = tete de la queue triee, dans l'ordre
   // d'affichage deja existant (invite -> j0 -> j5 haute ICP) ; SCHEDULED TODAY = le reste de
   // cette meme queue. readyJ5Low (ICP<8, deja automatise, aucune action attendue) n'entre dans
@@ -6773,7 +6784,7 @@ function _sendCardHTML(p, touchType, expanded = false) {
   // Emphase DUE NOW (README : bordure/ombre renforcees) vs ligne dense SCHEDULED TODAY (padding
   // resserre) -- purement cosmetique, memes tokens que le reste du fichier (--accent).
   const cardStyle = expanded
-    ? 'border-color:var(--accent);box-shadow:0 2px 10px rgba(47,107,255,0.12);'
+    ? 'padding:26px;border-color:var(--accent);box-shadow:0 2px 10px rgba(47,107,255,0.12);'
     : 'padding:14px 18px;';
   return `
     <div class="card send-card" id="sc-${p.id}" style="${cardStyle}" data-pid="${_esc(p.id)}" data-touch="${_esc(touchType)}" data-seq-id="${_esc(seqId||'')}">
@@ -6794,15 +6805,18 @@ function _sendCardHTML(p, touchType, expanded = false) {
           </div>
           <div class="ai-box-body" id="so-${p.id}" contenteditable="true" spellcheck="false" data-pid="${p.id}" oninput="const b=document.getElementById('sv-'+this.dataset.pid);if(b){b.disabled=false;b.style.opacity='1';b.style.cursor='pointer';}" style="min-height:80px;outline:none;cursor:text">${_esc(seq?.body||'')}</div>
         </div>
-        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-          <button class="btn-primary btn-md" onclick="_generateSequenceMessage('${p.id}','${touchType}'${touchType === 'j5' && hasBody ? ',true' : ''})" id="sg-${p.id}">${hasBody ? '🔄 Regenerate' : '▶ Generate'}</button>
-          <button class="btn-secondary btn-md" onclick="_saveSequenceDraft('${p.id}','${touchType}')" id="sv-${p.id}" disabled style="opacity:0.45;cursor:not-allowed">Save draft</button>
-          <button class="btn-secondary btn-md" onclick="_markReady('${p.id}')" id="sr-${p.id}" ${isReady?'style="border-color:var(--green);color:var(--green)"':''}>${isReady ? '✓ Ready' : 'Mark ready'}</button>
+        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center">
+          <button class="btn-secondary btn-sm" onclick="_generateSequenceMessage('${p.id}','${touchType}'${touchType === 'j5' && hasBody ? ',true' : ''})" id="sg-${p.id}">${hasBody ? '🔄 Regenerate' : '▶ Generate'}</button>
+          <button class="btn-secondary btn-sm" onclick="_saveSequenceDraft('${p.id}','${touchType}')" id="sv-${p.id}" disabled style="opacity:0.45;cursor:not-allowed">Save draft</button>
+          <button class="btn-secondary btn-sm" onclick="_markReady('${p.id}')" id="sr-${p.id}" ${isReady?'style="border-color:var(--green);color:var(--green)"':''}>${isReady ? '✓ Ready' : 'Mark ready'}</button>
+          <button class="btn-secondary btn-sm" onclick="_markSent('${p.id}','${touchType}')" id="sms-${p.id}">✓ Mark as sent</button>
+          <!-- Send (LinkedIn/email) = action dominante de la rangee (README, maquette) : seul
+               bouton primary, plus grand que .btn-md, pousse en fin de rangee par margin-left:auto
+               pour rester repere visuellement meme si les libelles secondaires changent de largeur. -->
           ${isEmailTouch
-            ? `<button class="btn-primary btn-md" onclick="_startEmailSeq('${p.id}')" id="start-seq-${p.id}" ${sendDisabled?'disabled':''} ${sendBlocked?`style="opacity:0.4;cursor:not-allowed" title="${sendTitle}"`:''}>Send email</button>`
-            : `<button class="btn-primary btn-md" onclick="_sendViaLinkedIn('${p.id}','${touchType}')" id="sli-${p.id}" ${sendDisabled?'disabled':''} ${sendBlocked?`style="opacity:0.4;cursor:not-allowed" title="${sendTitle}"`:''}>Send via LinkedIn</button>`
+            ? `<button class="btn-primary" style="padding:11px 20px;font-weight:700;margin-left:auto;" onclick="_startEmailSeq('${p.id}')" id="start-seq-${p.id}" ${sendDisabled?'disabled':''} ${sendBlocked?`title="${sendTitle}"`:''}>Send email</button>`
+            : `<button class="btn-primary" style="padding:11px 20px;font-weight:700;margin-left:auto;" onclick="_sendViaLinkedIn('${p.id}','${touchType}')" id="sli-${p.id}" ${sendDisabled?'disabled':''} ${sendBlocked?`title="${sendTitle}"`:''}>Send via LinkedIn</button>`
           }
-          <button class="btn-secondary btn-md" onclick="_markSent('${p.id}','${touchType}')" id="sms-${p.id}">✓ Mark as sent</button>
         </div>
         <!-- Emplacement reserve pour le statut "Researching {company}..." (bug trouve en test
              reel : Regenerate sur un touch invite/j0 declenche une recherche web dans
@@ -7495,22 +7509,35 @@ const INVITE_DAILY_LIMIT  = 30;
 const MESSAGE_DAILY_LIMIT = 40;
 const EMAIL_DAILY_LIMIT   = 40;
 let _todaySendCounts = { invitesSent: 0, messagesSent: 0, emailsSent: 0 };
+// Candidats J+5 (readyJ5High + readyJ5Low) restant a traiter aujourd'hui, cf. _applySendFilters()
+// -- alimente la barre "Follow-ups cleared" ci-dessous. 0 par defaut tant que Send n'a pas encore
+// tourne une fois (ex: arrivee directe sur Today) ; pas un bug, meme convention que
+// _todaySendCounts avant son premier _fetchTodaySendCounts().
+let _todayJ5PendingCount = 0;
 
 function _updateSentCounter() {
-  const { invitesSent: inv, messagesSent: msg, emailsSent: em } = _todaySendCounts;
+  const { invitesSent: inv, emailsSent: em } = _todaySendCounts;
+  // Follow-ups cleared = J+5 reellement envoyes aujourd'hui (emailsSent) sur le total du jour
+  // (ceux deja envoyes + ceux qui restent a traiter, _todayJ5PendingCount) -- pas juste "envoyes",
+  // sinon la barre se remplirait a 100% des le premier envoi sans jamais refleter ce qu'il reste.
+  const followUpsCleared = em;
+  const followUpsDue = _todayJ5PendingCount + em;
   // TODAY'S CAPACITY (README) : rendu partage Today/Send -- une seule fonction
   // (_renderCapacityBars, zero retouche depuis Today), montee ici une deuxieme fois sur son
   // propre containerId. #sent-counter (texte plat) retire du DOM de Send, remplace par les
   // barres -- plus besoin du seuil couleur ad hoc qui lui etait applique.
-  _renderCapacityBars('today-capacity-bars', inv, msg, em);
-  _renderCapacityBars('send-capacity-bars', inv, msg, em);
+  _renderCapacityBars('today-capacity-bars', inv, em, followUpsCleared, followUpsDue);
+  _renderCapacityBars('send-capacity-bars', inv, em, followUpsCleared, followUpsDue);
 }
 
-function _renderCapacityBars(containerId, inv, msg, em) {
+// 3e barre "Follow-ups cleared" (maquette) a la place de "LinkedIn messages" (arbitrage Thomas) --
+// LinkedIn invites / Emails / Follow-ups cleared, meme ordre que la maquette.
+function _renderCapacityBars(containerId, inv, em, followUpsCleared, followUpsDue) {
   const el = document.getElementById(containerId);
   if (!el) return;
   const bar = (label, val, max) => {
-    const pct = Math.min(100, Math.round((val / max) * 100));
+    // max=0 (aucun J+5 du ni traite aujourd'hui) : barre affichee a 0/0, pas masquee ni NaN%.
+    const pct = max > 0 ? Math.min(100, Math.round((val / max) * 100)) : 0;
     const color = pct >= 93 ? 'var(--danger)' : (pct >= 83 ? '#ea580c' : 'var(--accent)');
     return `<div style="margin-bottom:10px;">
       <div style="display:flex;justify-content:space-between;font-size:var(--fs-xs);color:var(--muted);margin-bottom:4px;">
@@ -7523,8 +7550,8 @@ function _renderCapacityBars(containerId, inv, msg, em) {
   };
   el.innerHTML =
     bar('LinkedIn invites', inv, INVITE_DAILY_LIMIT) +
-    bar('LinkedIn messages', msg, MESSAGE_DAILY_LIMIT) +
-    bar('Emails', em, EMAIL_DAILY_LIMIT);
+    bar('Emails', em, EMAIL_DAILY_LIMIT) +
+    bar('Follow-ups cleared', followUpsCleared, followUpsDue);
 }
 
 async function _fetchTodaySendCounts() {
