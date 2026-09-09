@@ -411,6 +411,23 @@ button, [role="button"], select, input { min-height: var(--btn-h-sm); }
 }
 .chat-input:focus { border-color:var(--navy); }
 
+/* ── PIPELINE STATS + FUNNEL CARD (portage demo-private.html) ── */
+.pipe-stats-row { display:flex; }
+.pipe-stat { flex:1; padding:0 18px; }
+.pipe-stat:first-child { padding-left:0; }
+.pipe-stat:not(:first-child) { border-left:1px solid var(--border); }
+.pipe-stat-val { font-family:'IBM Plex Mono',monospace; font-size:24px; font-weight:600; letter-spacing:-.02em; color:var(--navy); display:block; }
+.pipe-stat-val.warn { color:var(--amber); }
+.pipe-stat-label { font-family:'IBM Plex Mono',monospace; font-size:9.5px; font-weight:400; color:var(--dim); letter-spacing:.16em; text-transform:uppercase; margin-top:4px; display:block; }
+.pipe-funnel-bar { display:flex; gap:2px; height:9px; margin-top:18px; }
+.pipe-funnel-seg { border-radius:5px; }
+.pipe-funnel-legend { display:flex; gap:2px; margin-top:8px; }
+.pipe-funnel-leg-item { font-family:'IBM Plex Mono',monospace; font-size:9.5px; color:var(--muted); text-align:center; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; min-width:100px; }
+@media (max-width: 480px) {
+  .pipe-funnel-legend { flex-wrap: wrap; row-gap: 3px; }
+  .pipe-funnel-leg-item { flex: 0 1 auto !important; width: auto !important; overflow: visible; text-overflow: clip; font-size: 8.5px; padding: 0 3px; }
+}
+
 /* ── KANBAN ── */
 .kanban { display:grid; grid-template-columns:repeat(7,1fr); gap:10px; }
 /* Desktop : 7 colonnes egales, chacune scrollable verticalement ; conteneur scrollable horizontalement si < 980px */
@@ -862,8 +879,6 @@ h1, h2, .k-card-name, .k-card-company { overflow-wrap:break-word; word-break:bre
   .k-card { padding: 12px 52px 12px 32px; }
   .k-card-select { width: 13px; height: 13px; top: 11px; left: 8px; }
   .kanban-swipe-hint { display:block; text-align:center; font-size:var(--fs-xs); color:var(--dim); margin-top:8px; transition:opacity .5s ease; }
-  .kpi-row { grid-template-columns:repeat(2,1fr); }
-  .kpi-row .kpi-card:last-child { grid-column:1 / -1; }
   /* 4. header compact */
   .user-company { display:none; }
   .logo-mark { width:32px; }
@@ -872,10 +887,23 @@ h1, h2, .k-card-name, .k-card-company { overflow-wrap:break-word; word-break:bre
   /* 8. nom + société de carte tronqués (ellipsis) */
   .k-card-name { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .k-card-company { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  /* 9. KPI EMEA/NA : "408 / 344" passe sur deux lignes (sinon déborde de la card à ~390px) */
-  #kpi-emeana, #score-kpi-naemea { font-size:var(--fs-xl); line-height:1.15; }
-  #kpi-emeana .numsplit, #score-kpi-naemea .numsplit { font-size:0; }
-  #kpi-emeana .numsplit::after, #score-kpi-naemea .numsplit::after { content:''; display:block; }
+  /* 9. INTL/NA (ex kpi-emeana, retire -- migre vers pipe-intlna) et score-kpi-naemea (toujours
+     utilise, onglet Stats) : "408 / 344" passe sur deux lignes (sinon déborde de la card à ~390px) */
+  #pipe-intlna, #score-kpi-naemea { font-size:var(--fs-xl); line-height:1.15; }
+  #pipe-intlna .numsplit, #score-kpi-naemea .numsplit { font-size:0; }
+  #pipe-intlna .numsplit::after, #score-kpi-naemea .numsplit::after { content:''; display:block; }
+  /* 11. pipe-stats-row (Conversion/In conversation/High priority/Intl NA) : jamais traite --
+     4 colonnes flex:1 sans min-width:0 debordaient de leur propre ligne (mesure : 397px de
+     contenu pour 274px disponibles a 375px, 4e tuile a right:439px, hors de la carte). Grille
+     2x2 plutot que de comprimer 4 colonnes dans 274px ; regles nth-child pour que les bordures
+     ressemblent a une vraie grille (gauche entre colonnes, haut entre rangees) plutot qu'un flex
+     casse avec les bordures de la version desktop mal placees. Complementaire a la regle
+     #pipe-intlna ci-dessus (qui traite le chiffre a l'interieur de la 4e tuile), pas redondante. */
+  .pipe-stats-row { flex-wrap: wrap; row-gap: 14px; }
+  .pipe-stat { flex: 1 1 50%; min-width: 0; }
+  .pipe-stat:nth-child(2) { border-left: 1px solid var(--border); }
+  .pipe-stat:nth-child(3) { padding-left: 0; border-left: none; }
+  .pipe-stat:nth-child(3), .pipe-stat:nth-child(4) { padding-top: 14px; border-top: 1px solid var(--border); }
   /* 10. logo mark seul + titres de module centrés */
   .logo-name { display:none; }
   .module-header { text-align:center; }
@@ -1656,6 +1684,28 @@ body.new-nav { padding-left: 220px; }
       <div class="module-title">Pipeline</div>
       <div class="section-sub"><span id="pipeline-total-count">0</span> prospects under management. Movement is written by agents, corrected by you.</div>
     </div>
+    <div class="card" id="pipeline-stats-card" style="margin-bottom:20px;">
+      <div class="pipe-stats-row">
+        <div class="pipe-stat">
+          <span class="pipe-stat-val" id="pipe-conversion">—</span>
+          <span class="pipe-stat-label" data-en="Conversion" data-fr="Conversion">Conversion</span>
+        </div>
+        <div class="pipe-stat">
+          <span class="pipe-stat-val" id="pipe-inconv">—</span>
+          <span class="pipe-stat-label" data-en="In conversation" data-fr="En conversation">In conversation</span>
+        </div>
+        <div class="pipe-stat">
+          <span class="pipe-stat-val warn" id="pipe-highprio">—</span>
+          <span class="pipe-stat-label" data-en="High priority" data-fr="Priorité haute">High priority</span>
+        </div>
+        <div class="pipe-stat">
+          <span class="pipe-stat-val" id="pipe-intlna" style="color:var(--dim)">—</span>
+          <span class="pipe-stat-label" data-en="Intl / NA" data-fr="Intl / NA">Intl / NA</span>
+        </div>
+      </div>
+      <div class="pipe-funnel-bar" id="pipe-funnel-bar"></div>
+      <div class="pipe-funnel-legend" id="pipe-funnel-legend"></div>
+    </div>
     <div class="csv-actions" style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px;">
       <div class="toolbar-filters" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
         <input type="text" id="kanban-search" placeholder="Search prospects..." data-en-ph="Search prospects..." data-fr-ph="Rechercher un prospect..."
@@ -1771,14 +1821,6 @@ body.new-nav { padding-left: 220px; }
         </label>
         <button class="btn-secondary" onclick="exportCSV()"><span class="csv-full" data-en="↓ Export CSV" data-fr="↓ Exporter CSV">↓ Export CSV</span><span class="csv-short" data-en="Export" data-fr="Export">Export</span></button>
       </div>
-    </div>
-
-    <div class="kpi-row">
-      <div class="kpi-card"><span class="kpi-val" id="kpi-active">25</span><span class="kpi-label" data-en="Active prospects" data-fr="Prospects actifs">Active prospects</span></div>
-      <div class="kpi-card"><span class="kpi-val" id="kpi-pipeline" style="font-size:var(--fs-md);color:var(--navy)">Building</span><span class="kpi-label" data-en="Deal pipeline" data-fr="Pipeline de deals">Deal pipeline</span></div>
-      <div class="kpi-card"><span class="kpi-val" style="color:var(--dim)" id="kpi-emeana">N/A</span><span class="kpi-label" id="kpi-emeana-label" data-en="INTL / NA" data-fr="INTL / NA">INTL / NA</span></div>
-      <div class="kpi-card"><span class="kpi-val amber" id="kpi-inconv">3</span><span class="kpi-label" id="kpi-inconv-label" data-en="In conversation" data-fr="En conversation">In conversation</span></div>
-      <div class="kpi-card"><span class="kpi-val" id="kpi-highprio">6</span><span class="kpi-label" data-en="High priority" data-fr="Priorité haute">High priority</span></div>
     </div>
 
     <div id="hp-filter-bar" style="display:flex;gap:8px;padding:10px 0 4px;flex-wrap:wrap;align-items:center;">
@@ -2080,6 +2122,10 @@ body.new-nav { padding-left: 220px; }
           </div>
           <div class="ai-box-body" id="pr-output" data-en="Click to run the pipeline review..." data-fr="Cliquez pour lancer la revue pipeline...">Click to run the pipeline review...</div>
         </div>
+      </div>
+      <div class="card" style="margin-top:16px;">
+        <div class="card-header"><span class="card-title">Stage conversion</span></div>
+        <div id="stage-conversion-list" style="font-size:var(--fs-sm);color:var(--muted);">Loading...</div>
       </div>
     </div>
 
@@ -2512,13 +2558,81 @@ async function _loadDailyReports() {
   }
 }
 
+// ── Stage conversion (Pipeline health) — portage demo-private.html ──
+// Le taux réel est calculé en direct sur le pipeline actuel (approximation instantanée,
+// pas de cohorte historique -- aucun timestamp de changement d'étape n'est tracé nulle
+// part dans le schéma actuel). La cible vient de conversion_targets si elle existe.
+const _SC_TRANSITIONS = [
+  { from: 'Identified',   to: '1st Contact' },
+  { from: '1st Contact',  to: 'Engaged' },
+  { from: 'Engaged',      to: 'Replied' },
+  { from: 'Replied',      to: 'Proposal' },
+  { from: 'Proposal',     to: 'Closed' }
+];
+
+async function _loadStageConversion() {
+  const el = document.getElementById('stage-conversion-list');
+  if (!el) return;
+  el.innerHTML = 'Loading...';
+  try {
+    const { data: { session } } = await sbClient.auth.getSession();
+    const token = session?.access_token || '';
+    let param = '';
+    if (activeMandateId === '__ALL__') param = '?mandate_mode=all';
+    else if (activeMandateId) param = '?mandate_id=' + encodeURIComponent(activeMandateId);
+    const res = await fetch('/api/pipeline-prospects' + param, { headers: { 'Authorization': 'Bearer ' + token } });
+    if (!res.ok) throw new Error('pipeline-prospects: HTTP ' + res.status);
+    const { prospects } = await res.json();
+    const rankOf = s => KANBAN_STAGES.indexOf(s);
+    const countAtLeast = stage => (prospects || []).filter(p => rankOf(p.stage) >= rankOf(stage) && rankOf(p.stage) >= 0).length;
+
+    let targets = [];
+    try {
+      let q = sbClient.from('conversion_targets').select('from_stage, to_stage, target_rate, source, set_by, computed_at').eq('client_id', CLIENT_ID);
+      q = (activeMandateId && activeMandateId !== '__ALL__') ? q.eq('mandate_id', activeMandateId) : q.is('mandate_id', null);
+      const { data } = await q;
+      targets = data || [];
+    } catch(e) { console.warn('[stage-conversion] targets read error:', e); }
+
+    el.innerHTML = _SC_TRANSITIONS.map(t => {
+      const nSource = countAtLeast(t.from);
+      const nTarget = countAtLeast(t.to);
+      const rate = nSource > 0 ? (nTarget / nSource * 100) : null;
+      const rateStr = rate != null ? rate.toFixed(1) + '%' : '—';
+      const target = targets.find(x => x.from_stage === t.from && x.to_stage === t.to);
+      let colorVar = 'var(--text)';
+      let targetLine = '<span style="font-size:var(--fs-xs);color:var(--dim);">Target available after 30 days of activity</span>';
+      if (target && target.target_rate != null && rate != null) {
+        const onTarget = rate >= target.target_rate;
+        colorVar = onTarget ? 'var(--green-brand)' : 'var(--amber-mid)';
+        const provenance = target.set_by
+          ? 'SET BY YOU' + (target.computed_at ? ' · ' + new Date(target.computed_at).toLocaleDateString() : '')
+          : (target.source === 'calculated_snapshot_current' ? 'CURRENT PIPELINE SNAPSHOT' : 'YOUR 90D MEDIAN');
+        targetLine = '<span style="font-family:monospace;font-size:var(--fs-xs);color:var(--dim);">TARGET ' + target.target_rate + '% · ' + provenance + '</span>';
+      }
+      const barPct = rate != null ? Math.min(100, rate) : 0;
+      return '<div style="padding:9px 0;border-bottom:1px solid var(--border);">'
+        + '<div style="display:flex;justify-content:space-between;align-items:baseline;">'
+        + '<span style="font-family:monospace;font-size:var(--fs-xs);color:var(--muted);">' + _esc(t.from.toUpperCase()) + ' → ' + _esc(t.to.toUpperCase()) + '</span>'
+        + '<span style="font-family:monospace;font-weight:600;color:' + colorVar + ';">' + rateStr + '</span>'
+        + '</div>'
+        + '<div style="height:4px;background:var(--border);border-radius:2px;margin:5px 0;overflow:hidden;"><div style="height:100%;width:' + barPct + '%;background:' + colorVar + ';"></div></div>'
+        + targetLine
+        + '</div>';
+    }).join('');
+  } catch(e) {
+    console.warn('[stage-conversion]', e);
+    el.innerHTML = 'Unable to load stage conversion right now.';
+  }
+}
+
 function _switchSysTab(key) {
   document.querySelectorAll('#tab-system .sys-tab').forEach(b => b.classList.toggle('active', b.dataset.sys === key));
   document.querySelectorAll('#tab-system .sys-panel').forEach(p => { p.style.display = p.id === 'syspanel-' + key ? '' : 'none'; });
   const sidebarKey = key === 'reports' ? 'weekly' : key;
   _newNavActive('system-' + sidebarKey);
   if (key === 'reports') { _switchRptTab('weekly'); _loadWeeklyReports(); }
-  if (key === 'pipeintel') _renderSignalLearningSummary();
+  if (key === 'pipeintel') { _renderSignalLearningSummary(); _loadStageConversion(); }
 }
 
 function _switchNewNav(tab, sysHint) {
@@ -11001,27 +11115,46 @@ function renderKanban(rows){
   setTxt('pipeline-total-count', total);
   // Séparateur .numsplit : " / " sur desktop, passage à deux lignes en ≤480px (évite le débordement "408 / 344").
   const pair = (a, b) => a + '<span class="numsplit"> / </span>' + b;
-  setTxt('kpi-active', total);
   setTxt('score-kpi-active', total);
   setTxt('score-kpi-inconv', inConv);
   const naEmea = document.getElementById('score-kpi-naemea');
   if (naEmea) naEmea.innerHTML = pair(na, emea);
-  const emeaNa = document.getElementById('kpi-emeana');
-  if (emeaNa){ emeaNa.innerHTML = pair(emea, na); emeaNa.style.color = ''; }
-  const inconv = document.getElementById('kpi-inconv');
-  if (inconv){ inconv.textContent = inConv; inconv.classList.remove('amber'); }
   // High Priority : priorityScore >= 7 OU reminder en retard
   const nowMs = Date.now();
   const highPrio = rows.filter(p => parseFloat(_priorityScore(p)) >= 8 || (p.reminder_date && new Date(p.reminder_date).getTime() < nowMs && (p.last_contact || p.stage !== 'Identified'))).length;
-  setTxt('kpi-highprio', highPrio);
-  // Weighted Deal Pipeline : Σ deal_value × closingProb(stage)
-  const weighted = rows.reduce((s, p) => s + (parseFloat(p.deal_value) || 0) * _closingProb(p.stage), 0);
-  const pipeEl = document.getElementById('kpi-pipeline');
-  if (pipeEl) pipeEl.textContent = weighted > 0 ? ('€' + Math.round(weighted / 1000) + 'k') : (currentLang === 'fr' ? 'En construction' : 'Building');
+  // Comptes par stage (portage demo-private.html) : meme rows deja chargees, aucune requete de plus.
+  const counts = {};
+  KANBAN_STAGES.forEach(s => counts[s] = 0);
+  rows.forEach(p => { const k = _stageKey(p.stage); counts[k] = (counts[k] || 0) + 1; });
+  _renderPipelineStatsCard({ counts, total, inConv, highPrio, emea, na });
   if (typeof _applyKanbanFilters === 'function') {
     try { _applyKanbanFilters(); } catch (e) { console.warn('[renderKanban] _applyKanbanFilters failed:', e); }
   }
 }
+
+// Stats + funnel card (portage demo-private.html) : rendu partage, appele depuis renderKanban()
+// (jeu complet) et _updateKpiCards() (sous-ensemble filtre) -- un seul endroit construit le HTML.
+function _renderPipelineStatsCard({ counts, total, inConv, highPrio, emea, na }) {
+  const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  const conversion = total > 0 ? (counts['Closed'] / total * 100) : 0;
+  setTxt('pipe-conversion', conversion.toFixed(1) + '%');
+  setTxt('pipe-inconv', inConv);
+  setTxt('pipe-highprio', highPrio);
+  const intlNaEl = document.getElementById('pipe-intlna');
+  if (intlNaEl) intlNaEl.innerHTML = emea + '<span class="numsplit"> / </span>' + na;
+
+  const RAMP = [0.30, 0.42, 0.53, 0.65, 0.77, 0.88, 1];
+  const maxC = Math.max(1, ...KANBAN_STAGES.map(s => counts[s]));
+  const barEl = document.getElementById('pipe-funnel-bar');
+  if (barEl) barEl.innerHTML = KANBAN_STAGES.map((s, i) =>
+    `<div class="pipe-funnel-seg" style="flex:${Math.max(counts[s], 0.02)};background:rgba(47,107,255,${RAMP[i]})" title="${_esc(s)}: ${counts[s]}"></div>`
+  ).join('');
+  const legEl = document.getElementById('pipe-funnel-legend');
+  if (legEl) legEl.innerHTML = KANBAN_STAGES.map((s, i) =>
+    `<div class="pipe-funnel-leg-item" style="flex:${Math.max(counts[s], 0.02)}">${_esc(s)} · ${counts[s]}</div>`
+  ).join('');
+}
+
 // Stats live (onglet Stats) — calculés sur _allProspects (dernier fetch loadKanban)
 function renderStats(){
   const active = (_allProspects || []).filter(p => !p.archived);
@@ -11499,21 +11632,18 @@ function _updateKpiCards() {
     else if (dsc !== null && dsc > 3)   ps += 0.8;
     return Math.min(ps, 10) >= 8 || overdue;
   }).length;
-  const weighted = cards.reduce((s, c) => s + (parseFloat(c.dataset.deal) || 0) * _closingProb(_stageKey(c.dataset.stage)), 0);
   const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
   const pair = (a, b) => a + '<span class="numsplit"> / </span>' + b;
-  setTxt('kpi-active', total);
   setTxt('score-kpi-active', total);
   setTxt('score-kpi-inconv', inConv);
   const naEmea = document.getElementById('score-kpi-naemea');
   if (naEmea) naEmea.innerHTML = pair(na, emea);
-  const emeaNa = document.getElementById('kpi-emeana');
-  if (emeaNa) { emeaNa.innerHTML = pair(emea, na); emeaNa.style.color = ''; }
-  const inconv = document.getElementById('kpi-inconv');
-  if (inconv) { inconv.textContent = inConv; inconv.classList.remove('amber'); }
-  setTxt('kpi-highprio', highPrio);
-  const pipeEl = document.getElementById('kpi-pipeline');
-  if (pipeEl) pipeEl.textContent = weighted > 0 ? ('€' + Math.round(weighted / 1000) + 'k') : (currentLang === 'fr' ? 'En construction' : 'Building');
+  // Comptes par stage sur le sous-ensemble FILTRE (portage demo-private.html) : meme dataset des
+  // cartes visibles deja utilise ci-dessus, meme rendu partage que renderKanban().
+  const counts = {};
+  KANBAN_STAGES.forEach(s => counts[s] = 0);
+  cards.forEach(c => { const k = _stageKey(c.dataset.stage); counts[k] = (counts[k] || 0) + 1; });
+  _renderPipelineStatsCard({ counts, total, inConv, highPrio, emea, na });
 }
 
 let _hpFilter = 'all';
