@@ -6596,17 +6596,39 @@ async function loadSendView() {
     });
 
     const _j5MandateId = activeMandateId && activeMandateId !== '__ALL__' ? activeMandateId : null;
-    let _j5iQuery = sbClient.from('interactions').select('prospect_id, created_at').eq('client_id', CLIENT_ID).eq('type', 'email_j5');
-    if (_j5MandateId) _j5iQuery = _j5iQuery.eq('mandate_id', _j5MandateId);
-    const { data: j5ints } = await _j5iQuery;
+    // _sendJ5Sent : exclusion a vie (_isJ5Eligible() n'a aucune fenetre de temps sur ce champ,
+    // confirme par lecture du code) -- un .or() borne dans le temps ou un .limit()/.order() eleve
+    // tronquerait pareil une fois l'historique depasse. Pagination complete via .range() (meme
+    // idiome que _spAll plus haut dans cette fonction), seule maniere de recuperer l'ensemble reel
+    // sans notion de fenetre. prospect_id necessaire ici (cle de la map _sendJ5Sent), contrairement
+    // a _fetchTodaySendCounts() ou seul un compte etait requis.
+    let _j5ints = [], _j5iFrom = 0;
+    while (true) {
+      let _j5iQuery = sbClient.from('interactions').select('prospect_id, created_at')
+        .eq('client_id', CLIENT_ID).eq('type', 'email_j5');
+      if (_j5MandateId) _j5iQuery = _j5iQuery.eq('mandate_id', _j5MandateId);
+      const { data: _j5iChunk, error: _j5iErr } = await _j5iQuery.order('created_at', { ascending: false }).range(_j5iFrom, _j5iFrom + 999);
+      if (_j5iErr) { console.error('[loadSendView] j5 interactions:', _j5iErr); break; }
+      _j5ints = _j5ints.concat(_j5iChunk || []);
+      if (!_j5iChunk || _j5iChunk.length < 1000) break;
+      _j5iFrom += 1000;
+    }
     _sendJ5Sent = {};
-    (j5ints || []).forEach(i => { _sendJ5Sent[i.prospect_id] = i; });
+    _j5ints.forEach(i => { _sendJ5Sent[i.prospect_id] = i; });
 
     // Aussi: séquences touch='j5' status='sent' (envois via drawer, écrits dans sequences et non interactions)
-    let _j5sQuery = sbClient.from('sequences').select('prospect_id, sent_at, created_at').eq('client_id', CLIENT_ID).eq('touch', 'j5').eq('status', 'sent');
-    if (_j5MandateId) _j5sQuery = _j5sQuery.eq('mandate_id', _j5MandateId);
-    const { data: j5seqs } = await _j5sQuery;
-    (j5seqs || []).forEach(s => { if (!_sendJ5Sent[s.prospect_id]) _sendJ5Sent[s.prospect_id] = { prospect_id: s.prospect_id, created_at: s.sent_at || s.created_at }; });
+    let _j5seqs = [], _j5sFrom = 0;
+    while (true) {
+      let _j5sQuery = sbClient.from('sequences').select('prospect_id, sent_at, created_at')
+        .eq('client_id', CLIENT_ID).eq('touch', 'j5').eq('status', 'sent');
+      if (_j5MandateId) _j5sQuery = _j5sQuery.eq('mandate_id', _j5MandateId);
+      const { data: _j5sChunk, error: _j5sErr } = await _j5sQuery.order('created_at', { ascending: false }).range(_j5sFrom, _j5sFrom + 999);
+      if (_j5sErr) { console.error('[loadSendView] j5 sequences:', _j5sErr); break; }
+      _j5seqs = _j5seqs.concat(_j5sChunk || []);
+      if (!_j5sChunk || _j5sChunk.length < 1000) break;
+      _j5sFrom += 1000;
+    }
+    _j5seqs.forEach(s => { if (!_sendJ5Sent[s.prospect_id]) _sendJ5Sent[s.prospect_id] = { prospect_id: s.prospect_id, created_at: s.sent_at || s.created_at }; });
 
     _sendProspects.forEach(p => { if (!_prospectsById[p.id]) _prospectsById[p.id] = p; });
 
