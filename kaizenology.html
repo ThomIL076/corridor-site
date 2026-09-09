@@ -7619,6 +7619,47 @@ async function loadDailyPriorities() {
 
     const COLS = 'id,name,company,sector,icp_score,score_signal_strength,signal,signal_type,signal_date,mandate_id,stage,next_action_cache,next_action_generated_at,priority_batch_number,last_priority_shown_at,email,reminder_date,last_contact,linkedin,company_verified,identity_confidence';
 
+    // Priorite Morning Scan (arbitrage Thomas) : si le scan du jour a deja produit des decisions
+    // explicites (today_action/opportunistic_connection), elles remplacent entierement le calcul
+    // arithmetique ci-dessous -- cette meme requete devient la source de la liste, plus besoin
+    // d'une requete d'annotation separee. Repli sur le calcul arithmetique habituel si le scan n'a
+    // pas encore tourne aujourd'hui ou n'a produit aucune decision (comportement inchange).
+    let decisionQ = sbClient.from('morning_scan_decisions').select('prospect_id, category, mandate_id')
+      .eq('client_id', CLIENT_ID)
+      .eq('scan_date', new Date().toISOString().slice(0, 10));
+    decisionQ = _applyMandateFilter(decisionQ);
+    const { data: decisionRows, error: errDecisions } = await decisionQ;
+    if (errDecisions) console.warn('[loadDailyPriorities] morning_scan_decisions:', errDecisions);
+
+    const _nextBtn = document.getElementById('priorities-next-btn');
+
+    if (decisionRows && decisionRows.length > 0) {
+      const _decisionByProspect = {};
+      decisionRows.forEach(r => { if (r.prospect_id) _decisionByProspect[r.prospect_id] = r.category; });
+      const { data: decisionProspects, error: errDP } = await sbClient
+        .from('prospects_scan_window').select(COLS)
+        .eq('client_id', CLIENT_ID)
+        .in('id', Object.keys(_decisionByProspect));
+      if (errDP) throw errDP;
+      const _catRank = { today_action: 0, opportunistic_connection: 1 };
+      _priorityShownProspects = (decisionProspects || [])
+        .map(p => { p._morningScanCategory = _decisionByProspect[p.id] || null; return p; })
+        .sort((a, b) => (_catRank[a._morningScanCategory] ?? 2) - (_catRank[b._morningScanCategory] ?? 2));
+      _priorityShownProspects.forEach(p => { if (!_prospectsById[p.id]) _prospectsById[p.id] = p; });
+
+      const _pqcEl = document.getElementById('priorities-queued-count');
+      if (_pqcEl) _pqcEl.textContent = _priorityShownProspects.length;
+
+      _renderPriorityCards(_priorityShownProspects);
+      // Rien a parcourir par lots sur une liste de decisions du scan -- pas de priority_batch_number
+      // a avancer ici, donc pas de _updatePrioritiesNextBtn() (sa logique allActionable est concue
+      // pour le calcul arithmetique). Pas de bouton Skip a traiter : n'existe pas dans ce fichier.
+      if (_nextBtn) { _nextBtn.disabled = true; _nextBtn.style.opacity = '0.4'; _nextBtn.style.display = 'none'; }
+      return;
+    }
+
+    if (_nextBtn) _nextBtn.style.display = '';
+
     let qA = sbClient.from('prospects_scan_window').select(COLS)
       .eq('client_id', CLIENT_ID).eq('archived', false)
       .neq('stage', 'Proposal').neq('stage', 'Closed').neq('stage', 'Archived')
@@ -7631,22 +7672,9 @@ async function loadDailyPriorities() {
       .lte('signal_rank_in_mandate', 60);
     qB = _applyMandateFilter(qB);
 
-    // Badge Morning Scan (purement visuel, cf. étape 2 du chantier badges) : meme convention de
-    // scoping mandat que qA/qB (_applyMandateFilter, pas un .eq('mandate_id', ...) en dur -- sinon
-    // ca casse silencieusement en vue "tous mandats"). En parallele, pas sequentiel apres coup.
-    let qC = sbClient.from('morning_scan_decisions').select('prospect_id, category')
-      .eq('client_id', CLIENT_ID)
-      .eq('scan_date', new Date().toISOString().slice(0, 10));
-    qC = _applyMandateFilter(qC);
-
-    const [{ data: rowsA, error: errA }, { data: rowsB, error: errB }, { data: decisionRows, error: errC }] = await Promise.all([qA, qB, qC]);
+    const [{ data: rowsA, error: errA }, { data: rowsB, error: errB }] = await Promise.all([qA, qB]);
     if (errA) throw errA;
     if (errB) throw errB;
-    // Fail-open sur errC : un badge en moins n'a jamais de raison de faire disparaitre toute la
-    // liste de priorites (contrairement a errA/errB, qui sont le contenu meme de la page).
-    if (errC) console.warn('[loadDailyPriorities] morning_scan_decisions:', errC);
-    const _morningScanDecisions = {};
-    (decisionRows || []).forEach(r => { if (r.prospect_id) _morningScanDecisions[r.prospect_id] = r.category; });
 
     const seen = new Set();
     const merged = [];
@@ -7672,10 +7700,7 @@ async function loadDailyPriorities() {
 
     const eligible = merged.filter(p => (p.priority_batch_number || 0) === 0);
     _priorityShownProspects = eligible.slice(0, N);
-    _priorityShownProspects.forEach(p => { if (!_prospectsById[p.id]) _prospectsById[p.id] = p; });
-    // Applique le badge apres coup, sur la liste deja triee/filtree/tronquee a N -- n'influence
-    // ni _combinedScore, ni le tri, ni le filtre priority_batch_number, ni N.
-    _priorityShownProspects.forEach(p => { p._morningScanCategory = _morningScanDecisions[p.id] || null; });
+    _priorityShownProspects.forEach(p => { if (!_prospectsById[p.id]) _prospectsById[p.id] = p; p._morningScanCategory = null; });
 
     // "N actions queued" (section-sub sous "Today's run") : meme _priorityShownProspects.length
     // que ce qui alimente _renderPriorityCards()/_updatePrioritiesNextBtn() juste en dessous --
