@@ -2848,6 +2848,28 @@ function _signalTypeBanner(st) {
   if (st) { const raw = st.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()); return { html: `<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding:4px 10px;background:var(--chip-bg,#f3f4f6);border-radius:var(--radius-sm);border:1px solid var(--border);"><span style="font-size:10px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted);">${raw}</span></div>`, cardBorder: null }; }
   return { html: '', cardBorder: null };
 }
+// Bruit Live Signals (demande Thomas) : motifs generiques/gabarits sans substance reelle --
+// exclusion en JS plutot qu'en requete PostgREST (runLiveAlert()) car deux des cinq motifs sont
+// des regex a partie variable (nombre de roles, suffixe "mot-cle: ..."), pas exprimables comme
+// filtre .not('signal','in',(...)) statique. Match EXACT sur le texte entier du signal (les 3
+// chaines litterales, comparaison sensible a la casse ; les 2 regex, ancrees ^...$, insensibles a
+// la casse comme specifie) -- jamais une sous-chaine, "Just engaged with a post written by X
+// (URL)" reste affiche tel quel.
+const _LIVE_SIGNAL_NOISE_EXACT = new Set([
+  'Top 5% most active in your ICP (LinkedIn)',
+  'Hiring right now',
+  'Lookalike match: Similar to your ideal lead',
+]);
+const _LIVE_SIGNAL_NOISE_PATTERNS = [
+  /^Just engaged with a LinkedIn post(\s*\(mot-cl[eé]:.*\))?$/i,
+  /^Hiring for \d+ roles?(\s*\(mot-cl[eé]:.*\))?$/i,
+];
+function _isLiveSignalNoise(signalText) {
+  const s = signalText || '';
+  if (_LIVE_SIGNAL_NOISE_EXACT.has(s)) return true;
+  return _LIVE_SIGNAL_NOISE_PATTERNS.some(re => re.test(s));
+}
+
 function _renderSignalsFeed() {
   const feed = document.getElementById('signals-feed');
   if (!feed) return;
@@ -2861,6 +2883,7 @@ function _renderSignalsFeed() {
   window._feedItemsById = {};
   feed.innerHTML = items.map((item, idx) => {
     if (item.type === 'live' && /engaged with a linkedin post/i.test(item.signal || '') && !item.signalUrl) return '';
+    if (item.type === 'live' && _isLiveSignalNoise(item.signal)) return '';
     const ts = new Date(item.timestamp);
     const tsStr = isNaN(ts) ? '' : ts.toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
     const badge = item.type === 'live'
@@ -7570,11 +7593,17 @@ async function _fetchTodaySendCounts() {
 
 async function _markSent(pid, touch, auto = false, msgText = '', elPrefix = '') {
   const card = document.getElementById(elPrefix + 'sc-' + pid);
+  // Meme pattern anti-double-clic que _sendViaLinkedIn()/_startEmailSeq() (demande Thomas) : pose
+  // avant tout write, jamais reactive dans le chemin de succes -- la carte est retiree du DOM par
+  // le setTimeout ci-dessous, le bouton disparait avec elle. Reactive uniquement si la fonction
+  // s'arrete avant ce setTimeout (seul point de sortie anticipee : l'update sequences ci-dessous).
+  const btn = document.getElementById(elPrefix + 'sms-' + pid);
+  if (btn) btn.disabled = true;
   const seqId = card?.dataset.seqId || '';
   const now = new Date().toISOString();
   if (seqId) {
     const { error } = await sbClient.from('sequences').update({ status:'sent', sent_at:now }).eq('id', seqId).eq('client_id', CLIENT_ID);
-    if (error) { showToast('Error updating sequence'); return; }
+    if (error) { if (btn) btn.disabled = false; showToast('Error updating sequence'); return; }
   }
   const _sentNote = touch === 'ambassador'
     ? 'Ambassador programme invitation sent'

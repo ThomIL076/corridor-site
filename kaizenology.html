@@ -4454,6 +4454,7 @@ async function _buildAskSystemPrompt(ctx, pipelineSnapshot, pipelineInsightsBloc
       const _sigBlind2 = /engaged with a linkedin post/i.test(ctx.signal || '') && !ctx.signalUrl;
       if (ctx.signal && !_sigBlind2)               parts.push('Signal: '                + ctx.signal);
       if (ctx.signalInterpretation && !_sigBlind2) parts.push('Signal interpretation: ' + ctx.signalInterpretation);
+      if (ctx.signalUrl) parts.push('Signal source (LinkedIn post): ' + ctx.signalUrl);
       if (ctx.scanIntelligence)     parts.push('Company intelligence (from Scan):\n' + ctx.scanIntelligence);
       ctxBlock = '\n\n' + parts.join('\n');
     }
