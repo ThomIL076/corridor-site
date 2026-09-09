@@ -700,6 +700,10 @@ footer a { color:var(--navy); text-decoration:none; font-weight:600; }
 .deal-date { font-size:var(--fs-xs); color:var(--muted); }
 
 /* ── SEND QUEUE (Module) ── */
+.today-step-divider { display: flex; align-items: center; gap: 10px; margin: 22px 0 14px; }
+.today-step-divider:first-child { margin-top: 0; }
+.today-step-label { font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+.today-step-rule { flex: 1; height: 1px; background: var(--border); }
 .send-card { display:flex; flex-direction:column; gap:10px; }
 .send-row { display:flex; align-items:center; gap:12px; }
 .send-avatar { width:38px; height:38px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:700; color:#fff; }
@@ -1864,6 +1868,14 @@ body.new-nav { padding-left: 220px; }
     </div>
     <div id="manual-send-section"></div>
     <div id="send-list"></div>
+    <!-- RECENTLY SENT : journal en lecture seule, hors des filtres, peuple une seule fois par
+         _loadRecentlySent() (pas sur chaque changement de filtre) -- meme structure que
+         demo-private.html, mais invite/j0 uniquement (pas de _sendJ5Sent ici). -->
+    <div class="today-step-divider" id="send-recently-divider" hidden>
+      <span class="today-step-label">Recently sent</span>
+      <span class="today-step-rule"></span>
+    </div>
+    <div id="send-recently-sent"></div>
   </div>
 
   <!-- ══ TAB: STATS ══ -->
@@ -5669,10 +5681,53 @@ async function loadSendView() {
 
     _fetchTodaySendCounts().catch(err => console.error('_fetchTodaySendCounts:', err));
     _applySendFilters();
+    _loadRecentlySent().catch(err => console.error('_loadRecentlySent:', err));
 
   } catch(e) {
     console.error('loadSendView:', e);
     listEl.innerHTML = '<div style="padding:20px;color:var(--red);font-size:var(--fs-sm)">Error loading send queue. Try refreshing.</div>';
+  }
+}
+
+// Version simplifiee de demo-private.html : invite/j0 uniquement, pas de bloc
+// Object.entries(_sendJ5Sent) -- cette variable n'existe pas ici (loadSendView() de
+// kaizenology.html ne pagine pas les sequences status='sent', pas de suivi J+5 cote client).
+async function _loadRecentlySent() {
+  const container = document.getElementById('send-recently-sent');
+  const divider = document.getElementById('send-recently-divider');
+  if (!container) return;
+  try {
+    const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+    let q = sbClient.from('sequences')
+      .select('id,prospect_id,touch,sent_at,created_at')
+      .eq('client_id', CLIENT_ID).eq('status', 'sent').in('touch', ['invite', 'j0'])
+      .gte('sent_at', sevenDaysAgo);
+    q = _applyMandateFilter(q);
+    const { data, error } = await q;
+    if (error) throw error;
+    let items = (data || []).map(s => ({ prospect_id: s.prospect_id, touch: s.touch, sent_at: s.sent_at || s.created_at }));
+    items.sort((a, b) => new Date(b.sent_at) - new Date(a.sent_at));
+    items = items.slice(0, 20);
+    if (divider) divider.hidden = items.length === 0;
+    container.innerHTML = items.map(it => {
+      const p = _prospectsById[it.prospect_id];
+      if (!p) return '';
+      const label = TOUCH_LABELS[it.touch]?.label || it.touch;
+      return `<div class="card send-card" style="opacity:0.65;">
+        <div class="send-row">
+          <div class="send-avatar" style="background:${_sendAvatarColor(p.name)}">${_esc(_sendInitials(p.name))}</div>
+          <div class="send-id">
+            <div class="send-name">${_esc(p.name)}</div>
+            <div class="send-company">${_esc(p.company || '')}</div>
+          </div>
+          <span class="send-touch ${TOUCH_LABELS[it.touch]?.class||'touch-j0'}">${_esc(label)}</span>
+          <span style="font-size:var(--fs-xs);color:var(--green);white-space:nowrap;flex-shrink:0;margin-left:8px;">Sent ${_esc(_relDate(it.sent_at) || '')}</span>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    console.warn('[_loadRecentlySent]', e);
+    if (divider) divider.hidden = true;
   }
 }
 
