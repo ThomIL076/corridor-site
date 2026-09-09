@@ -9677,7 +9677,51 @@ function _renderProposalCard(prop, prospect) {
 // "Use this" (par variante) : approuve la proposition entiere sur cette variante -- une seule
 // proposition ne peut avoir qu'une variante choisie, pas une selection radio silencieuse (chaque
 // variante a son propre bouton, clic explicite, README/arbitrage Thomas).
+// linkedin_post n'a pas sa place dans sequences (contenu public, pas une etape de cadence 1:1
+// vers un prospect) -- copie presse-papier a la place. outreach_opener se traduit en sequences
+// touch='invite' (seule correspondance sensee avec les etapes de cadence existantes). Dans les
+// deux cas, l'effet reel (clipboard ou ecriture sequences) doit reussir AVANT de marquer la
+// proposition approved -- jamais de proposition "approved" fantome si l'un des deux echoue.
 async function _proposalUseVariant(id, variantIndex) {
+  const { data: prop, error: fetchErr } = await sbClient.from('agent_proposals')
+    .select('content_type, prospect_id, variants, mandate_id')
+    .eq('id', id).single();
+  if (fetchErr || !prop) { console.error('[_proposalUseVariant] fetch failed:', fetchErr); showToast('Error loading proposal'); return; }
+  const variantText = (Array.isArray(prop.variants) && prop.variants[variantIndex]) ? (prop.variants[variantIndex].text || '') : '';
+
+  if (prop.content_type === 'linkedin_post') {
+    try {
+      await navigator.clipboard.writeText(variantText);
+      showToast('Copied to clipboard ✓');
+    } catch(e) {
+      console.error('[_proposalUseVariant] clipboard failed:', e);
+      showToast('Error copying to clipboard');
+      return;
+    }
+  } else if (prop.content_type === 'outreach_opener') {
+    const { data: existingSeq, error: seqSelErr } = await sbClient.from('sequences')
+      .select('id').eq('prospect_id', prop.prospect_id).eq('touch', 'invite').eq('client_id', CLIENT_ID).maybeSingle();
+    if (seqSelErr) { console.error('[_proposalUseVariant] sequences select failed:', seqSelErr); showToast('Error checking send queue'); return; }
+    const seqMandateId = prop.mandate_id ?? ((activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null);
+    if (existingSeq) {
+      const { error: seqUpdErr } = await sbClient.from('sequences')
+        .update({ body: variantText, status: 'draft' }).eq('id', existingSeq.id);
+      if (seqUpdErr) { console.error('[_proposalUseVariant] sequences update failed:', seqUpdErr); showToast('Error updating send queue'); return; }
+      _sendSequences[prop.prospect_id] = _sendSequences[prop.prospect_id] || [];
+      const _existingEntry = _sendSequences[prop.prospect_id].find(s => s.id === existingSeq.id);
+      if (_existingEntry) { _existingEntry.body = variantText; _existingEntry.status = 'draft'; }
+      else _sendSequences[prop.prospect_id].push({ id: existingSeq.id, touch: 'invite', body: variantText, status: 'draft' });
+    } else {
+      const { data: newSeq, error: seqInsErr } = await sbClient.from('sequences')
+        .insert({ prospect_id: prop.prospect_id, client_id: CLIENT_ID, mandate_id: seqMandateId, touch: 'invite', body: variantText, status: 'draft' })
+        .select('id').single();
+      if (seqInsErr) { console.error('[_proposalUseVariant] sequences insert failed:', seqInsErr); showToast('Error adding to send queue'); return; }
+      _sendSequences[prop.prospect_id] = _sendSequences[prop.prospect_id] || [];
+      _sendSequences[prop.prospect_id].push({ id: newSeq.id, touch: 'invite', body: variantText, status: 'draft' });
+    }
+    showToast('Added to Send queue ✓');
+  }
+
   const { error } = await sbClient.from('agent_proposals')
     .update({ status: 'approved', chosen_variant_index: variantIndex })
     .eq('id', id);
