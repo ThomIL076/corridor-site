@@ -6586,7 +6586,10 @@ async function loadSendView() {
       .select('id, prospect_id, touch, body, status, sent_at')
       .eq('client_id', CLIENT_ID);
     _seqQuery = _applyMandateFilter(_seqQuery);
-    const { data: seqs, error: sErr } = await _seqQuery.in('status', ['draft','ready']);
+    // Garde-fou explicite (audit du soir) : auto-limitant en pratique (draft/ready = file de
+    // travail consommee regulierement), mais un .limit() explicite vaut mieux que de compter sur
+    // ce comportement observe -- meme discipline que les fixes _fetchTodaySendCounts()/_j5iQuery.
+    const { data: seqs, error: sErr } = await _seqQuery.in('status', ['draft','ready']).limit(300);
     if (sErr) throw sErr;
 
     _sendSequences = {};
@@ -9483,10 +9486,15 @@ async function loadInboxDrafts(view = 'pending') {
       .select('id,prospect_id,mandate_id,incoming_message,raw_payload,variants,status,chosen_variant_index,created_at,updated_at')
       .eq('client_id', CLIENT_ID)
       .eq('content_type', 'objection_response');
+    // Garde-fous explicites (audit du soir) : pending auto-limitant en pratique (approuve/rejete
+    // en sort) mais .limit(200) explicite quand meme. History = la plus a risque (accumulation
+    // indefinie, jamais purgee) -- fenetre 90j EN PLUS du .limit(200), les deux ensemble plutot
+    // qu'un seul garde-fou.
     if (view === 'pending') {
-      query = query.eq('status', 'pending').order('created_at', { ascending: false });
+      query = query.eq('status', 'pending').order('created_at', { ascending: false }).limit(200);
     } else {
-      query = query.in('status', ['approved', 'rejected']).order('updated_at', { ascending: false });
+      const ninetyDaysAgo = new Date(Date.now() - 90 * 86400000).toISOString();
+      query = query.in('status', ['approved', 'rejected']).gte('updated_at', ninetyDaysAgo).order('updated_at', { ascending: false }).limit(200);
     }
     const { data: drafts, error } = await query;
     if (error) throw error;
@@ -9765,12 +9773,15 @@ async function loadProposalsView() {
   try {
     // content_type='objection_response' exclu : ces propositions vivent desormais dans l'onglet
     // Inbox (migration reply_drafts -> agent_proposals), pas ici -- sinon double affichage.
+    // .limit(200) : garde-fou explicite (audit du soir) -- auto-limitant en pratique (approuve/
+    // rejete sort de la vue pending), mais aucune borne explicite avant.
     const { data: proposals, error } = await sbClient.from('agent_proposals')
       .select('*')
       .eq('client_id', CLIENT_ID)
       .eq('status', 'pending')
       .neq('content_type', 'objection_response')
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(200);
     if (error) throw error;
     if (!proposals || !proposals.length) {
       container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">No proposals waiting.</div>';
@@ -10388,7 +10399,7 @@ function _markPostCallSent() {
   if (noteEl) noteEl.value = '';
 }
 
-async function _resolveViaApollo(name, company) {
+async function _resolveViaEnrichment(name, company) {
   try {
     const parts = (name || '').trim().split(/\s+/);
     if (parts.length < 2) return null;
@@ -10502,8 +10513,8 @@ async function _scannerMapCommittee() {
       }
       await Promise.all((Array.isArray(_rawParsed) ? _rawParsed : []).map(async s => {
         if (!s.name || _validLinkedInUrl.test((s.linkedin_url || '').trim())) return;
-        const apolloUrl = await _resolveViaApollo(s.name, company);
-        if (apolloUrl) s.linkedin_url = apolloUrl;
+        const enrichedUrl = await _resolveViaEnrichment(s.name, company);
+        if (enrichedUrl) s.linkedin_url = enrichedUrl;
       }));
       const _normFM = s => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
       const _citationLinkedInUrls = [...new Set(_stakeholderCitations.filter(u => _liUrlPattern.test(u)))];
