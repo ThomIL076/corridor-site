@@ -7579,16 +7579,24 @@ function _renderCapacityBars(containerId, inv, em, followUpsCleared, followUpsDu
 }
 
 async function _fetchTodaySendCounts() {
-  const todayStr = new Date().toISOString().slice(0, 10);
-  const isToday = d => d && d.slice(0, 10) === todayStr;
+  // Filtre serveur natif (plus de isToday() JS apres-coup) : la requete precedente n'avait ni
+  // limite ni tri -- silencieusement tronquee a 1000 lignes (page par defaut PostgREST) une fois
+  // l'historique depasse. Cause confirmee du bug 0/30 malgre 25 invitations reellement envoyees
+  // aujourd'hui (1772 lignes historiques sur sequences touch=invite status=sent). sent_at peut
+  // etre null pour un envoi marque via un chemin qui ne l'ecrit pas -- meme repli qu'avant
+  // (sent_at || created_at), exprime cote requete via .or() : capture soit sent_at dans la
+  // fenetre du jour, soit (sent_at null ET created_at dans la fenetre du jour).
+  const todayStart = new Date().toISOString().slice(0, 10) + 'T00:00:00.000Z';
+  const tomorrowStart = new Date(Date.now() + 86400000).toISOString().slice(0, 10) + 'T00:00:00.000Z';
+  const _todayOrFilter = `and(sent_at.gte.${todayStart},sent_at.lt.${tomorrowStart}),and(sent_at.is.null,created_at.gte.${todayStart},created_at.lt.${tomorrowStart})`;
   const [{ data: invRows }, { data: msgRows }, { data: emRows }] = await Promise.all([
-    sbClient.from('sequences').select('sent_at,created_at').eq('client_id', CLIENT_ID).eq('touch', 'invite').eq('status', 'sent'),
-    sbClient.from('sequences').select('sent_at,created_at').eq('client_id', CLIENT_ID).neq('touch', 'invite').eq('status', 'sent'),
-    sbClient.from('interactions').select('created_at').eq('client_id', CLIENT_ID).eq('type', 'email_j5'),
+    sbClient.from('sequences').select('id').eq('client_id', CLIENT_ID).eq('touch', 'invite').eq('status', 'sent').or(_todayOrFilter),
+    sbClient.from('sequences').select('id').eq('client_id', CLIENT_ID).neq('touch', 'invite').eq('status', 'sent').or(_todayOrFilter),
+    sbClient.from('interactions').select('id').eq('client_id', CLIENT_ID).eq('type', 'email_j5').gte('created_at', todayStart).lt('created_at', tomorrowStart),
   ]);
-  _todaySendCounts.invitesSent  = (invRows || []).filter(r => isToday(r.sent_at || r.created_at)).length;
-  _todaySendCounts.messagesSent = (msgRows || []).filter(r => isToday(r.sent_at || r.created_at)).length;
-  _todaySendCounts.emailsSent   = (emRows  || []).filter(r => isToday(r.created_at)).length;
+  _todaySendCounts.invitesSent  = (invRows || []).length;
+  _todaySendCounts.messagesSent = (msgRows || []).length;
+  _todaySendCounts.emailsSent   = (emRows  || []).length;
   _updateSentCounter();
 }
 
