@@ -6945,6 +6945,171 @@ function _buildProspectLinks(p) {
   ].filter(Boolean);
 }
 
+const _BC_ROLES = ['decision_maker', 'advisor', 'board_family_influencer'];
+const _BC_ROLE_LABELS = { decision_maker: 'Decision-maker', advisor: 'Advisor (financial/legal)', board_family_influencer: 'Board/Family influencer' };
+
+const _BC_FOUND_STALE_DAYS = 90;
+const _BC_NOTFOUND_STALE_DAYS = 30;
+
+function _bcIsStale(row) {
+  if (!row || !row.discovered_at) return true;
+  const ageDays = (Date.now() - new Date(row.discovered_at).getTime()) / 86400000;
+  return ageDays > (row.name ? _BC_FOUND_STALE_DAYS : _BC_NOTFOUND_STALE_DAYS);
+}
+
+async function _discoverBuyingCommittee(prospect) {
+  const co = prospect.company;
+  if (!co) return null;
+  const liveCtx = await _prefetchWebContext(co, 'ownership decision makers M&A advisors board');
+  const prompt = 'Based ONLY on the web context below, identify up to three specific individuals at ' + co + ' who would be involved in a sale/M&A transaction decision, one per role:\n\n'
+    + '- decision_maker: the person with final decision authority over the transaction, often the owner or founder\n'
+    + '- advisor: a financial or legal advisor involved in the deal\n'
+    + '- board_family_influencer: a board member or family member with influence on the decision\n\n'
+    + 'WEB CONTEXT:\n' + (liveCtx || 'No live context available.') + '\n\n'
+    + 'Return a single JSON object, no prose, no markdown fences, exactly this shape:\n'
+    + '{"decision_maker":{"name":"Full Name" or null,"title":"Title" or null,"linkedin":URL only if explicitly stated in the context above else null,"confidence":"high" or "low" or "not_found"},"advisor":{...same structure...},"board_family_influencer":{...same structure...}}\n\n'
+    + 'For each role, if the context does not clearly confirm a specific named individual in that role at this company, set confidence to "not_found" and name to null. Never invent a name or construct a URL from a name.';
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 700, messages: [{ role: 'user', content: prompt }] })
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const txt = Array.isArray(data.content) ? data.content.filter(b => b.type === 'text').map(b => b.text).join('').trim() : '';
+    const parsed = JSON.parse(txt.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim());
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch(_e) { return null; }
+}
+
+async function _bcFetchByRole(prospectId) {
+  const byRole = {};
+  try {
+    const { data } = await sbClient.from('buying_committee_members')
+      .select('role, name, title, linkedin, confidence, discovered_at')
+      .eq('prospect_id', prospectId).eq('client_id', CLIENT_ID);
+    (data || []).forEach(r => { byRole[r.role] = r; });
+  } catch(e) { console.warn('[buying-committee] read error:', e); }
+  return byRole;
+}
+
+async function _loadBuyingCommittee(prospectId, p) {
+  const el = document.getElementById('bc-section-' + prospectId);
+  if (!el) return;
+  const byRole = await _bcFetchByRole(prospectId);
+
+  const needsRefresh = (p.icp_score || 0) >= 4 && _BC_ROLES.some(r => _bcIsStale(byRole[r]));
+  if (!needsRefresh) { _renderBuyingCommittee(prospectId, byRole); return; }
+
+  _renderBuyingCommittee(prospectId, byRole, true);
+  const result = await _discoverBuyingCommittee(p);
+  if (!result) { _renderBuyingCommittee(prospectId, byRole); return; }
+
+  const nowIso = new Date().toISOString();
+  const upsertRows = _BC_ROLES.map(role => {
+    const r = result[role] || {};
+    const confirmed = r.confidence === 'high' && !!r.name;
+    return {
+      client_id: CLIENT_ID, prospect_id: prospectId, role,
+      name: confirmed ? r.name : null,
+      title: confirmed ? (r.title || null) : null,
+      linkedin: confirmed ? (r.linkedin || null) : null,
+      confidence: confirmed ? 'high' : 'not_found',
+      discovered_at: nowIso
+    };
+  });
+  try {
+    await sbClient.from('buying_committee_members').upsert(upsertRows, { onConflict: 'prospect_id,role' });
+  } catch(e) { console.warn('[buying-committee] write error:', e); }
+
+  const newByRole = {};
+  upsertRows.forEach(r => { newByRole[r.role] = r; });
+  _renderBuyingCommittee(prospectId, newByRole);
+}
+
+function _renderBuyingCommittee(prospectId, byRole, loading) {
+  const el = document.getElementById('bc-section-' + prospectId);
+  if (!el) return;
+  if (loading) {
+    el.innerHTML = '<div style="font-size:var(--fs-xs);color:var(--muted);font-style:italic">Researching buying committee...</div>';
+    return;
+  }
+  el.innerHTML = _BC_ROLES.map(role => {
+    const r = byRole[role];
+    const label = _BC_ROLE_LABELS[role];
+    if (r && r.name) {
+      const nameHtml = r.linkedin
+        ? '<a href="' + _esc(r.linkedin) + '" target="_blank" rel="noopener" style="color:var(--text);text-decoration:underline;font-weight:600;">' + _esc(r.name) + '</a>'
+        : '<span style="font-weight:600;color:var(--text);">' + _esc(r.name) + '</span>';
+      return '<div style="display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);font-size:var(--fs-sm);">'
+        + '<span style="color:var(--muted);flex-shrink:0;">' + label + '</span>'
+        + '<span style="text-align:right;min-width:0;">' + nameHtml + (r.title ? '<div style="font-size:var(--fs-xs);color:var(--muted);">' + _esc(r.title) + '</div>' : '') + '</span>'
+        + '</div>';
+    }
+    return '<div style="display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);font-size:var(--fs-sm);">'
+      + '<span style="color:var(--muted);flex-shrink:0;">' + label + '</span>'
+      + '<span style="color:var(--dim);">Not identified</span>'
+      + '</div>';
+  }).join('');
+}
+
+// Pont Scanner -> Buying committee : remappe les roles generiques Influence/Approve/Sign
+// retournes par _scannerMapCommittee() vers les 3 roles fixes M&A de buying_committee_members
+// (decision_maker/advisor/board_family_influencer), sans jamais forcer une correspondance
+// approximative -- un role sans candidat plausible reste non assigne.
+function _bcMapScanToRoles(stakeholders) {
+  const _bcPriorityTitleRe = /\b(Owner|CEO|Founder|President)\b/i;
+  const _bcAdvisorTitleRe = /\b(CFO|General Counsel|Legal|Attorney)\b/i;
+  const _bcInfluencerTitleRe = /\b(Board Member|Family Office|Chairman)\b/i;
+  const result = { decision_maker: null, advisor: null, board_family_influencer: null };
+
+  const signCandidates = stakeholders.filter(s => (s.role || '').toLowerCase() === 'sign');
+  if (signCandidates.length) {
+    result.decision_maker = signCandidates.find(s => _bcPriorityTitleRe.test(s.title || '')) || signCandidates[0];
+  }
+
+  const approveInfluenceRemaining = stakeholders.filter(s =>
+    s !== result.decision_maker && ['approve', 'influence'].includes((s.role || '').toLowerCase())
+  );
+  result.advisor = approveInfluenceRemaining.find(s => _bcAdvisorTitleRe.test(s.title || '')) || null;
+
+  const stillRemaining = stakeholders.filter(s => s !== result.decision_maker && s !== result.advisor);
+  result.board_family_influencer = stillRemaining.find(s => _bcInfluencerTitleRe.test(s.title || '')) || stillRemaining[0] || null;
+
+  return result;
+}
+
+// N'ecrit que si le scan correspond a la societe du prospect actuellement ouvert dans le tiroir --
+// sinon aucun prospect_id fiable a rattacher, on ne fabrique jamais de lien approximatif.
+async function _bcPersistFromScan(stakeholders, company) {
+  const prospectId = _drawerProspect?.id;
+  if (!prospectId) return;
+  if ((_drawerProspect.company || '').trim().toLowerCase() !== (company || '').trim().toLowerCase()) return;
+
+  const mapped = _bcMapScanToRoles(stakeholders);
+  const nowIso = new Date().toISOString();
+  const upsertRows = _BC_ROLES.map(role => {
+    const s = mapped[role];
+    if (!s) return null;
+    return {
+      client_id: CLIENT_ID, prospect_id: prospectId, role,
+      name: s.name, title: s.title || null, linkedin: s.linkedin_url || null,
+      confidence: 'high', discovered_at: nowIso
+    };
+  }).filter(Boolean);
+  if (!upsertRows.length) return;
+
+  try {
+    await sbClient.from('buying_committee_members').upsert(upsertRows, { onConflict: 'prospect_id,role' });
+  } catch(e) { console.warn('[buying-committee] scan write error:', e); return; }
+
+  if (document.getElementById('bc-section-' + prospectId)) {
+    const byRole = await _bcFetchByRole(prospectId);
+    _renderBuyingCommittee(prospectId, byRole);
+  }
+}
+
 async function openDrawer(card, initialTab = 'activity') {
   const prospectId   = card.dataset.id          || null;
   const name         = (card.querySelector('.k-card-name')?.textContent    || '').trim();
@@ -7429,6 +7594,7 @@ async function openDrawer(card, initialTab = 'activity') {
   }
   if (document.getElementById('dv-deal-type')) _restoreDealValue();
   _renderSignalLink((_prospectsById[prospectId] || {}).signal, (_prospectsById[prospectId] || {}).signal_url);
+  if (prospectId) _loadBuyingCommittee(prospectId, _p).catch(e => console.warn('[buying-committee]', e));
   _drawerSendPid = prospectId;
   _renderManualSection('dpanel-send', prospectId);
 
@@ -9107,6 +9273,7 @@ async function _scannerMapCommittee() {
       if (stakeholders && stakeholders.length) {
         await _resolveLinkedInUrls(stakeholders, company);
         _renderCommitteeCards(stakeholders, out, company, sector, null);
+        await _bcPersistFromScan(stakeholders, company);
       } else out.textContent = 'No verified stakeholders found with confirmed LinkedIn profiles.';
     }
   } catch(e) {
@@ -9879,6 +10046,10 @@ function _drawerProfileHTML(id, p, colStage, fb){
       (p.hard_criteria_met ? `<div style="background:var(--navy-light);border:1px solid var(--blue);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--navy);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:10px;opacity:0.65;display:block;margin-bottom:3px">✦ ${currentLang==='fr'?'Critères remplis':'Criteria met'}</span><ul style="margin:0;padding-left:16px">${p.hard_criteria_met.split(';').map(c => c.trim()).filter(Boolean).map(c => `<li>${v(stripHtml(c))}</li>`).join('')}</ul></div>` : '')
     )}
     <textarea id="ed-notes" class="dp-inp" placeholder="Notes" style="min-height:60px;resize:vertical">${v(p.notes)}</textarea>
+    ${card(
+      lbl('Buying committee') +
+      `<div id="bc-section-${v(id)}" style="font-size:var(--fs-xs);color:var(--muted);font-style:italic">Loading...</div>`
+    )}
     ${_acSection}
     <button class="btn-primary" style="width:100%;justify-content:center" onclick="saveProspectEdit('${v(id)}')"><span data-en="Save changes" data-fr="Enregistrer les modifications">Save changes</span></button>
     <div style="display:flex;gap:8px;margin-top:4px">
