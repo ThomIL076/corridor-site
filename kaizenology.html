@@ -7618,7 +7618,7 @@ async function loadDailyPriorities() {
       if (mdata?.daily_priority_count) N = mdata.daily_priority_count;
     }
 
-    const COLS = 'id,name,company,sector,icp_score,score_signal_strength,signal,signal_type,signal_date,mandate_id,stage,next_action_cache,next_action_generated_at,priority_batch_number,last_priority_shown_at,email,reminder_date,last_contact,linkedin,company_verified,identity_confidence';
+    const COLS = 'id,name,company,sector,icp_score,icp_confidence,score_signal_strength,signal,signal_type,signal_date,mandate_id,stage,next_action_cache,next_action_generated_at,priority_batch_number,last_priority_shown_at,email,reminder_date,last_contact,linkedin,company_verified,identity_confidence';
 
     // Priorite Morning Scan (arbitrage Thomas) : si le scan du jour a deja produit des decisions
     // explicites (today_action/opportunistic_connection), elles remplacent entierement le calcul
@@ -7739,6 +7739,18 @@ function _renderPriorityCards(prospects) {
         + _esc(p.signal.replace(/<[^>]*>/g, '').slice(0, 160))
         + `</div>`
       : '';
+    // Provenance (parite demo-private.html, "MORNING SCAN · {temps relatif} · CONFIDENCE {niveau}") :
+    // uniquement sur les cartes issues d'une decision du scan (_morningScanCategory non-null) -- pas
+    // de ligne meta preexistante ici a dedupliquer (contrairement a demo-private.html), cette carte
+    // n'affichait jusqu'ici aucune indication de temps relatif.
+    const _relSignalDate = p.signal_date ? _relDate(p.signal_date) : null;
+    const provenanceHtml = p._morningScanCategory
+      ? `<div style="font-size:8.5px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-top:4px;">${[
+          'Morning scan',
+          _relSignalDate ? _esc(_relSignalDate) : null,
+          p.icp_confidence ? 'Confidence ' + _esc(p.icp_confidence) : null,
+        ].filter(Boolean).join(' · ')}</div>`
+      : '';
     const cachedRendered = p.next_action_cache
       ? renderMarkdown(p.next_action_cache).replace(
           /([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})/g,
@@ -7750,8 +7762,8 @@ function _renderPriorityCards(prospects) {
            style="margin-top:12px;font-size:var(--fs-sm);line-height:1.65;color:var(--navy);">${cachedRendered}</div>`
       : `<div class="pri-action" id="pri-action-${p.id}" style="margin-top:12px;">
            <button id="pri-gen-${p.id}" onclick="_priorityGenerate('${p.id}')"
-             style="padding:6px 14px;font-size:var(--fs-xs);border-radius:var(--radius-pill);
-                    background:var(--navy);color:#fff;border:none;cursor:pointer;font-weight:600;">
+             style="width:100%;padding:11px 14px;font-size:var(--fs-sm);border-radius:var(--radius-sm);
+                    background:var(--navy);color:#fff;border:none;cursor:pointer;font-weight:700;">
              Generate
            </button>
          </div>`;
@@ -7777,6 +7789,7 @@ function _renderPriorityCards(prospects) {
             ${p._morningScanCategory === 'today_action' ? `<span style="font-size:10px;font-weight:700;color:var(--red);background:var(--red-bg);border:1px solid var(--red-light);border-radius:20px;padding:1px 6px;white-space:nowrap;" title="Flagged for action by this morning's scan">⚡ Today</span>` : ''}
             ${p._morningScanCategory === 'opportunistic_connection' ? `<span style="font-size:10px;font-weight:700;color:#6b7280;background:#f3f4f6;border:1px solid #d1d5db;border-radius:20px;padding:1px 6px;white-space:nowrap;" title="Opportunistic connection flagged by this morning's scan">🔗 Opportunistic</span>` : ''}
           </div>
+          ${provenanceHtml}
           ${signalHtml}
           ${p.email ? `<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:3px;"><a href="mailto:${_esc(p.email)}" style="color:inherit;text-decoration:underline;">${_esc(p.email)}</a></div>` : ''}
         </div>
