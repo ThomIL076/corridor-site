@@ -9000,6 +9000,49 @@ async function loadDailyPriorities() {
 
     const COLS = 'id,name,company,sector,icp_score,score_signal_strength,score_role,score_size,score_recency,score_mandate_fit,score_completeness,signal,signal_type,signal_interpretation,signal_date,mandate_id,stage,next_action_cache,next_action_generated_at,priority_batch_number,last_priority_shown_at,last_surfaced_in_scan_at,email,reminder_date,last_contact,linkedin,company_verified,identity_confidence,website_url';
 
+    // Priorite Morning Scan (arbitrage Thomas, meme fix que kaizenology.html) : si le scan du jour
+    // a deja produit des decisions explicites (today_action/opportunistic_connection), elles
+    // remplacent entierement le calcul arithmetique ci-dessous -- cette meme requete devient la
+    // source de la liste. Repli sur le calcul arithmetique habituel si le scan n'a pas encore
+    // tourne aujourd'hui ou n'a produit aucune decision (comportement inchange).
+    let decisionQ = sbClient.from('morning_scan_decisions').select('prospect_id, category, mandate_id')
+      .eq('client_id', CLIENT_ID)
+      .eq('scan_date', new Date().toISOString().slice(0, 10));
+    decisionQ = _applyMandateFilter(decisionQ);
+    const { data: decisionRows, error: errDecisions } = await decisionQ;
+    if (errDecisions) console.warn('[loadDailyPriorities] morning_scan_decisions:', errDecisions);
+
+    const _nextBtn = document.getElementById('priorities-next-btn');
+    const _skipBtn = document.getElementById('priorities-skip-btn');
+
+    if (decisionRows && decisionRows.length > 0) {
+      const _decisionByProspect = {};
+      decisionRows.forEach(r => { if (r.prospect_id) _decisionByProspect[r.prospect_id] = r.category; });
+      const { data: decisionProspects, error: errDP } = await sbClient
+        .from('prospects_scan_window').select(COLS)
+        .eq('client_id', CLIENT_ID)
+        .in('id', Object.keys(_decisionByProspect));
+      if (errDP) throw errDP;
+      const _catRank = { today_action: 0, opportunistic_connection: 1 };
+      _priorityShownProspects = (decisionProspects || [])
+        .map(p => { p._morningScanCategory = _decisionByProspect[p.id] || null; return p; })
+        .sort((a, b) => (_catRank[a._morningScanCategory] ?? 2) - (_catRank[b._morningScanCategory] ?? 2));
+      _priorityShownProspects.forEach(p => { if (!_prospectsById[p.id]) _prospectsById[p.id] = p; });
+
+      _updateQueuedCount();
+
+      _renderPriorityCards(_priorityShownProspects);
+      // Rien a parcourir par lots sur une liste de decisions du scan -- pas de priority_batch_number
+      // a avancer ici, donc ni _updatePrioritiesNextBtn() (allActionable concu pour le calcul
+      // arithmetique) ni _prioritiesSkip() n'ont de sens : les deux boutons sont masques.
+      if (_nextBtn) { _nextBtn.disabled = true; _nextBtn.style.opacity = '0.4'; _nextBtn.style.display = 'none'; }
+      if (_skipBtn) { _skipBtn.disabled = true; _skipBtn.style.opacity = '0.4'; _skipBtn.style.display = 'none'; }
+      return;
+    }
+
+    if (_nextBtn) _nextBtn.style.display = '';
+    if (_skipBtn) { _skipBtn.style.display = ''; _skipBtn.disabled = false; _skipBtn.style.opacity = '1'; }
+
     let qA = sbClient.from('prospects_scan_window').select(COLS)
       .eq('client_id', CLIENT_ID).eq('archived', false)
       .neq('stage', 'Proposal').neq('stage', 'Closed').neq('stage', 'Archived')
@@ -9040,7 +9083,7 @@ async function loadDailyPriorities() {
 
     const eligible = merged.filter(p => (p.priority_batch_number || 0) === 0);
     _priorityShownProspects = eligible.slice(0, N);
-    _priorityShownProspects.forEach(p => { if (!_prospectsById[p.id]) _prospectsById[p.id] = p; });
+    _priorityShownProspects.forEach(p => { if (!_prospectsById[p.id]) _prospectsById[p.id] = p; p._morningScanCategory = null; });
 
     _updateQueuedCount();
 
@@ -9136,6 +9179,8 @@ function _renderPriorityCards(prospects) {
               ${_esc(p.sector)}</span>` : ''}
             ${p.company_verified === false ? `<span style="font-size:10px;font-weight:700;color:#b45309;background:#fef3c7;border:1px solid #fde68a;border-radius:20px;padding:1px 6px;white-space:nowrap;" title="Société non confirmée par la source de données">⚠ Société non confirmée</span>` : ''}
             ${p.identity_confidence === 'low' ? `<span style="font-size:10px;font-weight:700;color:#6b7280;background:#f3f4f6;border:1px solid #d1d5db;border-radius:20px;padding:1px 6px;white-space:nowrap;" title="Identité non confirmée">? Identité à vérifier</span>` : ''}
+            ${p._morningScanCategory === 'today_action' ? `<span style="font-size:10px;font-weight:700;color:var(--red);background:var(--red-bg);border:1px solid var(--red-light);border-radius:20px;padding:1px 6px;white-space:nowrap;" title="Flagged for action by this morning's scan">⚡ Today</span>` : ''}
+            ${p._morningScanCategory === 'opportunistic_connection' ? `<span style="font-size:10px;font-weight:700;color:#6b7280;background:#f3f4f6;border:1px solid #d1d5db;border-radius:20px;padding:1px 6px;white-space:nowrap;" title="Opportunistic connection flagged by this morning's scan">🔗 Opportunistic</span>` : ''}
           </div>
           ${signalHtml}
           ${linksHtml}
