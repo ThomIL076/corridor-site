@@ -7349,6 +7349,13 @@ async function openDrawer(card, initialTab = 'activity') {
         onclick="_drawerAI()" id="drawer-next-btn">${_hasCachedAction ? '🔄 Regenerate' : '▶ Next recommended action'}</button>
       <button class="btn-secondary" style="width:100%;justify-content:center;margin-bottom:12px" onclick="_escalateProspect()" id="drawer-escalate-btn">Escalation Handler</button>
   <button class="btn-secondary" style="width:100%;justify-content:center;margin-bottom:12px" onclick="_sendDiscoveryBrief()" id="drawer-discovery-btn">Prepare discovery call</button>
+      <div class="ai-box">
+        <div class="ai-box-header">
+          <span class="ai-box-label">Call prep brief</span>
+        </div>
+        <div class="ai-box-body" id="pd-brief-card">No brief prepared yet — generate one above.</div>
+      </div>
+      <button class="btn-secondary" style="width:100%;justify-content:center;margin-bottom:12px" onclick="_pdCopyBrief()" id="pd-brief-copy-btn" disabled>Copy brief</button>
       <div class="ai-box" id="escalate-box" style="display:none">
         <div class="ai-box-header">
           <span class="ai-box-label" style="color:#ef4444">Escalation Brief</span>
@@ -7441,6 +7448,11 @@ async function openDrawer(card, initialTab = 'activity') {
     const el = document.getElementById('drawer-int-list');
     if (el) el.innerHTML = _renderIntList([]);
   }
+  const discoveryBrief = _drawerInteractions.find(i => i.type === 'discovery_brief') || null;
+  const briefEl = document.getElementById('pd-brief-card');
+  if (briefEl) briefEl.innerHTML = discoveryBrief ? discoveryBrief.note : 'No brief prepared yet — generate one above.';
+  const briefBtn = document.getElementById('pd-brief-copy-btn');
+  if (briefBtn) briefBtn.disabled = !discoveryBrief;
 
   if (typeof applyLang === 'function') applyLang();
 }
@@ -8624,13 +8636,23 @@ Output the HTML content only. No preamble, no doctype, no wrapper div.`;
     if (!wRes.ok) throw new Error('Webhook ' + wRes.status);
     await sbClient.from('interactions').insert({
       client_id: CLIENT_ID, prospect_id: p.id, mandate_id: p.mandate_id ?? null,
-      type: 'discovery_brief', note: 'Discovery call brief sent by email'
+      type: 'discovery_brief', note: briefHtml
     });
     showToast('Brief sent to your inbox');
   } catch(e) {
     showToast('Error: ' + e.message);
     if (btn) { btn.disabled = false; btn.textContent = origLabel; }
   }
+}
+
+function _pdCopyBrief() {
+  const el = document.getElementById('pd-brief-card');
+  if (!el) return;
+  const text = el.textContent || '';
+  navigator.clipboard.writeText(text.trim()).then(
+    () => showToast('Brief copied'),
+    () => showToast('Copy failed')
+  );
 }
 
 async function _runPostCallWorkflow(pid, note) {
