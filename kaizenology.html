@@ -5454,10 +5454,13 @@ async function loadProposalsView() {
     // Filtre par mandat actif (confirme par Thomas) -- contrairement a demo-private.html ou
     // agent_proposals.mandate_id est toujours null, chaque proposition Kaizenology porte le
     // mandat reel du prospect (ecrit par le workflow Copywriter — Daily Proposals Kaizenology).
+    // content_type='objection_response' exclu : ces propositions vivent desormais dans l'onglet
+    // Inbox (migration reply_drafts -> agent_proposals), pas ici -- sinon double affichage.
     let _propQuery = sbClient.from('agent_proposals')
       .select('*')
       .eq('client_id', CLIENT_ID)
-      .eq('status', 'pending');
+      .eq('status', 'pending')
+      .neq('content_type', 'objection_response');
     _propQuery = _applyMandateFilter(_propQuery);
     const { data: proposals, error } = await _propQuery.order('created_at', { ascending: false });
     if (error) throw error;
@@ -5493,9 +5496,8 @@ function _renderProposalCard(prop, prospect) {
   const company = (prospect && prospect.company) || '';
   const contentTypeLbl = _PROPOSAL_CONTENT_TYPE_LABELS[prop.content_type] || prop.content_type || '—';
   const variants = Array.isArray(prop.variants) ? prop.variants : [];
-  // Meme garde-fou em-dash/double-tiret que _generateSequenceMessage() (outreach) et que le fix
-  // deja fait sur demo-private.html -- n'existait pas encore ici, cree a l'identique.
-  const _cleanVariantText = t => (t || '').replace(/—/g, ',').replace(/\s*--\s*/g, ', ');
+  // _cleanVariantText() : garde-fou em-dash/double-tiret partage (definition unique, section
+  // INBOX plus haut) -- reutilise ici, plus de duplication locale.
   const variantsHtml = variants.map((v, idx) => `
     <div style="border:1px solid var(--border);border-radius:var(--radius-md);padding:12px 14px;margin-top:10px;">
       <div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px;">${_esc(v.angle || 'Variant ' + (idx + 1))}</div>
@@ -8085,11 +8087,24 @@ function _openDrawerFromPriority(prospectId) {
 }
 
 // ── INBOX ─────────────────────────────────────────────────────────────────────
+// Migration reply_drafts -> agent_proposals (content_type='objection_response', demande Thomas,
+// colonnes incoming_message/raw_payload deja ajoutees a agent_proposals).
 const _inboxProspectsById = {};
 const _inboxDraftOriginals = {};
 const _inboxRawPayloads = {};
 const _inboxFeedbackByDraftId = {};
+// Variantes nettoyees (garde-fou em-dash/double-tiret) par draft, stockees au chargement pour que
+// _inboxUseVariant() puisse re-remplir la textarea sans reparser le HTML deja _esc() du DOM.
+const _inboxVariantsById = {};
+// Index de la variante actuellement chargee dans la textarea (cliquee, ou la 1ere par defaut) --
+// utilise par _inboxSend() pour ecrire chosen_variant_index seulement quand le texte envoye
+// correspond encore exactement a une variante proposee (sinon null, texte reecrit).
+const _inboxSelectedVariantIndex = {};
 let _inboxView = 'pending';
+
+// Garde-fou em-dash/double-tiret partage (outreach, Inbox ci-dessous, Proposals plus bas) -- une
+// seule definition, plus de duplication locale par fonction.
+function _cleanVariantText(t) { return (t || '').replace(/—/g, ',').replace(/\s*--\s*/g, ', '); }
 
 async function loadInboxDrafts(view = 'pending') {
   _inboxView = view;
@@ -8104,13 +8119,16 @@ async function loadInboxDrafts(view = 'pending') {
   if (!container) return;
   container.innerHTML = '<div style="padding:32px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">Loading…</div>';
   try {
-    let query = sbClient.from('reply_drafts')
-      .select('id,prospect_id,mandate_id,incoming_message,suggested_reply,raw_payload,status,created_at,updated_at')
-      .eq('client_id', CLIENT_ID);
+    // Vocabulaire de statut aligne sur le reste d'agent_proposals (pending/approved/rejected)
+    // plutot que l'ancien pending/sent/dismissed isole a reply_drafts.
+    let query = sbClient.from('agent_proposals')
+      .select('id,prospect_id,mandate_id,incoming_message,raw_payload,variants,status,chosen_variant_index,created_at,updated_at')
+      .eq('client_id', CLIENT_ID)
+      .eq('content_type', 'objection_response');
     if (view === 'pending') {
       query = query.eq('status', 'pending').order('created_at', { ascending: false });
     } else {
-      query = query.in('status', ['sent', 'dismissed']).order('updated_at', { ascending: false });
+      query = query.in('status', ['approved', 'rejected']).order('updated_at', { ascending: false });
     }
     const { data: drafts, error } = await query;
     if (error) throw error;
@@ -8131,7 +8149,12 @@ async function loadInboxDrafts(view = 'pending') {
       });
     }
     drafts.forEach(d => {
-      _inboxDraftOriginals[d.id] = d.suggested_reply || '';
+      const _variants = Array.isArray(d.variants) ? d.variants.map(v => ({ angle: v.angle || '', text: _cleanVariantText(v.text) })) : [];
+      _inboxVariantsById[d.id] = _variants;
+      // "Original" = 1ere variante par defaut (textarea pre-remplie au rendu, cf.
+      // _renderInboxCards) -- reajuste au clic sur une autre variante (_inboxUseVariant()).
+      _inboxDraftOriginals[d.id] = _variants.length ? _variants[0].text : '';
+      _inboxSelectedVariantIndex[d.id] = _variants.length ? 0 : null;
       if (d.raw_payload) _inboxRawPayloads[d.id] = d.raw_payload;
     });
     if (view === 'history') {
@@ -8173,11 +8196,19 @@ function _renderInboxCards(drafts, view = 'pending') {
       ? `<div class="pd-links">${cardLinks.map(l => `<a class="pd-link" href="${_esc(l.href)}" target="_blank" rel="noopener noreferrer">${l.label}</a>`).join('')}${fullThreadHtml}</div>`
       : '';
 
+    const variants = _inboxVariantsById[draft.id] || [];
+
     if (view === 'history') {
       const fb = _inboxFeedbackByDraftId[draft.id] || null;
-      const sentText = fb?.item_text || draft.suggested_reply || '';
+      // Fallback sans fb : la variante choisie (chosen_variant_index) si connue, sinon la 1ere --
+      // plus de draft.suggested_reply, cette colonne n'existe pas dans ce contexte.
+      const _chosenVariant = (draft.chosen_variant_index != null && variants[draft.chosen_variant_index])
+        ? variants[draft.chosen_variant_index] : variants[0];
+      const sentText = fb?.item_text || (_chosenVariant ? _chosenVariant.text : '');
+      // draft.status='rejected' (etait 'dismissed') apres migration agent_proposals -- libelle
+      // affiche inchange.
       let badgeHtml;
-      if (draft.status === 'dismissed') {
+      if (draft.status === 'rejected') {
         badgeHtml = `<span style="font-size:var(--fs-xs);font-weight:700;padding:2px 8px;background:#f1f5f9;border:1px solid var(--border);border-radius:var(--radius-pill);color:var(--muted);">Dismissed</span>`;
       } else if (fb?.vote === 'unlike' && fb?.comment === 'Edited before sending') {
         badgeHtml = `<span style="font-size:var(--fs-xs);font-weight:700;padding:2px 8px;background:#dbeafe;border:1px solid #93c5fd;border-radius:var(--radius-pill);color:#1d4ed8;">Sent (edited)</span>`;
@@ -8200,20 +8231,32 @@ function _renderInboxCards(drafts, view = 'pending') {
       </div>`;
     }
 
-    const replyHtml = draft.suggested_reply
+    // 3 variantes cliquables au-dessus de la textarea editable (au lieu d'une seule
+    // suggested_reply pre-remplie, colonne qui n'existe plus dans ce contexte) -- clic sur une
+    // variante = _inboxUseVariant(), remplit la meme textarea #inbox-reply-${id}, comportement de
+    // Send ensuite inchange. 1ere variante pre-selectionnee par defaut (Send reste immediatement
+    // utilisable, meme UX qu'avant).
+    const _selectedIdx = _inboxSelectedVariantIndex[draft.id];
+    const replyHtml = variants.length
       ? `<div style="margin-top:12px;">
-           <div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);margin-bottom:4px;">Suggested reply</div>
+           <div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);margin-bottom:6px;">Suggested replies</div>
+           ${variants.map((v, idx) => `
+             <button type="button" onclick="_inboxUseVariant('${draft.id}', ${idx})" id="inbox-variant-${draft.id}-${idx}"
+               style="display:block;width:100%;box-sizing:border-box;text-align:left;margin-bottom:6px;padding:10px 12px;border-radius:var(--radius-sm);border:1px solid ${idx === _selectedIdx ? 'var(--navy)' : 'var(--border)'};background:${idx === _selectedIdx ? 'var(--bg)' : 'none'};cursor:pointer;font-family:inherit;">
+               <div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:3px;">${_esc(v.angle || 'Variant ' + (idx + 1))}</div>
+               <div style="font-size:var(--fs-sm);color:var(--text);line-height:1.4;white-space:pre-wrap;">${_esc(v.text)}</div>
+             </button>`).join('')}
            <textarea id="inbox-reply-${draft.id}"
-             style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:var(--fs-sm);font-family:inherit;color:var(--text);background:var(--card-bg);resize:vertical;min-height:80px;line-height:1.5;"
+             style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:var(--fs-sm);font-family:inherit;color:var(--text);background:var(--card-bg);resize:vertical;min-height:80px;line-height:1.5;margin-top:2px;"
              onfocus="this.style.borderColor='var(--navy)'" onblur="this.style.borderColor='var(--border)'"
-           >${_esc(draft.suggested_reply)}</textarea>
+           >${_esc(variants[0].text)}</textarea>
          </div>`
       : `<div style="margin-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
            <span style="font-size:var(--fs-xs);font-style:italic;color:var(--muted);">Brouillon non généré — message source non reconnu</span>
            ${CLIENT_ID === 'thomas' && draft.raw_payload ? `<button onclick="_inboxShowRaw('${draft.id}')" style="font-size:var(--fs-xs);padding:3px 8px;border-radius:var(--radius-pill);border:1px solid var(--border);background:none;color:var(--text);cursor:pointer;">Voir raw_payload</button>` : ''}
          </div>`;
     const actionBtns = `<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
-        ${draft.suggested_reply && draft.prospect_id ? `<button id="inbox-send-${draft.id}" onclick="_inboxSend('${draft.id}','${draft.prospect_id}')"
+        ${variants.length && draft.prospect_id ? `<button id="inbox-send-${draft.id}" onclick="_inboxSend('${draft.id}','${draft.prospect_id}')"
           style="padding:7px 16px;border-radius:var(--radius-pill);background:var(--navy);color:#fff;border:none;font-size:var(--fs-sm);font-weight:600;cursor:pointer;">Send</button>` : ''}
         <button id="inbox-dismiss-${draft.id}" onclick="_inboxDismiss('${draft.id}')"
           style="padding:7px 16px;border-radius:var(--radius-pill);background:none;border:1px solid var(--border);color:var(--text);font-size:var(--fs-sm);cursor:pointer;">Dismiss</button>
@@ -8227,6 +8270,28 @@ function _renderInboxCards(drafts, view = 'pending') {
       ${actionBtns}
     </div>`;
   }).join('');
+}
+
+// Clic sur une variante (Inbox) : remplit la textarea editable existante et deplace la mise en
+// surbrillance sans re-render complet de la carte (evite de perdre le focus/scroll). Relit
+// _inboxVariantsById (deja nettoye/garde-fou em-dash) plutot que le texte affiche dans le DOM
+// (deja _esc(), reparser des entites HTML serait fragile).
+function _inboxUseVariant(draftId, idx) {
+  const variants = _inboxVariantsById[draftId] || [];
+  const v = variants[idx];
+  if (!v) return;
+  const textarea = document.getElementById('inbox-reply-' + draftId);
+  if (textarea) textarea.value = v.text;
+  _inboxSelectedVariantIndex[draftId] = idx;
+  _inboxDraftOriginals[draftId] = v.text;
+  const card = document.getElementById('inbox-card-' + draftId);
+  if (card) {
+    card.querySelectorAll('[id^="inbox-variant-' + draftId + '-"]').forEach(btn => {
+      const isActive = btn.id === 'inbox-variant-' + draftId + '-' + idx;
+      btn.style.borderColor = isActive ? 'var(--navy)' : 'var(--border)';
+      btn.style.background = isActive ? 'var(--bg)' : 'none';
+    });
+  }
 }
 
 async function _inboxSend(draftId, prospectId) {
@@ -8256,11 +8321,15 @@ async function _inboxSend(draftId, prospectId) {
       return;
     }
     const now = new Date().toISOString();
-    const { error: rdErr } = await sbClient.from('reply_drafts')
-      .update({ status: 'sent', updated_at: now }).eq('id', draftId);
-    if (rdErr) console.error('[_inboxSend] reply_drafts update failed:', rdErr);
     const original = _inboxDraftOriginals[draftId] || '';
     const edited = body !== original;
+    // chosen_variant_index : seulement si le texte envoye correspond encore exactement a la
+    // variante selectionnee (pas edite) -- sinon null, le texte a ete reecrit et ne correspond
+    // plus a une variante specifique.
+    const chosenIdx = edited ? null : (_inboxSelectedVariantIndex[draftId] ?? null);
+    const { error: rdErr } = await sbClient.from('agent_proposals')
+      .update({ status: 'approved', chosen_variant_index: chosenIdx, updated_at: now }).eq('id', draftId);
+    if (rdErr) console.error('[_inboxSend] agent_proposals update failed:', rdErr);
     const { error: afErr } = await sbClient.from('agent_feedback').insert({
       agent_name: 'inbox_reply', client_id: CLIENT_ID, mandate_id: null,
       item_id: draftId, item_type: 'reply_draft', item_text: body,
@@ -8289,8 +8358,8 @@ async function _inboxSend(draftId, prospectId) {
 async function _inboxDismiss(draftId) {
   const btn = document.getElementById('inbox-dismiss-' + draftId);
   if (btn) btn.disabled = true;
-  const { error: rdErr } = await sbClient.from('reply_drafts')
-    .update({ status: 'dismissed', updated_at: new Date().toISOString() }).eq('id', draftId);
+  const { error: rdErr } = await sbClient.from('agent_proposals')
+    .update({ status: 'rejected', updated_at: new Date().toISOString() }).eq('id', draftId);
   if (rdErr) { showToast('Error dismissing draft'); if (btn) btn.disabled = false; return; }
   const { error: afErr } = await sbClient.from('agent_feedback').insert({
     agent_name: 'inbox_reply', client_id: CLIENT_ID, mandate_id: null,

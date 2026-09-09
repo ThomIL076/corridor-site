@@ -7848,7 +7848,7 @@ function _inferRegion(country) {
 let _drawerProspect = null;
 let _scannerPreFill = null;
 let _drawerInteractions = [];
-let _drawerReplies = []; // reply_drafts du prospect ouvert -- alimente Message history (chunk 2)
+let _drawerReplies = []; // agent_proposals/objection_response du prospect ouvert (ex-reply_drafts) -- alimente Message history (chunk 2)
 let _drawerPollInterval = null;
 
 const _INT_ICONS = { linkedin:'💼', email:'📧', call:'📞', meeting:'🤝', note:'📝' };
@@ -8157,8 +8157,8 @@ async function openDrawer(card, initialTab = 'activity') {
     const [_intRes, _replyRes] = await Promise.all([
       sbClient.from('interactions').select('id,type,note,created_at')
         .eq('prospect_id', prospectId).order('created_at', { ascending: false }).limit(30),
-      sbClient.from('reply_drafts').select('id,incoming_message,created_at,updated_at')
-        .eq('prospect_id', prospectId).order('created_at', { ascending: false }).limit(10)
+      sbClient.from('agent_proposals').select('id,incoming_message,created_at,updated_at')
+        .eq('prospect_id', prospectId).eq('content_type', 'objection_response').order('created_at', { ascending: false }).limit(10)
     ]);
     _drawerInteractions = _intRes.error ? [] : (_intRes.data || []);
     _drawerReplies = _replyRes.error ? [] : (_replyRes.data || []);
@@ -8392,8 +8392,9 @@ function _pdToggleLogInteraction() {
   el.style.display = el.style.display === 'none' ? 'block' : 'none';
 }
 // Message history (section 3) : vraies donnees seulement -- SENT depuis les interactions
-// sortantes reellement loggees (linkedin/email), REPLY depuis reply_drafts (meme table que
-// l'Inbox), DEBRIEF depuis les interactions type 'call' avec un verdict parse, LOGGED pour les
+// sortantes reellement loggees (linkedin/email), REPLY depuis agent_proposals/objection_response
+// (meme table que l'Inbox depuis la migration reply_drafts -> agent_proposals), DEBRIEF depuis les
+// interactions type 'call' avec un verdict parse, LOGGED pour les
 // 3 types restants du formulaire "+ Log interaction" (note, meeting, call sans verdict) --
 // bug corrige : ces 3 types etaient silencieusement absents (aucune des trois branches
 // ci-dessus ne les matchait), pas seulement 'note' remonte en review. Aucune distinction
@@ -9414,15 +9415,26 @@ function _openDrawerFromPriority(prospectId, initialTab = 'activity') {
 }
 
 // ── INBOX ─────────────────────────────────────────────────────────────────────
+// Migration reply_drafts -> agent_proposals (content_type='objection_response', demande Thomas,
+// colonnes incoming_message/raw_payload deja ajoutees a agent_proposals). "Other angles" retiree
+// (redondant, 3 variantes deja proposees par defaut) -- _inboxIncomingById (qui n'existait que
+// pour cette fonction) retiree avec elle.
 const _inboxProspectsById = {};
 const _inboxDraftOriginals = {};
 const _inboxRawPayloads = {};
 const _inboxFeedbackByDraftId = {};
-// "Other angles" (README) : redirige vers l'agent Objection Handler existant avec
-// incoming_message pre-rempli -- zero nouvelle logique inline. Besoin d'un acces au texte par
-// draftId hors du HTML rendu (evite de re-parser un texte deja _esc() -- entites HTML).
-const _inboxIncomingById = {};
+// Variantes nettoyees (garde-fou em-dash/double-tiret) par draft, stockees au chargement pour que
+// _inboxUseVariant() puisse re-remplir la textarea sans reparser le HTML deja _esc() du DOM.
+const _inboxVariantsById = {};
+// Index de la variante actuellement chargee dans la textarea (cliquee, ou la 1ere par defaut) --
+// utilise par _inboxSend() pour ecrire chosen_variant_index seulement quand le texte envoye
+// correspond encore exactement a une variante proposee (sinon null, texte reecrit).
+const _inboxSelectedVariantIndex = {};
 let _inboxView = 'pending';
+
+// Garde-fou em-dash/double-tiret partage (outreach _generateSequenceMessage(), Inbox ci-dessous,
+// Proposals plus bas) -- une seule definition, plus de duplication locale par fonction.
+function _cleanVariantText(t) { return (t || '').replace(/—/g, ',').replace(/\s*--\s*/g, ', '); }
 
 async function loadInboxDrafts(view = 'pending') {
   _inboxView = view;
@@ -9435,13 +9447,16 @@ async function loadInboxDrafts(view = 'pending') {
   if (!container) return;
   container.innerHTML = '<div style="padding:32px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">Loading…</div>';
   try {
-    let query = sbClient.from('reply_drafts')
-      .select('id,prospect_id,mandate_id,incoming_message,suggested_reply,raw_payload,status,created_at,updated_at')
-      .eq('client_id', CLIENT_ID);
+    // Vocabulaire de statut aligne sur le reste d'agent_proposals (pending/approved/rejected)
+    // plutot que l'ancien pending/sent/dismissed isole a reply_drafts.
+    let query = sbClient.from('agent_proposals')
+      .select('id,prospect_id,mandate_id,incoming_message,raw_payload,variants,status,chosen_variant_index,created_at,updated_at')
+      .eq('client_id', CLIENT_ID)
+      .eq('content_type', 'objection_response');
     if (view === 'pending') {
       query = query.eq('status', 'pending').order('created_at', { ascending: false });
     } else {
-      query = query.in('status', ['sent', 'dismissed']).order('updated_at', { ascending: false });
+      query = query.in('status', ['approved', 'rejected']).order('updated_at', { ascending: false });
     }
     const { data: drafts, error } = await query;
     if (error) throw error;
@@ -9472,8 +9487,12 @@ async function loadInboxDrafts(view = 'pending') {
       });
     }
     drafts.forEach(d => {
-      _inboxDraftOriginals[d.id] = d.suggested_reply || '';
-      _inboxIncomingById[d.id] = d.incoming_message || '';
+      const _variants = Array.isArray(d.variants) ? d.variants.map(v => ({ angle: v.angle || '', text: _cleanVariantText(v.text) })) : [];
+      _inboxVariantsById[d.id] = _variants;
+      // "Original" = 1ere variante par defaut (textarea pre-remplie au rendu, cf.
+      // _renderInboxCards) -- reajuste au clic sur une autre variante (_inboxUseVariant()).
+      _inboxDraftOriginals[d.id] = _variants.length ? _variants[0].text : '';
+      _inboxSelectedVariantIndex[d.id] = _variants.length ? 0 : null;
       if (d.raw_payload) _inboxRawPayloads[d.id] = d.raw_payload;
     });
     if (view === 'history') {
@@ -9516,15 +9535,23 @@ function _renderInboxCards(drafts, view = 'pending') {
       ? `<div class="pd-links">${cardLinks.map(l => `<a class="pd-link" href="${_esc(l.href)}" target="_blank" rel="noopener noreferrer">${l.label}</a>`).join('')}${fullThreadHtml}</div>`
       : '';
 
+    const variants = _inboxVariantsById[draft.id] || [];
+
     if (view === 'history') {
       const fb = _inboxFeedbackByDraftId[draft.id] || null;
-      const sentText = fb?.item_text || draft.suggested_reply || '';
+      // Fallback sans fb (ex: envoye avant que agent_feedback existe pour cette ligne) : la
+      // variante choisie (chosen_variant_index) si connue, sinon la 1ere -- plus de
+      // draft.suggested_reply, cette colonne n'existe pas dans ce contexte.
+      const _chosenVariant = (draft.chosen_variant_index != null && variants[draft.chosen_variant_index])
+        ? variants[draft.chosen_variant_index] : variants[0];
+      const sentText = fb?.item_text || (_chosenVariant ? _chosenVariant.text : '');
       // Chips History (arbitrage Thomas) : memes tokens deja utilises ailleurs dans le fichier
       // (--bg/--border/--muted, --accent-bg/--accent-border/--accent, --success-bg/--border/
       // --success) a la place des hex ad hoc -- structure/fonctionnement de la vue History
-      // inchanges, uniquement l'habillage couleur de ces 3 chips.
+      // inchanges, uniquement l'habillage couleur de ces 3 chips. draft.status='rejected' (etait
+      // 'dismissed') apres migration agent_proposals -- libelle affiche inchange.
       let badgeHtml;
-      if (draft.status === 'dismissed') {
+      if (draft.status === 'rejected') {
         badgeHtml = `<span style="font-size:var(--fs-xs);font-weight:700;padding:2px 8px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-pill);color:var(--muted);">Dismissed</span>`;
       } else if (fb?.vote === 'unlike' && fb?.comment === 'Edited before sending') {
         badgeHtml = `<span style="font-size:var(--fs-xs);font-weight:700;padding:2px 8px;background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:var(--radius-pill);color:var(--accent);">Sent (edited)</span>`;
@@ -9547,30 +9574,35 @@ function _renderInboxCards(drafts, view = 'pending') {
       </div>`;
     }
 
-    // Agent's draft (README) : bloc distinct -- fond sunken (--bg, meme token que le reste du
-    // fichier pour cet usage) + radius 8px. Pas de ligne de provenance (hors scope confirme :
-    // aucun champ agent/timestamp reel sur reply_drafts, meme constat que sur Send).
-    const replyHtml = draft.suggested_reply
+    // Agent's draft (README) : 3 variantes cliquables au-dessus de la textarea editable (au lieu
+    // d'une seule suggested_reply pre-remplie, colonne qui n'existe plus dans ce contexte) --
+    // clic sur une variante = _inboxUseVariant(), remplit la meme textarea #inbox-reply-${id},
+    // comportement de Send ensuite inchange. 1ere variante pre-selectionnee par defaut (Send
+    // reste immediatement utilisable, meme UX qu'avant). Texte deja nettoye (garde-fou em-dash)
+    // au chargement (_inboxVariantsById), pas de re-nettoyage ici.
+    const _selectedIdx = _inboxSelectedVariantIndex[draft.id];
+    const replyHtml = variants.length
       ? `<div style="margin-top:12px;">
-           <div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);margin-bottom:4px;">Suggested reply</div>
+           <div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);margin-bottom:6px;">Suggested replies</div>
+           ${variants.map((v, idx) => `
+             <button type="button" onclick="_inboxUseVariant('${draft.id}', ${idx})" id="inbox-variant-${draft.id}-${idx}"
+               style="display:block;width:100%;box-sizing:border-box;text-align:left;margin-bottom:6px;padding:10px 12px;border-radius:var(--radius-md);border:1px solid ${idx === _selectedIdx ? 'var(--navy)' : 'var(--border)'};background:${idx === _selectedIdx ? 'var(--bg)' : 'none'};cursor:pointer;font-family:inherit;">
+               <div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:3px;">${_esc(v.angle || 'Variant ' + (idx + 1))}</div>
+               <div style="font-size:var(--fs-sm);color:var(--text);line-height:1.4;white-space:pre-wrap;">${_esc(v.text)}</div>
+             </button>`).join('')}
            <textarea id="inbox-reply-${draft.id}"
-             style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-md);font-size:var(--fs-sm);font-family:inherit;color:var(--text);background:var(--bg);resize:vertical;min-height:80px;line-height:1.5;"
+             style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-md);font-size:var(--fs-sm);font-family:inherit;color:var(--text);background:var(--bg);resize:vertical;min-height:80px;line-height:1.5;margin-top:2px;"
              onfocus="this.style.borderColor='var(--navy)'" onblur="this.style.borderColor='var(--border)'"
-           >${_esc(draft.suggested_reply)}</textarea>
+           >${_esc(variants[0].text)}</textarea>
          </div>`
       : `<div style="margin-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
            <span style="font-size:var(--fs-xs);font-style:italic;color:var(--muted);">Brouillon non généré — message source non reconnu</span>
            ${CLIENT_ID === 'thomas' && draft.raw_payload ? `<button onclick="_inboxShowRaw('${draft.id}')" style="font-size:var(--fs-xs);padding:3px 8px;border-radius:var(--radius-pill);border:1px solid var(--border);background:none;color:var(--text);cursor:pointer;">Voir raw_payload</button>` : ''}
          </div>`;
-    // "Other angles" (README) : redirige vers l'Objection Handler existant (_activateAgent),
-    // incoming_message pre-rempli dans son textarea -- jamais auto-envoye, meme principe que les
-    // prompt pills d'Ask Corridor (l'utilisateur garde la main). Gate sur incoming_message (pas
-    // suggested_reply) : utile meme quand aucun brouillon n'a ete genere.
+    // "Other angles" retiree (redondant, 3 angles deja proposes par defaut desormais).
     const actionBtns = `<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
-        ${draft.suggested_reply && draft.prospect_id ? `<button id="inbox-send-${draft.id}" onclick="_inboxSend('${draft.id}','${draft.prospect_id}')"
+        ${variants.length && draft.prospect_id ? `<button id="inbox-send-${draft.id}" onclick="_inboxSend('${draft.id}','${draft.prospect_id}')"
           style="padding:7px 16px;border-radius:var(--radius-pill);background:var(--navy);color:#fff;border:none;font-size:var(--fs-sm);font-weight:600;cursor:pointer;">Send</button>` : ''}
-        ${draft.incoming_message ? `<button id="inbox-angles-${draft.id}" onclick="_inboxOtherAngles('${draft.id}')"
-          style="padding:7px 16px;border-radius:var(--radius-pill);background:none;border:1px solid var(--border);color:var(--text);font-size:var(--fs-sm);cursor:pointer;">Other angles</button>` : ''}
         <button id="inbox-dismiss-${draft.id}" onclick="_inboxDismiss('${draft.id}')"
           style="padding:7px 16px;border-radius:var(--radius-pill);background:none;border:1px solid var(--border);color:var(--text);font-size:var(--fs-sm);cursor:pointer;">Dismiss</button>
       </div>`;
@@ -9583,6 +9615,28 @@ function _renderInboxCards(drafts, view = 'pending') {
       ${actionBtns}
     </div>`;
   }).join('');
+}
+
+// Clic sur une variante (Inbox) : remplit la textarea editable existante et deplace la mise en
+// surbrillance sans re-render complet de la carte (evite de perdre le focus/scroll). Relit
+// _inboxVariantsById (deja nettoye/garde-fou em-dash) plutot que le texte affiche dans le DOM
+// (deja _esc(), reparser des entites HTML serait fragile).
+function _inboxUseVariant(draftId, idx) {
+  const variants = _inboxVariantsById[draftId] || [];
+  const v = variants[idx];
+  if (!v) return;
+  const textarea = document.getElementById('inbox-reply-' + draftId);
+  if (textarea) textarea.value = v.text;
+  _inboxSelectedVariantIndex[draftId] = idx;
+  _inboxDraftOriginals[draftId] = v.text;
+  const card = document.getElementById('inbox-card-' + draftId);
+  if (card) {
+    card.querySelectorAll('[id^="inbox-variant-' + draftId + '-"]').forEach(btn => {
+      const isActive = btn.id === 'inbox-variant-' + draftId + '-' + idx;
+      btn.style.borderColor = isActive ? 'var(--navy)' : 'var(--border)';
+      btn.style.background = isActive ? 'var(--bg)' : 'none';
+    });
+  }
 }
 
 async function _inboxSend(draftId, prospectId) {
@@ -9612,11 +9666,15 @@ async function _inboxSend(draftId, prospectId) {
       return;
     }
     const now = new Date().toISOString();
-    const { error: rdErr } = await sbClient.from('reply_drafts')
-      .update({ status: 'sent', updated_at: now }).eq('id', draftId);
-    if (rdErr) console.error('[_inboxSend] reply_drafts update failed:', rdErr);
     const original = _inboxDraftOriginals[draftId] || '';
     const edited = body !== original;
+    // chosen_variant_index : seulement si le texte envoye correspond encore exactement a la
+    // variante selectionnee (pas edite) -- sinon null, le texte a ete reecrit et ne correspond
+    // plus a une variante specifique.
+    const chosenIdx = edited ? null : (_inboxSelectedVariantIndex[draftId] ?? null);
+    const { error: rdErr } = await sbClient.from('agent_proposals')
+      .update({ status: 'approved', chosen_variant_index: chosenIdx, updated_at: now }).eq('id', draftId);
+    if (rdErr) console.error('[_inboxSend] agent_proposals update failed:', rdErr);
     const { error: afErr } = await sbClient.from('agent_feedback').insert({
       agent_name: 'inbox_reply', client_id: CLIENT_ID, mandate_id: null,
       item_id: draftId, item_type: 'reply_draft', item_text: body,
@@ -9642,22 +9700,11 @@ async function _inboxSend(draftId, prospectId) {
   }
 }
 
-// "Other angles" (README, arbitrage Thomas) : redirige vers l'Objection Handler existant plutot
-// que d'inventer une logique inline -- switchAgent() seul ne change pas l'onglet principal
-// (verifie : ne touche que .agent-panel), donc switchTab('agents') d'abord.
-function _inboxOtherAngles(draftId) {
-  const text = _inboxIncomingById[draftId] || '';
-  switchTab('agents');
-  _activateAgent('objection');
-  const input = document.getElementById('input-objection');
-  if (input) input.value = text;
-}
-
 async function _inboxDismiss(draftId) {
   const btn = document.getElementById('inbox-dismiss-' + draftId);
   if (btn) btn.disabled = true;
-  const { error: rdErr } = await sbClient.from('reply_drafts')
-    .update({ status: 'dismissed', updated_at: new Date().toISOString() }).eq('id', draftId);
+  const { error: rdErr } = await sbClient.from('agent_proposals')
+    .update({ status: 'rejected', updated_at: new Date().toISOString() }).eq('id', draftId);
   if (rdErr) { showToast('Error dismissing draft'); if (btn) btn.disabled = false; return; }
   const { error: afErr } = await sbClient.from('agent_feedback').insert({
     agent_name: 'inbox_reply', client_id: CLIENT_ID, mandate_id: null,
@@ -9686,10 +9733,13 @@ async function loadProposalsView() {
   if (!container) return;
   container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">Loading...</div>';
   try {
+    // content_type='objection_response' exclu : ces propositions vivent desormais dans l'onglet
+    // Inbox (migration reply_drafts -> agent_proposals), pas ici -- sinon double affichage.
     const { data: proposals, error } = await sbClient.from('agent_proposals')
       .select('*')
       .eq('client_id', CLIENT_ID)
       .eq('status', 'pending')
+      .neq('content_type', 'objection_response')
       .order('created_at', { ascending: false });
     if (error) throw error;
     if (!proposals || !proposals.length) {
@@ -9724,10 +9774,8 @@ function _renderProposalCard(prop, prospect) {
   const company = (prospect && prospect.company) || '';
   const contentTypeLbl = _PROPOSAL_CONTENT_TYPE_LABELS[prop.content_type] || prop.content_type || '—';
   const variants = Array.isArray(prop.variants) ? prop.variants : [];
-  // Meme garde-fou em-dash/double-tiret que _generateSequenceMessage() (outreach, ligne ~7430) --
-  // reutilise exactement la meme regex/logique, pas une reformulation : le LLM source de ces
-  // propositions (copywriter) peut produire les memes caracteres que celui de l'outreach.
-  const _cleanVariantText = t => (t || '').replace(/—/g, ',').replace(/\s*--\s*/g, ', ');
+  // _cleanVariantText() : garde-fou em-dash/double-tiret partage (definition unique, section
+  // INBOX plus haut) -- reutilise ici, plus de duplication locale.
   const variantsHtml = variants.map((v, idx) => `
     <div style="border:1px solid var(--border);border-radius:var(--radius-md);padding:12px 14px;margin-top:10px;">
       <div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px;">${_esc(v.angle || 'Variant ' + (idx + 1))}</div>
