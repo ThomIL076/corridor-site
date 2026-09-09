@@ -8280,6 +8280,14 @@ async function openDrawer(card, initialTab = 'activity') {
           <div class="pd-next-action-label">NEXT ACTION</div>
           <div class="pd-next-action-text ai-box-body${_cachedRendered ? ' loaded' : ''}" id="drawer-output">${_cachedRendered || 'Click to generate the next step...'}</div>
         </div>
+        <div style="margin-top:10px;padding:12px 14px;border:1px solid var(--border);border-radius:var(--radius-md);background:#fff;">
+          <div class="pd-section-label" style="margin-bottom:8px">Manual next step</div>
+          <input id="drawer-next-action" class="dp-inp" value="${_esc(_p.next_action || '')}" placeholder="Next step..." style="margin-bottom:6px">
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input id="drawer-next-action-date" type="date" class="dp-inp" value="${_esc((_p.next_action_date || '').slice(0,10))}" style="flex:1;min-width:0">
+            <button class="btn-secondary btn-sm" onclick="_saveNextAction('${_esc(prospectId)}')">Save</button>
+          </div>
+        </div>
         <button class="btn-accent btn-lg" style="width:100%;justify-content:center;margin-top:10px"
           onclick="_drawerAI()" id="drawer-next-btn">${_hasCachedAction ? '🔄 Regenerate' : '▶ Next recommended action'}</button>
         <div class="ai-spinner" id="drawer-spinner" style="margin:6px auto 0;"></div>
@@ -9027,6 +9035,20 @@ ${typeof _langLine === 'function' ? _langLine() : ''}`;
   if (_memP) { _memP.next_action_cache = text; _memP.next_action_generated_at = new Date().toISOString(); }
 
   return text;
+}
+
+async function _saveNextAction(id) {
+  const naText = (document.getElementById('drawer-next-action')?.value || '').trim() || null;
+  const naDate = document.getElementById('drawer-next-action-date')?.value || null;
+  const { error } = await sbClient.from('prospects')
+    .update({ next_action: naText, next_action_date: naDate || null, updated_at: new Date().toISOString() })
+    .eq('id', id).eq('client_id', CLIENT_ID);
+  if (error) { showToast('Save failed'); return; }
+  const p = _prospectsById[id];
+  if (p) { p.next_action = naText; p.next_action_date = naDate || null; }
+  const card = document.querySelector(`.k-card[data-id="${id}"]`);
+  if (card) { card.dataset.nextAction = naText ? '1' : '0'; card.dataset.nextActionDate = naDate || ''; }
+  showToast('Next action saved');
 }
 
 async function _drawerAI() {
