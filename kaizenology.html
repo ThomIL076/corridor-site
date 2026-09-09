@@ -1564,6 +1564,7 @@ body.new-nav { padding-left: 220px; }
           Next batch →
         </button>
       </div>
+      <div id="today-capacity-bars" style="max-width:280px;margin-bottom:18px;"></div>
       <div class="section-sub"><span id="priorities-queued-count">0</span> actions queued by your agents. Work top to bottom. The system re-ranks after each send.</div>
       <div id="priorities-container"></div>
     </div>
@@ -1765,8 +1766,8 @@ body.new-nav { padding-left: 220px; }
       <span style="font-size:14px;font-weight:700;color:var(--navy)" data-en="Today's send queue" data-fr="File d'envoi du jour">Today's send queue</span>
       <span class="send-badge-count" id="send-badge"><span id="send-count">7</span></span>
       <span style="font-size:var(--fs-sm);color:var(--muted)" data-en="messages due today" data-fr="messages à envoyer aujourd'hui">messages due today</span>
-      <span id="sent-counter" style="font-size:var(--fs-sm);color:var(--muted);margin-left:4px;">Sent today: 0 / 40</span>
     </div>
+    <div id="send-capacity-bars" style="max-width:280px;margin-bottom:18px;"></div>
     <div id="send-filters" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;align-items:center;">
       <select id="send-filter-region" onchange="_applySendFilters()" style="padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:var(--fs-sm);font-family:inherit;color:var(--text);background:#fff;">
         <option value="">All regions</option>
@@ -2931,7 +2932,7 @@ function switchTab(name, fromClick = false) {
   if (name === 'send') loadSendView();
   if (name === 'agents') _showAgentsMap();
   if (name === 'inbox') loadInboxDrafts();
-  if (name === 'priorities') loadDailyPriorities();
+  if (name === 'priorities') { loadDailyPriorities(); _fetchTodaySendCounts().catch(err => console.error('_fetchTodaySendCounts:', err)); }
   if (name === 'stats') { if (!_kanbanLoaded) { loadKanban().then(() => renderStats()); } else { renderStats(); } }
   if (name === 'clients') loadClientsKanban();
   if (name === 'integrations') loadIntegrationsTab();
@@ -5413,6 +5414,7 @@ async function loadSendView() {
       _sendSequences[s.prospect_id].push(s);
     });
 
+    _fetchTodaySendCounts().catch(err => console.error('_fetchTodaySendCounts:', err));
     _applySendFilters();
 
   } catch(e) {
@@ -6159,15 +6161,57 @@ async function _sendViaLinkedIn(pid, touch, elPrefix = '') {
   }
 }
 
-let _sentTodayCount = 0;
-const DAILY_SEND_QUOTA = 40;
+const INVITE_DAILY_LIMIT = 30;
+const EMAIL_DAILY_LIMIT  = 40;
+let _todaySendCounts = { invitesSent: 0, emailsSent: 0 };
+
 function _updateSentCounter() {
-  const el = document.getElementById('sent-counter');
+  const { invitesSent: inv, emailsSent: em } = _todaySendCounts;
+  _renderCapacityBars('today-capacity-bars', inv, em);
+  _renderCapacityBars('send-capacity-bars', inv, em);
+}
+
+// 2 barres seulement ici (LinkedIn invites / Emails) -- pas de 3e barre "Follow-ups cleared" :
+// cette notion n'existe pas structurellement dans ce fichier (arbitrage Thomas, confirme en
+// investigation -- pas de file J+5 automatique dans _applySendFilters(), pas de
+// readyJ5High/readyJ5Low ici). --accent/--danger n'existent pas comme tokens dans ce fichier
+// (seuls --navy/--red sont definis) -- adapte aux tokens reels : --navy pour le remplissage
+// normal (couleur de marque), --red pour le seuil critique (deja utilise par l'ancien
+// _updateSentCounter() a 38/40), meme seuil intermediaire #ea580c (deja une convention de ce
+// fichier, utilisee a 30/40 par l'ancien code couleur).
+function _renderCapacityBars(containerId, inv, em) {
+  const el = document.getElementById(containerId);
   if (!el) return;
-  el.textContent = 'Sent today: ' + _sentTodayCount + ' / ' + DAILY_SEND_QUOTA;
-  if (_sentTodayCount >= 38)      { el.style.color = 'var(--red)'; }
-  else if (_sentTodayCount >= 30) { el.style.color = '#ea580c'; }
-  else                            { el.style.color = 'var(--muted)'; }
+  const bar = (label, val, max) => {
+    const pct = max > 0 ? Math.min(100, Math.round((val / max) * 100)) : 0;
+    const color = pct >= 93 ? 'var(--red)' : (pct >= 83 ? '#ea580c' : 'var(--navy)');
+    return `<div style="margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;font-size:var(--fs-xs);color:var(--muted);margin-bottom:4px;">
+        <span>${_esc(label)}</span><span style="font-family:'IBM Plex Mono',monospace;">${val}/${max}</span>
+      </div>
+      <div style="height:4px;border-radius:2px;background:var(--border);overflow:hidden;">
+        <div style="height:100%;width:${pct}%;background:${color};border-radius:2px;"></div>
+      </div>
+    </div>`;
+  };
+  el.innerHTML =
+    bar('LinkedIn invites', inv, INVITE_DAILY_LIMIT) +
+    bar('Emails', em, EMAIL_DAILY_LIMIT);
+}
+
+// Jamais _applyMandateFilter() ici (demande Thomas) : la capacite d'envoi est une limite par
+// CLIENT (un seul compte LinkedIn, une seule boite email partagee), pas par mandat -- toujours
+// calculee sur l'ensemble des mandats du client, quel que soit activeMandateId actif.
+async function _fetchTodaySendCounts() {
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const isToday = d => d && d.slice(0, 10) === todayStr;
+  const [{ data: invRows }, { data: emRows }] = await Promise.all([
+    sbClient.from('sequences').select('sent_at,created_at').eq('client_id', CLIENT_ID).eq('touch', 'invite').eq('status', 'sent'),
+    sbClient.from('interactions').select('created_at').eq('client_id', CLIENT_ID).eq('type', 'email_j5'),
+  ]);
+  _todaySendCounts.invitesSent = (invRows || []).filter(r => isToday(r.sent_at || r.created_at)).length;
+  _todaySendCounts.emailsSent  = (emRows  || []).filter(r => isToday(r.created_at)).length;
+  _updateSentCounter();
 }
 
 async function _markSent(pid, touch, auto = false, msgText = '', elPrefix = '') {
@@ -6254,7 +6298,9 @@ async function _markSent(pid, touch, auto = false, msgText = '', elPrefix = '') 
   } else if (!auto) {
     showToast('Marked as sent ✓');
   }
-  _sentTodayCount++;
+  // Seul "invite" alimente une barre (pas de barre "LinkedIn messages" ici, cf. arbitrage
+  // Thomas) -- j0/ambassador/redirect/j5-LinkedIn-manuel n'ont plus de compteur a incrementer.
+  if (touch === 'invite') _todaySendCounts.invitesSent++;
   _updateSentCounter();
 }
 
@@ -10039,6 +10085,8 @@ async function _bulkStartEmailSeq() {
       await loadKanban(true);
       return;
     }
+    _todaySendCounts.emailsSent += successRows.length;
+    _updateSentCounter();
   }
 
   // Résumé
@@ -10831,6 +10879,8 @@ async function _startEmailSeq(id) {
         console.error('[_startEmailSeq] Supabase insert failed:', _seqInsErr);
         if (statusEl) statusEl.textContent = '⚠ Sent but not tracked — ' + _seqInsErr.message;
       } else {
+        _todaySendCounts.emailsSent++;
+        _updateSentCounter();
         // Meme fix que _markSent() (LinkedIn) : sans ca, un prospect relance en J+5 reste
         // eligible au prochain calcul de Today (priority_batch_number jamais touche par cette
         // fonction jusqu'ici). Meme technique -- ne pas ecraser un batch deja pose.
