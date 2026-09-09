@@ -325,6 +325,7 @@ button, [role="button"], select, input { min-height: var(--btn-h-sm); }
 }
 .agent-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(172px, 1fr)); gap:10px; }
 .agent-card {
+  position:relative;
   background:var(--white); border:1.5px solid var(--border);
   border-radius:var(--radius-md); padding:14px 16px;
   cursor:pointer; transition:border-color 0.15s, box-shadow 0.15s, transform 0.15s;
@@ -338,6 +339,15 @@ button, [role="button"], select, input { min-height: var(--btn-h-sm); }
 .agent-card .ac-name { font-size:var(--fs-sm); font-weight:700; color:var(--navy); line-height:1.3; margin-top:4px; }
 .agent-card .ac-desc { font-size:var(--fs-xs); color:var(--muted); line-height:1.4; }
 .agent-card .ac-bar { height:2px; border-radius:1px; margin-top:8px; background:var(--accent-color, var(--navy)); opacity:0.5; }
+.agent-status-dot { position:absolute; top:12px; right:12px; width:7px; height:7px; border-radius:50%; background:#cdd5e0; }
+.agent-status-dot.is-active { background:var(--green); }
+.agent-card-footer {
+  display:flex; align-items:center; justify-content:space-between; gap:6px;
+  margin-top:6px; padding-top:8px; border-top:1px solid var(--border);
+  font-family:'IBM Plex Mono',monospace; font-size:9.5px; letter-spacing:0.04em;
+}
+.agent-card-footer-status { color:var(--muted); text-transform:uppercase; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.agent-card-footer-action { color:var(--fill-accent); font-weight:700; text-transform:uppercase; flex-shrink:0; }
 .badge-new {
   font-size:10px; font-weight:700; letter-spacing:0.2px;
   background:#fef3c7; color:#b45309; border:1px solid #fde68a;
@@ -1272,46 +1282,53 @@ body.new-nav { padding-left: 220px; }
         <div class="agent-group-label" style="color:#1D9E75;">Content</div>
         <div class="agent-grid">
           <button class="agent-card" style="--accent-color:#1D9E75" onclick="_activateAgent('positioning')">
+            <span class="agent-status-dot" id="dot-positioning"></span>
             <span class="ac-icon">🧭</span>
             <span class="ac-name">Positioning Analyst</span>
             <span class="ac-desc">Value proposition and differentiation</span>
-            <div class="ac-bar"></div>
+            <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-positioning">—</span><span class="agent-card-footer-action">Open</span></div>
           </button>
           <button class="agent-card" style="--accent-color:#1D9E75" onclick="_activateAgent('content')">
+            <span class="agent-status-dot" id="dot-content"></span>
             <span class="ac-icon">✍️</span>
             <span class="ac-name">Content Strategist</span>
             <span class="ac-desc">Thought leadership calendar and content mix</span>
-            <div class="ac-bar"></div>
+            <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-content">—</span><span class="agent-card-footer-action">Open</span></div>
           </button>
           <button class="agent-card" style="--accent-color:#1D9E75" onclick="_activateAgent('copywriter')">
+            <span class="agent-status-dot" id="dot-copywriter"></span>
             <span class="ac-icon">✏️</span>
             <span class="ac-name">Copywriter</span>
             <span class="ac-desc">LinkedIn posts, emails, landing page copy</span>
-            <div class="ac-bar"></div>
+            <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-copywriter">—</span><span class="agent-card-footer-action">Open</span></div>
           </button>
           <button class="agent-card" style="--accent-color:#1D9E75" onclick="_activateAgent('repurposing')">
+            <span class="agent-status-dot" id="dot-repurposing"></span>
             <span class="ac-icon">♻️</span>
             <span class="ac-name">Repurposing Engine</span>
             <span class="ac-desc">Turn one piece of content into ten formats</span>
-            <div class="ac-bar"></div>
+            <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-repurposing">—</span><span class="agent-card-footer-action">Open</span></div>
           </button>
           <button class="agent-card" style="--accent-color:#1D9E75" onclick="_activateAgent('seo')">
+            <span class="agent-status-dot" id="dot-seo"></span>
             <span class="ac-icon">🔎</span>
             <span class="ac-name">SEO &amp; AEO</span>
             <span class="ac-desc">Rank on search engines, get cited by AI</span>
-            <div class="ac-bar"></div>
+            <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-seo">—</span><span class="agent-card-footer-action">Open</span></div>
           </button>
           <button class="agent-card" style="--accent-color:#1D9E75" onclick="_activateAgent('distribution')">
+            <span class="agent-status-dot" id="dot-distribution"></span>
             <span class="ac-icon">📡</span>
             <span class="ac-name">Distribution</span>
             <span class="ac-desc">Right channel, right timing for each piece</span>
-            <div class="ac-bar"></div>
+            <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-distribution">—</span><span class="agent-card-footer-action">Open</span></div>
           </button>
           <button class="agent-card" style="--accent-color:#1D9E75" onclick="_activateAgent('performance')">
+            <span class="agent-status-dot" id="dot-performance"></span>
             <span class="ac-icon">📊</span>
             <span class="ac-name">Performance Analyst</span>
             <span class="ac-desc">Pre-publication checklist and diagnostics</span>
-            <div class="ac-bar"></div>
+            <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-performance">—</span><span class="agent-card-footer-action">Open</span></div>
           </button>
         </div>
       </div>
@@ -1321,22 +1338,25 @@ body.new-nav { padding-left: 220px; }
         <div class="agent-group-label" style="color:#2568B5;">GTM</div>
         <div class="agent-grid">
           <button class="agent-card" style="--accent-color:#2568B5" onclick="_activateAgent('competitive')">
+            <span class="agent-status-dot" id="dot-competitive"></span>
             <span class="ac-icon">⚔️</span>
             <span class="ac-name">Competitive Intel</span>
             <span class="ac-desc">Landscape mapping and differentiated messaging</span>
-            <div class="ac-bar"></div>
+            <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-competitive">—</span><span class="agent-card-footer-action">Open</span></div>
           </button>
           <button class="agent-card" style="--accent-color:#2568B5" onclick="_activateAgent('prospect')">
+            <span class="agent-status-dot" id="dot-prospect"></span>
             <span class="ac-icon">🔍</span>
             <span class="ac-name">Prospect Agent</span>
             <span class="ac-desc">Deep-dive on any prospect before the call</span>
-            <div class="ac-bar"></div>
+            <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-prospect">—</span><span class="agent-card-footer-action">Open</span></div>
           </button>
           <button class="agent-card" style="--accent-color:#2568B5" onclick="_activateAgent('objection')">
+            <span class="agent-status-dot" id="dot-objection"></span>
             <span class="ac-icon">🛡️</span>
             <span class="ac-name">Objection Handler</span>
             <span class="ac-desc">3 ready-to-send responses for any objection</span>
-            <div class="ac-bar"></div>
+            <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-objection">—</span><span class="agent-card-footer-action">Open</span></div>
           </button>
         </div>
       </div>
@@ -1584,6 +1604,13 @@ body.new-nav { padding-left: 220px; }
         </div>
       </div>
       <div id="today-capacity-bars" style="max-width:280px;margin-bottom:18px;"></div>
+      <div class="card" style="margin-bottom:18px;">
+        <div class="card-header" style="display:flex;align-items:center;gap:8px;">
+          <span class="card-title">Agents at work</span>
+          <span class="card-badge badge-auto">LIVE</span>
+        </div>
+        <div id="agents-at-work-list" style="font-size:var(--fs-sm);color:var(--muted);">Loading...</div>
+      </div>
       <div class="section-sub"><span id="priorities-queued-count">0</span> actions queued by your agents. Work top to bottom. The system re-ranks after each send.</div>
       <div id="priorities-container"></div>
     </div>
@@ -2969,6 +2996,55 @@ function setLang(lang) {
   paintBlocked();      // écran "essai terminé" / "accès refusé" suit la langue
 }
 
+function _relTimeShort(iso) {
+  if (!iso) return '';
+  const d = new Date(iso); if (isNaN(d)) return '';
+  const mins = Math.floor((Date.now() - d) / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return mins + 'm ago';
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return hrs + 'h ago';
+  return _relDate(iso);
+}
+
+// _agentKeyFromName() est une dependance directe de _loadAgentsAtWork() (mappe
+// agent_activity_log.agent_name -> cle _AGENT_META) -- portee depuis demo-private.html meme si
+// non listee explicitement, sinon _loadAgentsAtWork() plante sur un ReferenceError.
+function _agentKeyFromName(name) {
+  return (name || '').toLowerCase().replace(/\s+/g, '');
+}
+
+async function _loadAgentsAtWork() {
+  const el = document.getElementById('agents-at-work-list');
+  if (!el) return;
+  try {
+    let q = sbClient.from('agent_activity_log')
+      .select('agent_name, action_summary, occurred_at')
+      .eq('client_id', CLIENT_ID)
+      .order('occurred_at', { ascending: false })
+      .limit(5);
+    if (activeMandateId && activeMandateId !== '__ALL__') q = q.eq('mandate_id', activeMandateId);
+    const { data, error } = await q;
+    if (error) throw error;
+    if (!data || !data.length) {
+      el.innerHTML = '<div style="color:var(--muted);">No agent activity logged yet — this shows up as soon as an agent runs.</div>';
+      return;
+    }
+    el.innerHTML = data.map(r => {
+      const _meta = _AGENT_META[_agentKeyFromName(r.agent_name)];
+      const _color = (_meta && _meta.color) || 'var(--blue-brand)';
+      return '<div style="border-left:2px solid ' + _color + ';padding:4px 0 4px 10px;margin-bottom:8px;">'
+        + '<div style="font-family:monospace;font-size:var(--fs-xs);font-weight:600;color:' + _color + ';text-transform:uppercase;letter-spacing:0.04em;">' + _esc(r.agent_name || '') + '</div>'
+        + '<div style="color:var(--text);font-size:var(--fs-sm);">' + _esc(r.action_summary || '') + '</div>'
+        + '<div style="font-family:monospace;font-size:var(--fs-xs);color:var(--muted);">' + _relTimeShort(r.occurred_at) + '</div>'
+        + '</div>';
+    }).join('');
+  } catch(e) {
+    console.warn('[agents-at-work]', e);
+    el.innerHTML = '<div style="color:var(--muted);">Unable to load agent activity right now.</div>';
+  }
+}
+
 // ── TAB SWITCHING ──
 function switchTab(name, fromClick = false) {
   window.scrollTo({ top: 0, behavior: 'instant' });
@@ -2986,7 +3062,7 @@ function switchTab(name, fromClick = false) {
   if (name === 'agents') _showAgentsMap();
   if (name === 'inbox') loadInboxDrafts();
   if (name === 'proposals') loadProposalsView();
-  if (name === 'priorities') { loadDailyPriorities(); _fetchTodaySendCounts().catch(err => console.error('_fetchTodaySendCounts:', err)); }
+  if (name === 'priorities') { loadDailyPriorities(); _loadAgentsAtWork(); _fetchTodaySendCounts().catch(err => console.error('_fetchTodaySendCounts:', err)); }
   if (name === 'stats') { if (!_kanbanLoaded) { loadKanban().then(() => renderStats()); } else { renderStats(); } }
   if (name === 'clients') loadClientsKanban();
   if (name === 'integrations') loadIntegrationsTab();
@@ -3091,6 +3167,39 @@ function _showAgentsMap() {
   if (map) map.style.display = '';
   const backBar = document.getElementById('agents-back-bar');
   if (backBar) backBar.style.display = 'none';
+  _renderAgentsStatus();
+}
+
+// heroAwaiting/heroRun/heroActions (agent-hero-*, spine-count-send/reply) : elements absents du
+// HTML kaizenology.html (verifie avant ce port) -- bloc hero volontairement omis, pas de creation
+// d'elements orphelins. Bloc Daily Digest separe egalement omis : aucun panel #agent-dailydigest
+// ni les 3 autres cles Pipeline n'existent ici, donc aucune cle Pipeline dans _AGENT_META et pas
+// de bloc dailydigest dedie.
+async function _renderAgentsStatus() {
+  try {
+    let q = sbClient.from('agent_activity_log')
+      .select('agent_name, occurred_at')
+      .eq('client_id', CLIENT_ID)
+      .order('occurred_at', { ascending: false })
+      .limit(500);
+    if (activeMandateId && activeMandateId !== '__ALL__') q = q.eq('mandate_id', activeMandateId);
+    const { data, error } = await q;
+    if (error) throw error;
+    const rows = data || [];
+    const lastByAgent = {};
+    rows.forEach(r => { if (!(r.agent_name in lastByAgent)) lastByAgent[r.agent_name] = r.occurred_at; });
+
+    Object.entries(_AGENT_META).forEach(([key, m]) => {
+      if (key === 'cmo') return;
+      const dot = document.getElementById('dot-' + key);
+      const status = document.getElementById('status-' + key);
+      const last = lastByAgent[m.label];
+      if (dot) dot.classList.toggle('is-active', !!last);
+      if (status) status.textContent = last ? ('Ran ' + _relTimeShort(last)) : 'Idle';
+    });
+  } catch(e) {
+    console.warn('[_renderAgentsStatus]', e);
+  }
 }
 
 
