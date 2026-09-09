@@ -2643,6 +2643,14 @@ function _switchNewNav(tab, sysHint) {
   _closeSnav();
 }
 
+function _openPipelineStage(stage) {
+  _switchNewNav('pipeline');
+  setTimeout(() => {
+    const col = document.querySelector('.kanban-col[data-stage="' + stage + '"]');
+    if (col) col.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+  }, 100);
+}
+
 // _switchSidebarAgent()/_toggleSnavGroup() retirees : code mort confirme (aucun appelant). CSS
 // .snav-group/.snav-group-toggle/.snav-group-items/.snav-chevron retiree separement (etape 2).
 function _toggleSnavMenu() {
