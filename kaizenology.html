@@ -6379,14 +6379,21 @@ function _renderCapacityBars(containerId, inv, em) {
 // CLIENT (un seul compte LinkedIn, une seule boite email partagee), pas par mandat -- toujours
 // calculee sur l'ensemble des mandats du client, quel que soit activeMandateId actif.
 async function _fetchTodaySendCounts() {
-  const todayStr = new Date().toISOString().slice(0, 10);
-  const isToday = d => d && d.slice(0, 10) === todayStr;
+  // Filtre serveur natif (plus de isToday() JS apres coup) : la requete precedente n'avait ni
+  // limite ni tri -- silencieusement tronquee a 1000 lignes (page par defaut PostgREST) une fois
+  // l'historique depasse (meme bug/meme fix que demo-private.html). sent_at peut etre null pour
+  // un envoi marque via un chemin qui ne l'ecrit pas -- meme repli qu'avant (sent_at ||
+  // created_at), exprime cote requete via .or() : capture soit sent_at dans la fenetre du jour,
+  // soit (sent_at null ET created_at dans la fenetre du jour).
+  const todayStart = new Date().toISOString().slice(0, 10) + 'T00:00:00.000Z';
+  const tomorrowStart = new Date(Date.now() + 86400000).toISOString().slice(0, 10) + 'T00:00:00.000Z';
+  const _todayOrFilter = `and(sent_at.gte.${todayStart},sent_at.lt.${tomorrowStart}),and(sent_at.is.null,created_at.gte.${todayStart},created_at.lt.${tomorrowStart})`;
   const [{ data: invRows }, { data: emRows }] = await Promise.all([
-    sbClient.from('sequences').select('sent_at,created_at').eq('client_id', CLIENT_ID).eq('touch', 'invite').eq('status', 'sent'),
-    sbClient.from('interactions').select('created_at').eq('client_id', CLIENT_ID).eq('type', 'email_j5'),
+    sbClient.from('sequences').select('id').eq('client_id', CLIENT_ID).eq('touch', 'invite').eq('status', 'sent').or(_todayOrFilter),
+    sbClient.from('interactions').select('id').eq('client_id', CLIENT_ID).eq('type', 'email_j5').gte('created_at', todayStart).lt('created_at', tomorrowStart),
   ]);
-  _todaySendCounts.invitesSent = (invRows || []).filter(r => isToday(r.sent_at || r.created_at)).length;
-  _todaySendCounts.emailsSent  = (emRows  || []).filter(r => isToday(r.created_at)).length;
+  _todaySendCounts.invitesSent = (invRows || []).length;
+  _todaySendCounts.emailsSent  = (emRows  || []).length;
   _updateSentCounter();
 }
 
