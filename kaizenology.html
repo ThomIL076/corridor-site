@@ -27,6 +27,8 @@
   --border: #e2e8f0;
   --border-mid: #c8d0e0;
   --text: #1e2a45;
+  --bg-panel: var(--bg);
+  --text-primary: var(--text);
   --muted: #576185;
   --dim: #5e6e94;
   --green: #15803d;
@@ -11182,7 +11184,7 @@ function _renderBreakdownPanel(scores) {
       </div>
     </div>`;
   }).join('');
-  panel.innerHTML = `<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius-panel);padding:14px 16px;margin-top:4px;">
+  panel.innerHTML = `<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius-panel);padding:14px 16px;margin-top:4px;">
     <p style="font-size:var(--fs-xs);font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:0 0 10px;">Explainable ICP Score</p>
     ${rows || '<p style="font-size:var(--fs-sm);color:var(--muted);margin:0">No breakdown available</p>'}
   </div>`;
