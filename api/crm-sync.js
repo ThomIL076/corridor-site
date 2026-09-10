@@ -51,14 +51,42 @@ export default async function handler(req) {
     return new Response('Invalid JSON', { status: 400 });
   }
 
-  const { apiKey, prospect, stageMap, pipedrivePersonId, pipedriveDealId } = body;
+  const { action, apiKey, prospect, stageMap, pipedrivePersonId, pipedriveDealId } = body;
 
-  if (!apiKey || !prospect) {
-    return new Response('Missing apiKey or prospect', { status: 400 });
+  if (!apiKey) {
+    return new Response('Missing apiKey', { status: 400 });
   }
 
   const headers = { 'Content-Type': 'application/json' };
   const qs = `?api_token=${encodeURIComponent(apiKey)}`;
+
+  // ── Test connection + fetch deal stages (ajouté 2026-09-10, pattern identique
+  // à hubspot.js action=get_pipelines) : sans action, comportement de sync
+  // inchangé plus bas -- retro-compatible avec tout appelant existant.
+  if (action === 'get_stages') {
+    const res = await fetch(`https://api.pipedrive.com/v1/stages${qs}`, { headers });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      return new Response(JSON.stringify({ success: false, error: data.error || 'Invalid API token or insufficient permissions' }), {
+        status: 200, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+    const pipelinesRes = await fetch(`https://api.pipedrive.com/v1/pipelines${qs}`, { headers });
+    const pipelinesData = await pipelinesRes.json();
+    const pipelineNames = {};
+    (pipelinesData.data || []).forEach(p => { pipelineNames[p.id] = p.name; });
+    const stages = (data.data || []).map(s => ({
+      id: s.id, label: s.name, pipeline: pipelineNames[s.pipeline_id] || `Pipeline ${s.pipeline_id}`, pipelineId: s.pipeline_id
+    }));
+    const pipelineCount = new Set(stages.map(s => s.pipelineId)).size;
+    return new Response(JSON.stringify({ success: true, stages, pipelineCount }), {
+      status: 200, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+    });
+  }
+
+  if (!prospect) {
+    return new Response('Missing prospect', { status: 400 });
+  }
 
   try {
     // ── 1. PERSON — create or update ──────────────────────────────────────

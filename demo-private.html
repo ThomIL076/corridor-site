@@ -2686,7 +2686,13 @@ body.new-nav { padding-left: 220px; }
       <div class="module-title">Integrations</div>
     </div>
 
-    <div class="card" style="max-width:620px;">
+    <!-- Grille de cartes (statut reel, rendu par loadIntegrationsTab()/_intRenderGrid() depuis
+         _clientProfile -- jamais un statut invente cote front). Clic sur une carte -> ouvre le
+         panneau de config correspondant, masque les autres. -->
+    <div id="int-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;margin-bottom:24px;max-width:900px;"></div>
+
+    <!-- ── HUBSPOT (inchangee -- mecanisme deja en prod, juste re-logee dans un panneau) ── -->
+    <div class="card int-panel" id="int-panel-hubspot" style="display:none;max-width:620px;">
       <div class="card-header">
         <span class="card-title">HubSpot CRM</span>
         <span id="hs-status-badge" class="card-badge" style="display:none;"></span>
@@ -2735,6 +2741,222 @@ body.new-nav { padding-left: 220px; }
                   font-size:var(--fs-xs);color:var(--muted);">
         Last sync: <span id="hs-last-sync">—</span>
       </div>
+      <button class="btn-secondary btn-sm" onclick="_intClosePanel()" style="margin-top:16px;">← Back to Integrations</button>
+    </div>
+
+    <!-- ── SALESFORCE (OAuth2 -- 4 champs, pas une cle unique, cf. api/salesforce.js) ── -->
+    <div class="card int-panel" id="int-panel-salesforce" style="display:none;max-width:620px;">
+      <div class="card-header">
+        <span class="card-title">Salesforce</span>
+        <span id="sf-status-badge" class="card-badge" style="display:none;"></span>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:16px;">
+        <div>
+          <label style="display:block;font-size:var(--fs-sm);font-weight:600;color:var(--navy);margin-bottom:6px;">Instance URL</label>
+          <input type="text" id="sf-instance-url" class="input-field" placeholder="https://yourorg.my.salesforce.com"
+            style="width:100%;font-family:monospace;font-size:var(--fs-sm);" oninput="_sfOnFieldInput()">
+        </div>
+        <div>
+          <label style="display:block;font-size:var(--fs-sm);font-weight:600;color:var(--navy);margin-bottom:6px;">Connected App Consumer Key (Client ID)</label>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input type="password" id="sf-client-id" class="input-field" placeholder="••••••••"
+              style="flex:1;font-family:monospace;font-size:var(--fs-sm);letter-spacing:0.04em;" oninput="_sfOnFieldInput()">
+            <button class="btn-secondary btn-sm" onclick="_sfRevealField('sf-client-id')" title="Reveal / hide" style="padding:7px 10px;font-size:15px;line-height:1;">👁</button>
+            <button class="btn-secondary btn-sm" onclick="_sfCopyField('sf-client-id')" style="white-space:nowrap;">Copy</button>
+          </div>
+        </div>
+        <div>
+          <label style="display:block;font-size:var(--fs-sm);font-weight:600;color:var(--navy);margin-bottom:6px;">Connected App Consumer Secret</label>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input type="password" id="sf-client-secret" class="input-field" placeholder="••••••••"
+              style="flex:1;font-family:monospace;font-size:var(--fs-sm);letter-spacing:0.04em;" oninput="_sfOnFieldInput()">
+            <button class="btn-secondary btn-sm" onclick="_sfRevealField('sf-client-secret')" title="Reveal / hide" style="padding:7px 10px;font-size:15px;line-height:1;">👁</button>
+            <button class="btn-secondary btn-sm" onclick="_sfCopyField('sf-client-secret')" style="white-space:nowrap;">Copy</button>
+          </div>
+        </div>
+        <div>
+          <label style="display:block;font-size:var(--fs-sm);font-weight:600;color:var(--navy);margin-bottom:6px;">Username</label>
+          <input type="text" id="sf-username" class="input-field" placeholder="you@yourorg.com"
+            style="width:100%;font-family:monospace;font-size:var(--fs-sm);" oninput="_sfOnFieldInput()">
+        </div>
+        <div>
+          <label style="display:block;font-size:var(--fs-sm);font-weight:600;color:var(--navy);margin-bottom:6px;">Password + Security Token</label>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input type="password" id="sf-password" class="input-field" placeholder="••••••••"
+              style="flex:1;font-family:monospace;font-size:var(--fs-sm);letter-spacing:0.04em;" oninput="_sfOnFieldInput()">
+            <button class="btn-secondary btn-sm" onclick="_sfRevealField('sf-password')" title="Reveal / hide" style="padding:7px 10px;font-size:15px;line-height:1;">👁</button>
+            <button class="btn-secondary btn-sm" onclick="_sfCopyField('sf-password')" style="white-space:nowrap;">Copy</button>
+          </div>
+          <div style="font-size:var(--fs-xs);color:var(--muted);margin-top:4px;">Mot de passe Salesforce concaténé avec le security token (pas d'espace).</div>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+        <button class="btn-primary btn-md" id="sf-test-btn" onclick="_sfTestConnection()" disabled>
+          Test connection
+        </button>
+        <div class="ai-spinner" id="sf-spinner" style="display:none;"></div>
+        <span id="sf-test-result" style="font-size:var(--fs-sm);"></span>
+      </div>
+
+      <div id="sf-mapping-section" style="display:none;">
+        <div style="border-top:1px solid var(--border);padding-top:20px;margin-bottom:16px;">
+          <div style="font-size:var(--fs-sm);font-weight:700;color:var(--navy);margin-bottom:4px;">Stage Mapping</div>
+          <div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:16px;">
+            For each Salesforce Opportunity stage, choose the equivalent Corridor stage.
+          </div>
+          <div id="sf-mapping-rows"></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <button class="btn-primary btn-md" id="sf-save-btn" onclick="_sfSaveMapping()">Save mapping</button>
+          <span id="sf-save-result" style="font-size:var(--fs-sm);"></span>
+        </div>
+      </div>
+
+      <div style="margin-top:20px;padding-top:14px;border-top:1px solid var(--border);
+                  font-size:var(--fs-xs);color:var(--muted);">
+        Last sync: <span id="sf-last-sync">—</span>
+      </div>
+      <button class="btn-secondary btn-sm" onclick="_intClosePanel()" style="margin-top:16px;">← Back to Integrations</button>
+    </div>
+
+    <!-- ── PIPEDRIVE (simple cle API, meme pattern que HubSpot) ── -->
+    <div class="card int-panel" id="int-panel-pipedrive" style="display:none;max-width:620px;">
+      <div class="card-header">
+        <span class="card-title">Pipedrive</span>
+        <span id="pdrv-status-badge" class="card-badge" style="display:none;"></span>
+      </div>
+
+      <div style="margin-bottom:16px;">
+        <label style="display:block;font-size:var(--fs-sm);font-weight:600;color:var(--navy);margin-bottom:6px;">API Token</label>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input type="password" id="pdrv-api-key" class="input-field"
+            placeholder="••••••••"
+            style="flex:1;font-family:monospace;font-size:var(--fs-sm);letter-spacing:0.04em;"
+            oninput="_pdrvOnKeyInput()">
+          <button class="btn-secondary btn-sm" onclick="_pdrvRevealKey()" id="pdrv-reveal-btn"
+            title="Reveal / hide" style="padding:7px 10px;font-size:15px;line-height:1;">👁</button>
+          <button class="btn-secondary btn-sm" onclick="_pdrvCopyKey()" style="white-space:nowrap;">Copy</button>
+        </div>
+        <div style="font-size:var(--fs-xs);color:var(--muted);margin-top:4px;">Settings → Personal preferences → API in Pipedrive.</div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+        <button class="btn-primary btn-md" id="pdrv-test-btn" onclick="_pdrvTestConnection()" disabled>
+          Test connection
+        </button>
+        <div class="ai-spinner" id="pdrv-spinner" style="display:none;"></div>
+        <span id="pdrv-test-result" style="font-size:var(--fs-sm);"></span>
+      </div>
+
+      <div id="pdrv-mapping-section" style="display:none;">
+        <div style="border-top:1px solid var(--border);padding-top:20px;margin-bottom:16px;">
+          <div style="font-size:var(--fs-sm);font-weight:700;color:var(--navy);margin-bottom:4px;">Stage Mapping</div>
+          <div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:16px;">
+            For each Pipedrive deal stage, choose the equivalent Corridor stage.
+          </div>
+          <div id="pdrv-mapping-rows"></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <button class="btn-primary btn-md" id="pdrv-save-btn" onclick="_pdrvSaveMapping()">Save mapping</button>
+          <span id="pdrv-save-result" style="font-size:var(--fs-sm);"></span>
+        </div>
+      </div>
+
+      <div style="margin-top:20px;padding-top:14px;border-top:1px solid var(--border);
+                  font-size:var(--fs-xs);color:var(--muted);">
+        Last sync: <span id="pdrv-last-sync">—</span>
+      </div>
+      <button class="btn-secondary btn-sm" onclick="_intClosePanel()" style="margin-top:16px;">← Back to Integrations</button>
+    </div>
+
+    <!-- ── SLACK (mecanisme deja en prod cote serveur -- webhook n8n "Slack Notifier" + 4
+         branches de formatage -- mais jamais appele depuis ce dashboard jusqu'ici : cette passe
+         cable les vrais triggers stage_change/proposal dans persistStage(), en plus de l'UI). ── -->
+    <div class="card int-panel" id="int-panel-slack" style="display:none;max-width:620px;">
+      <div class="card-header">
+        <span class="card-title">Slack</span>
+        <span id="slk-status-badge" class="card-badge" style="display:none;"></span>
+      </div>
+
+      <div style="margin-bottom:16px;">
+        <label style="display:block;font-size:var(--fs-sm);font-weight:600;color:var(--navy);margin-bottom:6px;">Webhook URL</label>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input type="password" id="slk-webhook-url" class="input-field"
+            placeholder="https://hooks.slack.com/services/••••••••"
+            style="flex:1;font-family:monospace;font-size:var(--fs-sm);letter-spacing:0.02em;"
+            oninput="_slkOnFieldInput()">
+          <button class="btn-secondary btn-sm" onclick="_slkRevealField()" id="slk-reveal-btn"
+            title="Reveal / hide" style="padding:7px 10px;font-size:15px;line-height:1;">👁</button>
+          <button class="btn-secondary btn-sm" onclick="_slkCopyField()" style="white-space:nowrap;">Copy</button>
+        </div>
+        <div style="font-size:var(--fs-xs);color:var(--muted);margin-top:4px;">Slack → Apps → Incoming Webhooks.</div>
+      </div>
+
+      <div style="margin-bottom:16px;">
+        <div style="font-size:var(--fs-sm);font-weight:700;color:var(--navy);margin-bottom:10px;">Events</div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <label style="display:flex;align-items:center;gap:8px;font-size:var(--fs-sm);color:var(--text);cursor:pointer;">
+            <input type="checkbox" id="slk-evt-stageEngaged" onchange="_slkOnFieldInput()"> Prospect reaches "Engaged"
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:var(--fs-sm);color:var(--text);cursor:pointer;">
+            <input type="checkbox" id="slk-evt-stageProposal" onchange="_slkOnFieldInput()"> Prospect reaches "Proposal"
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:var(--fs-sm);color:var(--text);cursor:pointer;">
+            <input type="checkbox" id="slk-evt-icpAlert" onchange="_slkOnFieldInput()"> New prospect, ICP ≥ 9.0 (Morning Scan)
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:var(--fs-sm);color:var(--text);cursor:pointer;">
+            <input type="checkbox" id="slk-evt-pipelineReview" onchange="_slkOnFieldInput()"> Weekly Pipeline Review
+          </label>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+        <button class="btn-primary btn-md" id="slk-save-btn" onclick="_slkSaveConfig()" disabled>
+          Save
+        </button>
+        <span id="slk-save-result" style="font-size:var(--fs-sm);"></span>
+      </div>
+
+      <div style="font-size:var(--fs-xs);color:var(--muted);">
+        Prospect reaches "Engaged"/"Proposal" are live: they fire for real from this dashboard.
+        ICP alert and Weekly Pipeline Review are sent by their own scheduled workflows (Morning
+        Scan, Pipeline Reviewer) which don't read this webhook yet -- toggling them here only
+        saves your preference for when that gets wired up, it doesn't change what those two
+        actually send today.
+      </div>
+      <button class="btn-secondary btn-sm" onclick="_intClosePanel()" style="margin-top:16px;">← Back to Integrations</button>
+    </div>
+
+    <!-- ── GMAIL (rien de fonctionnel encore -- config UI seulement, marque "Coming soon") ── -->
+    <div class="card int-panel" id="int-panel-gmail" style="display:none;max-width:620px;">
+      <div class="card-header">
+        <span class="card-title">Gmail</span>
+        <span class="card-badge" style="background:#f3f4f6;color:var(--muted);border:1px solid var(--border);">Coming soon</span>
+      </div>
+      <div style="font-size:var(--fs-sm);color:var(--muted);margin-bottom:16px;">
+        Email notifications for pipeline events aren't wired up yet -- this panel lets you set your
+        preferences now so they're ready the day sending goes live. Nothing will be sent until then.
+      </div>
+      <div style="margin-bottom:16px;opacity:0.6;pointer-events:none;">
+        <div style="font-size:var(--fs-sm);font-weight:700;color:var(--navy);margin-bottom:10px;">Events (preview)</div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <label style="display:flex;align-items:center;gap:8px;font-size:var(--fs-sm);color:var(--text);">
+            <input type="checkbox" disabled> Prospect reaches "Engaged"
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:var(--fs-sm);color:var(--text);">
+            <input type="checkbox" disabled> Prospect reaches "Proposal"
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:var(--fs-sm);color:var(--text);">
+            <input type="checkbox" disabled> New prospect, ICP ≥ 9.0 (Morning Scan)
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:var(--fs-sm);color:var(--text);">
+            <input type="checkbox" disabled> Weekly Pipeline Review
+          </label>
+        </div>
+      </div>
+      <button class="btn-secondary btn-sm" onclick="_intClosePanel()">← Back to Integrations</button>
     </div>
   </div>
 
@@ -10904,6 +11126,7 @@ async function persistStage(id, stage){
   if (!id) return;
   try {
     const p = _prospectsById[id] || {};
+    const previousStage = p.stage;
     const advancedStages = ['1st Contact','Engaged','Replied','Proposal','Closed'];
     const updates = { stage };
     if (advancedStages.includes(stage) && p.linkedin_tag === 'invite-sent') {
@@ -10911,6 +11134,13 @@ async function persistStage(id, stage){
     }
     const { error } = await sbClient.from('prospects').update(updates).eq('client_id', CLIENT_ID).eq('id', id);
     if (error) throw error;
+    // Notifications Slack (Integrations, 2026-09-10) : seulement sur une vraie transition
+    // (pas un re-drop dans la meme colonne), fire-and-forget, _slkNotify() no-op si Slack
+    // n'est pas configure/active pour ce client -- jamais bloquant sur l'action utilisateur.
+    if (stage !== previousStage) {
+      if (stage === 'Engaged') _slkNotify('stageEngaged', 'stage_change', { ...p, stage });
+      else if (stage === 'Proposal') _slkNotify('stageProposal', 'proposal', { ...p, stage });
+    }
     showToast(currentLang === 'fr' ? 'Étape mise à jour' : 'Stage updated');
   } catch(e){
     console.warn('persistStage failed:', e && e.message ? e.message : e);
@@ -13485,7 +13715,7 @@ async function loadClientProfile() {
     if (!user) return false;
     const { data, error } = await _supabase
       .from('clients')
-      .select('client_id, contact_name, company_name, display_name, avatar_url, sender_bio, owner_inbox_email, email_campaign_id, hubspot_api_key, hubspot_stage_mapping, hubspot_last_sync')
+      .select('client_id, contact_name, company_name, display_name, avatar_url, sender_bio, owner_inbox_email, email_campaign_id, hubspot_api_key, hubspot_stage_mapping, hubspot_last_sync, salesforce_enabled, salesforce_client_id, salesforce_client_secret, salesforce_username, salesforce_password, salesforce_instance_url, salesforce_stage_mapping, salesforce_last_sync, pipedrive_enabled, pipedrive_api_key, pipedrive_stage_mapping, pipedrive_last_sync, slack_enabled, slack_webhook_url, slack_events')
       .eq('auth_user_id', user.id)
       .single();
     if (error || !data) {
@@ -13660,9 +13890,32 @@ Be direct. No corporate language.`;
 
 let _hsStages = [];       // stages fetched from HubSpot after a successful test
 let _hsPipelineCount = 0; // number of distinct pipelines; drives label disambiguation
+let _sfStages = [];       // Opportunity stage picklist fetched from Salesforce after a successful test
+let _pdrvStages = [];     // stages fetched from Pipedrive after a successful test
+let _pdrvPipelineCount = 0;
+
+// Refonte grille multi-integrations (2026-09-10) : HubSpot inchangee (mecanisme deja en prod,
+// juste re-logee dans un panneau parmi d'autres) ; Salesforce/Pipedrive UI+persistance nouvelles,
+// activation reelle (appels API fonctionnels au clic "Test connection") deja possible car les
+// deux backends existent (api/salesforce.js, api/crm-sync.js) -- seul le sync automatique en
+// continu reste hors scope de cette passe ; Slack UI+persistance nouvelles ET vrais triggers
+// cables dans persistStage() ; Gmail = UI seule, aucun backend, "Coming soon" explicite.
+// logo : SVG Simple Icons (CC0) self-hostes dans /logos, meme convention que les autres assets
+// statiques du repo (corridor-favicon.svg etc. a la racine, pas de dossier /public). Pipedrive
+// absent de Simple Icons (verifie sur les 3383 icones du set, aucune entree) -- reste sur le
+// badge colore mono, pas de logo tiers non verifie substitue a la place.
+const INTEGRATIONS_META = {
+  hubspot:    { label: 'HubSpot',    color: '#FF7A59', mono: 'H',  logo: '/logos/hubspot.svg' },
+  salesforce: { label: 'Salesforce', color: '#00A1E0', mono: 'SF', logo: '/logos/salesforce.svg' },
+  pipedrive:  { label: 'Pipedrive',  color: '#24B14C', mono: 'PD' },
+  slack:      { label: 'Slack',      color: '#4A154B', mono: 'SL', logo: '/logos/slack.svg' },
+  gmail:      { label: 'Gmail',      color: '#EA4335', mono: 'G',  logo: '/logos/gmail.svg' },
+};
 
 function loadIntegrationsTab() {
   if (!_clientProfile) return;
+
+  // HubSpot -- inchange
   const key = _clientProfile.hubspot_api_key || '';
   const keyInput = document.getElementById('hs-api-key');
   if (keyInput) {
@@ -13676,6 +13929,88 @@ function loadIntegrationsTab() {
   }
   const savedMapping = _clientProfile.hubspot_stage_mapping;
   if (_hsStages.length && savedMapping) _hsRestoreMapping(savedMapping);
+
+  // Salesforce
+  const sfIds = { 'sf-instance-url': 'salesforce_instance_url', 'sf-client-id': 'salesforce_client_id', 'sf-client-secret': 'salesforce_client_secret', 'sf-username': 'salesforce_username', 'sf-password': 'salesforce_password' };
+  Object.entries(sfIds).forEach(([elId, field]) => {
+    const el = document.getElementById(elId);
+    if (el) el.value = _clientProfile[field] || '';
+  });
+  const sfTestBtn = document.getElementById('sf-test-btn');
+  if (sfTestBtn) sfTestBtn.disabled = !(_clientProfile.salesforce_client_id && _clientProfile.salesforce_client_secret && _clientProfile.salesforce_username && _clientProfile.salesforce_password);
+  const sfSyncEl = document.getElementById('sf-last-sync');
+  if (sfSyncEl) sfSyncEl.textContent = _clientProfile.salesforce_last_sync ? new Date(_clientProfile.salesforce_last_sync).toLocaleString() : 'Never synced';
+  if (_sfStages.length && _clientProfile.salesforce_stage_mapping) _sfRenderStageMapping(_sfStages, _clientProfile.salesforce_stage_mapping);
+
+  // Pipedrive
+  const pdrvKeyInput = document.getElementById('pdrv-api-key');
+  if (pdrvKeyInput) {
+    pdrvKeyInput.value = _clientProfile.pipedrive_api_key || '';
+    document.getElementById('pdrv-test-btn').disabled = !(_clientProfile.pipedrive_api_key || '').trim();
+  }
+  const pdrvSyncEl = document.getElementById('pdrv-last-sync');
+  if (pdrvSyncEl) pdrvSyncEl.textContent = _clientProfile.pipedrive_last_sync ? new Date(_clientProfile.pipedrive_last_sync).toLocaleString() : 'Never synced';
+  if (_pdrvStages.length && _clientProfile.pipedrive_stage_mapping) _pdrvRenderStageMapping(_pdrvStages, _clientProfile.pipedrive_stage_mapping);
+
+  // Slack
+  const slkUrlInput = document.getElementById('slk-webhook-url');
+  if (slkUrlInput) slkUrlInput.value = _clientProfile.slack_webhook_url || '';
+  const slkEvents = _clientProfile.slack_events || { stageEngaged: true, stageProposal: true, icpAlert: true, pipelineReview: true };
+  ['stageEngaged', 'stageProposal', 'icpAlert', 'pipelineReview'].forEach(evt => {
+    const cb = document.getElementById('slk-evt-' + evt);
+    if (cb) cb.checked = slkEvents[evt] !== false;
+  });
+
+  _intRenderGrid();
+}
+
+// Statut REEL par integration, jamais invente : lu directement depuis _clientProfile (colonnes
+// clients.*), meme source que ce que chaque panneau affiche/ecrit.
+function _intStatus(name) {
+  const p = _clientProfile || {};
+  if (name === 'hubspot') return p.hubspot_api_key ? 'connected' : 'not_connected';
+  if (name === 'salesforce') return (p.salesforce_enabled && p.salesforce_client_id && p.salesforce_client_secret && p.salesforce_username && p.salesforce_password) ? 'connected' : 'not_connected';
+  if (name === 'pipedrive') return (p.pipedrive_enabled && p.pipedrive_api_key) ? 'connected' : 'not_connected';
+  if (name === 'slack') return (p.slack_enabled && p.slack_webhook_url) ? 'connected' : 'not_connected';
+  if (name === 'gmail') return 'coming_soon';
+  return 'not_connected';
+}
+
+function _intRenderGrid() {
+  const grid = document.getElementById('int-grid');
+  if (!grid) return;
+  const STATUS_LABEL = { connected: 'Connected', not_connected: 'Not connected', coming_soon: 'Coming soon' };
+  const STATUS_STYLE = {
+    connected: 'background:#f0fdf4;color:#15803d;border:1px solid #86efac;',
+    not_connected: 'background:var(--navy-light);color:var(--navy);border:1px solid var(--border);',
+    coming_soon: 'background:#f3f4f6;color:var(--muted);border:1px solid var(--border);',
+  };
+  grid.innerHTML = Object.entries(INTEGRATIONS_META).map(([name, meta]) => {
+    const status = _intStatus(name);
+    // Vrai logo (Simple Icons, self-hoste /logos) quand disponible ; sinon badge colore avec
+    // monogramme -- seul cas actuel : Pipedrive, absent de Simple Icons (verifie).
+    const mark = meta.logo
+      ? `<div style="width:36px;height:36px;border-radius:var(--radius-md);background:#fff;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;padding:6px;box-sizing:border-box;"><img src="${meta.logo}" alt="${meta.label} logo" width="24" height="24"></div>`
+      : `<div style="width:36px;height:36px;border-radius:var(--radius-md);background:${meta.color};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;">${meta.mono}</div>`;
+    return `
+      <button onclick="_intOpenPanel('${name}')" style="text-align:left;border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;background:#fff;cursor:pointer;display:flex;flex-direction:column;gap:10px;">
+        ${mark}
+        <div style="font-size:var(--fs-sm);font-weight:700;color:var(--navy);">${meta.label}</div>
+        <span style="align-self:flex-start;font-size:var(--fs-micro);font-weight:600;padding:2px 8px;border-radius:var(--radius-pill);${STATUS_STYLE[status]}">${STATUS_LABEL[status]}</span>
+      </button>`;
+  }).join('');
+}
+
+function _intOpenPanel(name) {
+  document.querySelectorAll('.int-panel').forEach(el => el.style.display = 'none');
+  document.getElementById('int-grid').style.display = 'none';
+  const panel = document.getElementById('int-panel-' + name);
+  if (panel) panel.style.display = '';
+}
+
+function _intClosePanel() {
+  document.querySelectorAll('.int-panel').forEach(el => el.style.display = 'none');
+  document.getElementById('int-grid').style.display = '';
 }
 
 function _hsOnKeyInput() {
@@ -13817,6 +14152,367 @@ async function _hsSaveMapping() {
   saveBtn.disabled = false;
 }
 
+// ─── INTEGRATIONS — Salesforce ───────────────────────────────────────────────
+// Meme squelette que HubSpot (test -> stages -> mapping -> save), adapte a 4 champs
+// masques au lieu d'une seule cle (OAuth2 username-password, cf. api/salesforce.js) --
+// fonctions separees plutot que generalisees avec HubSpot pour ne pas toucher au
+// mecanisme HubSpot deja en prod (consigne explicite : le conserver tel quel).
+function _sfCollectCreds() {
+  return {
+    instanceUrl: (document.getElementById('sf-instance-url')?.value || '').trim(),
+    clientId: (document.getElementById('sf-client-id')?.value || '').trim(),
+    clientSecret: (document.getElementById('sf-client-secret')?.value || '').trim(),
+    username: (document.getElementById('sf-username')?.value || '').trim(),
+    password: (document.getElementById('sf-password')?.value || '').trim(),
+  };
+}
+
+function _sfOnFieldInput() {
+  const c = _sfCollectCreds();
+  const btn = document.getElementById('sf-test-btn');
+  if (btn) btn.disabled = !(c.clientId && c.clientSecret && c.username && c.password);
+  const resultEl = document.getElementById('sf-test-result');
+  if (resultEl) resultEl.textContent = '';
+  const mapSection = document.getElementById('sf-mapping-section');
+  if (mapSection) mapSection.style.display = 'none';
+  const badge = document.getElementById('sf-status-badge');
+  if (badge) badge.style.display = 'none';
+}
+
+function _sfRevealField(id) {
+  const input = document.getElementById(id);
+  if (!input) return;
+  input.type = input.type === 'password' ? 'text' : 'password';
+}
+
+function _sfCopyField(id) {
+  const val = document.getElementById(id)?.value || '';
+  if (!val) return;
+  navigator.clipboard.writeText(val).then(() => {
+    const btn = document.querySelector(`#int-panel-salesforce button[onclick="_sfCopyField('${id}')"]`);
+    if (!btn) return;
+    const orig = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = orig; }, 1500);
+  });
+}
+
+async function _sfTestConnection() {
+  const creds = _sfCollectCreds();
+  if (!creds.clientId || !creds.clientSecret || !creds.username || !creds.password) return;
+
+  const testBtn  = document.getElementById('sf-test-btn');
+  const spinner  = document.getElementById('sf-spinner');
+  const resultEl = document.getElementById('sf-test-result');
+  const badge    = document.getElementById('sf-status-badge');
+
+  testBtn.disabled = true;
+  spinner.style.display = '';
+  resultEl.textContent  = '';
+  resultEl.style.color  = 'var(--muted)';
+  document.getElementById('sf-mapping-section').style.display = 'none';
+
+  try {
+    const res  = await fetch('/api/salesforce', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'test', sfCredentials: creds })
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      _sfStages = data.stages || [];
+      resultEl.textContent = `✓ Connected — ${_sfStages.length} stage${_sfStages.length !== 1 ? 's' : ''} found`;
+      resultEl.style.color = 'var(--green, #16a34a)';
+      badge.textContent    = 'Connected';
+      badge.className      = 'card-badge badge-ai';
+      badge.style.cssText  = '';
+      badge.style.display  = '';
+      const updates = {
+        salesforce_enabled: true,
+        salesforce_client_id: creds.clientId,
+        salesforce_client_secret: creds.clientSecret,
+        salesforce_username: creds.username,
+        salesforce_password: creds.password,
+        salesforce_instance_url: creds.instanceUrl || data.instanceUrl || '',
+      };
+      await sbClient.from('clients').update(updates).eq('client_id', CLIENT_ID);
+      if (_clientProfile) Object.assign(_clientProfile, updates);
+      _sfRenderStageMapping(_sfStages, _clientProfile?.salesforce_stage_mapping || {});
+      _intRenderGrid();
+    } else {
+      resultEl.textContent = '✗ ' + (data.error || 'Connection failed — check your credentials');
+      resultEl.style.color = 'var(--red, #dc2626)';
+      badge.textContent    = 'Error';
+      badge.className      = 'card-badge';
+      badge.style.cssText  = 'background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;';
+      badge.style.display  = '';
+    }
+  } catch (e) {
+    resultEl.textContent = '✗ Network error — ' + e.message;
+    resultEl.style.color = 'var(--red, #dc2626)';
+  } finally {
+    testBtn.disabled = false;
+    spinner.style.display = 'none';
+  }
+}
+
+function _sfRenderStageMapping(stages, existingMapping) {
+  const container = document.getElementById('sf-mapping-rows');
+  if (!container) return;
+  const corridorOptions = ['', ...KANBAN_STAGES]
+    .map(s => `<option value="${s}">${s || '— do not map —'}</option>`)
+    .join('');
+  container.innerHTML = stages.map(stage => {
+    const key   = stage.id;
+    const saved = existingMapping[key] || '';
+    return `
+      <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;margin-bottom:10px;">
+        <div style="font-size:var(--fs-sm);color:var(--navy);">${stage.label}</div>
+        <div style="font-size:var(--fs-xs);color:var(--muted);">→</div>
+        <select class="input-field" style="font-size:var(--fs-sm);padding:7px 10px;" data-sf-key="${key}">
+          ${corridorOptions.replace(`value="${saved}"`, `value="${saved}" selected`)}
+        </select>
+      </div>`;
+  }).join('');
+  document.getElementById('sf-mapping-section').style.display = '';
+}
+
+async function _sfSaveMapping() {
+  const saveBtn  = document.getElementById('sf-save-btn');
+  const resultEl = document.getElementById('sf-save-result');
+  const mapping = {};
+  document.querySelectorAll('#sf-mapping-rows [data-sf-key]').forEach(sel => {
+    if (sel.value) mapping[sel.dataset.sfKey] = sel.value;
+  });
+  saveBtn.disabled     = true;
+  resultEl.textContent = '';
+  const { error } = await sbClient.from('clients')
+    .update({ salesforce_stage_mapping: mapping })
+    .eq('client_id', CLIENT_ID);
+  if (error) {
+    resultEl.textContent = '✗ Save failed — ' + error.message;
+    resultEl.style.color = 'var(--red, #dc2626)';
+  } else {
+    if (_clientProfile) _clientProfile.salesforce_stage_mapping = mapping;
+    resultEl.textContent = '✓ Mapping saved';
+    resultEl.style.color = 'var(--green, #16a34a)';
+    setTimeout(() => { resultEl.textContent = ''; }, 3000);
+  }
+  saveBtn.disabled = false;
+}
+
+// ─── INTEGRATIONS — Pipedrive ────────────────────────────────────────────────
+// Meme squelette que HubSpot (cle unique masquee), point d'entree /api/crm-sync
+// (alias historique /api/pipedrive.js -- le fichier reel s'appelle crm-sync.js).
+function _pdrvOnKeyInput() {
+  const val = (document.getElementById('pdrv-api-key').value || '').trim();
+  document.getElementById('pdrv-test-btn').disabled = !val;
+  document.getElementById('pdrv-test-result').textContent = '';
+  document.getElementById('pdrv-mapping-section').style.display = 'none';
+  document.getElementById('pdrv-status-badge').style.display = 'none';
+}
+
+function _pdrvRevealKey() {
+  const input = document.getElementById('pdrv-api-key');
+  const btn   = document.getElementById('pdrv-reveal-btn');
+  input.type  = input.type === 'password' ? 'text' : 'password';
+  btn.textContent = input.type === 'password' ? '👁' : '🙈';
+}
+
+function _pdrvCopyKey() {
+  const val = document.getElementById('pdrv-api-key').value || '';
+  if (!val) return;
+  navigator.clipboard.writeText(val).then(() => {
+    const btn = document.querySelector('#int-panel-pipedrive .btn-secondary[onclick="_pdrvCopyKey()"]');
+    if (!btn) return;
+    const orig = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = orig; }, 1500);
+  });
+}
+
+async function _pdrvTestConnection() {
+  const apiKey = (document.getElementById('pdrv-api-key').value || '').trim();
+  if (!apiKey) return;
+
+  const testBtn  = document.getElementById('pdrv-test-btn');
+  const spinner  = document.getElementById('pdrv-spinner');
+  const resultEl = document.getElementById('pdrv-test-result');
+  const badge    = document.getElementById('pdrv-status-badge');
+
+  testBtn.disabled = true;
+  spinner.style.display = '';
+  resultEl.textContent  = '';
+  resultEl.style.color  = 'var(--muted)';
+  document.getElementById('pdrv-mapping-section').style.display = 'none';
+
+  try {
+    const res  = await fetch('/api/crm-sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'get_stages', apiKey })
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      _pdrvStages        = data.stages || [];
+      _pdrvPipelineCount = data.pipelineCount || 0;
+      resultEl.textContent = `✓ Connected — ${_pdrvStages.length} stage${_pdrvStages.length !== 1 ? 's' : ''} found`;
+      resultEl.style.color = 'var(--green, #16a34a)';
+      badge.textContent    = 'Connected';
+      badge.className      = 'card-badge badge-ai';
+      badge.style.cssText  = '';
+      badge.style.display  = '';
+      await sbClient.from('clients').update({ pipedrive_enabled: true, pipedrive_api_key: apiKey }).eq('client_id', CLIENT_ID);
+      if (_clientProfile) { _clientProfile.pipedrive_enabled = true; _clientProfile.pipedrive_api_key = apiKey; }
+      _pdrvRenderStageMapping(_pdrvStages, _clientProfile?.pipedrive_stage_mapping || {});
+      _intRenderGrid();
+    } else {
+      resultEl.textContent = '✗ ' + (data.error || 'Connection failed — check your API token');
+      resultEl.style.color = 'var(--red, #dc2626)';
+      badge.textContent    = 'Error';
+      badge.className      = 'card-badge';
+      badge.style.cssText  = 'background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;';
+      badge.style.display  = '';
+    }
+  } catch (e) {
+    resultEl.textContent = '✗ Network error — ' + e.message;
+    resultEl.style.color = 'var(--red, #dc2626)';
+  } finally {
+    testBtn.disabled = false;
+    spinner.style.display = 'none';
+  }
+}
+
+function _pdrvRenderStageMapping(stages, existingMapping) {
+  const container = document.getElementById('pdrv-mapping-rows');
+  if (!container) return;
+  const corridorOptions = ['', ...KANBAN_STAGES]
+    .map(s => `<option value="${s}">${s || '— do not map —'}</option>`)
+    .join('');
+  container.innerHTML = stages.map(stage => {
+    const key   = stage.id;
+    const saved = existingMapping[key] || '';
+    const pipelineLabel = _pdrvPipelineCount > 1
+      ? `<span style="font-size:var(--fs-xs);color:var(--muted);margin-left:6px;">${stage.pipeline}</span>`
+      : '';
+    return `
+      <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;margin-bottom:10px;">
+        <div style="font-size:var(--fs-sm);color:var(--navy);">${stage.label}${pipelineLabel}</div>
+        <div style="font-size:var(--fs-xs);color:var(--muted);">→</div>
+        <select class="input-field" style="font-size:var(--fs-sm);padding:7px 10px;" data-pdrv-key="${key}">
+          ${corridorOptions.replace(`value="${saved}"`, `value="${saved}" selected`)}
+        </select>
+      </div>`;
+  }).join('');
+  document.getElementById('pdrv-mapping-section').style.display = '';
+}
+
+async function _pdrvSaveMapping() {
+  const saveBtn  = document.getElementById('pdrv-save-btn');
+  const resultEl = document.getElementById('pdrv-save-result');
+  const mapping = {};
+  document.querySelectorAll('#pdrv-mapping-rows [data-pdrv-key]').forEach(sel => {
+    if (sel.value) mapping[sel.dataset.pdrvKey] = sel.value;
+  });
+  saveBtn.disabled     = true;
+  resultEl.textContent = '';
+  const { error } = await sbClient.from('clients')
+    .update({ pipedrive_stage_mapping: mapping })
+    .eq('client_id', CLIENT_ID);
+  if (error) {
+    resultEl.textContent = '✗ Save failed — ' + error.message;
+    resultEl.style.color = 'var(--red, #dc2626)';
+  } else {
+    if (_clientProfile) _clientProfile.pipedrive_stage_mapping = mapping;
+    resultEl.textContent = '✓ Mapping saved';
+    resultEl.style.color = 'var(--green, #16a34a)';
+    setTimeout(() => { resultEl.textContent = ''; }, 3000);
+  }
+  saveBtn.disabled = false;
+}
+
+// ─── INTEGRATIONS — Slack ────────────────────────────────────────────────────
+// Pas de "Test connection" separe -- un webhook Slack entrant n'a pas d'endpoint
+// de lecture a interroger (write-only par design Slack). "Save" ecrit directement
+// url + toggles ; _slkNotify() (appelee depuis persistStage()) est le vrai test
+// de bout en bout, au premier evenement declenche.
+function _slkOnFieldInput() {
+  const btn = document.getElementById('slk-save-btn');
+  if (btn) btn.disabled = false;
+  const resultEl = document.getElementById('slk-save-result');
+  if (resultEl) resultEl.textContent = '';
+}
+
+function _slkRevealField() {
+  const input = document.getElementById('slk-webhook-url');
+  const btn   = document.getElementById('slk-reveal-btn');
+  input.type  = input.type === 'password' ? 'text' : 'password';
+  btn.textContent = input.type === 'password' ? '👁' : '🙈';
+}
+
+function _slkCopyField() {
+  const val = document.getElementById('slk-webhook-url').value || '';
+  if (!val) return;
+  navigator.clipboard.writeText(val).then(() => {
+    const btn = document.querySelector('#int-panel-slack .btn-secondary[onclick="_slkCopyField()"]');
+    if (!btn) return;
+    const orig = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = orig; }, 1500);
+  });
+}
+
+async function _slkSaveConfig() {
+  const saveBtn  = document.getElementById('slk-save-btn');
+  const resultEl = document.getElementById('slk-save-result');
+  const url = (document.getElementById('slk-webhook-url').value || '').trim();
+  const events = {
+    stageEngaged: document.getElementById('slk-evt-stageEngaged').checked,
+    stageProposal: document.getElementById('slk-evt-stageProposal').checked,
+    icpAlert: document.getElementById('slk-evt-icpAlert').checked,
+    pipelineReview: document.getElementById('slk-evt-pipelineReview').checked,
+  };
+  saveBtn.disabled = true;
+  resultEl.textContent = '';
+  const updates = { slack_enabled: !!url, slack_webhook_url: url, slack_events: events };
+  const { error } = await sbClient.from('clients').update(updates).eq('client_id', CLIENT_ID);
+  if (error) {
+    resultEl.textContent = '✗ Save failed — ' + error.message;
+    resultEl.style.color = 'var(--red, #dc2626)';
+  } else {
+    if (_clientProfile) Object.assign(_clientProfile, updates);
+    resultEl.textContent = '✓ Saved';
+    resultEl.style.color = 'var(--green, #16a34a)';
+    setTimeout(() => { resultEl.textContent = ''; }, 3000);
+    _intRenderGrid();
+  }
+  saveBtn.disabled = false;
+}
+
+// Declenche une notification Slack reelle pour un evenement pipeline (stage_change/proposal),
+// via /api/team-notify (alias historique /api/slack.js) qui relaie vers le webhook n8n
+// "Slack Notifier" deja en prod -- clientWebhookUrl force l'usage du webhook configure ici
+// plutot que celui par defaut de l'env n8n. Fire-and-forget : ne bloque jamais l'action
+// utilisateur (drag kanban) qui l'a declenchee, echec avale en console comme le reste des
+// notifications non-critiques de ce fichier.
+async function _slkNotify(eventKey, eventName, prospect) {
+  const events = _clientProfile?.slack_events || {};
+  if (!_clientProfile?.slack_enabled || !_clientProfile?.slack_webhook_url) return;
+  if (events[eventKey] === false) return;
+  try {
+    await fetch('/api/team-notify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        event: eventName,
+        prospect: { name: prospect.name, company: prospect.company, stage: prospect.stage, icpScore: prospect.icp_score, location: prospect.country || prospect.region || '' },
+        clientWebhookUrl: _clientProfile.slack_webhook_url,
+      })
+    });
+  } catch(e) { console.warn('[_slkNotify] failed:', e); }
+}
 
 </script>
 <div class="cp-overlay" id="cp-overlay" onclick="if(event.target===this)closeCallPrep()">

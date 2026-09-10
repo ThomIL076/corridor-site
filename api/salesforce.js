@@ -97,11 +97,7 @@ export default async function handler(req) {
     return new Response('Invalid JSON', { status: 400 });
   }
 
-  const { sfCredentials, prospect, stageMap, salesforceContactId, salesforceOpportunityId } = body;
-
-  if (!prospect) {
-    return new Response('Missing prospect', { status: 400 });
-  }
+  const { action, sfCredentials, prospect, stageMap, salesforceContactId, salesforceOpportunityId } = body;
 
   // Credentials : body (client) ou env vars (Corridor)
   const creds = sfCredentials || {
@@ -113,6 +109,40 @@ export default async function handler(req) {
 
   if (!creds.clientId || !creds.clientSecret || !creds.username || !creds.password) {
     return new Response('Missing Salesforce credentials', { status: 400 });
+  }
+
+  // ── Test connection + fetch Opportunity stage picklist (ajouté 2026-09-10) :
+  // pas de notion de "pipeline" multiple côté Salesforce standard (un seul
+  // picklist StageName sur Opportunity) -- forme de retour alignée sur
+  // hubspot.js/crm-sync.js (stages[]) pour réutiliser le même rendu de mapping
+  // côté dashboard, avec pipeline toujours à null.
+  if (action === 'test') {
+    try {
+      const { token, instanceUrl } = await getSalesforceToken(creds);
+      const baseUrl = sfCredentials?.instanceUrl || instanceUrl;
+      const describeRes = await fetch(`${baseUrl}/services/data/v59.0/sobjects/Opportunity/describe`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const describeData = await describeRes.json();
+      if (!describeRes.ok) {
+        throw new Error(describeData?.[0]?.message || 'Describe call failed');
+      }
+      const stageField = (describeData.fields || []).find(f => f.name === 'StageName');
+      const stages = (stageField?.picklistValues || [])
+        .filter(v => v.active)
+        .map(v => ({ id: v.value, label: v.label, pipeline: null, pipelineId: null }));
+      return new Response(JSON.stringify({ success: true, stages, pipelineCount: 1, instanceUrl: baseUrl }), {
+        status: 200, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    } catch (err) {
+      return new Response(JSON.stringify({ success: false, error: err.message }), {
+        status: 200, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+  }
+
+  if (!prospect) {
+    return new Response('Missing prospect', { status: 400 });
   }
 
   try {
