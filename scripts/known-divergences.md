@@ -60,22 +60,61 @@ spine). Pas encore vérifié si c'est un choix de design ou un retard de portage
 de la refonte visuelle du 06/09 (comme le mobile tab bar l'était) — à trancher avec
 Thomas avant de classer en DÉLIBÉRÉ.
 
+`_loadLearnedPreferences` (demo-private.html uniquement) — affiche la carte "Learned
+Preferences" (résumé IA des votes 👍/👎 sur `learned_preferences`,
+`agent_name='signal_interpretation'`). Absente de Kaizenology = aucune visibilité sur ce
+que le système apprend, alors que Stéphane est le validateur produit désigné. (2026-09-10,
+triage Thomas)
+
+`_icpBreakdownFromColumns` (demo-private.html uniquement) — construit le détail
+"pourquoi ce score ICP" (role_fit, company_size_fit, signal_strength, recency,
+mandate_fit, completeness). Sans elle, le score reste une boîte noire côté Kaizenology.
+(2026-09-10, triage Thomas)
+
+`_parseNextActionJSON` + `_renderNextActionHTML` (demo-private.html uniquement) —
+parsent et affichent proprement le JSON structuré "prochaine action" généré par l'IA
+(canal/action/pourquoi + linkification email). Le filtre `next_action` existe déjà côté
+Kaizenology (chantier filtres) — sans ces deux fonctions, le contenu s'affiche
+probablement en JSON brut non formaté. Incohérence entre "filtrable" et "lisible".
+(2026-09-10, triage Thomas)
+
+`_pdAdditionalContactsHTML` (demo-private.html uniquement) — affiche les "autres
+décideurs identifiés" (buying committee) avec bouton de promotion en prospect. Le buying
+committee scanner est un chantier partagé aux deux clients — sans cette fonction, la
+donnée existe en base mais reste invisible côté Kaizenology. (2026-09-10, triage Thomas)
+
 ## À TRIER (pas encore investigué)
 
 Presentes uniquement dans demo-private.html :
-`_addCommitteeStakeholderToPipeline`, `_diagRow`, `_icpBreakdownFromColumns`,
-`_isProspectStalled`, `_isoWeekNum`, `_loadLearnedPreferences`, `_parseNextActionJSON`,
-`_renderNextActionHTML`, `_pdAdditionalContactsHTML`, `_pdBuildMessageHistoryHTML`,
-`_pdOpenEditDetails`, `_pdRefreshMessageHistory`, `_pdToggleCompose`,
-`_pdToggleLogInteraction`, `_updateQueuedCount`, `_weekLabelOf`, `_weeklyRecsHtml`
+`_addCommitteeStakeholderToPipeline`, `_diagRow`, `_isProspectStalled`, `_isoWeekNum`,
+`_pdBuildMessageHistoryHTML`, `_pdOpenEditDetails`, `_pdRefreshMessageHistory`,
+`_pdToggleCompose`, `_pdToggleLogInteraction`, `_updateQueuedCount`, `_weekLabelOf`,
+`_weeklyRecsHtml`
 
 Presentes uniquement dans kaizenology.html :
 `_loadFeedCache`, `_renderIntList`, `_renderSendSection`, `_saveFeedCache`,
 `_senderSig`, `_showContactAction`, `_switchDTab`, `_systemRole`
+
+Note (2026-09-10) : `_renderSendSection` (analogue simplifié de `_sendCardHTML`, sans
+branche email) et `_senderSig`/`_systemRole` (branches `CLIENT_ID === 'kaizenology'` qui
+produisent le vocabulaire/signature M&A) sont déjà expliquées par la même cause racine
+que le cluster J+5 DÉLIBÉRÉ ci-dessus — pas la peine de les ré-instruire de zéro plus
+tard. Laissées ici en À TRIER quand même (statut technique, pour que le script continue
+de les couvrir) plutôt que dupliquées dans la section DÉLIBÉRÉ, qui ne liste que des
+fonctions absentes d'un fichier, pas des fonctions présentes uniquement dans l'autre.
+
+`_loadFeedCache`/`_saveFeedCache` (ci-dessus) : trois bugs réels trouvés et corrigés côté
+base par Thomas le 2026-09-10 sur la table qu'elles utilisent (`signals_feed_cache`) —
+voir CLAUDE.md, section "Fiabilité — écritures upsert silencieuses". Le statut de
+divergence de fonction (existence) reste À TRIER ; c'est un bug de fiabilité distinct,
+pas une raison de porter ou pas ces fonctions.
 
 ---
 
 *Dernière mise à jour : 2026-09-10, après la première exécution du script de diff
 (34 divergences trouvées : 26 côté demo-private.html, 8 côté kaizenology.html) — cluster
 J+5 reclassé de "À PORTER (probable)" à "DÉLIBÉRÉ" suite à correction de Thomas et
-vérification de la source citée.*
+vérification de la source citée ; 4 fonctions (`_loadLearnedPreferences`,
+`_icpBreakdownFromColumns`, `_parseNextActionJSON`/`_renderNextActionHTML`,
+`_pdAdditionalContactsHTML`) reclassées de "À TRIER" à "À PORTER (probable)" suite au
+triage de Thomas sur la base du code réel.*
