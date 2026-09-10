@@ -10560,7 +10560,7 @@ async function saveProspectEdit(id){
 async function archiveProspect(id){
   if (!id) return;
   try {
-    const { error } = await sbClient.from('prospects').update({ archived: true, updated_at: new Date().toISOString() }).eq('client_id', CLIENT_ID).eq('id', id);
+    const { error } = await sbClient.from('prospects').update({ archived: true, stage: 'Archived', updated_at: new Date().toISOString() }).eq('client_id', CLIENT_ID).eq('id', id);
     if (error) throw error;
     showToast(currentLang === 'fr' ? 'Prospect archivé' : 'Prospect archived');
     closeDrawer(); loadKanban(true);
@@ -10937,7 +10937,7 @@ async function _bulkArchive() {
   const pids = Array.from(_selectedPids);
   if (!confirm('Archive ' + pids.length + ' prospects?')) return;
   const { error } = await sbClient.from('prospects')
-    .update({ archived: true }).in('id', pids).eq('client_id', CLIENT_ID);
+    .update({ archived: true, stage: 'Archived' }).in('id', pids).eq('client_id', CLIENT_ID);
   if (error) { showToast('Error: ' + error.message); return; }
   showToast(pids.length + ' prospects archived');
   _bulkClear();
