@@ -1082,6 +1082,44 @@ body.new-nav { padding-left: 220px; }
   body.new-nav .snav-hamburger { display: flex; }
   body.new-nav.snav-open .snav-backdrop { display: block; }
 }
+/* Mobile bottom tab bar (Phase 1 chunk 5, porte depuis demo-private.html -- meme mecanisme,
+   arbitrage Thomas confirme avant portage : remplace le hamburger + sidebar coulissante en
+   dessous de 768px (meme seuil que le bloc hamburger ci-dessus), les deux mecanismes ne
+   coexistent jamais, celui-ci gagne car declare apres dans la feuille de style. Tokens adaptes
+   a ce fichier : --sidebar-bg/--sidebar-accent au lieu de --ink/--accent, 'Plus Jakarta Sans'
+   au lieu de 'Instrument Sans' (police par defaut ici). Sign out non reintroduit dans le
+   panneau More : deja accessible via #signout-btn, toujours visible dans <nav> sur mobile ici
+   (contrairement a demo-private.html ou il en a ete retire). */
+.mobile-tabbar { display: none; }
+@media (max-width: 768px) {
+  body.new-nav .snav-hamburger,
+  body.new-nav .new-sidebar,
+  body.new-nav .snav-backdrop { display: none !important; }
+  body.new-nav nav { padding-left: 48px; }
+  .mobile-tabbar {
+    display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 210;
+    height: 58px; background: var(--sidebar-bg); border-top: 1px solid rgba(255,255,255,.1);
+  }
+  .main { padding-bottom: 74px; } /* 58px tab bar + marge, evite qu'elle recouvre le bas du contenu */
+}
+.mtab-item {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  background: none; border: none; height: 58px; cursor: pointer;
+  font-family: 'Plus Jakarta Sans', sans-serif; font-size: 11px; font-weight: 500;
+  color: rgba(255,255,255,.72);
+}
+.mtab-item.active { color: #fff; font-weight: 600; }
+.mtab-badge { font-family: 'IBM Plex Mono', monospace; font-size: 9px; color: var(--sidebar-accent); }
+.mtab-badge:empty { display: none; }
+.more-list { display: flex; flex-direction: column; }
+.more-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 4px; border: none; border-bottom: 1px solid var(--border);
+  background: none; text-align: left; width: 100%;
+  font-family: 'Plus Jakarta Sans', sans-serif; font-size: 15px; color: var(--text); cursor: pointer;
+}
+.more-row .snav-icon { margin-right: 8px; }
+.more-chevron { color: var(--muted); font-size: 18px; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
@@ -1230,6 +1268,19 @@ body.new-nav { padding-left: 220px; }
   <span></span><span></span><span></span>
 </button>
 <div class="snav-backdrop" id="snav-backdrop" onclick="_toggleSnavMenu()"></div>
+
+<!-- MOBILE BOTTOM TAB BAR (Phase 1 chunk 5, porte depuis demo-private.html, < 768px) -->
+<nav class="mobile-tabbar" id="mobile-tabbar" aria-label="Mobile navigation">
+  <button class="mtab-item" data-nav="priorities" onclick="_switchNewNav('priorities')">Today</button>
+  <button class="mtab-item" data-nav="pipeline" onclick="_switchNewNav('pipeline')">Pipeline</button>
+  <button class="mtab-item" data-nav="send" onclick="_switchNewNav('send')">
+    <span>Send</span><span class="mtab-badge" id="mtab-badge-send"></span>
+  </button>
+  <button class="mtab-item" data-nav="inbox" onclick="_switchNewNav('inbox')">
+    <span>Inbox</span><span class="mtab-badge" id="mtab-badge-inbox"></span>
+  </button>
+  <button class="mtab-item" id="mtab-more-btn" onclick="_switchNewNav('more')">More</button>
+</nav>
 
 <!-- NAV -->
 <div class="top-chrome-wrapper">
@@ -2241,6 +2292,34 @@ body.new-nav { padding-left: 220px; }
     </div>
   </div>
 
+  <!-- MORE (Phase 1 chunk 5, porte depuis demo-private.html) : liste mobile des destinations
+       secondaires -- memes 7 entrees que la sidebar (Signals/Pipeline health/Reports/Agents/
+       Clients/Integrations/Stats) + Proposals avec son badge (_setProposalsBadge ecrit deja
+       #proposals-count, mtab-badge-proposals ajoute comme second point d'ecriture, meme
+       fonction). Sign out omis ici : #signout-btn reste visible dans <nav> sur mobile dans ce
+       fichier (jamais retire de <nav> comme dans demo-private.html), pas besoin d'un second
+       point d'acces. Icones reprises telles quelles de la sidebar pour rester reconnaissable
+       d'un ecran a l'autre. -->
+  <div class="tab-panel" id="tab-more">
+    <h2 style="font-size:var(--fs-md);font-weight:800;color:var(--navy);margin:0 0 16px;">More</h2>
+    <div class="more-list">
+      <button class="more-row" onclick="_switchNewNav('system','signals')"><span><span class="snav-icon">🚨</span>Signals</span><span class="more-chevron">›</span></button>
+      <button class="more-row" onclick="_switchNewNav('system','pipeintel')"><span><span class="snav-icon">📈</span>Pipeline health</span><span class="more-chevron">›</span></button>
+      <button class="more-row" onclick="_switchNewNav('system','weekly')"><span><span class="snav-icon">📋</span>Reports</span><span class="more-chevron">›</span></button>
+      <button class="more-row" onclick="_switchNewNav('agents')"><span><span class="snav-icon">🤖</span>Agents</span><span class="more-chevron">›</span></button>
+      <button class="more-row" onclick="_switchNewNav('clients')"><span><span class="snav-icon">🏢</span>Clients</span><span class="more-chevron">›</span></button>
+      <button class="more-row" onclick="_switchNewNav('integrations')"><span><span class="snav-icon">🔗</span>Integrations</span><span class="more-chevron">›</span></button>
+      <button class="more-row" onclick="_switchNewNav('stats')"><span><span class="snav-icon">📈</span>Stats</span><span class="more-chevron">›</span></button>
+      <button class="more-row" onclick="_switchNewNav('proposals')">
+        <span style="display:flex;align-items:center;gap:8px;">
+          <span class="snav-icon">📝</span>Proposals
+          <span class="mtab-badge" id="mtab-badge-proposals"></span>
+        </span>
+        <span class="more-chevron">›</span>
+      </button>
+    </div>
+  </div>
+
 </main>
 
 <footer>
@@ -2256,6 +2335,25 @@ function _newNavActive(key) {
   document.querySelectorAll('.snav-item').forEach(el => el.classList.remove('active'));
   const el = document.querySelector('.snav-item[data-nav="' + key + '"]');
   if (el) el.classList.add('active');
+  _updateMobileTabActive(key);
+}
+
+// Tab bar mobile (Phase 1 chunk 5, porte depuis demo-private.html) : "More" reste actif tant
+// qu'une destination secondaire est affichee, meme principe de derivation que la sidebar -- un
+// seul point d'accroche (_newNavActive), pas un deuxieme mecanisme de navigation separe.
+const MOBILE_TAB_PRIMARY = { 'priorities': true, 'pipeline': true, 'send': true, 'inbox': true };
+const MOBILE_TAB_SECONDARY = { 'system-signals': true, 'system-pipeintel': true, 'system-weekly': true, 'agents': true, 'clients': true, 'integrations': true, 'stats': true, 'proposals': true, 'more': true };
+function _updateMobileTabActive(key) {
+  const bar = document.getElementById('mobile-tabbar');
+  if (!bar) return;
+  bar.querySelectorAll('.mtab-item').forEach(el => el.classList.remove('active'));
+  if (MOBILE_TAB_PRIMARY[key]) {
+    const el = bar.querySelector('.mtab-item[data-nav="' + key + '"]');
+    if (el) el.classList.add('active');
+  } else if (MOBILE_TAB_SECONDARY[key]) {
+    const el = document.getElementById('mtab-more-btn');
+    if (el) el.classList.add('active');
+  }
 }
 
 let _morningItems = [];
@@ -3265,7 +3363,10 @@ function switchTab(name, fromClick = false) {
     setTimeout(() => {
       const panel = document.getElementById('tab-' + name);
       if (!panel) return;
-      const nav = document.querySelector('nav');
+      // Selecteur precis (fix porte depuis demo-private.html avec la tab bar mobile) : '.mobile-tabbar'
+      // est aussi une balise <nav> et precede la nav principale dans le DOM -- querySelector('nav')
+      // seul matchait donc le mauvais element sur mobile (hauteur 58px au lieu de la vraie nav).
+      const nav = document.querySelector('nav[aria-label="Primary navigation"]');
       const tabsNav = document.querySelector('.tabs-nav');
       const mBar = document.getElementById('mandate-bar');
       const mBarH = (mBar && mBar.style.display !== 'none' && mBar.offsetHeight > 0)
@@ -5819,6 +5920,14 @@ let _refProfileFetched = false;
 let _manualPid = null;
 let _manualTouch = null;
 
+// Badge tab bar mobile (Phase 1 chunk 5, porte depuis demo-private.html) : source unique,
+// appelee aux deux endroits qui recalculent le total Send (_applySendFilters, _markSent),
+// plutot que dupliquer l'ecriture textContent a chaque call site.
+function _setSendBadge(n) {
+  const mtabEl = document.getElementById('mtab-badge-send');
+  if (mtabEl) mtabEl.textContent = n > 0 ? n : '';
+}
+
 async function loadSendView() {
   const listEl = document.getElementById('send-list');
   const countEl = document.getElementById('send-count');
@@ -5916,6 +6025,8 @@ async function _loadRecentlySent() {
 function _setProposalsBadge(n) {
   const el = document.getElementById('proposals-count');
   if (el) el.textContent = n;
+  const mtabEl = document.getElementById('mtab-badge-proposals');
+  if (mtabEl) mtabEl.textContent = n > 0 ? n : '';
 }
 
 async function loadProposalsView() {
@@ -6138,6 +6249,7 @@ function _applySendFilters() {
   const totalDue = totalInvite + readyJ0.length;
   const countEl = document.getElementById('send-count');
   if (countEl) countEl.textContent = totalDue;
+  _setSendBadge(totalDue);
 
   let html = '';
   if (readyInvite.length) {
@@ -6949,6 +7061,7 @@ async function _markSent(pid, touch, auto = false, msgText = '', elPrefix = '') 
     const remaining = document.querySelectorAll('.send-card').length;
     const countEl = document.getElementById('send-count');
     if (countEl) countEl.textContent = remaining;
+    _setSendBadge(remaining);
   }, 600);
   if (eLastContact || eStage || eLinkedinTag || eReminder || ePriorityBatch) {
     showToast('⚠ Sent but not fully tracked');
@@ -8796,6 +8909,12 @@ async function loadInboxDrafts(view = 'pending') {
     }
     const { data: drafts, error } = await query;
     if (error) throw error;
+    // Badge tab bar mobile (Phase 1 chunk 5, porte depuis demo-private.html) : meme requete/
+    // definition de "pending" que la vue Inbox elle-meme, pas de deuxieme comptage.
+    if (view === 'pending') {
+      const mtabEl = document.getElementById('mtab-badge-inbox');
+      if (mtabEl) mtabEl.textContent = (drafts && drafts.length) ? drafts.length : '';
+    }
     if (!drafts || !drafts.length) {
       container.innerHTML = `<div style="padding:40px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">${view === 'pending' ? 'No pending replies.' : 'No history yet.'}</div>`;
       return;
