@@ -41,7 +41,13 @@ CRITICAL_WORKFLOWS=(
 )
 
 for wf in "${CRITICAL_WORKFLOWS[@]}"; do
-  encoded=$(python3 -c "import urllib.parse; print(urllib.parse.quote('$wf'))" 2>/dev/null || echo "$wf")
+  # Fix 2026-09-10 : python3 resout vers un stub Windows Store sur Git Bash/Windows (exit non-zero,
+  # message d'erreur -- pas un vrai interpreteur), donc le fallback `|| echo "$wf"` se declenchait
+  # en silence et envoyait le nom de workflow BRUT (espaces + tiret cadratin non encodes) dans
+  # l'URL -- curl echouait purement et simplement (HTTP_STATUS:000), jamais une vraie reponse
+  # PostgREST. node est deja une dependance confirmee de ce repo (deploy.sh, autres scripts) et
+  # fonctionne de facon fiable ici, contrairement a python3 -- plus de fallback silencieux errone.
+  encoded=$(node -e "console.log(encodeURIComponent(process.argv[1]))" "$wf")
   result=$(curl -s "$SUPABASE_URL/rest/v1/workflow_health?workflow_name=eq.$encoded&select=last_success_at" \
     -H "apikey: $ANON_KEY")
   # Detection d'erreur ajoutee (trouve en test le 10/09 : la reponse etait un objet d'erreur
@@ -52,7 +58,12 @@ for wf in "${CRITICAL_WORKFLOWS[@]}"; do
     echo "  $wf : ❌ ERREUR REQUETE -- $result"
     FAILED=$((FAILED + 1))
   elif [ -z "$result" ] || [ "$result" = "[]" ]; then
-    echo "  $wf : ⚠ Aucune ligne retournee (workflow jamais execute, ou nom desynchronise)"
+    # 2026-09-10 : GRANT confirme present sur cette table (verifie par Thomas), donc un [] silencieux
+    # (200 OK, zero ligne, meme sans filtre de nom du tout) pointe vers RLS actif sans policy SELECT
+    # pour anon plutot que vers un GRANT manquant -- les deux causes ont des symptomes differents
+    # (42501 = GRANT, [] = RLS) mais le meme effet visible ici. Verifier : SELECT * FROM pg_policies
+    # WHERE tablename = 'workflow_health';
+    echo "  $wf : ⚠ Aucune ligne retournee (workflow jamais execute, nom desynchronise, ou policy RLS manquante pour anon malgre un GRANT correct)"
   else
     echo "  $wf : $result"
   fi
