@@ -5691,7 +5691,7 @@ Populate stakeholder_* fields ONLY when new_stakeholder is true; set to null oth
             const canAdd = !!(s.stakeholder_name && s.stakeholder_company);
             const hasStakeholderInfo = !!(s.stakeholder_name || s.stakeholder_title);
             const addBtnHtml = canAdd
-              ? '<button onclick="_addStakeholderToPipeline(' + idx + ', this)" style="margin-top:6px;font-size:var(--fs-xs);font-weight:600;color:var(--fill-accent);background:none;border:1px solid var(--fill-accent);border-radius:var(--radius-sm);padding:3px 10px;cursor:pointer;">+ Add to pipeline</button>'
+              ? '<button onclick="_addSignalStakeholderToPipeline(' + idx + ', this)" style="margin-top:6px;font-size:var(--fs-xs);font-weight:600;color:var(--fill-accent);background:none;border:1px solid var(--fill-accent);border-radius:var(--radius-sm);padding:3px 10px;cursor:pointer;">+ Add to pipeline</button>'
               : '';
             const stakeholderNameHtml = (s.stakeholder_name && s.stakeholder_linkedin_url)
               ? '<a href="' + _esc(s.stakeholder_linkedin_url) + '" target="_blank" rel="noopener" style="color:var(--fill-accent);text-decoration:none;">' + _esc(s.stakeholder_name) + '</a>'
@@ -8229,7 +8229,16 @@ If no individual is named in the context, set confidence to "not_found" and name
   }
 }
 
-async function _addStakeholderToPipeline(idx, btn) {
+// Renommee (collision de noms corrigee, 2026-09-10) : une deuxieme fonction
+// _addStakeholderToPipeline(s, company, sector, icpScore, btn) existe plus bas (Scanner
+// committee cards, cf. _renderCommitteeCards) -- meme portee globale, la declaration la
+// plus basse dans le fichier ecrasait silencieusement celle-ci a l'execution. Le bouton
+// "+ Add to pipeline" du Signals feed (onclick plus bas) appelait donc en realite le
+// corps Scanner avec un idx numerique a la place de l'objet stakeholder attendu --
+// echec silencieux (avale par le meme pattern catch/console.warn). Nom aligne sur la
+// convention deja utilisee cote demo-private.html (_addStakeholderToPipeline vs
+// _addCommitteeStakeholderToPipeline, deux noms distincts, pas de collision la-bas).
+async function _addSignalStakeholderToPipeline(idx, btn) {
   const s = (window._msSigCache || {})[idx];
   if (!s || !s.stakeholder_name || !s.stakeholder_company) return;
   if (btn) { btn.disabled = true; btn.textContent = 'Adding…'; }
@@ -8271,7 +8280,7 @@ async function _addStakeholderToPipeline(idx, btn) {
     await loadKanban(true);
     if (inserted?.id) _prOpenProspect(inserted.id);
   } catch(e) {
-    console.warn('[_addStakeholderToPipeline] failed:', e);
+    console.warn('[_addSignalStakeholderToPipeline] failed:', e);
     if (btn) { btn.disabled = false; btn.textContent = '+ Add to pipeline'; }
   }
 }
