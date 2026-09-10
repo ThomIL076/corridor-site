@@ -13,6 +13,12 @@ set -uo pipefail
 SUPABASE_URL="https://oanokmugroiahtgcecbn.supabase.co"
 ANON_KEY="sb_publishable_2EjvzlNU58xml_Q6lqt9IQ_2jWeGvmQ"
 
+# Compteur d'echecs reels (pas les warnings ⚠, juste ce qui est sans ambiguite casse) --
+# ajoute pour que deploy.sh puisse detecter un echec via le code de sortie plutot que de
+# parser la sortie texte. Auparavant ce script imprimait toujours des infos, jamais un
+# verdict machine-lisible -- exit 0 quoi qu'il arrive.
+FAILED=0
+
 echo "============================================================"
 echo "SMOKE TESTS — $(date '+%Y-%m-%d %H:%M:%S')"
 echo "============================================================"
@@ -44,6 +50,7 @@ for wf in "${CRITICAL_WORKFLOWS[@]}"; do
   # une duree indeterminee).
   if echo "$result" | grep -q '"code"'; then
     echo "  $wf : ❌ ERREUR REQUETE -- $result"
+    FAILED=$((FAILED + 1))
   elif [ -z "$result" ] || [ "$result" = "[]" ]; then
     echo "  $wf : ⚠ Aucune ligne retournee (workflow jamais execute, ou nom desynchronise)"
   else
@@ -77,16 +84,28 @@ echo "  touchant l'auth ou les policies RLS, pas après chaque déploiement)"
 echo ""
 echo "--- TEST 3 : Endpoints Vercel critiques ---"
 
+# expected="" (vide) : affiche juste le code, pas de verdict (garde l'ancien comportement
+# pour un appel sans attente precise). expected="401" etc. : compare et incremente FAILED
+# sur mismatch -- c'est ce qui permet a deploy.sh de detecter un vrai echec via l'exit code
+# plutot que de faire relire le texte a chaque fois.
 check_endpoint() {
   local url="$1"
   local label="$2"
+  local expected="${3:-}"
   status=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$url" \
     -H "Content-Type: application/json" \
     -d '{}' --max-time 10)
-  echo "  $label : HTTP $status"
+  if [ -z "$expected" ]; then
+    echo "  $label : HTTP $status"
+  elif [ "$status" = "$expected" ]; then
+    echo "  $label : HTTP $status ✅ OK"
+  else
+    echo "  $label : HTTP $status ❌ FAIL (attendu $expected)"
+    FAILED=$((FAILED + 1))
+  fi
 }
 
-check_endpoint "https://corridor.systems/api/workflow-proxy?action=icp-score-batch" "workflow-proxy (icp-score-batch, sans auth)"
+check_endpoint "https://corridor.systems/api/workflow-proxy?action=icp-score-batch" "workflow-proxy (icp-score-batch, sans auth)" "401"
 # Attendu : 401 (pas 500) -- confirme que l'endpoint est vivant ET
 # que la vérification d'auth fonctionne (rejette une requête sans token).
 
@@ -102,13 +121,13 @@ echo "  juste un rejet d'auth normal."
 # requete invalide" de "crash serveur" ou timeout, sans consommer de credit Anthropic/Smartlead
 # (aucun des deux ne va jusqu'a l'appel externe reussi avec un payload vide).
 echo ""
-check_endpoint "https://corridor.systems/api/generate" "generate (utilise par _generateSequenceMessage, corps vide)"
+check_endpoint "https://corridor.systems/api/generate" "generate (utilise par _generateSequenceMessage, corps vide)" "502"
 echo "  ATTENDU pour generate avec corps vide : HTTP 502 (Anthropic rejette 'messages'"
 echo "  vide, relaye tel quel) -- pas 500 (crash de la fonction Vercel elle-meme, ex:"
 echo "  cle Langfuse/Anthropic manquante) ni timeout."
 
 echo ""
-check_endpoint "https://corridor.systems/api/email-send" "email-send (utilise par _startEmailSeq/_bulkStartEmailSeq, corps vide)"
+check_endpoint "https://corridor.systems/api/email-send" "email-send (utilise par _startEmailSeq/_bulkStartEmailSeq, corps vide)" "400"
 echo "  ATTENDU pour email-send avec corps vide : HTTP 400 ('email required',"
 echo "  cf. api/email-send.js) -- pas 500 ni timeout."
 
@@ -140,5 +159,14 @@ echo "    (_isJ5Eligible, bug _sendSequences confondu avec _sendJ5Sent)."
 
 echo ""
 echo "============================================================"
-echo "Smoke tests terminés. Vérifie chaque section ci-dessus."
-echo "============================================================"
+if [ "$FAILED" -gt 0 ]; then
+  echo "❌ SMOKE TESTS : $FAILED ECHEC(S) REEL(S) DETECTE(S) -- voir ci-dessus."
+  echo "============================================================"
+  exit 1
+else
+  echo "✅ Smoke tests terminés, aucun échec détecté automatiquement."
+  echo "Vérifie quand même chaque section ci-dessus (TEST 1 fraîcheur,"
+  echo "TEST 4 manuel) -- ce script ne couvre pas tout."
+  echo "============================================================"
+  exit 0
+fi

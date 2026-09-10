@@ -1,4 +1,7 @@
 {
+  "scripts": {
+    "deploy": "bash deploy.sh"
+  },
   "dependencies": {
     "@supabase/supabase-js": "latest",
     "langfuse": "latest",
