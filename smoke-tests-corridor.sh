@@ -35,8 +35,9 @@ CRITICAL_WORKFLOWS=(
   "Morning Scan — Corridor"
   "Morning Scan — Kaizenology"
   "Corridor - Auto ICP Scoring v1"
-  "Corridor - Auto ICP Scoring v1 - kaizenology (multi-mandat)"
-  "Trigify Signal Sync v1"
+  "auto_icp_scoring_kaizenology"
+  "Trigify Signal Sync v1 — Thomas"
+  "Trigify Signal Sync v1 — Kaizenology"
   "Corridor - Auto Invitations LinkedIn v1"
 )
 
