@@ -6658,15 +6658,24 @@ function _sortEMEAFirst(arr) {
 }
 
 // Eligibilite J+5 partagee entre passesFilters (derivation de qt) et readyJ5High/readyJ5Low
-// (ci-dessous) -- ne couvre pas icp_score, qui reste ce qui distingue High/Low. Les deux
-// exclusions "deja envoye" etaient absentes de readyJ5Low avant un fix anterieur (readyJ5Low
-// restait rempli indefiniment pour tout prospect deja envoye, _startEmailSeq() ne faisant jamais
-// avancer le stage) -- centralisees ici, elles ne peuvent plus diverger entre les deux listes.
+// (ci-dessous) -- ne couvre pas icp_score, qui reste ce qui distingue High/Low. L'exclusion
+// "deja envoye" (_sendJ5Sent, alimente par interactions.email_j5 + sequences touch='j5'
+// status='sent', cf. loadSendView()) etait absente de readyJ5Low avant un fix anterieur
+// (readyJ5Low restait rempli indefiniment pour tout prospect deja envoye, _startEmailSeq() ne
+// faisant jamais avancer le stage) -- centralisee ici, elle ne peut plus diverger entre les deux
+// listes.
+//
+// Fix (bug remonte par Thomas, prospects Tal Golan/Philippe Roireau) : une deuxieme exclusion
+// verifiait _sendSequences -- draft/ready uniquement, cf. le .in('status',['draft','ready']) de
+// la requete qui l'alimente, elle ne contient JAMAIS de ligne 'sent' -- pour un touch='j5' sans
+// egard a son status. Un prospect avec un brouillon genere ou marque "Ready" (jamais envoye)
+// disparaissait donc de Due Now des le rechargement suivant, alors qu'aucun email n'etait parti.
+// _sendJ5Sent est deja la seule source fiable de "deja envoye" -- retiree, la ligne ne faisait
+// que dupliquer (mal) ce qu'elle couvre deja.
 function _isJ5Eligible(p, fiveDaysAgo) {
   return p.stage === '1st Contact'
     && !!p.last_contact && p.last_contact <= fiveDaysAgo
-    && !_sendJ5Sent[p.id]
-    && !(_sendSequences[p.id]||[]).some(s => s.touch === 'j5');
+    && !_sendJ5Sent[p.id];
 }
 
 // Version legere de la portion de loadSendView() qui alimente _sendJ5Sent/_sendSequences --
@@ -7498,10 +7507,17 @@ async function _markReady(pid, elPrefix = '') {
   if (!seqId) { showToast('Save draft first'); return; }
   const { error } = await sbClient.from('sequences').update({ status:'ready' }).eq('id', seqId).eq('client_id', CLIENT_ID);
   if (error) { showToast('Error'); return; }
+  const seqEntry = (_sendSequences[pid] || []).find(s => s.id === seqId);
+  if (seqEntry) seqEntry.status = 'ready';
   const btn = document.getElementById(elPrefix + 'sr-' + pid);
   if (btn) { btn.textContent = '✓ Ready'; btn.style.borderColor = 'var(--green)'; btn.style.color = 'var(--green)'; }
-  const sendBtn = document.getElementById(elPrefix + 'sli-' + pid);
-  if (sendBtn) sendBtn.disabled = false;
+  // Send button id depends on channel: 'sli-' for LinkedIn touches (invite/j0), 'start-seq-' for
+  // email (j5, cf. isEmailTouch in _sendCardHTML) -- only one of the two exists in the DOM for a
+  // given card, the lookup on the other is a harmless no-op.
+  const sendBtnLinkedIn = document.getElementById(elPrefix + 'sli-' + pid);
+  if (sendBtnLinkedIn) sendBtnLinkedIn.disabled = false;
+  const sendBtnEmail = document.getElementById(elPrefix + 'start-seq-' + pid);
+  if (sendBtnEmail) sendBtnEmail.disabled = false;
   showToast('Message ready to send');
 }
 
