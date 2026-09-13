@@ -838,6 +838,20 @@ chacun à une question précise posée par Thomas, avec preuve directe
 
 ## Point 1 — Signaux absents sur theravia/Audrey Hatton : VRAI BUG, isolé
 
+> **CORRIGÉ (2026-09-13).** `_scannerDetectSignals` (wominds.html) ne
+> bloque plus la détection dès que le disclaimer "aucune information
+> vérifiable" apparaît en tête — il vérifie désormais s'il reste du texte
+> substantiel après ce disclaimer (`afterDisclaimer.length < 40` pour
+> considérer le brief réellement vide) avant de renvoyer `[]`.
+> **Revérifié sur le texte réel exact capturé pour theravia/Audrey
+> Hatton** (celui-là même qui avait révélé le bug, pas un nouveau cas
+> inventé) : `_scannerDetectSignals` renvoie maintenant
+> `['Échéance réglementaire', 'Indicateurs RH', 'Engagement égalité F/H',
+> 'M&A / levée de fonds']` — les 4 catégories exactes que le diagnostic
+> avait confirmées comme présentes mot pour mot dans ce texte. Le garde-
+> fou reste actif pour un cas réellement vide (testé avec seulement la
+> phrase disclaimer, sans aucune suite) : renvoie bien `[]`.
+
 **Le mécanisme ne tourne que sur le texte généré par la recherche web
 entreprise (`briefText`), jamais sur les signaux déjà connus en base**
 (`prospects.signal`/`signal_type` pour un prospect existant) — confirmé
@@ -898,10 +912,24 @@ mot) et le tag n'apparaît quand même pas → **c'est le "vrai bug de rendu
 La cause est un garde-fou anti-invention trop large : il traite la
 présence de la phrase-disclaimer comme une preuve d'absence totale de
 signal, alors que le prompt lui-même prévoit explicitement qu'un brief
-"générique" substantiel soit rédigé après ce disclaimer. Non corrigé dans
-cette passe (diagnostic demandé).
+"générique" substantiel soit rédigé après ce disclaimer. **Corrigé et
+revérifié, cf. bandeau en tête de section.**
 
 ## Point 2 — "Qui a interagi" : localisé, un des 3 endroits déjà identifiés
+
+> **CORRIGÉ (2026-09-13).** La construction de `sigText` dans
+> `runMorningScan()` (wominds.html) appelle désormais `_sanitizeSignal(p.signal)`
+> (même fonction/même résolution `clients.contact_name` que le fix de ce
+> matin sur la fiche prospect) au lieu de faire son propre
+> `.replace(/<[^>]*>/g,'')` brut. Ajustement associé : `_sanitizeSignal`
+> renvoie déjà du texte `_esc()`-safe en interne, donc le double
+> échappement en aval (`_esc(sigText)` dans le HTML de la carte) a été
+> retiré pour éviter des entités doublées (`&amp;amp;`). **Revérifié en
+> exécutant le code réel** avec le signal exact d'Audrey Hatton
+> (`"A interagi avec votre profil (mot-cle: https://www.linkedin.com/in/elodiedratler)"`) :
+> le texte produit pour la carte est maintenant
+> `"Pourquoi : A interagi avec le profil d'Élodie Dratler"` — plus de
+> "votre profil" non résolu, aucune entité doublée observée.
 
 **Ce n'est pas un 4e emplacement** — c'est le premier des "3 autres
 endroits" déjà notés ce matin (`_pdAiInsightBoxesHTML`/section PORTÉ,
@@ -949,9 +977,50 @@ ce n'est pas là que ça casse. Le nom "Scanner" a probablement été
 utilisé par Thomas au sens large (les 3 boutons du bloc Signaux),
 pas au sens strict du panneau "Scanner une entreprise".
 
-Non corrigé dans cette passe (diagnostic demandé).
+**Corrigé et revérifié, cf. bandeau en tête de section.**
 
 ## Point 3 — "Historique des interactions" : même pattern qu'Item 0 ce matin, confirmé
+
+> **CORRIGÉ (2026-09-13, option (b) — fusion complète, pas un reskin).**
+> `_pdInteractionsHTML()` (l'ancienne carte "Historique des interactions")
+> supprimée. `_pdMessageHistoryHTML()` remplacée par
+> `_pdMessageHistorySectionHTML()` : une seule carte "Historique des
+> messages", liste rendue par `_pdBuildMessageHistoryHTML()` (réécrite
+> avec `.pd-row`/`.pd-row-mono`/`.pd-row-main`) dans `#pd-msghistory-rows`,
+> suivie d'un `#pd-logint-form` masqué par défaut (`display:none`) révélé
+> par un nouveau bouton `.pd-plus` "+ Log interaction"
+> (`_pdToggleLogInteraction()`, copié du comportement demo-private.html:8860).
+> Le formulaire lui-même (`int-type-btns`/`int-note-input`/`int-save-btn`)
+> **n'a pas été touché**, seul son conteneur (masqué/révélé au lieu de
+> toujours visible) a changé, conformément à l'instruction. `_saveInteraction()`
+> et `_loadDrawerInteractions()` réutilisent `_renderDrawerInteractions()`
+> (nom de fonction conservé, contenu repointé vers `#pd-msghistory-rows`)
+> — aucun changement de schéma sur la table `interactions`.
+>
+> **Vérification réelle effectuée** (pas de navigateur disponible ici,
+> donc vérification par exécution du code réel + écriture/lecture réelle
+> en base, la plus proche possible d'un test en conditions réelles) :
+> aucun prospect Wominds n'avait encore d'historique d'interactions réel
+> en base au moment de vérifier (`0` lignes toutes fiches confondues) —
+> deux interactions de test (`type: 'call'` puis `type: 'linkedin'`,
+> notes explicitement marquées "Test de vérification Claude... à
+> supprimer") ont été insérées pour de vrai sur la fiche réelle d'Audrey
+> Hatton, via le même chemin d'écriture que `_saveInteraction()`
+> (`client_id='wominds'`, `mandate_id: null`). Relues immédiatement après
+> insertion et passées dans le code réel et actuel de
+> `_pdBuildMessageHistoryHTML()` (extrait du fichier, pas réécrit à la
+> main) : les deux lignes apparaissent bien, triées par date décroissante
+> (la plus récente en premier), avec les classes `.pd-row`/`.pd-row-mono`/
+> `.pd-row-main` correctement appliquées et les libellés attendus
+> ("ENVOYÉ · LinkedIn", "NOTÉ · Appel"). Les deux lignes de test ont
+> ensuite été supprimées de la base (`DELETE ... RETURNING id` confirmé,
+> 2 lignes supprimées) — aucune trace laissée dans les données réelles de
+> Wominds. Le comportement "sans rechargement" est garanti par lecture du
+> code (`_saveInteraction()` fait
+> `_drawerInteractions = [data, ..._drawerInteractions]; _renderDrawerInteractions();`
+> en synchrone après l'insert, jamais de rechargement de page) — la seule
+> partie non vérifiable sans navigateur est le rendu visuel final à
+> l'écran, à confirmer par Thomas.
 
 **Fonction identifiée** : `_pdInteractionsHTML()` (wominds.html, ligne
 ~4054, carte "Historique des interactions") + `_renderDrawerInteractions()`
@@ -984,9 +1053,15 @@ la même), ni simple renommage — **même diagnostic qu'Item 0 ce matin**
 présentes dans la feuille de style depuis ce matin, jamais consommées
 ici) plus une différence structurelle réelle (1 section unifiée et
 repliable côté référence vs 2 cartes séparées et toujours visibles côté
-wominds.html). Non corrigé dans cette passe (diagnostic demandé).
+wominds.html). **Corrigé et revérifié, cf. bandeau en tête de section.**
 
 *Ajouté le 2026-09-13 (brief "diagnostic (pas de fix) sur 3 points
 Scanner wominds.html"). Point 1 vérifié par appel réel au endpoint de
 production ; points 2 et 3 par lecture directe et comparaison ligne à
-ligne des deux fichiers, jamais par supposition.*
+ligne des deux fichiers, jamais par supposition. Mis à jour le même jour
+(brief de correction) : les 3 points sont désormais corrigés, chacun
+revérifié en conditions réelles (rejeu du texte réel capturé pour le
+point 1 ; exécution du code réel avec le signal réel d'Audrey Hatton
+pour le point 2 ; écriture/lecture réelles en base, nettoyées ensuite,
+pour le point 3) — voir les bandeaux "CORRIGÉ" en tête de chaque section
+ci-dessus pour le détail et la preuve.*

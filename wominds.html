@@ -2899,9 +2899,14 @@ Renseignez les champs stakeholder_* UNIQUEMENT si new_stakeholder est true, sino
     const text = (Array.isArray(data.content) ? data.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim() : '') || 'Aucune réponse.';
     const runTs = new Date().toISOString();
     const _topProspectItems = _topProspectData.map(function(p) {
+      // Fix 2026-09-13 (diagnostic point 2) : meme resolution "votre profil" -> vrai contact_name
+      // que _renderSignalsFeed() branche 'live' (deja correcte ce matin) -- _sanitizeSignal()
+      // deja _esc()-safe en interne, sigText n'est donc plus re-echappe ligne ~2917 ci-dessous
+      // (evite le double-echappement d'entites HTML).
+      const _sigSanitized = p.signal ? _sanitizeSignal(p.signal) : '';
       const sigText = p.signal_interpretation
-        ? p.signal_interpretation.slice(0, 140)
-        : p.signal.replace(/<[^>]*>/g, '').trim().slice(0, 90) + (p.signal.replace(/<[^>]*>/g, '').trim().length > 90 ? '…' : '');
+        ? _esc(p.signal_interpretation.slice(0, 140))
+        : _sigSanitized.slice(0, 90) + (_sigSanitized.length > 90 ? '…' : '');
       const icpBadge =
         '<span style="position:relative;display:inline-block;" onmouseover="this.querySelector(\'.icp-tt\').style.display=\'block\'" onmouseout="this.querySelector(\'.icp-tt\').style.display=\'none\'">' +
           '<span style="font-size:var(--fs-xs);font-weight:700;background:var(--navy-light);color:var(--navy);border:1px solid var(--blue);border-radius:var(--radius-pill);padding:1px 8px;white-space:nowrap;cursor:default;">ICP ' + p.icp_score + '</span>' +
@@ -2914,7 +2919,7 @@ Renseignez les champs stakeholder_* UNIQUEMENT si new_stakeholder est true, sino
           '<span style="margin-left:auto;display:flex;align-items:center;gap:6px;">' + _reminderBadge + icpBadge + '</span>' +
         '</div>' +
         '<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:2px;">' + (p.company ? '<strong>' + _esc(p.company) + '</strong>' : '') + (p.sector ? _esc(' · ' + p.sector) : '') + _esc(' · Étape : ' + (STAGE_LABEL_FR[p.stage] || p.stage || 'Identifiés')) + '</div>' +
-        '<div style="font-size:var(--fs-xs);color:var(--text);margin-top:3px;overflow-wrap:break-word;"><span style="font-weight:700;">Pourquoi :</span> ' + _esc(sigText) + '</div>';
+        '<div style="font-size:var(--fs-xs);color:var(--text);margin-top:3px;overflow-wrap:break-word;"><span style="font-weight:700;">Pourquoi :</span> ' + sigText + '</div>';
       return { timestamp: runTs, type: 'morning', prospectId: p.id || null, signalType: p.signal_type || null, label: (p.name || '') + (p.company ? ' · ' + p.company : ''), linkedinUrl: p.linkedin || '', htmlContent: cardHtml };
     });
     let signalsData = null;
@@ -3668,6 +3673,9 @@ function _pdAiInsightBoxesHTML(p) {
   return (p.signal_interpretation ? box('Analyse IA', p.signal_interpretation.replace(/<[^>]*>/g, '')) : '')
     + (p.icp_reason ? box('Justification du score', p.icp_reason.replace(/<[^>]*>/g, '')) : '');
 }
+// Fix 2026-09-13 (diagnostic point 3, fusion decidee -- option (b)) : une seule liste .pd-row/
+// .pd-row-mono/.pd-row-main, meme structure que demo-private.html:8875-8905 (sans debrief d'appel/
+// reponses agent_proposals, infrastructure absente de wominds.html -- deja etabli, pas un oubli).
 function _pdBuildMessageHistoryHTML() {
   const rows = (_drawerInteractions || [])
     .filter(i => ['linkedin','email','note','meeting','call'].includes(i.type))
@@ -3678,14 +3686,34 @@ function _pdBuildMessageHistoryHTML() {
     .sort((a, b) => new Date(b.date) - new Date(a.date))
     .slice(0, 4);
   if (!rows.length) return `<div class="pd-empty">Aucun message enregistré pour l'instant.</div>`;
-  return rows.map(r => `<div style="display:flex;align-items:center;gap:6px;">
-      <span style="font-size:var(--fs-micro);font-weight:700;color:${r.dir === 'ENVOYÉ' ? 'var(--navy)' : 'var(--muted)'};text-transform:uppercase;letter-spacing:.04em;">${_esc(r.dir)} · ${_esc(r.channel)}</span>
-      <span style="font-size:var(--fs-xs);color:var(--muted);margin-left:auto;white-space:nowrap;">${_esc(_relDate(r.date) || '')}</span>
+  return rows.map(r => `<div class="pd-row">
+      <span class="pd-row-mono" style="color:${r.dir === 'ENVOYÉ' ? 'var(--navy)' : 'var(--muted)'};">${_esc(r.dir)} · ${_esc(r.channel)}</span>
+      <span class="pd-row-mono" style="margin-left:auto;">${_esc(_relDate(r.date) || '')}</span>
     </div>
-    <div style="font-size:var(--fs-sm);color:var(--text);margin:2px 0 10px;">${_esc((r.text || '').slice(0, 160))}${(r.text || '').length > 160 ? '…' : ''}</div>`).join('');
+    <div class="pd-row-main">${_esc((r.text || '').slice(0, 160))}${(r.text || '').length > 160 ? '…' : ''}</div>`).join('');
 }
-function _pdMessageHistoryHTML() {
-  return `<div class="card" style="margin:16px 0;"><div class="card-header"><span class="card-title">Historique des messages</span></div><div id="pd-msghistory">${_pdBuildMessageHistoryHTML()}</div></div>`;
+// Section unique "Historique des messages" (remplace les deux cartes separees "Historique des
+// interactions"/"Historique des messages", fusion demandee 2026-09-13) -- formulaire de log
+// masque par defaut, revele par ".pd-plus", meme comportement que demo-private.html:8743/8752/8860.
+// int-type-btns/int-note-input/int-save-btn inchanges (deja fonctionnels, seul le conteneur change).
+function _pdMessageHistorySectionHTML() {
+  return `<div class="card" style="margin:16px 0;">
+    <div class="card-header"><span class="card-title">Historique des messages</span></div>
+    <div id="pd-msghistory-rows">${_pdBuildMessageHistoryHTML()}</div>
+    <div id="pd-logint-form" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">
+      <div class="int-type-btns">
+        ${['linkedin','email','call','meeting','note'].map((t, i) => `<button class="int-type-btn${i === 0 ? ' selected' : ''}" data-type="${t}" onclick="_selIntType(this)">${_esc(_INT_LABELS_FR[t])}</button>`).join('')}
+      </div>
+      <textarea class="int-note-input" id="pd-int-note" placeholder="Ajouter une note (optionnel)..." rows="2"></textarea>
+      <button class="int-save-btn" id="pd-int-save" onclick="_saveInteraction()">Enregistrer l'interaction</button>
+    </div>
+    <button class="pd-plus" style="margin-top:8px;" onclick="_pdToggleLogInteraction()">+ Log interaction</button>
+  </div>`;
+}
+function _pdToggleLogInteraction() {
+  const el = document.getElementById('pd-logint-form');
+  if (!el) return;
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
 }
 // ── Comite d'achat (parite demo-private.html:8379-8521) : decouverte auto (recherche web + IA,
 // 3 roles fixes) au premier chargement d'un prospect (relance si perime -- 90j si trouve, 30j si
@@ -3933,8 +3961,7 @@ function openProspectDetail(id){
     _pdAiInsightBoxesHTML(p) +
     _reminderBannerHTML(p.reminder_date) +
     _pdNextActionHTML(p) +
-    _pdInteractionsHTML() +
-    _pdMessageHistoryHTML() +
+    _pdMessageHistorySectionHTML() +
     _pdBuyingCommitteeHTML(id) +
     _pdEditSectionHTML(id, p);
   const drawerEl = document.getElementById('drawer');
@@ -3953,7 +3980,7 @@ function openProspectDetail(id){
   }
   // Prefill Scanner si ouvert depuis ce tiroir (parite demo-private.html:8602/_scannerPreFill).
   _scannerPreFill = { company: p.company || '', sector: p.sector || '', icp_score: p.icp_score != null ? Number(p.icp_score) : null, person: p.name || null };
-  _loadDrawerInteractions(id).then(() => { const el = document.getElementById('pd-msghistory'); if (el) el.innerHTML = _pdBuildMessageHistoryHTML(); });
+  _loadDrawerInteractions(id);
   _loadBuyingCommittee(id, p);
   _dvShowFields();
   _restoreDealValue();
@@ -4051,17 +4078,6 @@ function _selIntType(btn) {
   btn.classList.add('selected');
 }
 function _getIntType() { return document.querySelector('.int-type-btn.selected')?.dataset.type || 'note'; }
-function _pdInteractionsHTML() {
-  return `<div class="card" style="margin:16px 0;">
-    <div class="card-header"><span class="card-title">Historique des interactions</span></div>
-    <div id="pd-interactions-list" style="font-size:var(--fs-sm);color:var(--muted);margin-bottom:10px;">Chargement…</div>
-    <div class="int-type-btns">
-      ${['linkedin','email','call','meeting','note'].map((t, i) => `<button class="int-type-btn${i === 0 ? ' selected' : ''}" data-type="${t}" onclick="_selIntType(this)">${_esc(_INT_LABELS_FR[t])}</button>`).join('')}
-    </div>
-    <textarea class="int-note-input" id="pd-int-note" placeholder="Ajouter une note (optionnel)..." rows="2"></textarea>
-    <button class="int-save-btn" id="pd-int-save" onclick="_saveInteraction()">Enregistrer l'interaction</button>
-  </div>`;
-}
 async function _loadDrawerInteractions(pid) {
   _drawerInteractions = [];
   try {
@@ -4073,22 +4089,12 @@ async function _loadDrawerInteractions(pid) {
   } catch(e) { console.warn('[_loadDrawerInteractions]', e); }
   _renderDrawerInteractions();
 }
+// Fusion 2026-09-13 (diagnostic point 3) : met a jour la meme liste unifiee #pd-msghistory-rows
+// (plus de #pd-interactions-list separe) -- nom de fonction inchange pour ne pas casser les
+// appelants existants (_loadDrawerInteractions/_saveInteraction), seul le contenu change.
 function _renderDrawerInteractions() {
-  const el = document.getElementById('pd-interactions-list');
-  if (!el) return;
-  if (!_drawerInteractions.length) { el.innerHTML = '<span style="font-style:italic;">Aucune interaction enregistrée pour l\'instant.</span>'; return; }
-  el.innerHTML = _drawerInteractions.map(i => {
-    const icon = _INT_ICONS[i.type] || '📝';
-    const label = _INT_LABELS_FR[i.type] || i.type;
-    const rel = _relDate(i.created_at);
-    return `<div style="display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);">
-      <span>${icon}</span>
-      <div style="flex:1;min-width:0;">
-        <div style="font-size:var(--fs-xs);color:var(--text);font-weight:600;">${_esc(label)}${rel ? ' · ' + _esc(rel) : ''}</div>
-        ${i.note ? `<div style="font-size:var(--fs-xs);color:var(--muted);white-space:pre-wrap;">${_esc(i.note)}</div>` : ''}
-      </div>
-    </div>`;
-  }).join('');
+  const el = document.getElementById('pd-msghistory-rows');
+  if (el) el.innerHTML = _pdBuildMessageHistoryHTML();
 }
 async function _saveInteraction() {
   const pid = _drawerPid();
@@ -4108,8 +4114,6 @@ async function _saveInteraction() {
   }
   _drawerInteractions = [data, ..._drawerInteractions];
   _renderDrawerInteractions();
-  const mhEl = document.getElementById('pd-msghistory');
-  if (mhEl) mhEl.innerHTML = _pdBuildMessageHistoryHTML();
   const noteEl = document.getElementById('pd-int-note');
   if (noteEl) noteEl.value = '';
   showToast('Interaction enregistrée');
@@ -6395,8 +6399,17 @@ const _WOMINDS_SIGNAL_CATEGORIES = [
 // prompt lui-meme ci-dessous ("Aucune information publique verifiable trouvee").
 function _scannerDetectSignals(text) {
   if (!text) return [];
-  const noInfo = /aucune information (publique )?vérifiable|aucune donnée fiable|impossible de trouver|rien de fiable trouvé/i.test(text);
-  if (noInfo) return [];
+  // Fix 2026-09-13 (diagnostic point 1, cas reel theravia) : le garde-fou ne doit bloquer la
+  // detection que si le brief est reellement vide au-dela du disclaimer "aucune info trouvee" --
+  // pas simplement parce que ce disclaimer apparait en tete. Le prompt continue TOUJOURS avec une
+  // analyse generique substantielle derriere (les 5 sections ##), meme quand aucune donnee
+  // specifique n'a ete trouvee -- verifie reellement sur theravia : 4 des 6 categories etaient
+  // presentes dans cette analyse generique, le garde-fou les supprimait a tort.
+  const noInfoMatch = text.match(/aucune information (publique )?vérifiable[^\n]*|aucune donnée fiable[^\n]*|impossible de trouver[^\n]*|rien de fiable trouvé[^\n]*/i);
+  if (noInfoMatch) {
+    const afterDisclaimer = text.slice(noInfoMatch.index + noInfoMatch[0].length).trim();
+    if (afterDisclaimer.length < 40) return []; // vraiment rien apres le disclaimer
+  }
   return _WOMINDS_SIGNAL_CATEGORIES.filter(c => c.re.test(text));
 }
 async function runScanner() {
