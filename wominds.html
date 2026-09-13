@@ -3850,10 +3850,13 @@ function openProspectDetail(id){
   if (!p) return;
   _drawerProspect = p;
   const fmtDate = d => d ? new Date(d).toLocaleDateString('fr-FR', { day:'numeric', month:'short', year:'numeric' }) : null;
+  // Nom/Entreprise/Poste retires de cette liste (fix Item 0, 2026-09-13) : deja affiches dans
+  // .drawer-head (#pd-drawer-name/#pd-drawer-company, ci-dessous) -- les garder ici aurait
+  // duplique la meme info deux fois, ce que ne fait pas non plus demo-private.html (son
+  // .pd-header couvre nom/role/entreprise, ses .pd-row ne servent qu'a la timeline signal/
+  // messages, jamais aux champs de contact -- repris ici pour les champs restants faute
+  // d'equivalent plus proche dans la reference).
   const rows = [
-    ['Nom', p.name],
-    ['Entreprise', p.company],
-    ['Poste', p.title],
     ['Email', p.email],
     ['Téléphone', p.phone],
     ['LinkedIn', p.linkedin],
@@ -3864,20 +3867,40 @@ function openProspectDetail(id){
     ['Stade de financement', p.funding_stage],
     ['Date de la levée', fmtDate(p.last_funding_date)],
     ['Montant levé', p.total_funding],
-    ['Étape', STAGE_LABEL_FR[p.stage] || p.stage || 'Identifiés'],
-    ['Score ICP', p.icp_score != null ? p.icp_score : null],
     ['Critères remplis', p.hard_criteria_met],
     ['Notes', p.notes],
-    ['Créé le', fmtDate(p.created_at)],
   ].filter(([, v]) => v != null && v !== '');
   const breakdown = _icpBreakdownFromColumns(p);
   const nameEl = document.getElementById('pd-drawer-name');
   if (nameEl) nameEl.textContent = p.name || 'Prospect';
   const companyEl = document.getElementById('pd-drawer-company');
   if (companyEl) companyEl.textContent = [p.title, p.company].filter(Boolean).join(' · ') || (p.company || '');
+  // Stats + rows sur les classes .pd-header/.pd-stats/.pd-row (fix Item 0, 2026-09-13) --
+  // memes classes/structure que demo-private.html, deja presentes dans la feuille de style
+  // depuis ce matin (commit 740eca0) mais jamais consommees jusqu'ici. Padding horizontal de
+  // .pd-header mis a 0 : #prospect-detail-body a deja son propre padding lateral, contrairement
+  // au drawer de demo-private.html ou .pd-header est le tout premier enfant sans autre padding
+  // ambiant -- eviter un double-inset qui desalignerait ce bloc du reste du corps.
+  const statsHTML = `<div class="pd-header" style="padding:0 0 14px;margin:0 0 14px;">
+    <div class="pd-stats" style="margin-top:0;">
+      <div class="pd-stat" style="border-left:none;padding-left:0;">
+        <div class="pd-stat-label">Score ICP</div>
+        <div class="pd-stat-value">${p.icp_score != null ? _esc(p.icp_score) + '/10' : 'N/D'}</div>
+      </div>
+      <div class="pd-stat">
+        <div class="pd-stat-label">Étape</div>
+        <div class="pd-stat-value" style="font-size:12px;">${_esc(STAGE_LABEL_FR[p.stage] || p.stage || 'Identifiés')}</div>
+      </div>
+      <div class="pd-stat">
+        <div class="pd-stat-label">Créé le</div>
+        <div class="pd-stat-value" style="font-size:12px;">${_esc(fmtDate(p.created_at) || 'N/D')}</div>
+      </div>
+    </div>
+  </div>`;
+  const rowsHTML = rows.map(([label, val]) => `<div class="pd-row"><span class="pd-row-mono">${_esc(label).toUpperCase()}</span><span class="pd-row-main">${_esc(val)}</span></div>`).join('');
   const body = document.getElementById('prospect-detail-body');
   body.innerHTML =
-    rows.map(([label, val]) => `<div style="margin-bottom:10px;"><div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;">${_esc(label)}</div><div style="font-size:var(--fs-sm);color:var(--text);white-space:pre-wrap;">${_esc(val)}</div></div>`).join('') +
+    statsHTML + rowsHTML +
     (breakdown ? _renderBreakdownPanel(breakdown, ICP_WEIGHTS) : '') +
     _pdSignalTimelineHTML(p) +
     _pdAiInsightBoxesHTML(p) +
@@ -6379,11 +6402,27 @@ Règles : n'inventez aucun fait au-delà de ce qui est donné ci-dessus. Si une 
 
 Répondez UNIQUEMENT en JSON valide, rien d'autre :
 {"score": <0-10>, "confidence": "<faible|moyenne|élevée>", "rationale": "<une phrase factuelle>"}`;
+    // max_tokens 300 -> 600 (diagnostic 2026-09-13) : le modele consommait jusqu'a 228 tokens
+    // en "thinking" etendu avant meme d'ecrire le JSON visible, tronquant la reponse en plein
+    // milieu de "rationale" (aucune accolade fermante, jamais un timeout ni une erreur HTTP).
+    // 600 laisse une marge x2 au-dessus du "thinking" observe reellement pour un JSON a 1 seul
+    // sous-score (plus simple que les 4 sous-scores de demo-private.html, qui utilise 1000) --
+    // pas copie a l'identique de demo-private.html sans reflexion, dimensionne au besoin reel.
     const res = await fetch('/api/generate', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages: [{ role: 'user', content: scorePrompt }], max_tokens: 300 })
+      body: JSON.stringify({ messages: [{ role: 'user', content: scorePrompt }], max_tokens: 600 })
     });
     const data = await res.json();
+    // Verification res.ok/data.type==='error' avant de parser (meme garde manquante corrigee
+    // plus tot aujourd'hui sur _escalateProspect, jamais appliquee ici) -- message distinct de
+    // "Impossible d'obtenir un score exploitable" pour ne plus confondre une vraie erreur API
+    // (429/500/502) avec une reponse tronquee/malformee.
+    if (!res.ok || data.type === 'error') {
+      console.error('[runScanner] erreur API:', res.status, data.error || data);
+      totalEl.textContent = 'N/D';
+      out.textContent = 'Erreur API (' + res.status + (data.error?.message ? ' : ' + data.error.message : '') + '), réessayez.';
+      return;
+    }
     const text = (Array.isArray(data.content) ? data.content.filter(b => b.type === 'text').map(b => b.text).join('').trim() : '');
     const m = text.match(/\{[\s\S]*\}/);
     const parsed = m ? JSON.parse(m[0]) : null;
@@ -6394,6 +6433,7 @@ Répondez UNIQUEMENT en JSON valide, rien d'autre :
       document.getElementById('scanner-pipeline-action').innerHTML =
         `<button class="btn-secondary btn-md" style="width:100%;margin-top:12px;" onclick="_scannerAddToPipeline()">+ Ajouter au pipeline</button>`;
     } else {
+      console.warn('[runScanner] JSON introuvable dans la reponse (probable troncature) :', text);
       totalEl.textContent = 'N/D';
       out.textContent = 'Impossible d\'obtenir un score exploitable, réessayez.';
     }

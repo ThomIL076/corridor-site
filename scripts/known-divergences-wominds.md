@@ -348,3 +348,219 @@ message, jamais construit, confirmé). Plus 29 classes `.pd-*` portées
 (section "Correction méthodologique"). 240 divergences de nom brutes au
 total, 232 encore À TRIER (non prioritaires pour cette passe). Script :
 `scripts/diff-functions-corridor-wominds.sh`.*
+
+---
+
+# Audit Scanner — diagnostic P0 + architecture P1 (2026-09-13)
+
+Passe diagnostic/audit initiale, code modifié dans une passe de correction
+séparée le même jour (voir bandeaux "CORRIGÉ" sous Item 0 et P0
+ci-dessous) — un seul commit groupé pour les deux fixes.
+
+## Item 0 — Racine de la "Fiche contact" à l'ancien design (traité en premier)
+
+> **CORRIGÉ (2026-09-13, même jour, commit groupé avec le fix P0).**
+> `openProspectDetail` (wominds.html:3846) reconstruit désormais un bloc
+> `.pd-header`/`.pd-stats`/`.pd-stat` (Score ICP / Étape / Créé le) suivi de
+> `.pd-row`/`.pd-row-mono`/`.pd-row-main` pour les champs restants
+> (Email/Téléphone/LinkedIn/Site web/Secteur/Effectifs/Zone/Stade de
+> financement/Date de la levée/Montant levé/Critères remplis/Notes) —
+> mêmes classes que le tiroir principal, consommées pour la première fois
+> depuis leur ajout ce matin. **Nom/Entreprise/Poste retirés de cette
+> liste** : déjà affichés dans `.drawer-head` (`#pd-drawer-name`/
+> `#pd-drawer-company`), les garder aussi ici les aurait dupliqués — et
+> demo-private.html ne les répète pas non plus dans ses `.pd-row` (qui n'y
+> servent qu'à la timeline signal/messages, jamais aux champs de contact
+> eux-mêmes — nuance découverte en écrivant le fix, `.pd-row` n'a pas
+> d'équivalent direct pour une liste de champs statiques côté référence,
+> réutilisé ici pour le vocabulaire visuel plutôt que pour un usage
+> identique). Vérifié en exécutant le rendu réel (Node, données réelles
+> d'Audrey Hatton lues en base) : le nouveau bloc produit bien
+> `<div class="pd-header">...<div class="pd-stats">` avec 3 tuiles
+> (Score ICP 6/10, Étape Identifiés, Créé le 12 sept. 2026) puis 6
+> `.pd-row` réels (Email/LinkedIn/Site web/Effectifs/Zone/Critères
+> remplis — les 6 champs vides comme Téléphone/Secteur/Notes sont bien
+> exclus, pas affichés vides). **Vérification visuelle dans un vrai
+> navigateur non faite depuis ce siège (aucun outil de ce type
+> disponible) — à confirmer par Thomas.**
+
+**Ni (a) ni (b) exactement : un seul et même composant, aucun paramètre de
+mode différent — mais une portion précise de son rendu n'a jamais été
+migrée vers les classes `.pd-*` ajoutées ce matin, alors que le reste du
+même rendu (juste en dessous) l'a été.**
+
+**Preuve, pas une supposition :**
+
+- La liste plate NOM/ENTREPRISE/POSTE/EMAIL/... vue sur la capture n'est
+  produite qu'à un seul endroit dans tout le fichier — `openProspectDetail`
+  (wominds.html:3846), tableau `rows` (lignes 3853-3872), rendu ligne 3880 :
+  ```
+  rows.map(([label, val]) => `<div style="margin-bottom:10px;">
+    <div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);
+      text-transform:uppercase;letter-spacing:.04em;">${_esc(label)}</div>
+    <div style="font-size:var(--fs-sm);color:var(--text);white-space:pre-wrap;">
+      ${_esc(val)}</div></div>`).join('')
+  ```
+  Aucune classe `.pd-*` — uniquement des styles en ligne. C'est le
+  `text-transform:uppercase` en ligne qui fait apparaître "NOM"/"ENTREPRISE"
+  en majuscules sur la capture (le code source est en minuscules,
+  "Nom"/"Entreprise" — l'affichage visuel seul les met en capitales).
+- **C'est le même `openProspectDetail` qui, à la ligne suivante (3881-3889),
+  enchaîne** `_renderBreakdownPanel`, `_pdSignalTimelineHTML`,
+  **`_pdAiInsightBoxesHTML`** (les boîtes "AI Insight"/"Score Rationale"
+  construites et vérifiées ce matin), `_reminderBannerHTML`,
+  `_pdNextActionHTML`, `_pdInteractionsHTML`, `_pdMessageHistoryHTML`,
+  `_pdBuyingCommitteeHTML`, `_pdEditSectionHTML` — **toutes ces sections
+  vivent dans la MÊME fonction, le MÊME appel, pas un mode différent, pas
+  un composant séparé.** Ce n'est donc pas un cas (b) au sens strict
+  ("composant totalement distinct"). Ce n'est pas non plus un cas (a) au
+  sens strict ("mode d'affichage différent qui saute le rendu moderne") —
+  il n'y a qu'un seul mode, pas de paramètre à identifier.
+- **Ce qui s'est réellement passé** : ce matin, le brief demandait
+  d'ajouter les 29 règles CSS `.pd-*` manquantes (fait, vérifié) et de
+  construire les boîtes AI Insight/Score Rationale + le footer épinglé
+  (fait, vérifié) — mais **jamais de réécrire le rendu des champs plats
+  eux-mêmes pour qu'il consomme ces nouvelles classes**. Vérifié
+  maintenant, une par une, les 20 classes `.pd-header`, `.pd-head-top`,
+  `.pd-name`, `.pd-name-row`, `.pd-stage-chip`, `.pd-role`, `.pd-firmo`,
+  `.pd-stats`, `.pd-stat`, `.pd-stat-label`, `.pd-stat-value`,
+  `.pd-stat-edit`, `.pd-row`, `.pd-row-main`, `.pd-row-mono`,
+  `.pd-row-name`, `.pd-section`, `.pd-section-label`, `.pd-body`,
+  `.pd-plus` : **0 occurrence `class="..."` dans tout le fichier pour
+  chacune d'entre elles.** Elles existent dans la feuille de style (ajoutées
+  ce matin, commit `740eca0`) et ne sont consommées **nulle part** — du
+  CSS mort à 100%, pas une supposition.
+- **Historique** : `wominds.html` n'a été committé pour la première fois
+  qu'aujourd'hui (`740eca0`, aucun historique git antérieur possible — le
+  fichier était non suivi avant). Le diff de ce commit montre le fichier
+  entier comme "ajouté", donc impossible de dater précisément *quand* ce
+  bloc de rendu plat a été écrit avant aujourd'hui via git seul — mais il
+  n'a été touché par **aucun** des deux commits d'aujourd'hui
+  (`740eca0`, `89a6cf5` — vérifié par grep sur les deux, ligne identique
+  des deux côtés), donc il préexistait tel quel avant toute passe de
+  parité de ce jour, jamais mis à jour depuis.
+
+**Conclusion pour la suite (remplace le chiffrage initialement demandé en
+cas (b))** : il n'y a rien à "faire pointer vers le même composant" — c'est
+déjà le même composant. Le travail réel est un **refactor ciblé, à faible
+risque, à l'intérieur d'une seule fonction déjà identifiée**
+(`openProspectDetail`, wominds.html:3846-3889) : remplacer le
+`rows.map(...)` par une structure `.pd-header`/`.pd-head-top`/`.pd-name`/
+`.pd-stats`/`.pd-stat`/`.pd-row` qui consomme les classes déjà présentes
+dans la feuille de style (aucune nouvelle règle CSS à écrire, elles
+existent déjà) — pas une réécriture architecturale, pas de nouvelle donnée
+à charger, juste swap de balisage. Effort estimé : petit à moyen (une
+seule fonction, quelques dizaines de lignes), nettement plus léger que
+les chantiers portés plus tôt aujourd'hui. Non fait dans cette passe
+(diagnostic demandé, pas de code).
+
+## P0 — Cause racine de "Impossible d'obtenir un score exploitable"
+
+> **CORRIGÉ (2026-09-13, même jour, commit groupé avec le fix Item 0).**
+> `runScanner()` (wominds.html) : `max_tokens` remonté de 300 à **600**
+> (dimensionné au besoin réel — 1 seul sous-score contre les 4 de
+> demo-private.html, qui utilise 1000 — pas une copie réflexe de cette
+> valeur). Ajout d'une vérification `!res.ok || data.type === 'error'`
+> juste après le fetch, avec un message distinct
+> ("Erreur API (status)...") de "Impossible d'obtenir un score
+> exploitable" pour ne plus confondre les deux causes. **Vérifié par 3
+> appels réels au endpoint de production** (`https://corridor.systems/api/generate`,
+> même payload theravia/mandat Wominds réel) après le fix :
+> les 3 se terminent en `stop_reason: "end_turn"` (plus jamais
+> `"max_tokens"`) et produisent chacun un JSON exploitable —
+> `{"score":2,...}`, `{"score":3,...}`, `{"score":2,...}` — latences
+> 2,3s à 5,7s, thinking_tokens 0 à 188 selon l'essai, jamais assez pour
+> retronquer avec la nouvelle marge. 3/3, pas un coup de chance isolé.
+
+**Cause identifiée : `max_tokens: 300` trop bas pour le modèle
+`claude-sonnet-5` en mode "thinking" étendu — la réponse est tronquée avant
+la fin du JSON, pas un timeout, pas une erreur HTTP, pas un mandat manquant.**
+
+**Reproduction réelle** (pas une lecture de code — appel HTTP réel envoyé à
+`https://corridor.systems/api/generate` le 2026-09-13, payload identique à
+celui que `runScanner()` de wominds.html construirait pour
+entreprise="theravia", avec les vrais critères du mandat actif Wominds
+lus en base) :
+
+- Endpoint : `/api/generate` (identique aux deux fichiers, cf. section
+  architecture ci-dessous).
+- Payload envoyé : `{"messages":[{"role":"user","content":"<prompt>"}],
+  "max_tokens":300}` — pas de `client_id` ni `mandate_id` dans le payload
+  API (les deux fichiers résolvent le mandat côté client via une requête
+  Supabase directe et l'injectent en texte dans le prompt — même
+  architecture des deux côtés sur ce point précis).
+- Réponse HTTP réelle : **200 OK**, en **6,3 secondes**. Corps réel
+  (extrait) :
+  ```
+  "stop_reason":"max_tokens"
+  "usage":{"input_tokens":1068,"output_tokens":300,"output_tokens_details":{"thinking_tokens":228}}
+  content: [{"type":"thinking","thinking":""}, {"type":"text","text":
+    "{\"score\": 2, \"confidence\": \"faible\", \"rationale\": \"Aucune
+    information disponible sur la taille, le secteur ou les signaux clés
+    de Theravia ne permet d'évaluer l'adéquation avec les"
+  ```
+- Le modèle a consommé **228 des 300 tokens de sortie autorisés en
+  "thinking"** avant de commencer à écrire la réponse visible — il ne
+  restait que ~72 tokens pour le JSON, coupé net en plein milieu du champ
+  `rationale`, sans accolade fermante.
+- Le code de `runScanner()` (wominds.html) fait `text.match(/\{[\s\S]*\}/)`
+  — cette regex exige une accolade fermante `}` pour matcher. Comme le
+  texte est tronqué avant toute accolade fermante, **aucun match**, `m` est
+  `null`, `parsed` est `null` → branche `else` → exactement le message
+  observé : "Impossible d'obtenir un score exploitable, réessayez."
+- Ce n'est **pas** une erreur HTTP (le statut est 200, ce chemin ne passe
+  jamais par le `catch` qui produirait "Erreur, vérifiez votre
+  connexion."), **pas** un timeout (6,3s, largement sous n'importe quel
+  seuil raisonnable), **pas** un mandat/ICP manquant (le mandat Wominds
+  actif a été lu et injecté correctement — `input_tokens: 1068` le confirme,
+  un prompt vide aurait ~200 tokens d'entrée).
+
+**Comparaison avec demo-private.html ("Scan signals")** — même endpoint
+`/api/generate` (`API_URL`), mais :
+| | wominds.html `runScanner()` | demo-private.html `runScanner()` (appel score, ligne ~4724) |
+|---|---|---|
+| `max_tokens` de l'appel de scoring | **300** | **1000** |
+| Vérifie `res.ok` avant de parser | **Non** | Oui (`_scoreResp.ok ? await _scoreResp.json() : null`) |
+| Champs JSON demandés | 3 (`score`,`confidence`,`rationale`) | 4 sous-scores + confidence + rationale (plus complexe, donc plus de tokens de sortie nécessaires, pas moins) |
+| Recherche web avant scoring | Non (seule `_runContactIntelligence`, niveau personne, fait une recherche web) | Oui — étape "STEP 1" obligatoire dans le prompt, brief complet généré avant le score |
+
+demo-private.html demande un JSON **plus complexe** que wominds.html
+(4 sous-scores au lieu d'1 score global) mais lui alloue **plus de trois
+fois** le budget de tokens de sortie — c'est directement ce qui lui permet
+d'absorber le "thinking" du modèle sans jamais tronquer la réponse.
+**Correction recommandée (pas appliquée dans cette passe, diagnostic
+uniquement) : remonter `max_tokens` de 300 à au moins 1000 dans
+`runScanner()` de wominds.html, et ajouter la vérification `res.ok`/
+`data.type === 'error'` avant de parser (même classe de garde manquante
+que celle corrigée aujourd'hui plus tôt sur `_escalateProspect`,
+jamais appliquée à `runScanner()`).**
+
+## P1 — Architecture du Scanner : demo-private.html ↔ wominds.html
+
+| Élément | demo-private.html | wominds.html | Statut |
+|---|---|---|---|
+| Onglets "ICP Scan / Free Search" | Présents (`.scanner-mode-toggle`, `_scannerSetMode('icp'\|'free')`, demo-private.html:15280-15281) | **Absents** — un seul panneau, un seul mode (équivalent implicite à "ICP Scan" toujours actif, jamais de "Free Search") | **À PORTER** — le commentaire existant dans wominds.html ("ampleur disproportionnee pour un premier passage") justifie l'absence de comité d'achat/fiche contact/déclencheurs & stratégie *au moment où il a été écrit*, mais ces trois éléments existent en fait déjà aujourd'hui (voir plus bas) — le commentaire est obsolète, et ne mentionne de toute façon jamais spécifiquement le toggle de mode. Aucune raison produit vérifiée trouvée pour l'absence du toggle lui-même. |
+| Brief "Company Intelligence" (Why Now / Pain Points / Opening Angle, recherche web obligatoire) | Présent — prompt en 2 étapes explicites ("STEP 1 — recherche web", "STEP 2 — brief"), rendu via `callAI()`/`renderMarkdown()` | **Absent** — le score wominds n'a pas de brief prose associé, seulement score/confidence/rationale en une phrase, sans recherche web | **À PORTER** — pas un renommage, une fonctionnalité entière (brief qualitatif motivé par une recherche web réelle) manque côté Wominds. Aucun commentaire ne justifie cette absence. |
+| Section "Buying Triggers" | Présente (extraite du brief complet par regex sur `## BUYING TRIGGERS`) | Absente (dépend du brief ci-dessus, qui n'existe pas) | **À PORTER** — même cause que la ligne précédente, pas une divergence indépendante. |
+| Section "Behavioural Profile & Strategy" (niveau entreprise : style de décision, angle d'approche) | Présente (extraite du même brief, `## BEHAVIOURAL PROFILE & STRATEGY`) | Partiellement recouverte par "Fiche contact"/"Brief personne" (`_runContactIntelligence`, wominds.html:6427) — mais celle-ci est **au niveau de la personne**, pas de l'entreprise (pas de "style de décision de l'organisation dans son ensemble") | **ÉQUIVALENT partiel** pour le volet personne (qui/priorités/comment l'aborder/présence en ligne recouvre "Comment l'aborder" + une partie du profil comportemental) ; **À PORTER** pour le volet entreprise (aucun équivalent). |
+| Tags "Buying signals" auto-détectés (fundraise/senior hire/expansion/partnership, regex sur le brief) | Présents (`sigList`, compteur `#sc-signals`) | Absents (pas de brief à analyser, cause identique aux lignes Company Intelligence/Buying Triggers) | **À PORTER** — même cause racine, pas une divergence isolée à traiter séparément. |
+| Comité d'achat depuis le Scanner autonome | Présent (`_mapStakeholders`, function dédiée) | Présent (`_scannerMapCommittee`, construit le 2026-09-12 selon le commentaire de code, wominds.html:~1963) — 3 recherches web + IA structurée, même garde anti-invention ("uniquement des personnes avec un profil LinkedIn confirmé par une citation réelle") | **ÉQUIVALENT (nom différent)** — le commentaire "sans cartographie du comité d'achat" plus haut dans le fichier est **obsolète** : cette fonctionnalité a été ajoutée après coup et le commentaire n'a pas été mis à jour. À corriger dans le code (juste le commentaire, hors périmètre "pas de code" de cette passe — signalé pour une passe future). |
+| Fiche contact / Brief personne (niveau personne) | Présent (`_runContactIntelligence`, partagée entre tiroir et Scanner) | Présent (même nom de fonction `_runContactIntelligence`, wominds.html:6427, "identique demo-private.html:4503, sans le fallback LinkedIn déjà connu en base" selon le commentaire) | **ÉQUIVALENT** — déjà porté, avec une différence documentée et justifiée (pas de prospect de tiroir ouvert dans le Scanner autonome, donc pas de LinkedIn déjà connu à réutiliser en fallback). |
+| Score ICP — nombre de sous-scores | 4 (`role_score`,`size_score`,`signal_strength_score`,`mandate_fit_score`) + panneau de détail (`_renderBreakdownPanel`) | 1 seul score global (`score` 0-10), pas de sous-scores, pas de panneau de détail pour un scan autonome | **À PORTER (probable)** — le tiroir prospect de wominds.html a bien un panneau de sous-scores (`_renderBreakdownPanel`/`ICP_WEIGHTS`, porté ce matin) mais le Scanner autonome ne les calcule pas du tout, contrairement à demo-private.html qui les calcule dans les deux contextes. Cause probable la même que le score global : le prompt actuel ne demande qu'un seul chiffre, pas 4 — corrélé au problème de `max_tokens` du P0 (un JSON à 4 champs numériques + confidence + rationale a besoin d'encore plus de budget de sortie que les 300 tokens actuels, donc ce n'est pas un simple ajout de champs sans revoir aussi `max_tokens`). |
+| Endpoint API | `/api/generate` (`API_URL`) | `/api/generate` | **ÉQUIVALENT** — identique. |
+| `client_id`/`mandate_id` dans le payload API | Ni l'un ni l'autre (résolu côté client, injecté en texte) | Ni l'un ni l'autre (même mécanisme) | **ÉQUIVALENT** — identique, confirmé par lecture des deux et par l'appel réel du P0. |
+
+**Résumé P1 :** la divergence structurelle principale n'est pas une
+question de nommage (peu de vrais renommages ici, contrairement à l'audit
+du matin sur le tiroir) — c'est une fonctionnalité entière absente
+(le brief qualitatif "Company Intelligence" + tout ce qui en découle :
+Buying Triggers, tags de signaux, Behavioural Profile niveau entreprise,
+mode Free Search) plutôt qu'un ensemble de petites divergences
+indépendantes. Le Comité d'achat et la Fiche contact, en revanche, sont
+déjà correctement portés (juste sous des noms différents) — l'ancien
+commentaire qui dit le contraire dans wominds.html doit être corrigé lors
+d'une prochaine passe de code.
+
+*Ajouté le 2026-09-13 (brief "diagnostic + audit Scanner wominds.html").
+Diagnostic P0 vérifié par appel HTTP réel au endpoint de production, pas
+par lecture de code seule.*
