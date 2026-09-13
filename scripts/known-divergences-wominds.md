@@ -827,3 +827,166 @@ signals (section 5) — c'est un texte généré, pas une règle.
 Intelligence"). Toutes les citations de code ci-dessus sont copiées
 verbatim depuis demo-private.html, pas paraphrasées ni reconstituées de
 mémoire.*
+
+---
+
+# Diagnostic — 3 points Scanner wominds.html (2026-09-13, passe diagnostic uniquement)
+
+Aucun code modifié dans cette passe. Les 3 points ci-dessous répondent
+chacun à une question précise posée par Thomas, avec preuve directe
+(lecture de code + appel réel au endpoint de production pour le point 1).
+
+## Point 1 — Signaux absents sur theravia/Audrey Hatton : VRAI BUG, isolé
+
+**Le mécanisme ne tourne que sur le texte généré par la recherche web
+entreprise (`briefText`), jamais sur les signaux déjà connus en base**
+(`prospects.signal`/`signal_type` pour un prospect existant) — confirmé
+par lecture directe de `runScanner()` : aucune requête vers `prospects`
+n'y figure pour le nom d'entreprise tapé, uniquement vers `mandates`. Le
+Scanner autonome est conçu pour évaluer une entreprise nommée à la main,
+pas pour relire les signaux Trigify déjà stockés sur une fiche existante
+homonyme (Audrey Hatton a bien un signal réel en base, mais `runScanner()`
+ne le consulte jamais, qu'il s'agisse de "theravia" ou d'un autre nom).
+
+**Test réel effectué** : rejoué l'appel exact que `runScanner()`
+construirait pour entreprise="theravia", contact="Audrey Hatton"
+(Deputy CFO), avec le vrai mandat Wominds, contre
+`https://corridor.systems/api/generate` (`max_tokens: 3000`,
+`stop_reason: "end_turn"`, aucune troncature). Réponse réelle obtenue :
+
+```
+⚠️ Aucune information publique vérifiable trouvée pour Theravia concernant son actualité RH/RSE, son Index EgaPro, ses labels ou une levée de fonds récente. Le brief ci-dessous est générique, basé sur le secteur (pharma spécialisée/maladies rares), la taille probable de l'entreprise et le mandat Wominds.
+
+## POURQUOI MAINTENANT
+[...] échéance de la Directive Transparence Salariale (fin 2026) [...]
+
+## POINTS DE DOULEUR
+[...] Turnover féminin potentiellement élevé [...] Risque [...] en cas d'opération de M&A ou de levée de fonds [...]
+
+## DÉCLENCHEURS D'ACHAT
+[...] Publication ou mise à jour de l'Index EgaPro. [...]
+```
+
+**Chaque catégorie testée individuellement sur ce texte réel** :
+Échéance réglementaire → `true`, Indicateurs RH → `true`, Engagement
+égalité F/H → `true`, M&A/levée de fonds → `true` (4 des 6 catégories
+matchent réellement des mots-clés présents dans le texte). **Mais
+`_scannerDetectSignals(briefText)` renvoie `[]` (vide).**
+
+**Cause racine identifiée, pas supposée** : le brief commence par la
+phrase-marqueur exacte prévue par le prompt pour signaler une absence de
+données vérifiées — "⚠️ Aucune information publique vérifiable trouvée
+pour Theravia..." — qui correspond mot pour mot au garde-fou `noInfo`
+(`_scannerDetectSignals`, wominds.html) :
+```js
+const noInfo = /aucune information (publique )?vérifiable|aucune donnée fiable|impossible de trouver|rien de fiable trouvé/i.test(text);
+if (noInfo) return [];
+```
+Ce garde-fou est **délibérément conçu** (même logique que le `noInfo` de
+demo-private.html cité dans l'extraction Company Intelligence) pour ne
+jamais tagger un signal quand le modèle dit explicitement n'avoir rien
+trouvé — mais il coupe la détection sur **tout le texte**, y compris la
+partie "générique" qui suit et qui, elle, discute légitimement de sujets
+réglementaires/RH/M&A en lien avec le mandat (de façon spéculative,
+"probablement"/"potentiellement" — pas des faits vérifiés, mais du texte
+catégorisable quand même selon la logique actuelle des regex).
+
+**Verdict, selon le critère posé par Thomas** : le brief mentionne bien
+quelque chose qui aurait dû matcher (4 catégories sur 6, vérifié mot par
+mot) et le tag n'apparaît quand même pas → **c'est le "vrai bug de rendu
+à isoler" décrit dans la demande, pas un "Force du signal: 0" cohérent**.
+La cause est un garde-fou anti-invention trop large : il traite la
+présence de la phrase-disclaimer comme une preuve d'absence totale de
+signal, alors que le prompt lui-même prévoit explicitement qu'un brief
+"générique" substantiel soit rédigé après ce disclaimer. Non corrigé dans
+cette passe (diagnostic demandé).
+
+## Point 2 — "Qui a interagi" : localisé, un des 3 endroits déjà identifiés
+
+**Ce n'est pas un 4e emplacement** — c'est le premier des "3 autres
+endroits" déjà notés ce matin (`_pdAiInsightBoxesHTML`/section PORTÉ,
+note "non couvert par ce fix"), avec une précision qui manquait alors :
+il s'agit du récapitulatif "top prospects" du **Briefing du matin**
+(`runMorningScan()`), pas du panneau "Scanner une entreprise" lui-même
+(qui, point 1 ci-dessus le confirme, ne lit jamais `prospects.signal`
+pour un nom tapé à la main). Si Thomas a vu le texte non résolu en
+testant "quelque chose appelé Scanner", c'est très probablement en ayant
+lancé "▶ Briefing du matin" (ou en relisant son résultat dans le flux
+Signaux) et en y voyant apparaître Audrey Hatton parmi les prospects
+récapitulés.
+
+**Code exact, cité, pas supposé** (wominds.html, dans `runMorningScan()`) :
+```js
+// ligne ~2902-2904
+const sigText = p.signal_interpretation
+  ? p.signal_interpretation.slice(0, 140)
+  : p.signal.replace(/<[^>]*>/g, '').trim().slice(0, 90) + (p.signal.replace(/<[^>]*>/g, '').trim().length > 90 ? '…' : '');
+...
+// ligne ~2917 — sigText injecte directement dans la carte, jamais passe par _sanitizeSignal
+'<div ...><span style="font-weight:700;">Pourquoi :</span> ' + _esc(sigText) + '</div>';
+// ligne ~2918 — devient htmlContent d'un item 'morning'
+return { timestamp: runTs, type: 'morning', ..., htmlContent: cardHtml };
+```
+Et le rendu final, `_renderSignalsFeed()` (wominds.html, ligne ~2690-2691) :
+```js
+const bodyHtml = item.type === 'morning'
+  ? `<div>${item.htmlContent || _esc(item.content || '').replace(/\n/g, '<br>')}${item.linkHtml || ''}</div>`
+  : `<div ...>${item.signal ? _sanitizeSignal(item.signal) + '<br>' : ''}${...}`; // branche 'live' : deja corrigee
+```
+La branche `'live'` (Alerte en direct) appelle bien `_sanitizeSignal` —
+seule la branche `'morning'` (Briefing du matin) l'évite, parce que
+`sigText` a déjà été construit brut, en amont, sans passer par cette
+fonction. Pour Audrey Hatton (`signal_interpretation` vide, confirmé
+plus tôt aujourd'hui), le fallback `p.signal.replace(...)` afficherait
+donc "Pourquoi : A interagi avec votre profil" non résolu, si elle
+apparaît dans le top des prospects scorés d'un Briefing du matin.
+
+**Précision utile pour éviter une confusion future** : `runPipelineIntel()`
+("▶ Scanner les nouveaux prospects", le seul des 3 boutons Signaux à
+porter littéralement le mot "Scanner" dans son libellé) utilise déjà
+correctement `_sanitizeSignal(p.signal)` (wominds.html, ligne ~2603) —
+ce n'est pas là que ça casse. Le nom "Scanner" a probablement été
+utilisé par Thomas au sens large (les 3 boutons du bloc Signaux),
+pas au sens strict du panneau "Scanner une entreprise".
+
+Non corrigé dans cette passe (diagnostic demandé).
+
+## Point 3 — "Historique des interactions" : même pattern qu'Item 0 ce matin, confirmé
+
+**Fonction identifiée** : `_pdInteractionsHTML()` (wominds.html, ligne
+~4054, carte "Historique des interactions") + `_renderDrawerInteractions()`
+(ligne ~4076, rendu de la liste elle-même) — bien distincte de
+`openProspectDetail()` comme Thomas le supposait, mais aussi distincte de
+`_pdMessageHistoryHTML()`/`_pdBuildMessageHistoryHTML()` (ligne ~3671 et
+~3687, carte séparée "Historique des messages") : **wominds.html a deux
+cartes séparées là où demo-private.html n'en a qu'une.**
+
+**Comparaison directe avec demo-private.html** (lignes 8739-8753, section
+"3. MESSAGE HISTORY" de `_drawerProfileHTML`) : dans la référence, il n'y
+a **pas de section "Interactions" séparée** — une seule section
+`.pd-section` intitulée "Message history" contient à la fois la liste
+(`#pd-msghistory-rows`, rendue avec les classes `.pd-row`/`.pd-row-mono`/
+`.pd-row-main`, citées dans l'extraction Company Intelligence pour un
+usage différent mais définies au même endroit du CSS) et un formulaire
+de log repliable (`#pd-logint-form`, masqué par défaut, révélé par un
+bouton `.pd-plus` "+ Log interaction"). wominds.html a scindé ceci en
+deux cartes toujours visibles (jamais de repli/masquage), et **aucune des
+deux ne consomme les classes `.pd-row`/`.pd-plus`** :
+
+- `_renderDrawerInteractions()` (ligne ~4084) : `<div style="display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);">...` — styles en ligne, pas `.pd-row`.
+- `_pdBuildMessageHistoryHTML()` (ligne ~3681) : `<div style="display:flex;align-items:center;gap:6px;">...` — styles en ligne, pas `.pd-row`/`.pd-row-mono`/`.pd-row-main`, alors que la structure (dir/canal à gauche, date à droite en `margin-left:auto`, texte tronqué à 160 caractères en dessous) reproduit quasi trait pour trait celle de demo-private.html qui, elle, utilise `.pd-row-mono`/`.pd-row-main`.
+- Le bouton "+ Log interaction" (`.pd-plus`) n'existe pas côté wominds.html — le formulaire de log (`int-type-btns`/`int-note-input`/`int-save-btn`, ces classes-là bien partagées et fonctionnelles avec la référence) est **toujours visible**, jamais replié derrière un toggle.
+
+**Verdict** : ni composant entièrement différent (la logique de données —
+`interactions` table, mêmes types linkedin/email/call/meeting/note — est
+la même), ni simple renommage — **même diagnostic qu'Item 0 ce matin**
+(classes CSS `.pd-row`/`.pd-row-mono`/`.pd-row-main`/`.pd-plus` déjà
+présentes dans la feuille de style depuis ce matin, jamais consommées
+ici) plus une différence structurelle réelle (1 section unifiée et
+repliable côté référence vs 2 cartes séparées et toujours visibles côté
+wominds.html). Non corrigé dans cette passe (diagnostic demandé).
+
+*Ajouté le 2026-09-13 (brief "diagnostic (pas de fix) sur 3 points
+Scanner wominds.html"). Point 1 vérifié par appel réel au endpoint de
+production ; points 2 et 3 par lecture directe et comparaison ligne à
+ligne des deux fichiers, jamais par supposition.*
