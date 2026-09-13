@@ -135,6 +135,29 @@ Même taxonomie de statuts que `known-divergences.md` :
   garder toujours visibles côté wominds.html (c'est justement ce qui les
   rend enfin lisibles sans ouvrir un accordéon, l'objet même de ce fix).
 
+  **Vérification post-déploiement (2026-09-13, sur signalement Thomas
+  "toujours fusionnées") :** Audrey Hatton, testée en réel, n'affichait
+  qu'une seule boîte ("Justification du score"). Cause recherchée avant de
+  toucher au code : requête directe sur la ligne réelle en base —
+  `signal_interpretation` vaut `''` (chaîne vide) pour cette fiche
+  précise, `icp_reason` est renseigné. Reproduit avec le code réel exécuté
+  en Node (extraction + exécution de `_pdAiInsightBoxesHTML` telle
+  qu'écrite dans le commit `740eca0`, pas une supposition) : avec
+  `signal_interpretation` vide, la fonction ne produit bien qu'un seul
+  bloc "accent-bg" — comportement identique à demo-private.html, qui a
+  exactement la même condition (`p.signal_interpretation ? ... : ''`) et
+  afficherait donc rien du tout pour "AI Insight" avec la même donnée. Testé
+  aussi avec une fiche ayant `signal_interpretation` renseignée (Vincent
+  Beaudon, donnée réelle) : les deux boîtes "✦ Analyse IA" et
+  "✦ Justification du score" s'affichent bien séparément, dans cet ordre.
+  **Conclusion : le split n'a jamais cessé de fonctionner — la fiche
+  choisie pour le test n'a simplement pas cette donnée en base.** 155 des
+  242 prospects Wominds ont `signal_interpretation` renseignée (64%) ; pour
+  vérifier visuellement les deux boîtes, ouvrir un prospect avec un signal
+  `keyword-match` ou `fundraising` plutôt qu'un signal `activity` générique
+  comme celui d'Audrey Hatton. Aucun changement de code nécessaire pour ce
+  point. Statut inchangé : `PORTÉ`.
+
 - **Item screenshot — Section Edit Details : Find email / Find phone /
   Enrich Company / toggle Known contact ↔ New prospect** — **PORTÉ.**
   `_findEmailDrawer`, `_findPhoneDrawer` (wominds.html:4598/4661, flux
@@ -167,6 +190,35 @@ Même taxonomie de statuts que `known-divergences.md` :
   `DÉLIBÉRÉ` absent (aucun changement, cf. ci-dessus). "Move stage" reste
   `ÉQUIVALENT (structure différente)` via le glisser-déposer du kanban,
   inchangé par ce portage.
+
+- **Item post-déploiement — Signal n'affiche pas le nom de la personne
+  ("A interagi avec votre profil")** — **PORTÉ.** Recherché d'abord côté
+  référence : ni demo-private.html ni kaizenology.html n'ont de mécanisme
+  de résolution "URL mot-clé → nom" (grep `mot-cl[eé]` : une seule
+  occurrence dans chaque fichier, un commentaire sur le filtre anti-bruit,
+  rien d'autre) — ce n'est donc pas un port d'un mécanisme existant, c'est
+  un fix Wominds-spécifique, documenté comme tel. Vérifié en base : les 242
+  prospects Wominds n'ont qu'**une seule** valeur distincte de signal
+  contenant "mot-cle" — `"A interagi avec votre profil (mot-cle:
+  https://www.linkedin.com/in/elodiedratler)"` — toujours la même URL,
+  celle du compte Wominds lui-même (`clients.contact_name` =
+  "Élodie Dratler" pour `client_id='wominds'`, vérifié en base). Fix : dans
+  `_sanitizeSignal` (wominds.html, fonction partagée par tous les
+  affichages de signal, pas seulement le tiroir), remplacement de la
+  locution "votre profil" par "le profil d'Élodie Dratler" (ou le
+  `contact_name` réel de n'importe quel client, jamais deviné depuis
+  l'URL elle-même — repli honnête sur "votre profil" si `contact_name`
+  est absent). Testé en exécutant le code réel (Node) sur la valeur
+  exacte trouvée en base : `_sanitizeSignal("A interagi avec votre profil
+  (mot-cle: https://www.linkedin.com/in/elodiedratler)")` →
+  `"A interagi avec le profil d'Élodie Dratler"`. **Non couvert par ce
+  fix** (même cause, pas encore touché, signalé pour info) : 3 autres
+  endroits affichent `p.signal` sans passer par `_sanitizeSignal`
+  (feed Briefing du matin/Scanner nouveaux prospects, ~wominds.html:2803
+  et :2877 ; un prompt IA de génération de message, ~wominds.html:5268) —
+  un prospect avec ce même signal "votre profil" y montrerait encore le
+  texte générique. À corriger si Thomas le juge utile, hors périmètre
+  explicite de ce brief (qui ne mentionnait que "la boîte Signal").
 
 ## Correction méthodologique (2026-09-13, découverte pendant le portage)
 

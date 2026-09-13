@@ -2532,6 +2532,16 @@ function _sigBadge(code) {
 function _sanitizeSignal(str) {
   if (!str) return '';
   str = str.replace(/\s*\(mot-cl[ée]:\s*[^)]*\)/gi, '').trim();
+  // "votre profil" (signal de type activite sur le profil LinkedIn du compte -- le mot-cle
+  // strippe ci-dessus est justement l'URL de ce profil, deja verifiee unique en base pour
+  // Wominds) : jamais laisse generique quand on connait le vrai nom -- resolu via le
+  // contact_name reel du client (clients.contact_name, deja charge dans _clientProfile pour
+  // d'autres usages), jamais devine depuis l'URL. Repli honnete sur "votre profil" si absent.
+  const ownerName = (_clientProfile && _clientProfile.contact_name) || null;
+  if (ownerName) {
+    const de = /^[aeiouéèêëîïôûAEIOUÉÈÊËÎÏÔÛ]/.test(ownerName) ? "d'" : 'de ';
+    str = str.replace(/\bvotre profil\b/gi, 'le profil ' + de + ownerName);
+  }
   const SAFE_A = /(<a\s+href=["']https?:\/\/[^"'<>]+["'](?:\s+(?:target|rel|style|class)=["'][^"'<>]*["'])*\s*>[^<]*<\/a>)/gi;
   return str.split(SAFE_A).map((chunk, i) => i % 2 === 0 ? _esc(chunk) : chunk).join('');
 }
