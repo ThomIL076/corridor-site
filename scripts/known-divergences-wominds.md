@@ -564,3 +564,208 @@ d'une prochaine passe de code.
 *Ajouté le 2026-09-13 (brief "diagnostic + audit Scanner wominds.html").
 Diagnostic P0 vérifié par appel HTTP réel au endpoint de production, pas
 par lecture de code seule.*
+
+---
+
+# Extraction de référence — "Company Intelligence" (demo-private.html, 2026-09-13)
+
+Diagnostic uniquement, aucun code modifié. Code cité **verbatim**, pas
+paraphrasé — sert de base réelle à toute future conception d'une version
+Wominds, pour ne pas deviner ce que fait la référence.
+
+## 1. Le prompt exact
+
+Construit dans `runScanner()`, demo-private.html:4610-4641 (`_scannerMode !== 'free'`,
+branche "ICP Scan"). Variables interpolées : `company`, `sector`, `stage`,
+`fundingStr`, `urlStr`, `personStr`, `contextStr`, `currentLang`.
+
+```
+You are Corridor's signal intelligence engine analysing a real prospect.
+
+Company: ${company}
+Sector: ${sector}
+Stage: ${stage}
+${fundingStr}${urlStr}${personStr}${contextStr}
+
+STEP 1 — Use web search to find recent, verifiable facts about ${company}: funding rounds, expansion moves, key hires, leadership, recent news. Search the web before analysing.
+STEP 2 — Write a sharp intelligence brief based ONLY on verified facts from your search and the context provided above. Do NOT invent figures, names, dates, or events. If web search returns nothing reliable about this specific company, say so explicitly at the very top — "⚠️ No verifiable public information found for ${company} — the brief below is generic, based only on sector and stage." — rather than fabricating details.
+
+Structure your response with exactly these five ## section headers:
+
+## WHY NOW
+Why this company is a strong fit for international GTM advisory right now. Be specific about the timing window, citing the verified signals you found.
+
+## PAIN POINTS
+The 2-3 most likely pain points they are experiencing at this stage.
+
+## OPENING ANGLE
+The single best opening angle for outreach to this company.
+
+## BUYING TRIGGERS
+The 2-3 specific signals that indicate this company is ready to buy GTM advisory now.
+
+## BEHAVIOURAL PROFILE & STRATEGY
+Two short paragraphs: first on the likely decision-making style ${person ? `of ${person}, the primary contact` : `of the company's likely buying process (no contact name provided)`}; second on the exact approach strategy — what to lead with, what to avoid, what the close looks like.
+
+Be direct, commercial, and specific. No generic consulting language. Max 420 words.
+
+Rules: Never use em-dashes (—) or horizontal rules (---) in your response.
+
+Language instruction: Write your entire response in ${currentLang === 'fr' ? 'French' : 'English'}. All section headers, bullet points, and analysis must be in that language.
+```
+
+Ce prompt seul contient déjà les 5 sections (WHY NOW / PAIN POINTS /
+OPENING ANGLE / BUYING TRIGGERS / BEHAVIOURAL PROFILE & STRATEGY) — **un
+seul et même prompt produit les 5**, pas 5 prompts séparés.
+
+Avant l'envoi, ce prompt est préfixé (demo-private.html:4645-4647) :
+
+```js
+const _scanLive = await _prefetchWebContext(company, sector, siteUrl);
+const _scanNoCtx = _scanLive ? '' : '\nNO LIVE CONTEXT AVAILABLE: Do not invent company-specific facts, figures, or events. If no verified data is found, state so explicitly.\n';
+const _sp1 = callAI(_scanLive + _scanNoCtx + prompt, _scanEl, 'scanner-spinner');
+```
+
+## 2. Endpoint + mécanisme de grounding web
+
+**Deux appels réseau distincts, pas un seul** :
+
+1. **Recherche web réelle avant génération** — `_prefetchWebContext(company, sector, siteUrl, _out)`
+   (demo-private.html:4455-4463) :
+   ```js
+   async function _prefetchWebContext(company, sector, siteUrl, _out = null) {
+     if (!company) return '';
+     const _dom = siteUrl ? siteUrl.replace(/^https?:\/\//, '').split('/')[0] : '';
+     const q = (company + (_dom ? ' ' + _dom : '') + ' ' + (sector || '') + ' recent news expansion').trim();
+     const ctx = await _marketIntelSearch(q, 500, _dom, _out);
+     return ctx
+       ? '\nLIVE CONTEXT about ' + company + ' (from web search, today):\n' + ctx + '\nUse this to make the analysis accurate and specific. Never suggest expansion into a market the company is already clearly established in based on the web search.\n'
+       : '';
+   }
+   ```
+   qui appelle `_marketIntelSearch(query, maxTokens=500, domain, _out)`
+   (demo-private.html:4429-4452), lequel POST sur **`/api/web-search`**
+   (un wrapper Perplexity côté serveur, jamais nommé côté client — cf.
+   règle de confidentialité vendor déjà en vigueur) :
+   ```js
+   const r = await fetch('/api/web-search', {
+     method: 'POST', headers: { 'Content-Type': 'application/json' },
+     signal: ctrl.signal,
+     body: JSON.stringify({ max_tokens: 500, messages: [{ role: 'user', content: query }], search_domain_filter: domain ? [domain] : undefined })
+   });
+   ```
+   Timeout 20s (`AbortController`), retour `''` en cas d'échec (fail-open,
+   pas d'exception qui casserait le scan).
+2. **Génération du brief** — `callAI(prompt, outputEl, spinnerId, maxTokens=1000, renderAsText=false)`
+   (demo-private.html:4379-4416), qui POST sur **`/api/generate`**
+   (`API_URL`, constante définie demo-private.html:3607 = `'/api/generate'`) :
+   ```js
+   const payload = { model: 'claude-sonnet-5', max_tokens: maxTokens, messages: [{ role: 'user', content: prompt }] };
+   const res = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+   ```
+   Appelé ici **sans 4e argument** (`callAI(_scanLive + _scanNoCtx + prompt, _scanEl, 'scanner-spinner')`,
+   demo-private.html:4647) → utilise la valeur par défaut **`maxTokens = 1000`**.
+
+**Donc : oui, recherche web réelle avant génération** (pas des données déjà
+en base) — le contexte web est injecté en texte dans le prompt envoyé au
+modèle, pas fourni séparément à l'API.
+
+## 3. Structure de réponse exacte
+
+**Ce n'est PAS du JSON.** `callAI()` retourne du texte libre (markdown),
+rendu via `renderMarkdown()` (demo-private.html:4407 :
+`outputEl.innerHTML = renderMarkdown(text);`). La "structure" est
+purement textuelle — 5 blocs `## HEADER` en clair dans la réponse du
+modèle, extraits ensuite côté client par regex sur le texte brut complet
+(`_scanFullText`), pas par un parseur JSON.
+
+Affichage découpé en plusieurs zones DOM à partir du **même texte
+complet** (demo-private.html:4657-4672) :
+```js
+if (_scanRawText && _scanEl) {
+  const _scanCoreText = _scanFullText.split(/\n##\s*BUYING TRIGGERS/i)[0].trim();
+  _scanEl.innerHTML = renderMarkdown(_scanCoreText);
+}
+const triggersMatch = _scanFullText.match(/^## BUYING TRIGGERS\s*\n([\s\S]*?)(?=\n##\s|$)/mi);
+const strategyMatch = _scanFullText.match(/^## BEHAVIOURAL PROFILE & STRATEGY\s*\n([\s\S]*?)(?=\n##\s|$)/mi);
+if (_scanTriggersEl) _scanTriggersEl.innerHTML = triggersMatch ? renderMarkdown(triggersMatch[1].trim()) : '';
+if (_scanStrategyEl) _scanStrategyEl.innerHTML = strategyMatch ? renderMarkdown(strategyMatch[1].trim()) : '';
+```
+`_scanEl` (zone "Company Intelligence" visible) reçoit tout le texte
+**avant** `## BUYING TRIGGERS` (donc WHY NOW + PAIN POINTS + OPENING
+ANGLE réunis, jamais séparés en 3 zones DOM distinctes malgré les 3
+en-têtes ## différents) ; `_scanTriggersEl` et `_scanStrategyEl` sont deux
+zones séparées, remplies par extraction regex du même texte.
+
+## 4. Buying Triggers — comment ils sont détectés
+
+**Sortie du même appel LLM que Why Now/Pain Points/Opening Angle — pas un
+appel séparé, pas des règles codées en dur pour la génération.** Seule
+l'*extraction* (pas la génération) est codée en dur, par regex sur le
+texte complet déjà généré (citation exacte ci-dessus, section 3). Le
+contenu réel des Buying Triggers est écrit par le modèle, à partir de
+l'instruction `## BUYING TRIGGERS\nThe 2-3 specific signals that indicate
+this company is ready to buy GTM advisory now.` dans le prompt unique.
+
+## 5. Tags "Buying signals" auto-détectés — source
+
+**Règles codées en dur (regex JavaScript), zéro appel LLM.** Appliquées
+directement sur `aiTxt` (= `_scanFullText`, le texte complet déjà généré
+par le même unique appel), demo-private.html:4677-4688 :
+```js
+const aiTxt = _scanFullText;
+const noInfo = /no verifiable|no public information|no information found|unable to find|cannot find/i.test(aiTxt);
+const sigs = [];
+if (!noInfo) {
+  if (/fund|raised|series [abc]|investm/i.test(aiTxt)) sigs.push({type:'s1', label:'Fundraise signal'});
+  if (/new.*(?:vp|cro|cmo|cto|svp|director|head of)|appointed|joined/i.test(aiTxt)) sigs.push({type:'s3', label:'Senior hire'});
+  if (/expan|new market|international|new country|new region|enter.*market/i.test(aiTxt)) sigs.push({type:'s4', label:'Expansion move'});
+  if (/partner|acqui|merger/i.test(aiTxt)) sigs.push({type:'s2', label:'Partnership'});
+  if (sigList && sigs.length > 0) {
+    sigList.innerHTML = '<div class="signal-list">' + sigs.map(s => `<span class="signal-tag signal-${s.type}">${s.label}</span>`).join('') + '</div>';
+  }
+}
+```
+4 catégories fixes, mots-clés anglais en dur (`fund|raised|series [abc]`,
+`new.*(vp|cro|cmo|cto|svp|director|head of)|appointed|joined`,
+`expan|new market|international|...`, `partner|acqui|merger`) — aucune
+classification LLM, aucune configuration externe. Un premier garde-fou
+(`noInfo`) désactive complètement la détection si le texte contient une
+formule d'absence de données ("no verifiable", "unable to find", etc.),
+pour ne jamais tagger un signal à partir d'un brief qui dit explicitement
+n'avoir rien trouvé.
+
+## 6. Behavioural Profile & Strategy — comment il est généré
+
+**Même réponse que Why Now/Pain Points/Opening Angle/Buying Triggers —
+un seul appel LLM, extraction par regex** (citation exacte section 3,
+`strategyMatch`). Instruction dans le prompt unique : "Two short
+paragraphs: first on the likely decision-making style [...] second on
+the exact approach strategy — what to lead with, what to avoid, what the
+close looks like." Rien de codé en dur ici, contrairement aux Buying
+signals (section 5) — c'est un texte généré, pas une règle.
+
+## 7. Nombre total d'appels API pour un scan complet
+
+| Appel | Endpoint | Fonction | Toujours déclenché ? |
+|---|---|---|---|
+| Recherche web entreprise | `/api/web-search` | `_prefetchWebContext` → `_marketIntelSearch` | Oui (si `company` renseignée) |
+| Brief complet (5 sections en un seul texte) | `/api/generate` | `callAI(...)` | Oui |
+| Recherche web personne | `/api/web-search` | `_runContactIntelligence` (interne) | Seulement si `person` renseigné |
+| Bio/brief personne | `/api/generate` | `_runContactIntelligence` (interne) | Seulement si `person` renseigné |
+| Score ICP (4 sous-scores) | `/api/generate` | appel direct `fetch(API_URL, ...)` dans `runScanner()`, ligne 4724 | Oui (si `_scannerMode !== 'free'`) |
+
+**Total réel pour un scan complet** :
+- **3 appels** (1 web-search + 2 generate) si aucun contact/personne saisi.
+- **5 appels** (2 web-search + 3 generate) si un nom de contact est
+  saisi — le brief entreprise et la fiche personne tournent **en
+  parallèle** (`Promise.all([_sp1, _sp2])`, demo-private.html:4649), pas
+  en séquence, donc pas de latence additive entre les deux malgré le
+  nombre d'appels plus élevé. Le score ICP, lui, tourne **après** ces
+  deux-là (séquentiel, pas en parallèle) puisqu'il utilise les signaux
+  détectés dans le brief déjà généré.
+
+*Ajouté le 2026-09-13 (brief "extraction de la référence Company
+Intelligence"). Toutes les citations de code ci-dessus sont copiées
+verbatim depuis demo-private.html, pas paraphrasées ni reconstituées de
+mémoire.*
