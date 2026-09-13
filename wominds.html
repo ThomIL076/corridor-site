@@ -390,6 +390,14 @@ button, [role="button"], select, input { min-height: var(--btn-h-sm); }
 .signal-s2::before { background:#22c55e; box-shadow:0 0 4px #22c55e; }
 .signal-s3 { background:var(--navy-light); color:var(--navy); border:1px solid var(--blue); }
 .signal-s3::before { background:var(--blue); box-shadow:0 0 4px var(--blue); }
+/* s4/s5/s6 (brief 2026-09-13, categories signal Wominds -- s1-s3 deja presents, memes tokens
+   Groupe H que le reste du fichier depuis ce matin, jamais inventes). */
+.signal-s4 { background:var(--navy-light); color:var(--navy); border:1px solid var(--blue); }
+.signal-s4::before { background:var(--navy); box-shadow:0 0 4px var(--navy); }
+.signal-s5 { background:var(--signals-purple-bg); color:var(--signals-purple); border:1px solid var(--signals-purple); }
+.signal-s5::before { background:var(--signals-purple); box-shadow:0 0 4px var(--signals-purple); }
+.signal-s6 { background:var(--fundraising-bg); color:var(--fundraising); border:1px solid var(--fundraising); }
+.signal-s6::before { background:var(--fundraising); box-shadow:0 0 4px var(--fundraising); }
 
 /* ── AGENT TABS ── */
 /* ── Agent Map ──────────────────────────────────────────────────────────── */
@@ -2021,15 +2029,34 @@ body.new-nav { padding-left: 220px; }
       <div class="score-grid" id="scanner-score-grid">
         <div class="score-kpi"><span class="score-kpi-val green" id="sc-total">N/D</span><span class="score-kpi-label">Score de fit ICP</span></div>
       </div>
+      <div id="sc-rationale" style="font-size:var(--fs-xs);color:var(--muted);margin-top:6px;"></div>
+      <!-- Sous-scores ICP (brief 2026-09-13, parite demo-private.html:15308 #breakdown-panel) --
+           conteneur dedie distinct de celui du tiroir principal (_renderBreakdownPanel reste a 2
+           arguments cote wominds.html, ne renvoie qu'une chaine HTML, jamais d'ecriture DOM
+           directe -- verifie par lecture directe avant d'ecrire ce code, pas suppose). -->
+      <div id="scanner-breakdown-panel" style="display:none;margin-top:8px;"></div>
+      <div id="scanner-signals-list" style="margin-top:8px;"></div>
+      <!-- INTELLIGENCE ENTREPRISE (brief 2026-09-13, parite demo-private.html runScanner() --
+           un seul prompt en 5 sections ## FR, decoupe par regex cote client, jamais 5 appels
+           separes. Recherche web reelle avant redaction (_prefetchWebContext), pas de donnee
+           deja en base -- cf. known-divergences-wominds.md, extraction "Company Intelligence". ── -->
       <div class="card" style="margin-top:12px;">
-        <div class="card-header"><span class="card-title">Analyse</span></div>
+        <div class="card-header"><span class="card-title">Intelligence entreprise</span></div>
         <div class="ai-box">
           <div class="ai-box-header">
-            <span class="ai-box-label">Note IA</span>
+            <span class="ai-box-label">Pourquoi maintenant · Points de douleur · Angle d'approche</span>
             <div class="ai-spinner" id="scanner-spinner"></div>
           </div>
           <div class="ai-box-body" id="scanner-ai-output">L'analyse apparaîtra ici...</div>
         </div>
+      </div>
+      <div class="card" id="scanner-triggers-card" style="display:none;margin-top:12px;">
+        <div class="card-header"><span class="card-title">Déclencheurs d'achat</span></div>
+        <div class="ai-box"><div class="ai-box-body" id="scanner-triggers-output"></div></div>
+      </div>
+      <div class="card" id="scanner-strategy-card" style="display:none;margin-top:12px;">
+        <div class="card-header"><span class="card-title">Profil comportemental &amp; stratégie</span></div>
+        <div class="ai-box"><div class="ai-box-body" id="scanner-strategy-output"></div></div>
       </div>
       <!-- FICHE CONTACT (brief 2026-09-12) : visible seulement si un nom de contact est saisi --
            recherche web reelle, jamais de LinkedIn/fait invente (cf. _runContactIntelligence). -->
@@ -6349,6 +6376,29 @@ function closeScannerPanel() {
   document.getElementById('scanner-panel').classList.remove('open');
   document.body.classList.remove('scanner-open');
 }
+// Categories de signaux Wominds (brief 2026-09-13, item 4) -- PROPOSITION A VALIDER PAR THOMAS,
+// pas figees. Construites sur mandates.signals reel de Wominds (echeance Directive Transparence
+// Salariale, Index EgaPro/turnover feminin, engagement egalite F/H, labels/certifications,
+// recrutement mixite, contexte M&A/levee) -- jamais copiees des categories anglophones
+// fundraise/senior-hire/expansion/partnership de demo-private.html, qui ne correspondent a rien
+// du mandat Wominds reel.
+const _WOMINDS_SIGNAL_CATEGORIES = [
+  { type: 's1', label: 'Échéance réglementaire', re: /directive|transparence salariale|obligation[s]? légale|mise en conformité|conformité réglementaire/i },
+  { type: 's2', label: 'Indicateurs RH', re: /index egapro|score égalité|turnover féminin|indicateur[s]? rh/i },
+  { type: 's3', label: 'Engagement égalité F/H', re: /égalité (professionnelle|femmes.?hommes|f\/h)|bien.être|bienveillance|zéro sexisme/i },
+  { type: 's4', label: 'Label / certification', re: /label égalité pro|great place to work|b corp|charte (diversité|inclusion|parentalité)/i },
+  { type: 's5', label: 'Recrutement mixité', re: /mixité|femmes dans la tech|recrutement.*(mixte|diversifié)|comex.*(mixte|femmes)/i },
+  { type: 's6', label: 'M&A / levée de fonds', re: /levée de fonds|fusion|acquisition|rachat|investissement|audit.*(capital humain|social)/i },
+];
+// Garde-fou identique a demo-private.html (noInfo) : si le brief dit explicitement n'avoir rien
+// trouve, ne jamais tagger un signal a partir de ce texte -- correspond au marqueur ecrit par le
+// prompt lui-meme ci-dessous ("Aucune information publique verifiable trouvee").
+function _scannerDetectSignals(text) {
+  if (!text) return [];
+  const noInfo = /aucune information (publique )?vérifiable|aucune donnée fiable|impossible de trouver|rien de fiable trouvé/i.test(text);
+  if (noInfo) return [];
+  return _WOMINDS_SIGNAL_CATEGORIES.filter(c => c.re.test(text));
+}
 async function runScanner() {
   const company = document.getElementById('scanner-company').value.trim();
   if (!company) { showToast('Indiquez au moins le nom de l\'entreprise'); return; }
@@ -6356,16 +6406,30 @@ async function runScanner() {
   const title = document.getElementById('scanner-title').value.trim();
   const sector = document.getElementById('scanner-sector').value.trim();
   const context = document.getElementById('scanner-context').value.trim();
+  const siteUrl = document.getElementById('scanner-url').value.trim();
   const btn = document.getElementById('scanner-btn');
   const spin = document.getElementById('scanner-spinner');
   const out = document.getElementById('scanner-ai-output');
   const totalEl = document.getElementById('sc-total');
+  const rationaleEl = document.getElementById('sc-rationale');
+  const breakdownPanel = document.getElementById('scanner-breakdown-panel');
+  const sigListEl = document.getElementById('scanner-signals-list');
+  const triggersCard = document.getElementById('scanner-triggers-card');
+  const triggersOut = document.getElementById('scanner-triggers-output');
+  const strategyCard = document.getElementById('scanner-strategy-card');
+  const strategyOut = document.getElementById('scanner-strategy-output');
   btn.disabled = true;
   document.getElementById('scanner-results').style.display = 'block';
   if (spin) spin.classList.add('active');
-  out.textContent = 'Analyse en cours…';
-  // Fiche contact (brief 2026-09-12) : en parallele du score ICP, seulement si un nom est
-  // fourni -- fire-and-forget (ecrit dans son propre bloc DOM, n'affecte pas le flux du score).
+  out.textContent = 'Recherche en cours…';
+  totalEl.textContent = '…';
+  rationaleEl.textContent = '';
+  breakdownPanel.style.display = 'none'; breakdownPanel.innerHTML = '';
+  sigListEl.innerHTML = '';
+  triggersCard.style.display = 'none'; triggersOut.innerHTML = '';
+  strategyCard.style.display = 'none'; strategyOut.innerHTML = '';
+  // Fiche contact (brief 2026-09-12) : en parallele du reste, seulement si un nom est fourni --
+  // fire-and-forget (ecrit dans son propre bloc DOM, n'affecte pas le flux principal).
   const contactCard = document.getElementById('scanner-contact-card');
   if (person) {
     contactCard.style.display = '';
@@ -6388,59 +6452,178 @@ async function runScanner() {
         + (mandate.signals ? 'Signaux clés : ' + mandate.signals + '\n' : '')
         + (mandate.exclusions ? 'Exclusions : ' + mandate.exclusions + '\n' : '');
     }
-    // Prompt generique (evaluation de fit ICP a partir des criteres de mandat reels) -- pas de
-    // voix de marque Wominds, meme regle que _generateSequenceMessage.
-    const scorePrompt = `Vous êtes un moteur d'évaluation ICP. Évaluez ce prospect et renvoyez un score.
+
+    // ── 1. Intelligence entreprise (brief 2026-09-13, parite exacte runScanner() demo-private.html
+    // -- un seul prompt en 5 sections ##, decoupe par regex cote client, recherche web reelle avant
+    // redaction. Cf. known-divergences-wominds.md, extraction "Company Intelligence", pour la
+    // source de reference citee verbatim. ──────────────────────────────────────────────────────
+    const liveCtx = await _prefetchWebContext(company, sector, siteUrl);
+    const noCtxNote = liveCtx ? '' : '\nAUCUN CONTEXTE VÉRIFIÉ : n\'inventez aucun fait spécifique à l\'entreprise (taille, localisation, produit, événement). Si rien n\'est trouvé, dites-le explicitement.\n';
+    const personLine = person ? `\nContact principal : ${person}${title ? ' (' + title + ')' : ''}\n` : '';
+    const contextLine = context ? `\nContexte fourni par l'utilisateur (à traiter comme vérifié, prioritaire) :\n${context}\n` : '';
+    const briefPrompt = `Vous êtes le moteur d'intelligence signal de Wominds, analysant un vrai prospect.
+
+Entreprise : ${company}
+Secteur : ${sector || 'inconnu'}
+${mandateCriteria}${personLine}${contextLine}
+ÉTAPE 1 : Utilisez la recherche web pour trouver des faits récents et vérifiables sur ${company} : actualité RH/RSE, égalité professionnelle, levées de fonds, croissance, dirigeants. Cherchez sur le web avant d'analyser.
+ÉTAPE 2 : Rédigez un brief incisif basé UNIQUEMENT sur des faits vérifiés issus de votre recherche et du contexte fourni ci-dessus. N'inventez jamais de chiffre, de nom, de date ou d'événement. Si la recherche web ne renvoie rien de fiable sur cette entreprise précise, dites-le explicitement en tête de réponse, ainsi : "⚠️ Aucune information publique vérifiable trouvée pour ${company}, le brief ci-dessous est générique, basé uniquement sur le secteur et le mandat.", plutôt que d'inventer des détails.
+
+Structurez votre réponse avec exactement ces cinq titres ## :
+
+## POURQUOI MAINTENANT
+Pourquoi cette entreprise correspond bien au mandat Wominds (égalité professionnelle F/H, transparence salariale) en ce moment précis. Soyez précis sur la fenêtre de timing, en citant les signaux vérifiés trouvés.
+
+## POINTS DE DOULEUR
+Les 2-3 points de douleur les plus probables à ce stade, en lien avec les enjeux d'égalité professionnelle et de conformité réglementaire.
+
+## ANGLE D'APPROCHE
+Le meilleur angle d'ouverture pour une prise de contact avec cette entreprise.
+
+## DÉCLENCHEURS D'ACHAT
+Les 2-3 signaux précis qui indiquent que cette entreprise est prête à acheter une prestation Wominds maintenant.
+
+## PROFIL COMPORTEMENTAL ET STRATÉGIE
+Deux courts paragraphes : d'abord sur le style de décision probable ${person ? `de ${person}, contact principal` : `du processus d'achat probable de l'entreprise (aucun nom de contact fourni)`} ; ensuite sur la stratégie d'approche exacte, par quoi commencer, quoi éviter, à quoi ressemble la conclusion.
+
+Soyez direct, commercial et précis. Pas de langage de conseil générique. 420 mots maximum.
+
+Règles : n'utilisez jamais de tiret cadratin (—) ni de ligne horizontale (---) dans votre réponse. Répondez entièrement en français.`;
+
+    // max_tokens 1800 -> 3000 (verification reelle 2026-09-13) : 1800 (le minimum demande) a
+    // reellement tronque au 1er test (thinking_tokens:1214/1800, coupe en plein "Points de
+    // douleur", jamais atteint Declencheurs/Profil) -- pas suppose, observe. 3000 verifie sans
+    // troncature sur le meme cas reel (thinking_tokens:1674, stop_reason "end_turn", 5 sections
+    // completes, Declencheurs+Profil extraits, tags detectes correctement).
+    const briefRes = await fetch('/api/generate', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: [{ role: 'user', content: liveCtx + noCtxNote + briefPrompt }], max_tokens: 3000 })
+    });
+    const briefData = await briefRes.json();
+    let briefText = '';
+    if (!briefRes.ok || briefData.type === 'error') {
+      console.error('[runScanner] erreur API (brief):', briefRes.status, briefData.error || briefData);
+      out.textContent = 'Erreur API (' + briefRes.status + (briefData.error?.message ? ' : ' + briefData.error.message : '') + '), réessayez.';
+    } else {
+      briefText = (Array.isArray(briefData.content) ? briefData.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim() : '');
+      if (!briefText) {
+        out.textContent = 'Réponse vide, réessayez.';
+      } else {
+        // Decoupage identique a demo-private.html (extraction de reference, section 3) : zone
+        // principale = texte avant DECLENCHEURS D'ACHAT, deux zones separees par regex ensuite --
+        // jamais de JSON ici, texte libre uniquement.
+        const coreText = briefText.split(/\n##\s*DÉCLENCHEURS D'ACHAT/i)[0].trim();
+        out.innerHTML = renderMarkdown(coreText);
+        const triggersMatch = briefText.match(/^## DÉCLENCHEURS D'ACHAT\s*\n([\s\S]*?)(?=\n##\s|$)/mi);
+        const strategyMatch = briefText.match(/^## PROFIL COMPORTEMENTAL ET STRATÉGIE\s*\n([\s\S]*?)(?=\n##\s|$)/mi);
+        if (triggersMatch) { triggersCard.style.display = ''; triggersOut.innerHTML = renderMarkdown(triggersMatch[1].trim()); }
+        if (strategyMatch) { strategyCard.style.display = ''; strategyOut.innerHTML = renderMarkdown(strategyMatch[1].trim()); }
+        const sigs = _scannerDetectSignals(briefText);
+        if (sigs.length) {
+          sigListEl.innerHTML = '<div class="signal-list">' + sigs.map(s => `<span class="signal-tag signal-${s.type}">${_esc(s.label)}</span>`).join('') + '</div>';
+        }
+      }
+    }
+
+    // ── 2. Score ICP detaille -- 6 champs JSON (brief 2026-09-13, item 2/3/4 du chantier
+    // "Sous-scores ICP detailles") : role_score/size_score/signal_strength_score/mandate_fit_score
+    // + confidence + rationale, memes definitions que demo-private.html:4721, adaptees a
+    // Wominds pour role_score/signal_strength_score (les criteres de reference -- hierarchie
+    // CEO/Founder, signaux fundraise/hire -- sont specifiques a Corridor et n'ont aucun sens pour
+    // Wominds ; role_score renvoie donc aux vrais decideurs du mandat deja injectes ci-dessus,
+    // signal_strength_score aux vraies categories de signal Wominds ci-dessus, meme mecanique de
+    // paliers 9/7/5/3 que la reference). size_score et mandate_fit_score sont repris quasi
+    // verbatim, ce sont deja des regles generiques cote demo-private.html. ─────────────────────
+    const mdMinEmp = mandate?.min_employees ?? null;
+    const mdMaxEmp = mandate?.max_employees ?? null;
+    let sizeScoreRule;
+    if (mdMinEmp || mdMaxEmp) {
+      const lo = mdMinEmp, hi = mdMaxEmp;
+      const range = lo && hi ? `${lo}-${hi}` : lo ? `${lo}+` : `1-${hi}`;
+      const above = hi ? `${hi + 1}-${Math.round(hi * 2.5)}` : null;
+      const farAbove = hi ? `${Math.round(hi * 2.5) + 1}+` : null;
+      const below = lo && lo > 1 ? `1-${lo - 1}` : null;
+      sizeScoreRule = `size_score : à quel point la taille de l'entreprise correspond à la fourchette cible (${range} salariés). Si réellement inconnue, répondez exactement -1 -- ne devinez JAMAIS à partir du secteur ou du nom. Si connue : ${range}=9`
+        + (above ? `, ${above}=6` : '') + (below ? `, ${below}=4` : '') + (farAbove ? `, ${farAbove}=3` : '');
+    } else {
+      sizeScoreRule = `size_score : à quel point la taille de l'entreprise correspond à 11-200 salariés. Si réellement inconnue, répondez exactement -1 -- ne devinez JAMAIS à partir du secteur ou du nom. Si connue : 11-200=9, 201-500=6, 1-10=4, 500+=3`;
+    }
+    const sigsForScore = _scannerDetectSignals(briefText);
+    const sigsLine = sigsForScore.length
+      ? '\nSignaux d\'achat détectés pour cette entreprise : ' + sigsForScore.map(s => s.label).join(', ') + '. Tenez-en compte dans votre score.'
+      : '';
+    const contactIntelTxt = (() => { const t = (document.getElementById('scanner-contact-output')?.textContent || '').trim(); return (person && t && !t.startsWith('Recherche')) ? t : ''; })();
+    const contactIntelLine = contactIntelTxt ? '\n\nINTELLIGENCE CONTACT (à utiliser pour affiner role_score -- poste, parcours, séniorité) :\n' + contactIntelTxt.slice(0, 1000) : '';
+    const scorePrompt = `Vous êtes un moteur d'évaluation ICP pour Wominds. Évaluez ce prospect et renvoyez 4 sous-scores.
 
 Entreprise : ${company}
 Poste connu : ${title || 'inconnu'}
 Secteur : ${sector || 'inconnu'}
-${mandateCriteria}
+${mandateCriteria}${sigsLine}${contactIntelLine}
 ${context ? 'Contexte fourni : ' + context : ''}
 
-Règles : n'inventez aucun fait au-delà de ce qui est donné ci-dessus. Si une information est inconnue, dites-le plutôt que de deviner. Répondez en français, même si une partie du contexte ci-dessus est en anglais.
+RÈGLES DE NOTATION :
+role_score (0-10) : à quel point le poste correspond aux décideurs cibles listés dans les critères de mandat ci-dessus (élevé si correspondance directe, modéré si poste senior proche du profil, faible si poste junior ou périphérique, très faible si séniorité indéterminée)
+${sizeScoreRule}
+signal_strength_score (0-10) : 0 si aucun signal d'achat détecté. Échéance réglementaire ou M&A/levée=9, engagement égalité/label/certification=7, indicateurs RH ou recrutement mixité=5, autre=3
+mandate_fit_score (0-10) : ${mandateCriteria ? 'notez l\'adéquation avec les critères de mandat ci-dessus (secteur, géographie, décideurs)' : 'renvoyez 5 -- aucun mandat actif, score neutre'}
+
+Règles : n'inventez aucun fait au-delà de ce qui est donné ci-dessus. Répondez en français, même si une partie du contexte ci-dessus est en anglais. Pas de tiret cadratin (—) dans votre réponse.
 
 Répondez UNIQUEMENT en JSON valide, rien d'autre :
-{"score": <0-10>, "confidence": "<faible|moyenne|élevée>", "rationale": "<une phrase factuelle>"}`;
-    // max_tokens 300 -> 600 (diagnostic 2026-09-13) : le modele consommait jusqu'a 228 tokens
-    // en "thinking" etendu avant meme d'ecrire le JSON visible, tronquant la reponse en plein
-    // milieu de "rationale" (aucune accolade fermante, jamais un timeout ni une erreur HTTP).
-    // 600 laisse une marge x2 au-dessus du "thinking" observe reellement pour un JSON a 1 seul
-    // sous-score (plus simple que les 4 sous-scores de demo-private.html, qui utilise 1000) --
-    // pas copie a l'identique de demo-private.html sans reflexion, dimensionne au besoin reel.
+{"role_score":<0-10>,"size_score":<-1 ou 0-10>,"signal_strength_score":<0-10>,"mandate_fit_score":<0-10>,"confidence":"<faible|moyenne|élevée>","rationale":"<une phrase factuelle>"}`;
+    // max_tokens 1000 (brief 2026-09-13) : meme valeur que demo-private.html pour ce meme JSON a
+    // 6 champs (4 sous-scores + confidence + rationale) -- 600 suffisait au JSON a 3 champs du
+    // fix P0 du matin, mais pas a celui-ci, plus complexe. Reprise directe de la valeur reelle de
+    // la reference, pas une supposition.
     const res = await fetch('/api/generate', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages: [{ role: 'user', content: scorePrompt }], max_tokens: 600 })
+      body: JSON.stringify({ messages: [{ role: 'user', content: scorePrompt }], max_tokens: 1000 })
     });
     const data = await res.json();
-    // Verification res.ok/data.type==='error' avant de parser (meme garde manquante corrigee
-    // plus tot aujourd'hui sur _escalateProspect, jamais appliquee ici) -- message distinct de
-    // "Impossible d'obtenir un score exploitable" pour ne plus confondre une vraie erreur API
-    // (429/500/502) avec une reponse tronquee/malformee.
     if (!res.ok || data.type === 'error') {
-      console.error('[runScanner] erreur API:', res.status, data.error || data);
+      console.error('[runScanner] erreur API (score):', res.status, data.error || data);
       totalEl.textContent = 'N/D';
-      out.textContent = 'Erreur API (' + res.status + (data.error?.message ? ' : ' + data.error.message : '') + '), réessayez.';
+      rationaleEl.textContent = 'Erreur API (' + res.status + (data.error?.message ? ' : ' + data.error.message : '') + '), réessayez.';
       return;
     }
     const text = (Array.isArray(data.content) ? data.content.filter(b => b.type === 'text').map(b => b.text).join('').trim() : '');
     const m = text.match(/\{[\s\S]*\}/);
     const parsed = m ? JSON.parse(m[0]) : null;
-    if (parsed && parsed.score != null) {
-      totalEl.textContent = parsed.score + '/10';
-      out.innerHTML = _esc(parsed.rationale || '') + (parsed.confidence ? `<div style="margin-top:6px;font-size:var(--fs-xs);color:var(--muted);">Confiance : ${_esc(parsed.confidence)}</div>` : '');
-      _scannerLastResult = { company, person, title, sector, context, score: parsed.score, rationale: parsed.rationale };
+    if (parsed && parsed.role_score != null) {
+      const sizeVal = (parsed.size_score === -1 || parsed.size_score == null) ? 5 : parsed.size_score;
+      const composite = Math.min(10, Math.max(0,
+        parsed.role_score * ICP_WEIGHTS.role_fit + sizeVal * ICP_WEIGHTS.company_size_fit
+        + parsed.signal_strength_score * ICP_WEIGHTS.signal_strength + parsed.mandate_fit_score * ICP_WEIGHTS.mandate_fit
+        + 5 * ICP_WEIGHTS.recency + 5 * ICP_WEIGHTS.completeness
+      ));
+      totalEl.textContent = composite.toFixed(1) + '/10';
+      rationaleEl.textContent = (parsed.rationale || '') + (parsed.confidence ? ' (confiance : ' + parsed.confidence + ')' : '');
+      // Sous-scores affiches : role_fit/signal_strength/mandate_fit toujours ; company_size_fit
+      // OMIS si size_score vaut -1 (inconnu) -- jamais affiche a 0%, meme regle que
+      // demo-private.html:4747-4749. recency/completeness jamais affiches ici (scan ponctuel,
+      // pas de vraie date de creation/completude de fiche a montrer, meme exclusion volontaire
+      // que la reference).
+      const breakdown = {
+        role_fit: parsed.role_score * 10,
+        signal_strength: parsed.signal_strength_score * 10,
+        mandate_fit: parsed.mandate_fit_score * 10,
+      };
+      if (parsed.size_score != null && parsed.size_score >= 0) breakdown.company_size_fit = parsed.size_score * 10;
+      breakdownPanel.innerHTML = _renderBreakdownPanel(breakdown, ICP_WEIGHTS);
+      breakdownPanel.style.display = '';
+      _scannerLastResult = { company, person, title, sector, context, score: composite, rationale: parsed.rationale };
       document.getElementById('scanner-pipeline-action').innerHTML =
         `<button class="btn-secondary btn-md" style="width:100%;margin-top:12px;" onclick="_scannerAddToPipeline()">+ Ajouter au pipeline</button>`;
     } else {
       console.warn('[runScanner] JSON introuvable dans la reponse (probable troncature) :', text);
       totalEl.textContent = 'N/D';
-      out.textContent = 'Impossible d\'obtenir un score exploitable, réessayez.';
+      rationaleEl.textContent = 'Impossible d\'obtenir un score exploitable, réessayez.';
     }
   } catch(e) {
     console.error('[runScanner]', e);
     totalEl.textContent = 'N/D';
-    out.textContent = 'Erreur, vérifiez votre connexion.';
+    rationaleEl.textContent = 'Erreur, vérifiez votre connexion.';
   } finally {
     btn.disabled = false;
     if (spin) spin.classList.remove('active');

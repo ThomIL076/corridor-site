@@ -565,6 +565,64 @@ d'une prochaine passe de code.
 Diagnostic P0 vérifié par appel HTTP réel au endpoint de production, pas
 par lecture de code seule.*
 
+## Mise à jour — Company Intelligence + sous-scores ICP construits (2026-09-13)
+
+> **PORTÉ.** Les lignes du tableau P1 ci-dessus "Brief Company Intelligence",
+> "Buying Triggers", "Tags de signaux auto-détectés", "Behavioural
+> Profile" et "Score ICP — nombre de sous-scores" sont désormais
+> construites côté wominds.html (`runScanner()`), sur le même mécanisme
+> que la référence : un seul prompt en 5 sections `##` (traduites en
+> français, catégories mandat/décideurs Wominds réelles au lieu des
+> critères Corridor), découpage par regex identique (section principale
+> avant `## DÉCLENCHEURS D'ACHAT`, deux zones extraites séparément),
+> recherche web réelle avant rédaction (`_prefetchWebContext`/
+> `_marketIntelSearch`, réutilisées telles quelles, déjà présentes côté
+> wominds.html — vérifié avant d'écrire le code, pas supposé). Score ICP
+> passé de 1 à 4 sous-scores (`role_score`/`size_score`/
+> `signal_strength_score`/`mandate_fit_score`), branché sur
+> `_renderBreakdownPanel` (2 arguments côté wominds.html, ne réécrit pas
+> le DOM directement contrairement à la version à 3 arguments de
+> demo-private.html — vérifié par lecture directe des deux avant
+> d'écrire le code, un conteneur dédié `#scanner-breakdown-panel` a été
+> ajouté puisque la fonction elle-même n'écrit jamais dans le DOM côté
+> wominds.html).
+>
+> **Tags de signaux — PROPOSITION, pas encore validée par Thomas** (6
+> catégories construites sur `mandates.signals` réel de Wominds :
+> Échéance réglementaire, Indicateurs RH, Engagement égalité F/H, Label/
+> certification, Recrutement mixité, M&A/levée — jamais copiées des
+> catégories anglophones fundraise/senior-hire/expansion/partnership de
+> demo-private.html, qui n'ont aucun sens pour ce mandat). À revoir avant
+> de les considérer figées.
+>
+> **Écart trouvé pendant la vérification réelle, corrigé avant de
+> considérer ce point clos** : le brief demandait `max_tokens: 1800`
+> minimum pour le brief Company Intelligence. Testé réellement contre
+> `https://corridor.systems/api/generate` (entreprise réelle Duralex,
+> contact réel Maxime Nélia, contexte injecté) : **1800 a réellement
+> tronqué** (`stop_reason:"max_tokens"`, `thinking_tokens:1214/1800`,
+> coupé en plein "Points de douleur", jamais atteint Déclencheurs ni
+> Profil comportemental) — même classe de bug que le P0 du matin, sur un
+> prompt différent et plus long. Remonté à **3000**, retesté sur le même
+> cas réel : `stop_reason:"end_turn"`, 5 sections complètes, Déclencheurs
+> et Profil correctement extraits, 5 des 6 catégories de tag détectées
+> (celles réellement présentes dans le contexte injecté, la 6e -- M&A/
+> levée -- correctement absente, aucun faux positif). Cas négatif
+> (entreprise fictive, sans contexte) testé aussi : le marqueur "Aucune
+> information publique vérifiable trouvée" déclenche bien, 0 tag détecté
+> comme attendu. Score ICP à 4 sous-scores testé séparément (`max_tokens:
+> 1000`, valeur demandée) : `stop_reason:"end_turn"` sur 2 essais réels,
+> `size_score` renvoyé à `-1` sur un cas volontairement ambigu (secteur/
+> effectifs non précisés) les deux fois, et le breakdown transmis à
+> `_renderBreakdownPanel` omet bien `company_size_fit` dans ce cas (pas
+> affiché à 0%).
+
+*Ajouté le 2026-09-13 (brief "Company Intelligence Wominds, Phase 2" +
+brief "Sous-scores ICP détaillés, Scanner autonome Wominds", traités
+ensemble car modifiant la même fonction `runScanner()`). Toutes les
+vérifications ci-dessus sont des appels réels au endpoint de production,
+pas des suppositions de code.*
+
 ---
 
 # Extraction de référence — "Company Intelligence" (demo-private.html, 2026-09-13)
