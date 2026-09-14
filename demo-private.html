@@ -5728,7 +5728,6 @@ function _askEngagedDealsCount() {
 async function _buildAskSystemPrompt(ctx, pipelineSnapshot, pipelineInsightsBlock) {
   const mandateBlock = (typeof _mandateContext === 'function') ? _mandateContext() : '';
   let ctxBlock = '';
-  let liveSearchCtx = '';
   if (ctx) {
     if (ctx.type === 'prospect') {
       const parts = ['CURRENT PROSPECT CONTEXT:'];
@@ -5763,20 +5762,25 @@ async function _buildAskSystemPrompt(ctx, pipelineSnapshot, pipelineInsightsBloc
   } else if (pipelineSnapshot) {
     ctxBlock = '\n\n' + pipelineSnapshot;
   }
-  if (ctx && !ctx.scanIntelligence && (ctx.type === 'prospect' || ctx.type === 'signal') && (ctx.company || ctx.name || ctx.prospectName)) {
-    const _lsName = ((ctx.name || ctx.prospectName || '') + ' ' + (ctx.company || '')).trim();
-    const _lsResult = await _marketIntelSearch(_lsName, 500);
-    if (_lsResult) liveSearchCtx = '\n\nLIVE CONTEXT (from web search, use this as ground truth for facts, do not invent beyond this):\n' + _lsResult;
-  }
+  // Fix 2026-09-14 (replique le fix Wominds -- meme cas reel ELEMENTS : garde-fou anti-
+  // hallucination correct mais renvoie vers une recherche manuelle Pappers/Societe.com/INPI au
+  // lieu de chercher) : l'ancienne pre-recherche ci-dessous ne se declenchait que si un
+  // prospect/signal precis etait ouvert (contrairement a wominds.html qui cherchait sur TOUTE
+  // question, meme bug different) -- une question sur une entreprise hors contexte ouvert
+  // n'avait donc aucune recherche du tout ici. Retiree au profit de l'outil de recherche web
+  // natif Claude (web_search_20250305, plus bas dans _sendAskMessage) : declenche pour toute
+  // question, pas seulement contexte ouvert, avec l'historique complet de conversation sous les
+  // yeux de Claude pour formuler sa propre requete -- strictement plus large que ce bloc.
   let insightsBlock = '';
   if (pipelineInsightsBlock) {
     insightsBlock = '\n\n' + pipelineInsightsBlock + '\n\nYou have access to PIPELINE_INSIGHTS above: the real conversion rates computed on the user\'s actual pipeline, by sector, signal type, and country. Each row has an is_reliable field: if false, the sample is too small (fewer than 15 prospects contacted) for the number to mean anything — in that case, never present that number as an actionable fact. Say explicitly that there isn\'t enough data yet on that dimension instead of citing an unreliable percentage. Never calculate, estimate, or invent a conversion rate yourself — use only the numbers provided in PIPELINE_INSIGHTS. If PIPELINE_INSIGHTS has no rows, tell the user honestly that the pipeline doesn\'t have enough activity yet to compute this, rather than staying silent or guessing. Breakdown by time of day or day of week is NOT available yet — if asked about it, say so explicitly instead of improvising an answer.';
   }
-  const prompt = 'LANGUAGE RULE (non-negotiable): Respond exclusively in the language of the user\'s latest message — regardless of the language of any data injected below (which may be in French). French context data does not mean French response. Detect only the user message language.\n\nYou are Corridor\'s assistant helping with GTM pipeline management.\n' + mandateBlock + ctxBlock + liveSearchCtx + insightsBlock + '\n\nBe factual and concise. Never use em-dashes (—) or horizontal rules (---) in your response.\nNever state a fact about a prospect, company, mandate, or signal that is not explicitly present in the context provided or in what the user has told you in this conversation. If you don\'t have enough information to answer accurately, say so directly rather than guessing or inferring plausibly-sounding details. Do not invent URLs, dates, numbers, or attributions. When asked about something outside the provided context (general market knowledge, definitions, how-to questions), you may answer from general knowledge, but never blend invented specifics about THIS prospect/mandate/signal with general knowledge in a way that makes them indistinguishable.\n\nFINAL REMINDER: your entire response must be in the language of the user\'s message above, not in the language of the context data.';
-  // Provenance "N AGENTS CONSULTED" (volet cablage) : liveSearchUsed expose ici car c'est la
-  // seule des 3 sources reelles (snapshot/insights/recherche live) decidee a l'interieur de
-  // cette fonction -- les deux autres sont deja visibles de l'appelant (_sendAskMessage).
-  return { prompt, liveSearchUsed: !!liveSearchCtx };
+  // Fix 2026-09-14 (idem) : garde-fou reformule -- "cherchez avant d'abandonner" remplace "dites
+  // que vous n'avez pas l'info", desormais que web_search est reellement disponible (outil natif,
+  // ajoute dans _sendAskMessage). Ne renvoie plus jamais vers une recherche manuelle
+  // (Pappers/Societe.com/INPI) alors que l'outil est disponible.
+  const prompt = 'LANGUAGE RULE (non-negotiable): Respond exclusively in the language of the user\'s latest message — regardless of the language of any data injected below (which may be in French). French context data does not mean French response. Detect only the user message language.\n\nYou are Corridor\'s assistant helping with GTM pipeline management.\n' + mandateBlock + ctxBlock + insightsBlock + '\n\nBe factual and concise. Never use em-dashes (—) or horizontal rules (---) in your response.\nNever state a fact about a prospect, company, mandate, or signal that is not explicitly present in the context provided, in what the user has told you in this conversation, or found via a reliable web search. If the context above is not enough to answer a factual question about a company or a person (headcount, sector, executives, news...), use the web search available to you before answering — never point the user to a manual lookup (Pappers, Societe.com, INPI...) when you can search yourself. Only if the search returns nothing reliable, say so honestly rather than guessing or inferring plausibly-sounding details. Do not invent URLs, dates, numbers, or attributions. When asked about something outside the provided context (general market knowledge, definitions, how-to questions), you may answer from general knowledge, but never blend invented specifics about THIS prospect/mandate/signal with general knowledge in a way that makes them indistinguishable.\n\nFINAL REMINDER: your entire response must be in the language of the user\'s message above, not in the language of the context data.';
+  return { prompt };
 }
 
 async function _buildPipelineSnapshot() {
@@ -5885,71 +5889,45 @@ async function _sendAskMessage() {
   }
   const bubbleEl = () => document.getElementById(thinkId)?.querySelector('.chat-bubble');
   try {
-    const { prompt: systemPrompt, liveSearchUsed } = await _buildAskSystemPrompt(_askCtx, _askSnapshot, _askInsightsBlock);
+    const { prompt: systemPrompt } = await _buildAskSystemPrompt(_askCtx, _askSnapshot, _askInsightsBlock);
+    // Fix 2026-09-14 (replique le fix Wominds -- meme cas reel ELEMENTS) : web_search_20250305
+    // ajoute (outil gere par Anthropic cote serveur, api/generate.js relaie deja `tools` tel
+    // quel, aucun changement serveur necessaire). stream:true retire : api/generate.js desactive
+    // silencieusement le streaming des que `tools` est present
+    // (wantsStream = stream===true && !tools.length) -- le laisser aurait fait croire a un flux
+    // SSE alors que le serveur renvoie desormais du JSON simple. Le rendu perd donc l'affichage
+    // incremental token par token (compromis assume, signale a Thomas avant ce fix) au profit
+    // d'une vraie capacite de recherche.
     const res = await fetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'claude-sonnet-5',
         max_tokens: 4000,
-        stream: true,
         system: systemPrompt,
-        messages: _askHistory
+        messages: _askHistory,
+        tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 3 }],
       })
     });
     if (!res.ok) throw new Error('API error ' + res.status);
+    const data = await res.json();
+    if (data.type === 'error') throw new Error(data.error?.message || 'API error');
 
-    // Streaming reel (meme mecanisme SSE que runMorningScan, reutilise tel quel) : rendu
-    // incremental en texte brut pendant le flux (un rendu markdown a mi-chemin casserait sur
-    // une balise non fermee), passage a renderMarkdown() une fois le flux termine.
-    const reader = res.body.getReader();
-    const dec = new TextDecoder();
-    let buf = '', text = '', err = null, stop = false, seenStop = false, stopReason = null;
     const startEl = bubbleEl();
-    if (startEl) { startEl.style.color = ''; startEl.style.fontStyle = ''; startEl.textContent = ''; }
-    try {
-      while (!stop) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buf += dec.decode(value, { stream: true });
-        const lines = buf.split('\n');
-        buf = lines.pop();
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
-          const payload = line.slice(6).trim();
-          if (!payload) continue;
-          try {
-            const ev = JSON.parse(payload);
-            if (ev.type === 'error') { err = ev.error?.message || 'stream error'; stop = true; break; }
-            if (ev.type === 'content_block_delta' && ev.delta?.type === 'text_delta') {
-              text += ev.delta.text;
-              const el = bubbleEl();
-              if (el) { el.textContent = text; msgs.scrollTop = msgs.scrollHeight; }
-            }
-            if (ev.type === 'message_delta' && ev.delta?.stop_reason) stopReason = ev.delta.stop_reason;
-            if (ev.type === 'message_stop') seenStop = true;
-          } catch (e) { /* ignore partial SSE chunks */ }
-        }
-      }
-    } catch (e) {
-      err = e.message || 'stream read error';
-    } finally {
-      reader.releaseLock();
-    }
-    // Erreur fatale seulement si le flux s'est arrete sans aucun signal de fin ET sans aucun
-    // texte recu -- un flux coupe apres avoir livre du texte reste affiche plutot que jete.
-    if (!err && !seenStop && stopReason === null && !text) err = 'stream truncated — response incomplete, retry';
-    if (err) throw new Error(err);
+    if (startEl) { startEl.style.color = ''; startEl.style.fontStyle = ''; }
+    const usedWebSearch = (data.content || []).some(b => b.type === 'web_search_tool_result');
+    const text = Array.isArray(data.content) ? data.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim() : '';
 
-    const reply = text.trim() || (fr ? 'Pas de réponse.' : 'No response.');
+    const reply = text || (fr ? 'Pas de réponse.' : 'No response.');
     _askHistory.push({ role: 'assistant', content: reply });
 
     // Provenance reelle (volet cablage) : jamais statique. READ N = _askEngagedDealsCount()
     // (meme filtre que spine-count-indeal) ; CONSULTED N = nombre de sources qui ont
     // effectivement tourne pour CE message (snapshot pipeline / insights conversion / recherche
-    // web live) -- 0, 1, 2 ou 3 selon la question, jamais une valeur fixe.
+    // web reelle -- usedWebSearch remplace l'ancien liveSearchUsed, calcule desormais sur les
+    // blocs reellement presents dans la reponse plutot que sur une pre-recherche systematique).
     const engagedDeals = _askEngagedDealsCount();
-    const agentsConsulted = [_askSnapshot, _askInsightsBlock, liveSearchUsed].filter(Boolean).length;
+    const agentsConsulted = [_askSnapshot, _askInsightsBlock, usedWebSearch].filter(Boolean).length;
     const provenance = 'ASK CORRIDOR · READ ' + engagedDeals + ' ENGAGED DEALS · ' + agentsConsulted + ' AGENT' + (agentsConsulted === 1 ? '' : 'S') + ' CONSULTED';
 
     const finalEl = bubbleEl();
