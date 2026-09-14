@@ -1422,6 +1422,9 @@ body.new-nav { padding-left: 220px; }
     <button class="snav-item" data-nav="proposals" onclick="switchTab('proposals')">
       <span>Propositions</span>
     </button>
+    <button class="snav-item" data-nav="agents" onclick="switchTab('agents')">
+      <span>Agents</span>
+    </button>
   </div>
   <div class="snav-section">
     <span class="snav-section-label">Intelligence</span>
@@ -1827,6 +1830,30 @@ body.new-nav { padding-left: 220px; }
     </div>
   </div>
 
+  <!-- ══ ONGLET : AGENTS (brief 2026-09-14, Élodie) : contenu de marque desormais disponible
+       via clients.messaging_playbook (jsonb) -- ecran debloque, 4 agents reels definis par
+       Elodie (copie structuree depuis son document, pas une reformulation libre). Statut reel
+       pour tous : pas encore actif (aucun workflow d'envoi Wominds construit -- meme convention
+       que les bannieres Send/Inbox), donc pas de "running" ni de compteur d'actions ici -- juste
+       la definition de chaque agent et, au clic, son detail complet tire du playbook (mission,
+       cibles/regles de ton, un exemple de message). Volontairement plus simple que le "Agent Map"
+       demo-private.html/kaizenology.html (memes classes CSS .agent-map/.agent-card/.agent-panel,
+       reutilisees telles quelles) : pas de hub CMO, pas de groupes, pas de chat -- ces agents
+       n'existent pas encore en tant que workflows actifs, seulement en tant que playbooks. ══ -->
+  <div class="tab-panel" id="tab-agents">
+    <div style="padding:24px 16px 0;max-width:900px;margin:0 auto;">
+      <div class="module-header" style="margin-bottom:10px;">
+        <div class="module-title">Agents</div>
+        <div class="section-sub">Les agents qui rédigeront le contenu de prospection et de marque pour Wominds.</div>
+      </div>
+      <div style="font-size:var(--fs-base);font-style:italic;color:var(--navy);border-left:3px solid var(--fill-accent);padding:6px 14px;margin-bottom:16px;">« L'égalité professionnelle ne se déclare pas. Elle se prouve. »</div>
+    </div>
+    <div id="agents-map" class="agent-map">
+      <div class="agent-grid" id="agents-grid"></div>
+    </div>
+    <div id="agents-detail" class="agent-panel"></div>
+  </div>
+
   <!-- ══ ONGLET : SIGNAUX ══ Parite demo-private.html:2606-2643 (brief 2026-09-12, 241 prospects
        reels Trigify/Gojiberry deja en base pour Wominds -- plus de banniere "pas configure"). ══ -->
   <div class="tab-panel" id="tab-signals">
@@ -1962,6 +1989,7 @@ body.new-nav { padding-left: 220px; }
         <span class="more-chevron">›</span>
       </button>
       <button class="more-row" onclick="switchTab('proposals')"><span>Propositions</span><span class="more-chevron">›</span></button>
+      <button class="more-row" onclick="switchTab('agents')"><span>Agents</span><span class="more-chevron">›</span></button>
       <button class="more-row" onclick="switchTab('signals')"><span>Signaux</span><span class="more-chevron">›</span></button>
       <button class="more-row" onclick="switchTab('pipeintel')"><span>Santé du pipeline</span><span class="more-chevron">›</span></button>
       <button class="more-row" onclick="switchTab('reports')"><span>Rapports</span><span class="more-chevron">›</span></button>
@@ -2250,6 +2278,7 @@ function switchTab(name){
   if (name === 'mandate') loadMandateView();
   if (name === 'pending-actions') loadPendingActionsView();
   if (name === 'proposals') loadProposalsView();
+  if (name === 'agents') renderAgentsScreen();
   if (name === 'pipeintel') loadPipelineHealth();
   if (name === 'reports') _loadWeeklyReports();
   if (name === 'clients') loadClientsView();
@@ -5704,6 +5733,128 @@ async function _proposalReject(id) {
   if (card) card.remove();
 }
 
+// ── AGENTS (brief 2026-09-14, Élodie) ───────────────────────────────────────
+// Nom + mission courte copies telles quelles depuis le brief (deja une extraction structuree du
+// document d'Elodie, pas une reformulation) ; le detail deplie plus bas lit
+// _clientProfile.messaging_playbook en direct (peuple via /api/client-profile, colonne
+// clients.messaging_playbook) -- jamais duplique en dur ici, pour rester a jour si Elodie fait
+// evoluer son contenu sans redeploiement.
+const _AGENTS_WOMINDS = [
+  { key: 'sdr_general', icon: '📧', color: '#2568B5', name: 'Agent SDR Prospection',
+    mission: "Rédige les messages de prospection froids (email et LinkedIn) ciblés Comp&Ben, DAF et DRH, angle réglementaire (Directive UE 2023/970) et angle turnover." },
+  { key: 'barometre_it_tech', icon: '📊', color: '#1D9E75', name: 'Agent Baromètre IT/Tech',
+    mission: "Rédige le contenu de vente du Baromètre de Perception pour les DRH/DG IT et Telecoms, appuyé sur le benchmark Wominds x CRIP (139 entreprises)." },
+  { key: 'transparence_salaires', icon: '💶', color: '#9F3FBF', name: 'Agent Transparence des Salaires',
+    mission: "Vend le module technique (intégration SIRH/paie, simulateur budgétaire, traçabilité Art. 9.6) aux DAF et équipes Paie." },
+  { key: 'ghostwriter_elodie', icon: '✍️', color: '#3B5BDB', name: 'Agent Ghostwriter Élodie Dratler',
+    mission: "Rédige les posts LinkedIn et newsletters au nom d'Élodie, voix personnelle, pas la voix produit des 3 agents ci-dessus." },
+];
+function renderAgentsScreen() {
+  const grid = document.getElementById('agents-grid');
+  if (!grid) return;
+  const detail = document.getElementById('agents-detail');
+  if (detail) { detail.classList.remove('active'); detail.innerHTML = ''; }
+  const map = document.getElementById('agents-map');
+  if (map) map.style.display = '';
+  grid.innerHTML = _AGENTS_WOMINDS.map(a => `
+    <button class="agent-card" style="--accent-color:${a.color}" onclick="_openAgentDetail('${a.key}')">
+      <span class="agent-status-dot"></span>
+      <span class="ac-icon">${a.icon}</span>
+      <span class="ac-name">${_esc(a.name)}</span>
+      <span class="ac-desc">${_esc(a.mission)}</span>
+      <div class="agent-card-footer">
+        <span class="agent-card-footer-status" style="color:var(--amber-text);">Pas encore actif</span>
+        <span class="agent-card-footer-action">Détail</span>
+      </div>
+    </button>`).join('');
+}
+// Lignes label/valeur et listes reutilisees entre les 4 agents -- rien n'est affiche si le champ
+// playbook correspondant est vide (jamais de section "vide" visible).
+function _agRow(label, value) {
+  if (!value) return '';
+  return `<div style="margin-bottom:10px;"><div style="font-weight:600;text-transform:uppercase;font-size:9px;letter-spacing:0.05em;color:var(--muted);margin-bottom:3px;">${_esc(label)}</div><div style="font-size:var(--fs-sm);color:var(--text);line-height:1.55;white-space:pre-wrap;">${_esc(value)}</div></div>`;
+}
+function _agList(label, items) {
+  if (!Array.isArray(items) || !items.length) return '';
+  return `<div style="margin-bottom:10px;"><div style="font-weight:600;text-transform:uppercase;font-size:9px;letter-spacing:0.05em;color:var(--muted);margin-bottom:3px;">${_esc(label)}</div><ul style="margin:0;padding-left:18px;font-size:var(--fs-sm);color:var(--text);line-height:1.6;">${items.map(i => `<li>${_esc(i)}</li>`).join('')}</ul></div>`;
+}
+function _agExampleHTML(ex) {
+  if (!ex) return '';
+  return `<div style="border:1px solid var(--border);border-radius:var(--radius-md);padding:12px 14px;margin-top:6px;">
+    <div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px;">${_esc(ex.type || 'Exemple')}${ex.cible ? ' · ' + _esc(ex.cible) : ''}</div>
+    ${ex.objet ? `<div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:6px;"><strong>Objet</strong> : ${_esc(ex.objet)}</div>` : ''}
+    <div style="font-size:var(--fs-sm);color:var(--text);white-space:pre-wrap;line-height:1.55;">${_esc(ex.corps || '')}</div>
+  </div>`;
+}
+// Structure du playbook differente par agent (verifie en base avant d'ecrire ceci, pas suppose) :
+// sdr_general a des cibles multiples + regles_dor ; barometre_it_tech une cible unique + these ;
+// transparence_salaires des angles_attaque + timing ; ghostwriter_elodie n'a pas de
+// few_shot_examples (voix personnelle, pas de gabarits email/LinkedIn) mais un style_ecriture.
+function _agentDetailBodyHTML(key, pb) {
+  if (!pb) return `<div style="color:var(--muted);font-size:var(--fs-sm);">Détail indisponible pour le moment.</div>`;
+  let html = '';
+  if (key === 'sdr_general') {
+    html += _agRow('Mission', pb.role_mission);
+    html += _agRow('Solution à vendre', pb.solution_a_vendre);
+    if (pb.cibles && typeof pb.cibles === 'object') {
+      const cibleLabels = { comp_ben_daf: 'Cible : Comp&Ben / DAF', drh_dirigeants_secteurs_tension: 'Cible : DRH / dirigeants' };
+      Object.entries(pb.cibles).forEach(([ck, cv]) => {
+        const v = [cv.douleur, cv.argument ? 'Argument : ' + cv.argument : ''].filter(Boolean).join('\n\n');
+        html += _agRow(cibleLabels[ck] || ck, v);
+      });
+    }
+    html += _agList('Règles d’or', pb.regles_dor);
+  } else if (key === 'barometre_it_tech') {
+    html += _agRow('Mission', pb.role_mission);
+    html += _agRow('Solution', pb.solution);
+    if (pb.cible) html += _agRow('Cible : ' + (pb.cible.qui || ''), pb.cible.douleur);
+    html += _agRow('Thèse à défendre', pb.these_a_defendre);
+    html += _agRow('Tonalité', pb.tonalite);
+  } else if (key === 'transparence_salaires') {
+    html += _agRow('Mission', pb.role_mission);
+    html += _agRow('Solution', pb.solution);
+    html += _agRow('Timing', pb.timing_critique);
+    html += _agList('Angles d’attaque', pb.angles_attaque);
+  } else if (key === 'ghostwriter_elodie') {
+    html += _agRow('Rôle', pb.role_persona);
+    html += _agRow('Posture', pb.posture);
+    html += _agRow('Mantra', pb.mantra);
+    html += _agRow('Règle absolue', pb.regle_absolue);
+    if (pb.style_ecriture) {
+      html += _agRow('Accroche', pb.style_ecriture.accroche);
+      html += _agRow('Développement', pb.style_ecriture.developpement);
+      html += _agRow('Conclusion', pb.style_ecriture.conclusion);
+    }
+  }
+  if (Array.isArray(pb.few_shot_examples) && pb.few_shot_examples.length) {
+    html += `<div style="font-weight:600;text-transform:uppercase;font-size:9px;letter-spacing:0.05em;color:var(--muted);margin:14px 0 3px;">Exemple de message</div>`;
+    html += _agExampleHTML(pb.few_shot_examples[0]);
+  }
+  return html;
+}
+function _openAgentDetail(key) {
+  const meta = _AGENTS_WOMINDS.find(a => a.key === key);
+  if (!meta) return;
+  const pb = (_clientProfile && _clientProfile.messaging_playbook) ? _clientProfile.messaging_playbook[key] : null;
+  const map = document.getElementById('agents-map');
+  const detail = document.getElementById('agents-detail');
+  if (map) map.style.display = 'none';
+  if (!detail) return;
+  detail.style.setProperty('--panel-accent', meta.color);
+  detail.innerHTML = `
+    <div class="agent-back-bar">
+      <button class="agent-back-btn" onclick="renderAgentsScreen()">&larr; Tous les agents</button>
+    </div>
+    <div class="agent-panel-header" style="border-left:4px solid ${meta.color};background:linear-gradient(90deg,${meta.color}18 0%,transparent 65%);">
+      <span class="aph-icon">${meta.icon}</span>
+      <div><div class="aph-label">${_esc(meta.name)}</div><div class="aph-group">Pas encore actif</div></div>
+    </div>
+    <div class="card" style="padding:18px 20px;max-width:900px;margin:0 auto;">${_agentDetailBodyHTML(key, pb)}</div>
+  `;
+  detail.classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'instant' });
+}
+
 // ── SANTE DU PIPELINE ────────────────────────────────────────────────────────
 const _PIPEINTEL_STAGES = ['Identified','1st Contact','Engaged','Replied','Proposal','Closed'];
 const _PIPEINTEL_TRANSITIONS = [
@@ -6846,7 +6997,7 @@ function _renderCommitteeCards(stakeholders, out, company, sector, icpScore) {
       ? `<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 8px;border-radius:var(--radius-pill);white-space:nowrap;background:#f1f5f9;color:#64748b">Poste non confirmé</span>`
       : `<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 8px;border-radius:var(--radius-pill);white-space:nowrap;${roleBg(s.role)}">${_esc(roleLabel(s.role))}</span>`;
     const contradictedNoteHtml = contradicted
-      ? `<div style="font-size:var(--fs-xs);color:#b45309;font-style:italic;">Poste non confirmé — dernière information connue périmée.</div>`
+      ? `<div style="font-size:var(--fs-xs);color:#b45309;font-style:italic;">Poste non confirmé, dernière information connue périmée.</div>`
       : '';
     const addBtnHtml = contradicted ? '' : `<button class="sh-add-btn" data-idx="${i}" style="align-self:flex-end;margin-top:4px;font-size:var(--fs-xs);padding:4px 11px;background:var(--navy);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer">+ Ajouter au pipeline</button>`;
     html += `<div style="border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:13px 15px;display:flex;flex-direction:column;gap:5px;${contradicted ? 'opacity:0.7;' : ''}">
