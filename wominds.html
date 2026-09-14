@@ -1715,10 +1715,12 @@ body.new-nav { padding-left: 220px; }
   </div>
 
   <!-- ══ ONGLET : ENVOYER (structure simplifiee, option (a) arbitree par Thomas 2026-09-12 :
-       generation/brouillons fonctionnels, bouton d'envoi reel desactive tant que les comptes
-       HeyReach/Smartlead Wominds n'existent pas -- bandeau explicite plutot qu'un bouton qui
-       echouerait silencieusement). Filtres region/origine et "Manual send" a touch multiples
-       (ambassador/redirect, specifiques au programme de Thomas) volontairement omis. ══ -->
+       generation/brouillons fonctionnels des le depart). Fix 2026-09-14 : envoi reel LinkedIn
+       active (credentials Wominds branches cote serveur, meme mecanisme deja en place pour
+       Kaizenology/Thomas) -- seul l'envoi email reste desactive, decision d'Elodie toujours en
+       attente sur ce point precis (hors scope de ce fix). Filtres region/origine et "Manual send"
+       a touch multiples (ambassador/redirect, specifiques au programme de Thomas) volontairement
+       omis. ══ -->
   <div class="tab-panel" id="tab-send">
     <div style="padding:24px 16px 0;max-width:800px;margin:0 auto;">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap">
@@ -1728,9 +1730,6 @@ body.new-nav { padding-left: 220px; }
       <div class="card" style="margin-bottom:16px;max-width:460px;">
         <div class="card-header" style="margin-bottom:10px;padding-bottom:10px;"><span class="card-title">Capacité du jour</span></div>
         <div id="send-capacity-bars" style="font-size:var(--fs-sm);color:var(--muted);">Chargement…</div>
-      </div>
-      <div id="send-not-active-banner" style="background:#fffbeb;border:1px solid #fcd34d;border-radius:var(--radius-md);padding:14px 16px;margin-bottom:18px;color:var(--amber-text);font-size:var(--fs-sm);line-height:1.5;">
-        L'envoi réel (LinkedIn, email) n'est pas encore actif pour Wominds. L'infrastructure d'envoi dédiée est en cours de mise en place. Vous pouvez générer, éditer et préparer les messages dès maintenant ; le bouton d'envoi s'activera une fois cette infrastructure prête.
       </div>
       <div id="send-filters" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;align-items:center;">
         <select id="send-filter-icp" onchange="_applySendFilters()" style="padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:var(--fs-sm);font-family:inherit;color:var(--text);background:#fff;">
@@ -5293,6 +5292,13 @@ function _sendCardHTML(p, touchType, elPrefix = '') {
   const hasBody = seq && seq.body;
   const isReady = seq && seq.status === 'ready';
   const seqId = seq ? seq.id : null;
+  // Fix 2026-09-14 (activation envoi reel LinkedIn Wominds) : meme garde que kaizenology.html:6454
+  // (_renderSendSection) -- le bouton n'est actif que si le brouillon est marque pret ET (pour
+  // j0/j5/j12 uniquement) le prospect est deja une connexion 1er degre ; invite n'a pas cette
+  // 2e condition.
+  const isConnected = p.linkedin_tag === 'connection-accepted';
+  const sendBlocked = touchType !== 'invite' && !isConnected;
+  const sendDisabled = !isReady || sendBlocked;
   return `
     <div class="card send-card" id="${elPrefix}sc-${p.id}" data-pid="${_esc(p.id)}" data-touch="${_esc(touchType)}" data-seq-id="${_esc(seqId||'')}">
       <div class="send-row">
@@ -5320,8 +5326,8 @@ function _sendCardHTML(p, touchType, elPrefix = '') {
           </select>
           <button class="btn-secondary btn-sm" onclick="_saveSequenceDraft('${p.id}','${touchType}',undefined,'${elPrefix}')" id="${elPrefix}sv-${p.id}" disabled style="opacity:0.45;cursor:not-allowed">Enregistrer</button>
           <button class="btn-secondary btn-sm" onclick="_markReady('${p.id}','${elPrefix}')" id="${elPrefix}sr-${p.id}" ${isReady?'style="border-color:var(--green-brand);color:var(--green-brand)"':''}>${isReady ? '✓ Prêt' : 'Marquer prêt'}</button>
-          <button class="btn-secondary btn-sm" onclick="_markSent('${p.id}','${touchType}','${elPrefix}')" id="${elPrefix}sms-${p.id}">✓ Marquer envoyé</button>
-          <button class="btn-primary" style="padding:11px 20px;font-weight:700;margin-left:auto;opacity:0.5;cursor:not-allowed;" disabled title="Envoi non actif : infrastructure d'envoi Wominds en cours de mise en place">Envoyer</button>
+          <button class="btn-secondary btn-sm" onclick="_markSent('${p.id}','${touchType}',false,'','${elPrefix}')" id="${elPrefix}sms-${p.id}">✓ Marquer envoyé</button>
+          <button class="btn-primary" style="padding:11px 20px;font-weight:700;margin-left:auto;" onclick="_sendViaLinkedIn('${p.id}','${touchType}','${elPrefix}')" id="${elPrefix}sli-${p.id}" ${sendDisabled?'disabled':''} ${sendBlocked?'title="Connexion pas encore acceptée"':''}>Envoyer</button>
         </div>
       </div>
     </div>`;
@@ -5414,10 +5420,79 @@ async function _markReady(pid, elPrefix = '') {
   showToast('Message prêt à être envoyé');
 }
 
-// Bookkeeping manuel (Elodie envoie elle-meme via son propre LinkedIn/email et le note ici) --
-// meme logique generique que demo-private.html:7987-8038, sans /api/linkedin-remove ni
-// priority_batch_number (mecaniques HeyReach/batch specifiques, absentes pour Wominds).
-async function _markSent(pid, touch, elPrefix = '') {
+// Fix 2026-09-14 (activation envoi reel LinkedIn Wominds) : meme pattern que
+// kaizenology.html:7085 (_sendViaLinkedIn), traduit en francais -- meme endpoint neutre
+// (/api/linkedin-send), memes garde-fous (accolades litterales bloquees, URL LinkedIn fraiche
+// relue si absente du cache -- meme bug/meme fix que demo-private.html/kaizenology.html, `p` peut
+// venir d'une copie _sendProspects perimee -- et connexion 1er degre exigee pour j0/j5/j12). Le
+// credential d'envoi et l'ID de campagne sont resolus cote serveur par client_id, rien de
+// specifique a Wominds cote client -- meme mecanisme deja en place pour Kaizenology/Thomas.
+async function _sendViaLinkedIn(pid, touch, elPrefix = '') {
+  const p = _sendProspects.find(x => x.id === pid) || _prospectsById[pid];
+  if (!p) return;
+  const out = document.getElementById(elPrefix + 'so-' + pid);
+  const body = out?.textContent?.trim() || '';
+  if (!body) { showToast('Aucun message à envoyer'); return; }
+  if (body.includes('{') || body.includes('}')) {
+    showToast('Bloqué : le message contient des accolades littérales {}. Corrigez le modèle avant d\'envoyer.');
+    const { error: seErr1 } = await sbClient.from('interactions').insert({
+      prospect_id: pid, client_id: CLIENT_ID, mandate_id: null, type: 'send_error',
+      note: 'bloqué : le message contient des accolades littérales {}'
+    });
+    if (seErr1) console.error('[_sendViaLinkedIn] send_error insert failed:', seErr1);
+    return;
+  }
+  if (!p.linkedin) {
+    const { data: freshRow } = await sbClient.from('prospects').select('linkedin, linkedin_tag').eq('id', pid).eq('client_id', CLIENT_ID).maybeSingle();
+    if (freshRow?.linkedin) {
+      p.linkedin = freshRow.linkedin;
+      p.linkedin_tag = freshRow.linkedin_tag;
+      _patchProspectCaches(pid, { linkedin: freshRow.linkedin, linkedin_tag: freshRow.linkedin_tag });
+    } else {
+      showToast('Aucune URL LinkedIn pour ce prospect');
+      return;
+    }
+  }
+  if (touch !== 'invite' && p.linkedin_tag !== 'connection-accepted') {
+    showToast('Bloqué : pas encore connecté avec ce prospect');
+    const { error: seErr2 } = await sbClient.from('interactions').insert({
+      prospect_id: pid, client_id: CLIENT_ID, mandate_id: null, type: 'send_error',
+      note: 'bloqué : non connecté'
+    });
+    if (seErr2) console.error('[_sendViaLinkedIn] send_error insert failed:', seErr2);
+    return;
+  }
+  const btn = document.getElementById(elPrefix + 'sli-' + pid);
+  if (btn) btn.disabled = true;
+  try {
+    const res = await fetch('/api/linkedin-send', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ linkedinUrl: p.linkedin, message: body, prospectName: p.name, client_id: CLIENT_ID, touch, linkedinTag: p.linkedin_tag })
+    });
+    const data = await res.json();
+    if (data.success) {
+      await _markSent(pid, touch, true, body, elPrefix);
+      showToast('Envoyé via LinkedIn ✓');
+    } else {
+      console.error('[_sendViaLinkedIn] échec:', data.error || 'inconnu');
+      showToast('Échec de l\'envoi LinkedIn, réessayez ou vérifiez vos paramètres de connexion');
+      if (btn) btn.disabled = false;
+    }
+  } catch(e) {
+    console.error('[_sendViaLinkedIn]', e);
+    showToast('Erreur réseau, utilisez Marquer envoyé');
+    if (btn) btn.disabled = false;
+  }
+}
+
+// Bookkeeping manuel par defaut (Elodie envoie elle-meme via son propre LinkedIn/email et le
+// note ici) -- meme logique generique que demo-private.html:7987-8038, sans /api/linkedin-remove
+// ni priority_batch_number (mecaniques specifiques a l'automatisation par lots, absentes ici).
+// Fix 2026-09-14 (activation envoi reel LinkedIn) : auto/msgText ajoutes (meme signature que
+// kaizenology.html:7206 _markSent) pour que l'historique distingue un vrai envoi automatise
+// (_sendViaLinkedIn) d'une note manuelle -- avant ce fix, tout envoi reel aurait ete
+// mal etiquete "(manuel)" dans interactions.
+async function _markSent(pid, touch, auto = false, msgText = '', elPrefix = '') {
   const card = document.getElementById(elPrefix + 'sc-' + pid);
   const btn = document.getElementById(elPrefix + 'sms-' + pid);
   if (btn) btn.disabled = true;
@@ -5427,9 +5502,10 @@ async function _markSent(pid, touch, elPrefix = '') {
     const { error } = await sbClient.from('sequences').update({ status: 'sent', sent_at: now }).eq('id', seqId).eq('client_id', CLIENT_ID);
     if (error) { if (btn) btn.disabled = false; showToast('Erreur de mise à jour'); return; }
   }
+  const sentNote = touch + ' envoyé' + (auto ? ' via automatisation LinkedIn' : ' (manuel)') + (msgText ? ' | ' + msgText.slice(0, 300) : '');
   const { error: intErr } = await sbClient.from('interactions').insert({
     prospect_id: pid, client_id: CLIENT_ID, mandate_id: null, type: 'linkedin',
-    note: touch + ' envoyé (manuel)', touch,
+    note: sentNote, touch,
   });
   if (intErr) console.error('[_markSent] interactions:', intErr);
   if (touch !== 'invite') {

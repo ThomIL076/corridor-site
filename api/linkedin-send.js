@@ -1,8 +1,10 @@
 // POST /api/linkedin-send
 // Body: { linkedinUrl, message, prospectName, client_id, touch, linkedinTag }
 // Resolves HeyReach credentials from Supabase clients table.
-// Fallback to env vars ONLY for client_id === 'thomas'. All other clients must have
-// their credentials in Supabase — never fall back silently to Thomas's account.
+// API key fallback to an env var is allowed only for the client_ids listed in
+// CLIENT_ENV_API_KEYS below (2026-09-14 : added 'wominds', reusing HEYREACH_WOMINDS_API --
+// set directly in Vercel, never duplicated into the clients table). Every other client_id
+// must have its credentials in Supabase — never fall back silently to someone else's account.
 //
 // Required columns in clients table (add with ALTER TABLE IF NOT EXISTS):
 //   heyreach_api_key              text  — HeyReach API key for this client
@@ -33,8 +35,17 @@ function checkRateLimit(ip) {
 
 const clean = (v) => (v || '').replace(/^﻿/, '').replace(/[^\x20-\x7E]/g, '').trim();
 
+// Small explicit allowlist: client_ids whose API key lives only in a Vercel env var (never
+// duplicated into the clients table). Everyone else must have heyreach_api_key set in Supabase --
+// adding a client_id here is a deliberate choice, not a generic fallback.
+const CLIENT_ENV_API_KEYS = {
+  thomas: 'HEYREACH_API_KEY',
+  wominds: 'HEYREACH_WOMINDS_API',
+};
+
 async function resolveConfig(clientId, touch) {
   const isThomas = clientId === 'thomas';
+  const envKeyName = CLIENT_ENV_API_KEYS[clientId];
 
   let dbApiKey = null, dbConnections = null, dbMessages = null, dbAccountId = null;
   try {
@@ -56,10 +67,12 @@ async function resolveConfig(clientId, touch) {
     if (!isThomas) throw new Error('HeyReach config lookup failed: ' + e.message);
   }
 
-  // Env-var fallback: Thomas only.
+  // Env-var fallback for the API key: only client_ids in CLIENT_ENV_API_KEYS above.
+  // Campaign IDs / account ID below stay Thomas-only via env — wominds' values live in the
+  // clients table (the normal, already-supported path for any non-Thomas client).
   // HEYREACH_CAMPAIGN_CONNECTIONS / HEYREACH_CAMPAIGN_MESSAGES are the preferred env vars;
   // HEYREACH_CAMPAIGN_ID (legacy) is tried as a last resort for connections only.
-  const apiKey = clean(dbApiKey || (isThomas ? process.env.HEYREACH_API_KEY : ''));
+  const apiKey = clean(dbApiKey || (envKeyName ? process.env[envKeyName] : ''));
   const campaignConnections = clean(
     dbConnections ||
     (isThomas ? (process.env.HEYREACH_CAMPAIGN_CONNECTIONS || process.env.HEYREACH_CAMPAIGN_ID || '523265') : '')
@@ -75,8 +88,8 @@ async function resolveConfig(clientId, touch) {
   console.log('[linkedin-send DEBUG]', JSON.stringify({ clientId, isThomas, dbConnections, campaignConnections, campaignId }));
 
   if (!apiKey) {
-    throw new Error(isThomas
-      ? 'HEYREACH_API_KEY not configured (env or clients table)'
+    throw new Error(envKeyName
+      ? `${envKeyName} not configured (env or clients table)`
       : `HeyReach not configured for client "${clientId}" — set heyreach_api_key in clients table`);
   }
   if (!campaignId) {
