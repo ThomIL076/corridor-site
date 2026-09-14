@@ -5386,20 +5386,37 @@ ${signalLine}
 
 Règles impératives : n'inventez aucun fait sur le prospect, son entreprise, ou Wominds au-delà de ce qui est donné ci-dessus. Pas de tiret cadratin (—), remplacez par une virgule ou un point. Écrivez uniquement le corps du message, sans préambule ni explication.`;
   try {
+    // Fix 2026-09-14 (cas reel Maxime Nelia/Duralex SCOP SA, "Erreur de generation.") : 400 etait
+    // insuffisant -- claude-sonnet-5 consomme un budget de "thinking" etendu (variable d'un appel
+    // a l'autre, non configure explicitement ici) avant meme d'ecrire la reponse visible. Reproduit
+    // reellement (7 appels identiques, meme prompt) : 4/7 en stop_reason="max_tokens" a 400, le
+    // thinking seul consommant jusqu'a 400/400 -- reponse vide, "Erreur de generation." exact.
+    // Aligne sur runScanner() (meme fichier, meme classe de bug deja corrigee, 3000) : verifie sur
+    // 8 appels reels supplementaires a 3000 (meme prompt), 8/8 en stop_reason="end_turn", pic de
+    // thinking observe 1180 -- marge confortable.
     const res = await fetch('/api/generate', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages: [{ role: 'user', content: prompt }], max_tokens: 400 })
+      body: JSON.stringify({ messages: [{ role: 'user', content: prompt }], max_tokens: 3000 })
     });
     if (!res.ok) throw new Error('API error ' + res.status);
     const data = await res.json();
-    const text = (Array.isArray(data.content) ? data.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim() : '') || 'Erreur de génération.';
+    const rawText = Array.isArray(data.content) ? data.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim() : '';
+    // Fix (gestion d'erreur) : l'ancien code sauvegardait le message d'erreur lui-meme comme
+    // brouillon reel des qu'aucun texte n'etait extrait (if (text) etait toujours vrai, "Erreur de
+    // generation." inclus) -- un Marquer pret/envoye ulterieur aurait pu envoyer ce texte tel quel.
+    // rawText (jamais un message d'erreur) est desormais la seule condition de sauvegarde. Le
+    // message affiche distingue aussi une troncature (stop_reason='max_tokens', indice actionnable)
+    // d'un echec generique, au lieu d'un "Erreur de generation." muet dans les deux cas.
+    const text = rawText || (data.stop_reason === 'max_tokens'
+      ? 'Génération interrompue (réponse trop longue pour la limite actuelle), réessayez.'
+      : 'Erreur de génération, réessayez.');
     if (out) { out.textContent = text; }
-    if (text) await _saveSequenceDraft(pid, touch, text, elPrefix);
+    if (rawText) await _saveSequenceDraft(pid, touch, rawText, elPrefix);
     const saveBtn = document.getElementById(elPrefix + 'sv-' + pid);
     if (saveBtn) { saveBtn.disabled = true; saveBtn.style.opacity = '0.45'; saveBtn.style.cursor = 'not-allowed'; }
   } catch(e) {
     console.error('[_generateSequenceMessage]', e);
-    if (out) out.textContent = 'Erreur de génération, réessayez.';
+    if (out) out.textContent = 'Erreur réseau ou API (' + (e.message || 'inconnue') + '), réessayez.';
   } finally {
     if (btn) btn.disabled = false;
     if (spin) spin.classList.remove('active');
