@@ -7295,14 +7295,21 @@ async function _sendAskMessage() {
       .select('name, icp_criteria, sectors, geography, exclusions').eq('client_id', CLIENT_ID).eq('status', 'active');
     const mandateBlock = (mandates || []).map(m => `Mandat "${m.name}" · critères ICP : ${m.icp_criteria || 'N/D'} ; secteurs : ${m.sectors || 'N/D'} ; zone : ${m.geography || 'N/D'}`).join('\n');
     const snapshot = await _buildPipelineSnapshot();
-    // Recherche web live sur la question elle-meme (brief 2026-09-12) -- pas de declenchement
-    // conditionnel (contrairement a demo-private.html qui ne cherche que sur un contexte
-    // prospect/signal ouvert, absent ici) : toujours tentee, sans effet si rien de pertinent
-    // n'est trouve (_marketIntelSearch renvoie '' -> aucun bloc ajoute au prompt).
-    const liveCtx = await _marketIntelSearch(question, 500);
-    const liveBlock = liveCtx
-      ? '\n\nCONTEXTE WEB EN DIRECT (recherche du jour, utilisez ceci comme source de verite factuelle, n\'inventez rien au-dela) :\n' + liveCtx
-      : '';
+    // Fix 2026-09-14 (cas reel ELEMENTS : "je n'ai pas l'info" + liste de sites a consulter
+    // manuellement, alors que la recherche web trouve reellement l'info -- verifie en appelant
+    // /api/web-search directement avec la meme question : effectif/secteur/dirigeants (dont
+    // Gregoire Petit, prospect reel deja en base) trouves du premier coup). L'ancienne
+    // pre-recherche _marketIntelSearch(question, 500) ne voyait QUE le texte de la derniere
+    // question, sans historique -- une question de suivi courte ("et son effectif ?") produirait
+    // une requete de recherche sans nom d'entreprise, donc un resultat vide, meme si la recherche
+    // elle-meme fonctionne tres bien (confirme ci-dessus). Remplacee par l'outil de recherche web
+    // natif Claude (web_search_20250305, gere par Anthropic cote serveur -- deja supporte tel
+    // quel par api/generate.js, aucun changement serveur necessaire) : Claude formule sa propre
+    // requete en ayant tout l'historique de conversation + le contexte prospect/pipeline sous les
+    // yeux, et peut chercher plusieurs fois si necessaire plutot qu'une seule recherche aveugle
+    // avant meme de savoir si elle est utile. Retire le double cout recherche+generation systematique
+    // (une seule recherche etait de toute facon deja tentee a chaque message avant ce fix) au
+    // profit d'une recherche seulement quand Claude juge le contexte insuffisant.
     // Contexte prospect/signal (parite demo-private.html:5749 _openAskFromDrawer + systemPrompt
     // equivalent) : quand le panneau a ete ouvert depuis un prospect/signal precis (_askCtx), ce
     // bloc force la reponse a s'ancrer sur ce contexte reel plutot qu'un pipeline generique.
@@ -7318,17 +7325,27 @@ Vous êtes l'assistant de Corridor pour la gestion du pipeline GTM de Wominds.
 ${ctxBlock}
 ${mandateBlock}
 
-${snapshot}${liveBlock}
+${snapshot}
 
 Soyez factuel et concis. N'utilisez jamais de tiret cadratin (—) ni de ligne horizontale (---) dans votre réponse.
-N'affirmez jamais un fait sur un prospect, une entreprise ou un mandat qui n'est pas explicitement présent dans le contexte ci-dessus ou dans ce que l'utilisateur vous a dit dans cette conversation. Si vous n'avez pas assez d'information pour répondre avec certitude, dites-le directement plutôt que de deviner. N'inventez jamais d'URL, de date, de chiffre ou d'attribution.`;
+N'affirmez jamais un fait sur un prospect, une entreprise ou un mandat qui n'est pas explicitement présent dans le contexte ci-dessus, dans ce que l'utilisateur vous a dit, ou trouvé via une recherche web fiable. Si le contexte ci-dessus ne suffit pas pour répondre à une question factuelle sur une entreprise ou une personne (effectif, secteur, dirigeants, actualité...), utilisez la recherche web à votre disposition avant de répondre -- ne renvoyez jamais l'utilisateur vers une recherche manuelle (Pappers, Societe.com, INPI...) alors que vous pouvez chercher vous-même. Seulement si la recherche web ne retourne rien de fiable, dites-le honnêtement plutôt que de deviner. N'inventez jamais d'URL, de date, de chiffre ou d'attribution.`;
     // Fix 2026-09-14 (troncature en plein milieu de phrase, cas reel Florence Doumenc/ELEMENTS) :
     // 600 etait draconien pour une reponse structuree (angle principal + explication + suite) --
     // aligne sur kaizenology.html:5179/demo-private.html:5989, qui utilisent deja 4000 pour ce
     // meme Ask Corridor, valeur deja eprouvee plutot qu'un nouveau chiffre invente.
+    // Fix 2026-09-14 (capacite de recherche reelle) : web_search_20250305 est un outil gere par
+    // Anthropic cote serveur -- api/generate.js relaie deja `tools` tel quel et sort correctement
+    // de sa boucle des que stop_reason n'est plus 'tool_use' (voir son propre commentaire a ce
+    // sujet), donc aucun changement serveur necessaire ici. max_uses borne le cout/latence (une
+    // question Ask Corridor typique n'a besoin que d'une ou deux recherches, jamais plus).
     const res = await fetch('/api/generate', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages: [...( _askHistory.slice(-8))], system: systemPrompt, max_tokens: 4000 })
+      body: JSON.stringify({
+        messages: [...( _askHistory.slice(-8))],
+        system: systemPrompt,
+        max_tokens: 4000,
+        tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 3 }],
+      })
     });
     const data = await res.json();
     const text = (Array.isArray(data.content) ? data.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim() : '') || 'Erreur, réessayez.';
