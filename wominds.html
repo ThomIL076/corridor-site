@@ -7268,9 +7268,13 @@ ${snapshot}${liveBlock}
 
 Soyez factuel et concis. N'utilisez jamais de tiret cadratin (—) ni de ligne horizontale (---) dans votre réponse.
 N'affirmez jamais un fait sur un prospect, une entreprise ou un mandat qui n'est pas explicitement présent dans le contexte ci-dessus ou dans ce que l'utilisateur vous a dit dans cette conversation. Si vous n'avez pas assez d'information pour répondre avec certitude, dites-le directement plutôt que de deviner. N'inventez jamais d'URL, de date, de chiffre ou d'attribution.`;
+    // Fix 2026-09-14 (troncature en plein milieu de phrase, cas reel Florence Doumenc/ELEMENTS) :
+    // 600 etait draconien pour une reponse structuree (angle principal + explication + suite) --
+    // aligne sur kaizenology.html:5179/demo-private.html:5989, qui utilisent deja 4000 pour ce
+    // meme Ask Corridor, valeur deja eprouvee plutot qu'un nouveau chiffre invente.
     const res = await fetch('/api/generate', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages: [...( _askHistory.slice(-8))], system: systemPrompt, max_tokens: 600 })
+      body: JSON.stringify({ messages: [...( _askHistory.slice(-8))], system: systemPrompt, max_tokens: 4000 })
     });
     const data = await res.json();
     const text = (Array.isArray(data.content) ? data.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim() : '') || 'Erreur, réessayez.';
