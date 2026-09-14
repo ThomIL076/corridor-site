@@ -14689,10 +14689,12 @@ async function _slkNotify(eventKey, eventName, prospect) {
 </div>
 
 <script>
+// Fix 2026-09-14 : remplace le simple unregister (defense laissee en place depuis l'incident du
+// 28/08, cf. commit a9a2e9b) par un enregistrement reel -- /sw.js est desormais un SW minimal
+// assets-only (icones/favicon uniquement, jamais de page HTML, jamais de fallback offline),
+// structurellement incapable de reproduire ce bug. Condition d'installabilite Chrome/Android.
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistrations().then(regs => {
-    for (const reg of regs) reg.unregister();
-  });
+  navigator.serviceWorker.register('/sw.js');
 }
 (function(){
   var _ml = document.querySelector('link[rel="manifest"]');

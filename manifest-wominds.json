@@ -1,9 +1,9 @@
 {
-  "name": "Corridor — Kaizenology",
+  "name": "Corridor — Wominds",
   "short_name": "Corridor",
-  "description": "GTM System for Kaizenology",
-  "start_url": "/kaizenology.html",
-  "scope": "/kaizenology.html",
+  "description": "Tableau de bord GTM pour Wominds",
+  "start_url": "/wominds.html",
+  "scope": "/wominds.html",
   "display": "standalone",
   "background_color": "#1a2b5e",
   "theme_color": "#1a2b5e",

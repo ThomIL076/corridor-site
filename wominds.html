@@ -7275,6 +7275,33 @@ N'affirmez jamais un fait sur un prospect, une entreprise ou un mandat qui n'est
     msgs.scrollTop = msgs.scrollHeight;
   }
 }
+
+// Fix 2026-09-14 : enregistrement service worker + auto-check manifest, meme pattern que
+// demo-private.html/kaizenology.html (jamais present ici avant ce fix -- wominds.html est
+// posterieur au kill switch du 28/08, cf. commit a9a2e9b, et n'avait donc jamais eu de SW du
+// tout). /sw.js est un SW minimal assets-only (icones/favicon uniquement, jamais de page HTML,
+// jamais de fallback offline) -- condition d'installabilite Chrome/Android manquante jusqu'ici.
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js');
+}
+(function(){
+  var _ml = document.querySelector('link[rel="manifest"]');
+  if (!_ml) return;
+  var _mh = _ml.getAttribute('href');
+  fetch(_mh)
+    .then(function(r){ return r.json(); })
+    .then(function(m){
+      var _su = (m.start_url || '').replace(/^https?:\/\/[^/]+/, '');
+      var _cp = window.location.pathname;
+      if (_su && _su !== _cp)
+        console.error(
+          '[MANIFEST MISMATCH] This page is "' + _cp +
+          '" but its manifest (' + _mh + ') points to "' + _su +
+          '" -- PWA install will break for this client'
+        );
+    })
+    .catch(function(){ console.warn('[manifest-check] Could not fetch manifest:', _mh); });
+})();
 </script>
 </body>
 </html>
