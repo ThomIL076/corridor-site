@@ -1815,17 +1815,19 @@ body.new-nav { padding-left: 220px; }
   </div>
 
   <!-- ══ ONGLET : PROPOSITIONS (agent_proposals, hors reponses -- content_type != objection_response) ══
-       Restera vide tant qu'aucun agent de redaction (Copywriter/Content Strategist) n'existe pour
-       Wominds -- meme blocage que l'ecran Agents (voix de marque manquante), meme traitement que
-       Signals/Reports : structure prete, banniere honnete plutot qu'un ecran silencieusement vide. ══ -->
+       Fix 2026-09-14 : bandeau statique "agent de redaction inexistant" retire -- meme defaut
+       exact que la Boite de reception (cf. fix precedent le meme jour) : un <div> fige, jamais
+       reference par aucun JS, donc jamais lie aux donnees, laisse en place apres la mise en
+       service de l'agent concerne. loadProposalsView() interroge deja dynamiquement
+       agent_proposals (client_id=CLIENT_ID, status='pending', content_type != 'objection_response')
+       et affiche deja son propre etat vide honnete ("Aucune proposition en attente.") -- de vraies
+       propositions existent en base pour Wominds (content_idea/outreach_opener/repurposed_content,
+       8 lignes pending verifiees en base), le bandeau les precedait a tort. ══ -->
   <div class="tab-panel" id="tab-proposals">
     <div style="padding:24px 16px 0;max-width:800px;margin:0 auto;">
       <div class="module-header" style="margin-bottom:20px;">
         <div class="module-title">Propositions</div>
         <div class="section-sub">Contenu rédigé par un agent, en attente qu'une variante soit approuvée ou rejetée.</div>
-      </div>
-      <div id="proposals-not-active-banner" style="background:#fffbeb;border:1px solid #fcd34d;border-radius:var(--radius-md);padding:14px 16px;margin-bottom:18px;color:var(--amber-text);font-size:var(--fs-sm);line-height:1.5;">
-        Cet écran nécessite un agent de rédaction (angle de prospection, post LinkedIn). Il n'existe pas encore pour Wominds, faute de positionnement de marque défini. Il restera vide jusqu'à sa mise en service.
       </div>
       <div id="proposals-container"></div>
     </div>
@@ -5098,6 +5100,11 @@ function _removePendingActionCard(id) {
 // - Le PROMPT de generation (_generateSequenceMessage) est volontairement generique/factuel :
 //   aucune voix de marque Wominds n'a ete inventee. A affiner avec Thomas/Elodie une fois leur
 //   positionnement/ton disponible -- signale explicitement, pas une decision definitive.
+// MISE A JOUR 2026-09-14 (chantiers distincts, bloc ci-dessus laisse tel quel comme historique) :
+// envoi LinkedIn reel active sur Envoyer (bandeau retire) ; bandeau statique Boite de reception
+// retire (jamais lie aux donnees, agent de classification desormais cable) ; voix de marque
+// Wominds disponible via clients.messaging_playbook (ecran Agents). Reste vrai tel quel : pas
+// de rail "Agents at work"/priority_batches sur Aujourd'hui, envoi email toujours desactive.
 // ══════════════════════════════════════════════════════════════════════════
 
 // ── Capacite partagee Aujourd'hui/Envoyer (identique demo-private.html:7916-7963, generique) ──
@@ -5641,8 +5648,9 @@ async function _loadRecentlySent() {
 }
 
 // ── BOITE DE RECEPTION ───────────────────────────────────────────────────────
-// Restera vide tant qu'aucun agent de classification des reponses n'existe pour Wominds (etat
-// backend confirme, meme categorie que Signals/Reports) -- structure prete pour ce jour-la.
+// Fix 2026-09-14 : agent de classification/redaction desormais cable pour Wominds (workflow
+// LinkedIn Reply, webhooks MESSAGE_REPLY_RECEIVED) -- commentaire mis a jour, cf. bandeau
+// statique retire le meme jour au-dessus du tab-panel HTML correspondant.
 let _inboxView = 'pending';
 let _inboxProspectsById = {};
 let _inboxVariantsById = {};
@@ -5766,7 +5774,10 @@ async function _inboxDismiss(draftId) {
 // ══════════════════════════════════════════════════════════════════════════
 
 // ── PROPOSITIONS ────────────────────────────────────────────────────────────
-const _PROPOSAL_CONTENT_TYPE_LABELS = { outreach_opener: 'Ouverture de prospection', linkedin_post: 'Post LinkedIn' };
+// Fix 2026-09-14 : content_idea/repurposed_content ajoutes -- de vraies propositions de ces
+// deux types existent deja en base pour Wominds (bandeau obsolete retire le meme jour),
+// affichaient jusqu'ici leur nom de colonne brut en badge (ex. "REPURPOSED_CONTENT").
+const _PROPOSAL_CONTENT_TYPE_LABELS = { outreach_opener: 'Ouverture de prospection', linkedin_post: 'Post LinkedIn', content_idea: 'Idée de contenu', repurposed_content: 'Contenu recyclé' };
 async function loadProposalsView() {
   const container = document.getElementById('proposals-container');
   if (!container) return;
