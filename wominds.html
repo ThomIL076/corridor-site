@@ -1764,12 +1764,17 @@ body.new-nav { padding-left: 220px; }
     </div>
   </div>
 
-  <!-- ══ ONGLET : BOITE DE RECEPTION (structure simplifiee -- Send = Dismiss fonctionnel,
-       envoi reel de la reponse desactive (meme raison que l'onglet Envoyer : /api/inbox-send
-       exige un conversationId HeyReach, inexistant pour Wominds). Restera vide tant qu'aucun
-       agent de classification des reponses n'existe pour ce client (etat backend confirme par
-       Thomas, meme categorie que Signals/Reports) -- structure prete a recevoir de vraies
-       reponses le jour ou cet agent existe. ══ -->
+  <!-- ══ ONGLET : BOITE DE RECEPTION (structure simplifiee -- Rejeter fonctionnel, envoi reel
+       de la reponse encore desactive : /api/inbox-send exige un conversationId, absent du
+       webhook Wominds a ce jour -- hors scope du fix 2026-09-14 ci-dessous, a traiter separement
+       si besoin). Fix 2026-09-14 : bandeau statique "agent inexistant" retire -- l'agent de
+       classification/redaction (workflow LinkedIn Reply, webhooks MESSAGE_REPLY_RECEIVED) est
+       desormais cable pour Wominds. loadInboxDrafts() lit deja dynamiquement agent_proposals
+       (content_type='objection_response', client_id=CLIENT_ID) et affiche deja son propre etat
+       vide honnete ("Aucune réponse en attente.") -- jamais bloque par un nom de client en dur,
+       jamais eu besoin de correction sur ce point. Le bandeau statique etait simplement un
+       reliquat qui ne se serait jamais efface tout seul, contrairement a l'etat vide reel du
+       container juste en-dessous. ══ -->
   <div class="tab-panel" id="tab-inbox">
     <div style="padding:24px 16px 0;max-width:800px;margin:0 auto;">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
@@ -1781,9 +1786,6 @@ body.new-nav { padding-left: 220px; }
           <button id="inbox-toggle-pending" class="toggle-pill active" onclick="loadInboxDrafts('pending')">En attente</button>
           <button id="inbox-toggle-history" class="toggle-pill" onclick="loadInboxDrafts('history')">Historique</button>
         </div>
-      </div>
-      <div id="inbox-not-active-banner" style="background:#fffbeb;border:1px solid #fcd34d;border-radius:var(--radius-md);padding:14px 16px;margin-bottom:18px;color:var(--amber-text);font-size:var(--fs-sm);line-height:1.5;">
-        Cet écran nécessite un agent qui classe et rédige des réponses aux messages entrants. Il n'existe pas encore pour Wominds, comme pour Signals/Reports. Il restera vide jusqu'à sa mise en service.
       </div>
       <div id="inbox-container"></div>
     </div>
