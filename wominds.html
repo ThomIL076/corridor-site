@@ -6782,6 +6782,7 @@ async function _scannerMapCommittee() {
       await _resolveLinkedInUrls(stakeholders, company);
       stakeholders = stakeholders.filter(s => /^https?:\/\/(www\.)?linkedin\.com\/in\/[^\s]+$/i.test((s.linkedin_url || '').trim()));
       if (stakeholders.length) {
+        await _bcResolveIdentityVerdicts(stakeholders, company);
         _renderCommitteeCards(stakeholders, out, company, sector, _scannerLastResult?.score ?? null);
         if (_scannerSource === 'drawer') await _bcPersistFromScan(stakeholders, company);
       } else {
@@ -6813,6 +6814,25 @@ async function _resolveLinkedInUrls(stakeholders, company) {
     } catch(_) {}
   }));
 }
+// Fix 2026-09-14 (comite d'achat ignore les statuts d'emploi contredits, cas reel Max Gougeon /
+// Duralex International, meme correctif que demo-private.html/kaizenology.html) : les stakeholders
+// trouves par recherche web/IA n'ont pas d'id -- avant de les rendre, on cherche si un prospect
+// deja en base (meme client, meme societe) correspond par nom, et si oui on recupere son
+// identity_verdict (peuple par le workflow n8n ICP Score Batch). Ne s'applique qu'aux personnes
+// deja en base avec un id : les personnes hors base ne sont jamais verifiees en direct ici.
+async function _bcResolveIdentityVerdicts(stakeholders, company) {
+  if (!company || !Array.isArray(stakeholders) || !stakeholders.length) return;
+  try {
+    const { data: existing } = await sbClient.from('prospects')
+      .select('id, name, identity_verdict').eq('client_id', CLIENT_ID).ilike('company', company);
+    if (!existing || !existing.length) return;
+    const norm = s => (s || '').trim().toLowerCase();
+    stakeholders.forEach(s => {
+      const match = existing.find(p => norm(p.name) === norm(s.name));
+      if (match) { s.prospect_id = match.id; s.identity_verdict = match.identity_verdict || null; }
+    });
+  } catch(e) { console.warn('[_bcResolveIdentityVerdicts]', e); }
+}
 function _renderCommitteeCards(stakeholders, out, company, sector, icpScore) {
   const li = url => url
     ? `<a href="${_esc(url)}" target="_blank" rel="noopener" style="margin-left:5px;color:var(--fill-accent);line-height:1;vertical-align:middle;" title="LinkedIn"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg></a>`
@@ -6821,17 +6841,26 @@ function _renderCommitteeCards(stakeholders, out, company, sector, icpScore) {
   const roleLabel = role => role === 'Sign' ? 'Signe' : role === 'Approve' ? 'Approuve' : 'Influence';
   let html = '<div style="display:flex;flex-direction:column;gap:10px;">';
   stakeholders.forEach((s, i) => {
-    html += `<div style="border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:13px 15px;display:flex;flex-direction:column;gap:5px">
+    const contradicted = s.identity_verdict === 'CONTRADICTED';
+    const roleBadgeHtml = contradicted
+      ? `<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 8px;border-radius:var(--radius-pill);white-space:nowrap;background:#f1f5f9;color:#64748b">Poste non confirmé</span>`
+      : `<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 8px;border-radius:var(--radius-pill);white-space:nowrap;${roleBg(s.role)}">${_esc(roleLabel(s.role))}</span>`;
+    const contradictedNoteHtml = contradicted
+      ? `<div style="font-size:var(--fs-xs);color:#b45309;font-style:italic;">Poste non confirmé — dernière information connue périmée.</div>`
+      : '';
+    const addBtnHtml = contradicted ? '' : `<button class="sh-add-btn" data-idx="${i}" style="align-self:flex-end;margin-top:4px;font-size:var(--fs-xs);padding:4px 11px;background:var(--navy);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer">+ Ajouter au pipeline</button>`;
+    html += `<div style="border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:13px 15px;display:flex;flex-direction:column;gap:5px;${contradicted ? 'opacity:0.7;' : ''}">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;flex-wrap:wrap">
         <div style="display:flex;align-items:center;flex-wrap:wrap;gap:0">
           <span style="font-weight:700;font-size:var(--fs-sm);color:var(--text)">${_esc(s.name||'N/D')}</span>${li(s.linkedin_url)}
           ${s.title ? `<span style="font-size:var(--fs-xs);color:var(--muted);margin-left:8px">${_esc(s.title)}</span>` : ''}
         </div>
-        <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 8px;border-radius:var(--radius-pill);white-space:nowrap;${roleBg(s.role)}">${_esc(roleLabel(s.role))}</span>
+        ${roleBadgeHtml}
       </div>
+      ${contradictedNoteHtml}
       ${s.concern ? `<div style="font-size:var(--fs-xs);color:var(--text-secondary)"><span style="font-weight:600;text-transform:uppercase;font-size:9px;letter-spacing:0.05em;color:var(--muted);margin-right:4px">Préoccupation</span>${_esc(s.concern)}</div>` : ''}
       ${s.approach ? `<div style="font-size:var(--fs-xs);color:var(--text-secondary)"><span style="font-weight:600;text-transform:uppercase;font-size:9px;letter-spacing:0.05em;color:var(--muted);margin-right:4px">Approche</span>${_esc(s.approach)}</div>` : ''}
-      <button class="sh-add-btn" data-idx="${i}" style="align-self:flex-end;margin-top:4px;font-size:var(--fs-xs);padding:4px 11px;background:var(--navy);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer">+ Ajouter au pipeline</button>
+      ${addBtnHtml}
     </div>`;
   });
   html += '</div>';
