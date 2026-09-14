@@ -5371,12 +5371,36 @@ async function _generateSequenceMessage(pid, touch, forceGenerate = false, elPre
   if (spin) spin.classList.add('active');
   const touchDescriptions = {
     invite: "une demande de connexion LinkedIn. Structure obligatoire : une phrase d'observation factuelle (max 15 mots) puis une question courte (max 10 mots), puis la signature seule sur sa propre ligne. Moins de 200 caractères au total. Pas de salutation, pas d'argumentaire.",
-    j0: "un premier message LinkedIn après acceptation de la connexion (ouvre la conversation, pas d'argumentaire, moins de 75 mots).",
-    j5: "un email de relance (pas un message LinkedIn) : un nouvel angle, appel à l'action léger, moins de 90 mots.",
+    j0: "un premier message LinkedIn après acceptation de la connexion (ouvre la conversation, pas d'argumentaire, moins de 75 mots), signé en fin de message.",
+    j5: "un email de relance (pas un message LinkedIn) : un nouvel angle, appel à l'action léger, moins de 90 mots, signé en fin de message.",
   };
-  const senderName = (_clientProfile && (_clientProfile.display_name || _clientProfile.contact_name)) || 'Wominds';
-  const signalLine = p.signal ? 'Signal détecté : ' + String(p.signal).replace(/<[^>]*>/g, '').slice(0, 200) : '';
-  const prompt = `Vous écrivez, pour le compte de ${senderName} chez Wominds, ${touchDescriptions[touch] || 'un message de prospection'}
+  // Fix 2026-09-14 (cas reel Olivier Saumet/Doublet, message signe "Wominds" au lieu d'"Élodie") :
+  // display_name ("Wominds" en base pour ce client -- preference d'affichage nav/profil, jamais
+  // pense pour signer un message) passait AVANT contact_name ("Élodie Dratler", la vraie
+  // personne) -- le prompt disait donc litteralement "pour le compte de Wominds chez Wominds",
+  // d'ou la signature "Wominds". contact_name est desormais prioritaire ; prenom seul extrait
+  // (convention deja etablie ailleurs dans le produit, cf. kaizenology.html "Stéphane").
+  // Rappel de signature ajoute explicitement sur les 3 touches (j0/j5 n'en avaient aucun, meme
+  // defaut qu'invite malgre une formulation differente) plutot que suppose implicite.
+  const senderName = (_clientProfile && (_clientProfile.contact_name || _clientProfile.display_name)) || 'Wominds';
+  const senderFirstName = senderName.trim().split(/\s+/)[0] || senderName;
+  // Fix 2026-09-14 (meme cas reel : signal "Levee de fonds - novembre 2025" presente comme une
+  // actualite fraiche). Verifie en base avant de coder quoi que ce soit (pas suppose) : pour
+  // Olivier Saumet/Doublet, prospects.signal_date = 2026-09-12 (2 jours) -- signal_date mesure
+  // QUAND WOMINDS A DETECTE le signal (ingestion), pas la date de l'evenement lui-meme, qui n'est
+  // presente qu'en texte libre a l'interieur de p.signal ("novembre 2025"). Une approche par age
+  // de signal_date (ex. seuil _priDecay 30j de kaizenology.html/demo-private.html) aurait donc ete
+  // sans effet ici : signal_date est frais (2j), seule la date embarquee dans le texte est perimee
+  // (~10 mois). Fix reel : donner la date du jour au modele et lui demander de comparer lui-meme
+  // toute date mentionnee dans le signal a cette date du jour, plutot qu'un calcul d'age cote JS
+  // qui ne peut pas fiablement parser une date en texte libre ("novembre 2025", "T3 2025", etc.).
+  const rawSignal = p.signal ? String(p.signal).replace(/<[^>]*>/g, '').slice(0, 200) : '';
+  const todayLabel = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+  const signalLine = rawSignal
+    ? 'Signal détecté : ' + rawSignal
+      + '\nNous sommes le ' + todayLabel + '. Si ce signal mentionne sa propre date (ex. "novembre 2025"), comparez-la à la date du jour : si l\'écart dépasse un mois, ne présentez JAMAIS cet événement comme récent ou en cours (interdits : "vient de", "récemment", "dernièrement", "actuellement") -- situez-le clairement dans le temps si vous le mentionnez (ex. "fin 2025", "il y a plusieurs mois").'
+    : '';
+  const prompt = `Vous écrivez, pour le compte de ${senderFirstName} chez Wominds, ${touchDescriptions[touch] || 'un message de prospection'}
 ${langRule}
 
 Contexte Wominds : plateforme de mesure, pilotage et mise en conformité de l'égalité professionnelle Femme-Homme (Baromètre de perception Égalité et module Pay Transparency).
@@ -5384,7 +5408,7 @@ Contexte Wominds : plateforme de mesure, pilotage et mise en conformité de l'é
 Prospect : ${p.name || 'inconnu'}, ${p.title || 'poste inconnu'} chez ${p.company || 'entreprise inconnue'}${p.sector ? ' (secteur : ' + p.sector + ')' : ''}.
 ${signalLine}
 
-Règles impératives : n'inventez aucun fait sur le prospect, son entreprise, ou Wominds au-delà de ce qui est donné ci-dessus. Pas de tiret cadratin (—), remplacez par une virgule ou un point. Écrivez uniquement le corps du message, sans préambule ni explication.`;
+Règles impératives : n'inventez aucun fait sur le prospect, son entreprise, ou Wominds au-delà de ce qui est donné ci-dessus. Pas de tiret cadratin (—), remplacez par une virgule ou un point. Écrivez uniquement le corps du message, sans préambule ni explication. Si le message se termine par une signature, signez EXACTEMENT "${senderFirstName}" -- jamais "Wominds", jamais le nom de l'entreprise ou du client, uniquement le prénom de l'expéditeur.`;
   try {
     // Fix 2026-09-14 (cas reel Maxime Nelia/Duralex SCOP SA, "Erreur de generation.") : 400 etait
     // insuffisant -- claude-sonnet-5 consomme un budget de "thinking" etendu (variable d'un appel
