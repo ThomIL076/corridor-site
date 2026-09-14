@@ -7172,10 +7172,23 @@ function _askRenderWelcome(ctx) {
               : '';
   if (label) { pill.textContent = label; pill.style.display = ''; } else { pill.style.display = 'none'; }
 }
+// Fix 2026-09-14 (fuite de contexte, cas reel Florence Doumenc/ELEMENTS -- reponse polluee par
+// un contenu "4x4/SUV" sans rapport) : diagnostic reel (appels /api/generate reproduits, base
+// entiere passee au crible sur prospects/mandates/clients/agent_proposals/interactions) exclut
+// formellement toute fuite cross-client -- aucune donnee "4x4"/"SUV" n'existe nulle part en
+// base, pour aucun client. Cause reelle : _askCtxKey utilisait la meme cle statique
+// ('__global__') pour TOUTE ouverture du panneau sans prospect/signal precis -- deux sessions
+// "Demander a Corridor" ouvertes en mode generique (sidebar, pas depuis une fiche) partageaient
+// donc le meme _askHistory indefiniment, meme apres fermeture. Fix : fermer le panneau termine
+// toujours la conversation -- historique et cle de contexte reinitialises ici, pas seulement au
+// changement de prospect/signal (qui, lui, fonctionnait deja correctement).
 function _closeAskPanel() {
   document.getElementById('ask-overlay').classList.remove('open');
   document.getElementById('ask-panel').classList.remove('open');
   document.body.classList.remove('ask-open');
+  _askHistory = [];
+  _askCtx = null;
+  _askCtxKey = null;
 }
 // Ouvre Demander a Corridor pre-charge avec le prospect du tiroir (parite demo-private.html:5749).
 function _openAskFromDrawer() {
