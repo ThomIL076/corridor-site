@@ -3145,7 +3145,7 @@ async function loadKanban(force){
   try {
     await _loadSignalTaxonomy();
     const { data, error } = await sbClient.from('prospects')
-      .select('id, name, company, title, sector, region, country, stage, icp_score, icp_reason, signal, signal_url, signal_type, signal_interpretation, signal_date, notes, created_at, archived, email, phone, linkedin, website_url, company_size, funding_stage, last_funding_date, total_funding, hard_criteria_met, company_verified, identity_confidence, score_role, score_size, score_signal_strength, score_recency, score_mandate_fit, score_completeness, reminder_date, deal_value, deal_currency, deal_structure, deal_weighted, next_action, next_action_date, next_action_cache, next_action_generated_at, origin')
+      .select('id, name, company, title, sector, region, country, country_code, stage, icp_score, icp_reason, signal, signal_url, signal_type, signal_interpretation, signal_date, notes, created_at, archived, email, phone, linkedin, website_url, company_size, funding_stage, last_funding_date, total_funding, hard_criteria_met, company_verified, identity_confidence, score_role, score_size, score_signal_strength, score_recency, score_mandate_fit, score_completeness, reminder_date, deal_value, deal_currency, deal_structure, deal_weighted, next_action, next_action_date, next_action_cache, next_action_generated_at, origin')
       .eq('client_id', CLIENT_ID)
       .order('created_at', { ascending: false })
       .limit(1000);
@@ -3160,12 +3160,19 @@ async function loadKanban(force){
   }
 }
 const STAGE_LABEL_FR = { 'Identified':'Identifiés', '1st Contact':'Connecté', 'Engaged':'Engagés', 'Replied':'Répondu', 'Proposal':'Proposition', 'Negotiation':'Négociation', 'Closed':'Clôturé' };
-// France = marche principal Wominds ; pays inconnu compte comme France (meme convention que
-// _regionTag sur demo-private.html, qui defaut au bucket majoritaire EMEA plutot que d'exclure).
-function _isIntlCountry(country) {
-  const v = (country || '').trim().toLowerCase();
-  if (!v) return false;
-  return v !== 'france' && v !== 'fr';
+// Fix 2026-09-14 (compteur France/International faux : affichait 9 France / 80 International
+// sur 89 prospects reels -- en verite 59/30). Cause : country est du texte libre LinkedIn
+// ("Paris, Île-de-France, France", "Greater Lyon Area"...) -- une egalite stricte dessus ne
+// captait qu'une minorite des vrais prospects francais, le reste tombait a tort dans
+// "International". country_code (ISO 3166-1 alpha-2, peuple par les 6 workflows d'ingestion +
+// retro-rempli en base) est desormais la seule source utilisee ici. Prospects sans country_code
+// (donnee source manquante -- 0 cas reel chez Wominds aujourd'hui, mais l'ajout manuel de
+// prospect ne collecte pas ce champ) : bucket "unknown" distinct, jamais fondu dans
+// International -- ce serait une variante du meme bug.
+function _countryBucket(p) {
+  const cc = (p.country_code || '').trim().toUpperCase();
+  if (!cc) return 'unknown';
+  return cc === 'FR' ? 'france' : 'intl';
 }
 function renderKanban(prospects){
   const banner = document.getElementById('pipeline-empty-banner');
@@ -3188,12 +3195,13 @@ function renderKanban(prospects){
   setTxt('spine-count-indeal', prospects.filter(p => (_stageRank[p.stage] || 0) >= _stageRank['Engaged'] && p.stage !== 'Closed').length);
   const inConv = prospects.filter(p => (_stageRank[p.stage] || 0) >= _stageRank['1st Contact']).length;
   const highPrio = prospects.filter(p => Number(p.icp_score) >= 8).length;
-  const intl = prospects.filter(p => _isIntlCountry(p.country)).length;
-  const france = total - intl;
+  const france = prospects.filter(p => _countryBucket(p) === 'france').length;
+  const intl = prospects.filter(p => _countryBucket(p) === 'intl').length;
+  const unknownCountry = prospects.filter(p => _countryBucket(p) === 'unknown').length;
   const counts = {};
   KANBAN_STAGES.forEach(s => counts[s] = 0);
   prospects.forEach(p => { const k = (p.stage || 'Identified'); counts[k] = (counts[k] || 0) + 1; });
-  _renderPipelineStatsCard({ counts, total, inConv, highPrio, france, intl });
+  _renderPipelineStatsCard({ counts, total, inConv, highPrio, france, intl, unknownCountry });
   _populateKanbanFilterOptions(prospects);
   if (typeof _applyKanbanFilters === 'function') {
     try { _applyKanbanFilters(); } catch(e) { console.warn('[renderKanban] _applyKanbanFilters failed:', e); }
@@ -3283,14 +3291,18 @@ async function persistStage(id, stage, previousStage, prospect) {
     showToast('Échec de la sauvegarde, réessaie.');
   }
 }
-function _renderPipelineStatsCard({ counts, total, inConv, highPrio, france, intl }) {
+function _renderPipelineStatsCard({ counts, total, inConv, highPrio, france, intl, unknownCountry }) {
   const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
   const conversion = total > 0 ? (counts['Closed'] / total * 100) : 0;
   setTxt('pipe-conversion', conversion.toFixed(1) + '%');
   setTxt('pipe-inconv', inConv);
   setTxt('pipe-highprio', highPrio);
   const elFi = document.getElementById('pipe-intlna');
-  if (elFi) elFi.innerHTML = france + '<span class="numsplit"> / </span>' + intl;
+  // Fix 2026-09-14 : 3e nombre "Inconnu" affiche uniquement si au moins un prospect n'a pas de
+  // country_code -- jamais fondu dans France ni dans International (cf. _countryBucket ci-dessus).
+  if (elFi) elFi.innerHTML = france + '<span class="numsplit"> / </span>' + intl + (unknownCountry > 0 ? '<span class="numsplit"> / </span>' + unknownCountry : '');
+  const lblFi = document.querySelector('#pipe-intlna + .pipe-stat-label');
+  if (lblFi) lblFi.textContent = unknownCountry > 0 ? 'France / Intl / Inconnu' : 'France / Intl';
   const RAMP = [0.30, 0.42, 0.53, 0.65, 0.77, 0.88, 1];
   const barEl = document.getElementById('pipe-funnel-bar');
   if (barEl) barEl.innerHTML = KANBAN_STAGES.map((s, i) =>
