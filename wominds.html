@@ -2224,18 +2224,17 @@ let CLIENT_ID = 'wominds'; // résolu dynamiquement dans loadClientProfile()
 // prospects non filtres restent lisibles/modifiables via requete directe (drawer sur lien direct,
 // exports, etc.), simplement absents des listes/kanban/stats qui passent par _passesCountryFilter.
 const DISPLAY_COUNTRY_FILTER = 'FR';
-// country_code (ISO alpha-2, fiable -- cf. fix 2026-09-14 sur _countryBucket plus bas) est la
-// source primaire. Repli sur le champ libre `country` UNIQUEMENT quand country_code est absent ET
-// que le texte mentionne explicitement la France -- pour ne pas masquer un prospect ajoute a la
-// main (le formulaire "Ajouter un prospect" ne collecte pas country_code, cf. Hanane El Hamraoui :
-// country_code null mais country="France") sans pour autant rouvrir aux vrais inconnus
-// internationaux (ex. "Greater La Coruña Area", "Athens Metropolitan Area" -- ne mentionnent pas
-// la France, restent donc masques comme prevu).
+// Fix regression 2026-09-15 (meme soir) : la premiere version masquait tout country_code absent
+// sauf si le texte libre `country` mentionnait "France" -- casse net les 130 contacts Gmail
+// qu'Elodie vient d'importer (origin='csv_import', country_code ET country tous les deux NULL,
+// un export Gmail ne contient aucune donnee de localisation). "Inconnu" != "etranger" : un
+// country_code absent ne doit JAMAIS etre traite comme une preuve d'origine internationale --
+// seul un country_code explicitement renseigne et different de 'FR' cache le prospect.
 function _passesCountryFilter(p) {
   if (!DISPLAY_COUNTRY_FILTER) return true;
   const cc = (p.country_code || '').trim().toUpperCase();
-  if (cc) return cc === DISPLAY_COUNTRY_FILTER;
-  return DISPLAY_COUNTRY_FILTER === 'FR' && /france/i.test(p.country || '');
+  if (!cc) return true;
+  return cc === DISPLAY_COUNTRY_FILTER;
 }
 const OWNER_EMAIL = 'thomas@corridor.systems'; // accès complet permanent (compte propriétaire)
 let _blockedKind = null;
