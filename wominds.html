@@ -5183,7 +5183,7 @@ function _todayCardHTML(p) {
   const scoreVal = (p.icp_score || 0).toFixed(1);
   const tierColor = (p.icp_score || 0) >= 9 ? 'var(--danger)' : ((p.icp_score || 0) >= 8 ? 'var(--amber)' : 'var(--border)');
   const sig = p.signal_type ? _sigBadge(p.signal_type) : '';
-  const signalText = p.signal ? _esc(String(p.signal).replace(/<[^>]*>/g, '').slice(0, 160)) : '';
+  const signalText = p.signal ? _sanitizeSignal(p.signal).replace(/<[^>]*>/g, '').slice(0, 160) : '';
   return `<div class="card" style="display:flex;padding:0;margin-bottom:12px;overflow:hidden;cursor:pointer;" onclick="openProspectDetail('${p.id}')">
     <div style="width:4px;background:${tierColor};flex-shrink:0;"></div>
     <div style="width:70px;flex-shrink:0;border-right:1px solid var(--border);padding:14px 6px;text-align:center;">
