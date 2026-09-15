@@ -3087,6 +3087,7 @@ const _supabase = sbClient;  // alias utilisé par le bloc PROFILE SYSTEM
 const OWNER_EMAIL = 'thomas@corridor.systems'; // accès complet permanent (compte propriétaire)
 let _blockedKind = null;     // 'expired' | 'not_found' quand l'accès est bloqué
 let _demoStarted = false;    // init unique post-login (scroll top + onglet Scanner)
+let _deepLinkHandled = false; // init unique post-login (lien profond ?prospect=&action=buying-committee, cf. checkAccess) -- checkAccess() est re-declenchee a chaque evenement onAuthStateChange (refresh de token inclus), sans ce garde le tiroir/scan se relancerait a chaque refresh
 
 async function showDemo(){
   const badge = document.getElementById('nav-status-badge');
@@ -3129,6 +3130,59 @@ async function showDemo(){
     document.documentElement.scrollTop = 0;
     document.body.scrollTop = 0;
   }
+  if (!_deepLinkHandled) {
+    _deepLinkHandled = true;
+    _handleDeepLinkAction().catch(e => console.warn('[deep-link]', e));
+  }
+}
+
+// Lien profond depuis un email (Morning Scan) vers l'action Buying Committee d'un prospect precis --
+// deux cas selon que le signal a deja un prospect en base ou non (demande Stephane 2026-09-15) :
+// 1. ?prospect=<id>&action=buying-committee -- prospect existant : ouvre son tiroir puis declenche
+//    reellement le scan (memes appels que le vrai parcours utilisateur tiroir -> "Scan company" ->
+//    Scanner panel -> "Map Buying Committee", pas juste l'affichage d'un onglet).
+// 2. ?company=<nom>&person=<nom>&action=buying-committee -- signal externe pas encore un prospect en
+//    base : ouvre directement le Scanner panel pre-rempli, mais NE lance PAS le scan automatiquement
+//    (choix delibere -- une extraction societe/personne depuis un signal brut n'est pas fiable a 100%,
+//    Stephane verifie/corrige les champs avant de cliquer "Map Buying Committee" lui-meme -- creer un
+//    prospect en base a la volee depuis un signal non qualifie risquerait de polluer le pipeline).
+async function _handleDeepLinkAction() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('action') !== 'buying-committee') return;
+  const prospectId   = params.get('prospect');
+  const companyParam = params.get('company');
+  const personParam  = params.get('person');
+
+  if (prospectId) {
+    let p = _prospectsById[prospectId];
+    if (!p) {
+      const { data, error } = await sbClient.from('prospects').select('*').eq('id', prospectId).eq('client_id', CLIENT_ID).maybeSingle();
+      if (error || !data) {
+        console.warn('[deep-link] prospect introuvable:', prospectId, error);
+        if (companyParam) _openScannerPrefilled(companyParam, personParam);
+        return;
+      }
+      p = data;
+      _prospectsById[prospectId] = p;
+    }
+    const fakeCard = document.createElement('div');
+    fakeCard.dataset.id = p.id;
+    fakeCard.dataset.lastContact = p.last_contact || '';
+    fakeCard.dataset.reminderDate = p.reminder_date || '';
+    fakeCard.dataset.clientId = CLIENT_ID;
+    fakeCard.innerHTML =
+      `<span class="k-card-name">${_esc(p.name || '')}</span>` +
+      `<span class="k-card-company">${_esc(p.company || '')}</span>`;
+    await openDrawer(fakeCard);
+    openScannerPanel('drawer');
+    await _scannerMapCommittee();
+  } else if (companyParam) {
+    _openScannerPrefilled(companyParam, personParam);
+  }
+}
+function _openScannerPrefilled(company, person) {
+  _scannerPreFill = { company, sector: null, icp_score: null, person: person || null };
+  openScannerPanel('drawer');
 }
 function showLogin(){
   document.getElementById('auth-gate').style.display = 'flex';
