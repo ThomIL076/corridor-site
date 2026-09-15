@@ -5637,6 +5637,23 @@ async function _markReady(pid, elPrefix = '') {
   if (seqEntry) seqEntry.status = 'ready';
   const btn = document.getElementById(elPrefix + 'sr-' + pid);
   if (btn) { btn.textContent = '✓ Prêt'; btn.style.borderColor = 'var(--green-brand)'; btn.style.color = 'var(--green-brand)'; }
+  // Fix 2026-09-15 (URGENT, "Envoyer" reste grise apres le clic sur "Prêt" -- confirme reel sur
+  // Florine Baisez/Neosilver) : sendDisabled dans _sendCardHTML() n'est calcule qu'au rendu initial
+  // de la carte, jamais recalcule apres ce clic -- seul le texte/style du bouton "Prêt" lui-meme
+  // etait mis a jour ici, jamais le disabled du bouton "Envoyer". Reproduit ici EXACTEMENT la meme
+  // formule que _sendCardHTML (isReady vient de passer a true via ce clic, donc sendDisabled se
+  // reduit desormais a sendBlocked) plutot que de forcer disabled=false sans condition -- un
+  // touch j0/j5 sur un prospect pas encore connecte sur LinkedIn doit rester bloque.
+  const touchType = document.getElementById(elPrefix + 'sc-' + pid)?.dataset.touch || '';
+  const p = _sendProspects.find(x => x.id === pid) || _prospectsById[pid];
+  const isConnected = p?.linkedin_tag === 'connection-accepted';
+  const sendBlocked = touchType !== 'invite' && !isConnected;
+  const sendBtn = document.getElementById(elPrefix + 'sli-' + pid);
+  if (sendBtn) {
+    sendBtn.disabled = sendBlocked;
+    if (sendBlocked) sendBtn.title = 'Connexion pas encore acceptée';
+    else sendBtn.removeAttribute('title');
+  }
   showToast('Message prêt à être envoyé');
 }
 

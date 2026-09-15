@@ -6929,10 +6929,29 @@ async function _markReady(pid, elPrefix = '') {
   if (!seqId) { showToast('Save draft first'); return; }
   const { error } = await sbClient.from('sequences').update({ status:'ready' }).eq('id', seqId).eq('client_id', CLIENT_ID);
   if (error) { showToast('Error'); return; }
+  // Fix 2026-09-15 (URGENT, meme classe de bug corrigee ce soir sur wominds.html/demo-private.html) :
+  // seqEntry.status manquait ici -- _sendSequences[pid] restait 'draft' en memoire malgre l'update
+  // reussi en base, ce qui pouvait faire reapparaitre le prospect comme "pas pret" ailleurs dans la
+  // meme session avant un rechargement complet.
+  const seqEntry = (_sendSequences[pid] || []).find(s => s.id === seqId);
+  if (seqEntry) seqEntry.status = 'ready';
   const btn = document.getElementById(elPrefix + 'sr-' + pid);
   if (btn) { btn.textContent = '✓ Ready'; btn.style.borderColor = 'var(--green)'; btn.style.color = 'var(--green)'; }
+  // Fix 2026-09-15 (URGENT, "Send" restait grise apres le clic sur "Ready" jusqu'a un rechargement
+  // de page) : l'ancienne version forcait disabled=false sans condition, ce qui court-circuitait
+  // aussi sendBlocked (connexion LinkedIn pas encore acceptee pour j0/j5) -- un vrai risque de
+  // regression, pas juste un etat perime. Reproduit ici EXACTEMENT la meme formule que
+  // _renderSendSection/_sendCardHTML (isReady vient de passer a true via ce clic, donc sendDisabled
+  // se reduit desormais a sendBlocked) plutot que de forcer disabled=false a l'aveugle.
+  const touchType = document.getElementById(elPrefix + 'sc-' + pid)?.dataset.touch || '';
+  const p = _sendProspects.find(x => x.id === pid) || _prospectsById[pid];
+  const isConnected = p?.linkedin_tag === 'connection-accepted';
+  const sendBlocked = touchType !== 'invite' && !isConnected;
   const sendBtn = document.getElementById(elPrefix + 'sli-' + pid);
-  if (sendBtn) sendBtn.disabled = false;
+  if (sendBtn) {
+    sendBtn.disabled = sendBlocked;
+    if (sendBlocked) sendBtn.title = 'Connection not yet accepted'; else sendBtn.removeAttribute('title');
+  }
   showToast('Message ready to send');
 }
 

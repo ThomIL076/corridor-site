@@ -7714,10 +7714,28 @@ async function _markReady(pid, elPrefix = '') {
   // Send button id depends on channel: 'sli-' for LinkedIn touches (invite/j0), 'start-seq-' for
   // email (j5, cf. isEmailTouch in _sendCardHTML) -- only one of the two exists in the DOM for a
   // given card, the lookup on the other is a harmless no-op.
+  // Fix 2026-09-15 (URGENT, "Send" button stayed disabled after clicking "Ready" until a page
+  // reload -- same bug confirmed and fixed tonight on wominds.html): the previous version forced
+  // disabled=false unconditionally, which ALSO bypassed sendBlocked (no email on record for j5, or
+  // LinkedIn connection not yet accepted for j0) -- a real regression risk, not just a stale-state
+  // bug. Reproduces the exact same formula as _sendCardHTML (isReady just became true via this
+  // click, so sendDisabled now reduces to sendBlocked) instead of forcing disabled=false blindly.
+  const touchType = document.getElementById(elPrefix + 'sc-' + pid)?.dataset.touch || '';
+  const p = _sendProspects.find(x => x.id === pid) || _prospectsById[pid];
+  const isEmailTouch = touchType === 'j5';
+  const isConnected = p?.linkedin_tag === 'connection-accepted';
+  const sendBlocked = isEmailTouch ? !p?.email : (touchType !== 'invite' && !isConnected);
+  const sendTitle = sendBlocked ? (isEmailTouch ? 'No email on record' : 'Connection not yet accepted') : '';
   const sendBtnLinkedIn = document.getElementById(elPrefix + 'sli-' + pid);
-  if (sendBtnLinkedIn) sendBtnLinkedIn.disabled = false;
+  if (sendBtnLinkedIn) {
+    sendBtnLinkedIn.disabled = sendBlocked;
+    if (sendBlocked) sendBtnLinkedIn.title = sendTitle; else sendBtnLinkedIn.removeAttribute('title');
+  }
   const sendBtnEmail = document.getElementById(elPrefix + 'start-seq-' + pid);
-  if (sendBtnEmail) sendBtnEmail.disabled = false;
+  if (sendBtnEmail) {
+    sendBtnEmail.disabled = sendBlocked;
+    if (sendBlocked) sendBtnEmail.title = sendTitle; else sendBtnEmail.removeAttribute('title');
+  }
   showToast('Message ready to send');
 }
 
