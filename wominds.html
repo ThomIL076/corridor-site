@@ -5486,6 +5486,19 @@ async function _generateSequenceMessage(pid, touch, forceGenerate = false, elPre
   // ci-dessus, en plus de cette instruction (meme discipline a deux niveaux que
   // _cleanVariantText pour le tiret cadratin -- l'instruction seule ne suffit pas toujours,
   // cf. incident 14/09 sur des notes d'invitation ou une consigne equivalente avait deja fuite).
+  // Fix 2026-09-15 (coherence avec la generation par lot n8n de 9h, mise a jour ce soir pour
+  // toujours ouvrir sur "Bonjour {prenom},") : meme regle ici, avec le vrai prenom du prospect
+  // donne litteralement au modele (jamais suppose ou invente si p.name est absent/vide -- dans ce
+  // cas greetingRule reste vide, la contrainte n'est simplement pas ajoutee plutot que de risquer
+  // un prenom fabrique). Restreint a j0/j5 (vrais messages avec un corps) -- exclu de invite : la
+  // demande de connexion LinkedIn a deja sa propre structure obligatoire ci-dessus ("pas de
+  // salutation", <200 caracteres, convention LinkedIn standard), que "Bonjour X," contredirait
+  // plutot que completerait. A confirmer avec Thomas si le lot n8n applique reellement cette regle
+  // aux invitations aussi -- peu probable vu la contrainte de format/longueur LinkedIn.
+  const prospectFirstName = (p.name || '').trim().split(/\s+/)[0] || '';
+  const greetingRule = (touch !== 'invite' && prospectFirstName)
+    ? `Le message doit commencer par "Bonjour ${prospectFirstName}," -- utilisez exactement ce prénom, jamais un autre prénom inventé ou supposé.\n`
+    : '';
   const prompt = `Vous écrivez, pour le compte de ${senderFirstName} chez Wominds, ${touchDescriptions[touch] || 'un message de prospection'}
 ${langRule}
 
@@ -5493,7 +5506,7 @@ Contexte Wominds : plateforme de mesure, pilotage et mise en conformité de l'é
 
 Prospect : ${p.name || 'inconnu'}, ${p.title || 'poste inconnu'} chez ${p.company || 'entreprise inconnue'}${p.sector ? ' (secteur : ' + p.sector + ')' : ''}.
 ${signalLine}
-
+${greetingRule}
 Avant d'écrire, vous pouvez faire une recherche web pour vérifier si le signal ci-dessus mérite encore d'être cité tel quel, ou pour trouver un fait plus actuel et pertinent sur cette personne ou cette société (actualité récente, changement de poste, prise de parole publique...). N'inventez rien : si la recherche ne donne rien de fiable, contentez-vous du signal fourni.
 
 Règles impératives : n'inventez aucun fait sur le prospect, son entreprise, ou Wominds au-delà de ce qui est donné ci-dessus ou trouvé via une recherche fiable. Pas de tiret cadratin (—), remplacez par une virgule ou un point. Écrivez UNIQUEMENT le corps du message final, sans préambule ni explication, et surtout sans aucune trace de votre recherche (jamais "d'après mes recherches", "j'ai trouvé que", "une recherche récente indique" ou équivalent) : les faits trouvés doivent être intégrés naturellement, comme si vous les connaissiez déjà. Si le message se termine par une signature, signez EXACTEMENT "${senderFirstName}" -- jamais "Wominds", jamais le nom de l'entreprise ou du client, uniquement le prénom de l'expéditeur.`;
