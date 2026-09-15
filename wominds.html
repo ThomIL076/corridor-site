@@ -5357,6 +5357,21 @@ function _sendCardHTML(p, touchType, elPrefix = '') {
 // Prompt generique/factuel (voir note en tete de section) -- pas de voix de marque Wominds
 // inventee. Ne reutilise aucune des regles de style specifiques a Thomas (ambassador, closing
 // line Corridor, stealth company, etc.) : aucune ne s'applique a Wominds.
+// Fix 2026-09-15 (web_search sur la generation de message Send) : garde-fou mecanique en plus
+// de l'instruction de prompt, meme discipline que _cleanVariantText (tiret cadratin) plus haut
+// dans ce fichier -- l'instruction seule ne suffit pas toujours a empecher une trace de
+// raisonnement de recherche de fuiter dans le texte final (cf. incident 14/09 sur des notes
+// d'invitation generees par un systeme externe, meme consigne explicite pourtant deja donnee).
+// Retire uniquement la tournure de narration en tete de phrase, jamais le reste du message.
+function _stripSearchNarration(text) {
+  if (!text) return text;
+  const cleaned = text
+    .replace(/\b(d'après|selon)\s+(mes?\s+)?(recherches?|une\s+recherche(\s+(récente|rapide))?|une\s+vérification)\s*,?\s*/gi, '')
+    .replace(/\b(après|suite à)\s+(vérification|recherche)\s*,?\s*/gi, '')
+    .replace(/\bj'ai\s+(trouvé|vérifié|cherché|confirmé)\s+que\s+/gi, '')
+    .replace(/^\s*[,:]\s*/, '');
+  return cleaned.replace(/^[a-zàâäéèêëïîôöùûüç]/, c => c.toUpperCase());
+}
 async function _generateSequenceMessage(pid, touch, forceGenerate = false, elPrefix = '') {
   const p = _sendProspects.find(x => x.id === pid) || _prospectsById[pid];
   if (!p) return;
@@ -5400,6 +5415,14 @@ async function _generateSequenceMessage(pid, touch, forceGenerate = false, elPre
     ? 'Signal détecté : ' + rawSignal
       + '\nNous sommes le ' + todayLabel + '. Si ce signal mentionne sa propre date (ex. "novembre 2025"), comparez-la à la date du jour : si l\'écart dépasse un mois, ne présentez JAMAIS cet événement comme récent ou en cours (interdits : "vient de", "récemment", "dernièrement", "actuellement") -- situez-le clairement dans le temps si vous le mentionnez (ex. "fin 2025", "il y a plusieurs mois").'
     : '';
+  // Fix 2026-09-15 (message juge trop direct/sans info fraiche par Thomas) : le modele est
+  // desormais autorise a verifier/enrichir le signal via recherche web avant d'ecrire (le signal
+  // ancien reste-t-il pertinent a citer ? existe-t-il un fait plus recent sur la personne/
+  // societe ?), mais la sortie finale doit rester UNIQUEMENT le message -- jamais une trace du
+  // raisonnement de recherche. Garde-fou mecanique correspondant : _stripSearchNarration()
+  // ci-dessus, en plus de cette instruction (meme discipline a deux niveaux que
+  // _cleanVariantText pour le tiret cadratin -- l'instruction seule ne suffit pas toujours,
+  // cf. incident 14/09 sur des notes d'invitation ou une consigne equivalente avait deja fuite).
   const prompt = `Vous écrivez, pour le compte de ${senderFirstName} chez Wominds, ${touchDescriptions[touch] || 'un message de prospection'}
 ${langRule}
 
@@ -5408,7 +5431,9 @@ Contexte Wominds : plateforme de mesure, pilotage et mise en conformité de l'é
 Prospect : ${p.name || 'inconnu'}, ${p.title || 'poste inconnu'} chez ${p.company || 'entreprise inconnue'}${p.sector ? ' (secteur : ' + p.sector + ')' : ''}.
 ${signalLine}
 
-Règles impératives : n'inventez aucun fait sur le prospect, son entreprise, ou Wominds au-delà de ce qui est donné ci-dessus. Pas de tiret cadratin (—), remplacez par une virgule ou un point. Écrivez uniquement le corps du message, sans préambule ni explication. Si le message se termine par une signature, signez EXACTEMENT "${senderFirstName}" -- jamais "Wominds", jamais le nom de l'entreprise ou du client, uniquement le prénom de l'expéditeur.`;
+Avant d'écrire, vous pouvez faire une recherche web pour vérifier si le signal ci-dessus mérite encore d'être cité tel quel, ou pour trouver un fait plus actuel et pertinent sur cette personne ou cette société (actualité récente, changement de poste, prise de parole publique...). N'inventez rien : si la recherche ne donne rien de fiable, contentez-vous du signal fourni.
+
+Règles impératives : n'inventez aucun fait sur le prospect, son entreprise, ou Wominds au-delà de ce qui est donné ci-dessus ou trouvé via une recherche fiable. Pas de tiret cadratin (—), remplacez par une virgule ou un point. Écrivez UNIQUEMENT le corps du message final, sans préambule ni explication, et surtout sans aucune trace de votre recherche (jamais "d'après mes recherches", "j'ai trouvé que", "une recherche récente indique" ou équivalent) : les faits trouvés doivent être intégrés naturellement, comme si vous les connaissiez déjà. Si le message se termine par une signature, signez EXACTEMENT "${senderFirstName}" -- jamais "Wominds", jamais le nom de l'entreprise ou du client, uniquement le prénom de l'expéditeur.`;
   try {
     // Fix 2026-09-14 (cas reel Maxime Nelia/Duralex SCOP SA, "Erreur de generation.") : 400 etait
     // insuffisant -- claude-sonnet-5 consomme un budget de "thinking" etendu (variable d'un appel
@@ -5417,14 +5442,26 @@ Règles impératives : n'inventez aucun fait sur le prospect, son entreprise, ou
     // thinking seul consommant jusqu'a 400/400 -- reponse vide, "Erreur de generation." exact.
     // Aligne sur runScanner() (meme fichier, meme classe de bug deja corrigee, 3000) : verifie sur
     // 8 appels reels supplementaires a 3000 (meme prompt), 8/8 en stop_reason="end_turn", pic de
-    // thinking observe 1180 -- marge confortable.
+    // thinking observe 1180 -- marge confortable. 3000 reste suffisant avec l'outil de recherche
+    // ajoute (verifie plus bas, meme technique de reproduction reelle).
+    // Fix 2026-09-15 : web_search_20250305 ajoute (outil gere par Anthropic cote serveur,
+    // api/generate.js relaie deja `tools` tel quel -- aucun changement serveur, meme mecanisme
+    // que Ask Corridor/Morning Scan ce soir). max_uses:2 borne le cout/latence -- un aller-retour
+    // recherche de plus par generation est acceptable ici (appel a la demande depuis le
+    // dashboard, jamais un batch), mais une note courte n'a jamais besoin de plus de 1-2 recherches.
     const res = await fetch('/api/generate', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages: [{ role: 'user', content: prompt }], max_tokens: 3000 })
+      body: JSON.stringify({
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 3000,
+        tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 2 }],
+      })
     });
     if (!res.ok) throw new Error('API error ' + res.status);
     const data = await res.json();
-    const rawText = Array.isArray(data.content) ? data.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim() : '';
+    const rawText = _stripSearchNarration(
+      Array.isArray(data.content) ? data.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim() : ''
+    );
     // Fix (gestion d'erreur) : l'ancien code sauvegardait le message d'erreur lui-meme comme
     // brouillon reel des qu'aucun texte n'etait extrait (if (text) etait toujours vrai, "Erreur de
     // generation." inclus) -- un Marquer pret/envoye ulterieur aurait pu envoyer ce texte tel quel.
