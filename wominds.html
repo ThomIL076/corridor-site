@@ -3584,8 +3584,36 @@ function _parseCsvLine(line, sep) {
   result.push(cur);
   return result;
 }
-// Format CSV attendu (en-tete optionnel) : name, company, sector, country, linkedin, email
+// Format CSV attendu (en-tete optionnel) : name, company, sector, country, linkedin, email --
+// OU un export Google Contacts natif (colonnes "Name"/"Organization 1 - Name"/"E-mail 1 - Value"...)
+// OU son format alternatif "Outlook CSV" (colonnes "First Name"/"Company"/"E-mail Address"...).
+// Fix 2026-09-15 (URGENT, 130 imports Gmail casses : la ligne d'en-tete elle-meme importee comme
+// donnee, name="First Name"/company="Middle Name") -- l'ancien mapping supposait des indices de
+// colonnes fixes (name=f[0], company=f[1], ...), incompatible avec la structure a 20+ colonnes
+// d'un vrai export de contacts. Le mapping se fait desormais par NOM de colonne (insensible a la
+// casse) des que l'en-tete est reconnu -- repli sur l'ancien mapping positionnel UNIQUEMENT si
+// aucun nom de colonne connu n'est detecte (CSV simple sans en-tete, comportement inchange).
 // ON CONFLICT (client_id, external_id) -> ignore les doublons.
+function _csvHeaderColumnMap(headerFields) {
+  const norm = headerFields.map(h => (h || '').trim().toLowerCase());
+  const find = (...aliases) => { for (const a of aliases) { const i = norm.indexOf(a); if (i !== -1) return i; } return -1; };
+  const KNOWN = ['name', 'first name', 'given name', 'company', 'organization 1 - name', 'e-mail address', 'e-mail 1 - value', 'email', 'nom', 'société', 'societe'];
+  if (!norm.some(h => KNOWN.includes(h))) return null; // aucun en-tete reconnu -> repli positionnel
+  return {
+    name:      find('name', 'nom'),
+    firstName: find('first name', 'given name', 'prénom', 'prenom'),
+    lastName:  find('last name', 'family name', 'nom de famille'),
+    company:   find('company', 'organization 1 - name', 'organization name', 'société', 'societe'),
+    // 'job title'/'organization 1 - title' avant l'alias generique 'title' : le format Outlook CSV
+    // a une colonne "Title" distincte pour la civilite (M./Mme, quasi toujours vide) -- si elle
+    // passait en premier, "Job Title" (le vrai poste, souvent rempli) serait ignore a tort.
+    title:     find('job title', 'organization 1 - title', 'poste', 'titre', 'title'),
+    sector:    find('sector', 'secteur'),
+    country:   find('country', 'pays', 'business country', 'home country'),
+    linkedin:  find('linkedin', 'linkedin url', 'website 1 - value'),
+    email:     find('email', 'e-mail address', 'e-mail 1 - value', 'e-mail'),
+  };
+}
 async function importCSV(e) {
   const file = e.target.files[0];
   if (!file) return;
@@ -3594,26 +3622,40 @@ async function importCSV(e) {
   reader.onload = async ev => {
     const lines = ev.target.result.replace(/^﻿/, '').split(/\r?\n/).filter(l => l.trim());
     if (!lines.length) { showToast('Fichier vide'); return; }
+    const sep = lines[0].includes(';') ? ';' : ',';
+    const colMap = _csvHeaderColumnMap(_parseCsvLine(lines[0], sep));
     let start = 0;
     const firstLine = lines[0].toLowerCase();
-    if (/name/.test(firstLine) && /(company|soci)/.test(firstLine)) start = 1;
-    const sep = lines[0].includes(';') ? ';' : ',';
+    if (colMap || (/name/.test(firstLine) && /(company|soci)/.test(firstLine))) start = 1;
     const rows = [];
     for (let i = start; i < lines.length; i++) {
       const f = _parseCsvLine(lines[i], sep);
-      const name = (f[0] || '').trim();
+      const g = idx => (idx >= 0 ? (f[idx] || '').trim() : '');
+      let name, company, sector, country, linkedin, email, title;
+      if (colMap) {
+        name     = g(colMap.name) || [g(colMap.firstName), g(colMap.lastName)].filter(Boolean).join(' ').trim();
+        company  = g(colMap.company);
+        title    = g(colMap.title);
+        sector   = g(colMap.sector);
+        country  = g(colMap.country);
+        linkedin = g(colMap.linkedin);
+        email    = g(colMap.email);
+      } else {
+        name     = (f[0] || '').trim();
+        company  = (f[1] || '').trim();
+        sector   = (f[2] || '').trim();
+        country  = (f[3] || '').trim();
+        linkedin = (f[4] || '').trim();
+        email    = (f[5] || '').trim();
+        title    = '';
+      }
       if (!name) continue;
-      const company = (f[1] || '').trim();
-      const sector = (f[2] || '').trim();
-      const country = (f[3] || '').trim();
-      const linkedin = (f[4] || '').trim();
-      const email = (f[5] || '').trim();
       const external_id = linkedin
         ? 'li:' + linkedin.replace(/^https?:\/\/(www\.)?linkedin\.com\/in\//, '').replace(/\/$/, '')
         : 'nc:' + name.toLowerCase().replace(/\s+/g, '') + '|' + company.toLowerCase().replace(/\s+/g, '');
       rows.push({
-        client_id: CLIENT_ID, external_id, name, company,
-        sector: sector || null, country: country || null,
+        client_id: CLIENT_ID, external_id, name, company: company || null,
+        title: title || null, sector: sector || null, country: country || null,
         linkedin: linkedin || null, email: email || null,
         stage: 'Identified', origin: 'csv_import', archived: false
       });
