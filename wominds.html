@@ -5448,7 +5448,7 @@ async function _generateSequenceMessage(pid, touch, forceGenerate = false, elPre
   if (btn) btn.disabled = true;
   if (spin) spin.classList.add('active');
   const touchDescriptions = {
-    invite: "une demande de connexion LinkedIn. Structure obligatoire : une phrase d'observation factuelle (max 15 mots) puis une question courte (max 10 mots), puis la signature seule sur sa propre ligne. Moins de 200 caractères au total. Pas de salutation, pas d'argumentaire.",
+    invite: "une demande de connexion LinkedIn. Structure obligatoire : salutation \"Bonjour {Prénom},\" sur sa propre ligne, puis une phrase d'observation factuelle (max 15 mots) puis une question courte (max 10 mots), puis la signature seule sur sa propre ligne. Moins de 200 caractères au total (salutation et signature comprises). Pas d'argumentaire.",
     j0: "un premier message LinkedIn après acceptation de la connexion (ouvre la conversation, pas d'argumentaire, moins de 75 mots), signé en fin de message.",
     j5: "un email de relance (pas un message LinkedIn) : un nouvel angle, appel à l'action léger, moins de 90 mots, signé en fin de message.",
   };
@@ -5487,16 +5487,15 @@ async function _generateSequenceMessage(pid, touch, forceGenerate = false, elPre
   // _cleanVariantText pour le tiret cadratin -- l'instruction seule ne suffit pas toujours,
   // cf. incident 14/09 sur des notes d'invitation ou une consigne equivalente avait deja fuite).
   // Fix 2026-09-15 (coherence avec la generation par lot n8n de 9h, mise a jour ce soir pour
-  // toujours ouvrir sur "Bonjour {prenom},") : meme regle ici, avec le vrai prenom du prospect
-  // donne litteralement au modele (jamais suppose ou invente si p.name est absent/vide -- dans ce
-  // cas greetingRule reste vide, la contrainte n'est simplement pas ajoutee plutot que de risquer
-  // un prenom fabrique). Restreint a j0/j5 (vrais messages avec un corps) -- exclu de invite : la
-  // demande de connexion LinkedIn a deja sa propre structure obligatoire ci-dessus ("pas de
-  // salutation", <200 caracteres, convention LinkedIn standard), que "Bonjour X," contredirait
-  // plutot que completerait. A confirmer avec Thomas si le lot n8n applique reellement cette regle
-  // aux invitations aussi -- peu probable vu la contrainte de format/longueur LinkedIn.
+  // toujours ouvrir sur "Bonjour {prenom},") : meme regle ici, sur les 3 touches y compris invite
+  // (confirme explicitement par Thomas -- un premier essai l'avait exclue de invite par prudence
+  // vis-a-vis de la contrainte <200 caracteres, structure du prompt invite mise a jour en
+  // consequence pour integrer la salutation dans son budget de caracteres plutot que de la
+  // contredire). Le vrai prenom du prospect est donne litteralement au modele (jamais suppose ou
+  // invente si p.name est absent/vide -- dans ce cas greetingRule reste vide, la contrainte n'est
+  // simplement pas ajoutee plutot que de risquer un prenom fabrique).
   const prospectFirstName = (p.name || '').trim().split(/\s+/)[0] || '';
-  const greetingRule = (touch !== 'invite' && prospectFirstName)
+  const greetingRule = prospectFirstName
     ? `Le message doit commencer par "Bonjour ${prospectFirstName}," -- utilisez exactement ce prénom, jamais un autre prénom inventé ou supposé.\n`
     : '';
   const prompt = `Vous écrivez, pour le compte de ${senderFirstName} chez Wominds, ${touchDescriptions[touch] || 'un message de prospection'}
