@@ -3540,7 +3540,7 @@ async function saveProspectForm(){
       country: document.getElementById('addp-country')?.value.trim() || null,
       linkedin: linkedin || null,
       email: document.getElementById('addp-email')?.value.trim() || null,
-      stage: 'Identified', origin: 'manual', archived: false,
+      stage: 'Identified', origin: 'network', archived: false,
     });
     if (error) throw error;
     closeAddProspect();
