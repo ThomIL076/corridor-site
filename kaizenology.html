@@ -8775,9 +8775,13 @@ async function loadDailyPriorities() {
     if (decisionRows && decisionRows.length > 0) {
       const _decisionByProspect = {};
       decisionRows.forEach(r => { if (r.prospect_id) _decisionByProspect[r.prospect_id] = r.category; });
+      // Fix 2026-09-15 (URGENT, filet defensif) : icp_score NULL exclu explicitement, meme sur la
+      // liste de decisions Morning Scan -- jamais afficher "0.0 ICP" a l'utilisateur, cf. commentaire
+      // detaille plus bas sur qA/qB (meme cause, meme fix, applique ici par coherence).
       const { data: decisionProspects, error: errDP } = await sbClient
         .from('prospects_scan_window').select(COLS)
         .eq('client_id', CLIENT_ID)
+        .not('icp_score', 'is', null)
         .in('id', Object.keys(_decisionByProspect));
       if (errDP) throw errDP;
       const _catRank = { today_action: 0, opportunistic_connection: 1 };
@@ -8799,15 +8803,27 @@ async function loadDailyPriorities() {
 
     if (_nextBtn) _nextBtn.style.display = '';
 
+    // Fix 2026-09-15 (URGENT, filet defensif -- backstop, pas le vrai fix) : icp_rank_in_mandate
+    // (prospects_scan_window) est un row_number() ORDER BY icp_score DESC NULLS LAST -- il assigne
+    // un rang sequentiel a TOUT le monde, NULL compris (juste repousse en fin de tri), pas seulement
+    // aux prospects reellement scores. Un mandat avec <=60 prospects au total laisse donc un
+    // prospect jamais score passer <=60 et s'afficher "0.0 ICP" (confirme reel sur Hanane El
+    // Hamraoui/wominds.html ce soir, icp_score NULL jusqu'a une intervention manuelle -- meme classe
+    // de bug, meme fix porte ici). .not('icp_score','is',null) exclut EXPLICITEMENT ces lignes, en
+    // plus du tri -- le vrai fix est le webhook de scoring desormais declenche a l'insert
+    // (addProspect/importCSV ci-dessus), ce filtre reste un filet si un futur bug fait a nouveau
+    // echapper un prospect au scoring automatique.
     let qA = sbClient.from('prospects_scan_window').select(COLS)
       .eq('client_id', CLIENT_ID).eq('archived', false)
       .neq('stage', 'Proposal').neq('stage', 'Closed').neq('stage', 'Archived')
+      .not('icp_score', 'is', null)
       .lte('icp_rank_in_mandate', 60);
     qA = _applyMandateFilter(qA);
 
     let qB = sbClient.from('prospects_scan_window').select(COLS)
       .eq('client_id', CLIENT_ID).eq('archived', false)
       .neq('stage', 'Proposal').neq('stage', 'Closed').neq('stage', 'Archived')
+      .not('icp_score', 'is', null)
       .lte('signal_rank_in_mandate', 60);
     qB = _applyMandateFilter(qB);
 
@@ -10855,12 +10871,28 @@ async function addProspect(){
   };
   const btn = document.getElementById('ap-save-btn'); if (btn) btn.disabled = true;
   try {
-    const { error } = await sbClient.from('prospects').insert(row);
+    const { data: inserted, error } = await sbClient.from('prospects').insert(row).select('id').single();
     if (error) throw error;
     closeAddProspect();
     ['ap-name','ap-company','ap-title','ap-email','ap-linkedin','ap-country'].forEach(x => { const el = document.getElementById(x); if (el) el.value = ''; });
     showToast(currentLang === 'fr' ? 'Prospect ajouté' : 'Prospect added');
     loadKanban(true);
+    // Fix 2026-09-15 (URGENT, icp_score jamais renseigne sur un ajout manuel -- confirme sur
+    // Hanane El Hamraoui/wominds.html, jamais scoree jusqu'a une intervention manuelle ce soir.
+    // importCSV() plus bas declenche deja ce meme webhook apres import -- addProspect() ne l'avait
+    // jamais eu). Passe par le proxy /api/workflow-proxy (jamais l'URL n8n en dur ici -- le secret
+    // x-webhook-secret reste cote serveur, cf. api/workflow-proxy.js). Non-bloquant : un echec du
+    // scoring ne doit jamais empecher l'ajout du prospect lui-meme.
+    if (inserted?.id) {
+      try {
+        const _authH = await _getAuthHeaders();
+        fetch('/api/workflow-proxy?action=icp-score-batch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ..._authH },
+          body: JSON.stringify({ prospect_ids: [inserted.id] })
+        }).catch(e => console.warn('[icp-score-batch] webhook failed:', e));
+      } catch(e) { console.warn('[icp-score-batch] auth headers failed:', e); }
+    }
   } catch(e){ console.error('[addProspect]', e); err.textContent = (e && e.message) ? e.message : 'Error'; err.style.display = 'block'; }
   finally { if (btn) btn.disabled = false; }
 }
