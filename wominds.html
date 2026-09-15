@@ -2218,6 +2218,25 @@ const sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
 });
 const _supabase = sbClient; // alias utilisé par le bloc PROFIL
 let CLIENT_ID = 'wominds'; // résolu dynamiquement dans loadClientProfile()
+// Filtre d'affichage temporaire -- ciblage marche francais uniquement (demande Thomas 2026-09-15).
+// Bascule UNIQUE : mettre a null ou '' ici pour rouvrir a l'international, aucun autre changement
+// necessaire ailleurs dans le fichier. AUCUNE donnee modifiee en base -- affichage seulement, les
+// prospects non filtres restent lisibles/modifiables via requete directe (drawer sur lien direct,
+// exports, etc.), simplement absents des listes/kanban/stats qui passent par _passesCountryFilter.
+const DISPLAY_COUNTRY_FILTER = 'FR';
+// country_code (ISO alpha-2, fiable -- cf. fix 2026-09-14 sur _countryBucket plus bas) est la
+// source primaire. Repli sur le champ libre `country` UNIQUEMENT quand country_code est absent ET
+// que le texte mentionne explicitement la France -- pour ne pas masquer un prospect ajoute a la
+// main (le formulaire "Ajouter un prospect" ne collecte pas country_code, cf. Hanane El Hamraoui :
+// country_code null mais country="France") sans pour autant rouvrir aux vrais inconnus
+// internationaux (ex. "Greater La Coruña Area", "Athens Metropolitan Area" -- ne mentionnent pas
+// la France, restent donc masques comme prevu).
+function _passesCountryFilter(p) {
+  if (!DISPLAY_COUNTRY_FILTER) return true;
+  const cc = (p.country_code || '').trim().toUpperCase();
+  if (cc) return cc === DISPLAY_COUNTRY_FILTER;
+  return DISPLAY_COUNTRY_FILTER === 'FR' && /france/i.test(p.country || '');
+}
 const OWNER_EMAIL = 'thomas@corridor.systems'; // accès complet permanent (compte propriétaire)
 let _blockedKind = null;
 let _demoStarted = false;
@@ -3154,7 +3173,7 @@ async function loadKanban(force){
       .order('created_at', { ascending: false })
       .limit(1000);
     if (error) throw error;
-    _allProspects = (data || []).filter(p => !p.archived);
+    _allProspects = (data || []).filter(p => !p.archived && _passesCountryFilter(p));
     renderKanban(_allProspects);
   } catch(e) {
     console.error('[loadKanban]', e);
@@ -5159,13 +5178,16 @@ async function loadTodayRun() {
   container.innerHTML = '<div style="padding:32px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">Chargement…</div>';
   try {
     const { data, error } = await sbClient.from('prospects')
-      .select('id,name,company,title,sector,stage,icp_score,icp_reason,signal,signal_url,signal_type,signal_interpretation,signal_date,created_at,email,phone,linkedin,website_url,region,country,company_size,funding_stage,last_funding_date,total_funding,hard_criteria_met,company_verified,identity_confidence,score_role,score_size,score_signal_strength,score_recency,score_mandate_fit,score_completeness,reminder_date,deal_value,deal_currency,deal_structure,deal_weighted,next_action,next_action_date,next_action_cache,next_action_generated_at,origin')
+      .select('id,name,company,title,sector,stage,icp_score,icp_reason,signal,signal_url,signal_type,signal_interpretation,signal_date,created_at,email,phone,linkedin,website_url,region,country,country_code,company_size,funding_stage,last_funding_date,total_funding,hard_criteria_met,company_verified,identity_confidence,score_role,score_size,score_signal_strength,score_recency,score_mandate_fit,score_completeness,reminder_date,deal_value,deal_currency,deal_structure,deal_weighted,next_action,next_action_date,next_action_cache,next_action_generated_at,origin')
       .eq('client_id', CLIENT_ID).eq('archived', false)
       .neq('stage', 'Proposal').neq('stage', 'Negotiation').neq('stage', 'Closed')
       .order('icp_score', { ascending: false })
-      .limit(20);
+      .limit(100);
     if (error) throw error;
-    const prospects = data || [];
+    // Sur-fetch (100 au lieu des 20 affiches) car _passesCountryFilter() retire des lignes
+    // apres coup -- sans cette marge, filtrer un .limit(20) pourrait afficher moins de 20
+    // prospects meme quand la base en contient davantage (cf. DISPLAY_COUNTRY_FILTER plus haut).
+    const prospects = (data || []).filter(_passesCountryFilter).slice(0, 20);
     prospects.forEach(p => { if (!_prospectsById[p.id]) _prospectsById[p.id] = p; });
     document.getElementById('today-queued-count').textContent = prospects.length;
     if (!prospects.length) {
@@ -5245,12 +5267,12 @@ async function loadSendView() {
   listEl.innerHTML = '<div style="padding:20px;color:var(--muted);font-size:var(--fs-base)">Chargement…</div>';
   try {
     const { data: prospects, error: pErr } = await sbClient.from('prospects')
-      .select('id,name,company,title,sector,stage,linkedin,last_contact,linkedin_tag,icp_score,client_id,created_at,signal,signal_url,signal_type,signal_date,email,phone,website_url,region,country,icp_reason,signal_interpretation,company_size,funding_stage,last_funding_date,total_funding,hard_criteria_met,company_verified,identity_confidence,score_role,score_size,score_signal_strength,score_recency,score_mandate_fit,score_completeness,reminder_date,deal_value,deal_currency,deal_structure,deal_weighted,next_action,next_action_date,next_action_cache,next_action_generated_at,origin')
+      .select('id,name,company,title,sector,stage,linkedin,last_contact,linkedin_tag,icp_score,client_id,created_at,signal,signal_url,signal_type,signal_date,email,phone,website_url,region,country,country_code,icp_reason,signal_interpretation,company_size,funding_stage,last_funding_date,total_funding,hard_criteria_met,company_verified,identity_confidence,score_role,score_size,score_signal_strength,score_recency,score_mandate_fit,score_completeness,reminder_date,deal_value,deal_currency,deal_structure,deal_weighted,next_action,next_action_date,next_action_cache,next_action_generated_at,origin')
       .eq('client_id', CLIENT_ID).eq('archived', false)
       .order('created_at', { ascending: false })
       .limit(1000);
     if (pErr) throw pErr;
-    _sendProspects = prospects || [];
+    _sendProspects = (prospects || []).filter(_passesCountryFilter);
     _sendProspects.forEach(p => { if (!_prospectsById[p.id]) _prospectsById[p.id] = p; });
 
     const { data: seqs, error: sErr } = await sbClient.from('sequences')
@@ -6531,8 +6553,8 @@ async function _disconnectIntegration(name) {
 // sur donnees reelles lors de l'audit ChatGPT du 12/09. Pas de section Retainer, cf. note. ── ──
 async function _statsActiveProspects() {
   if (_allProspects.length) return _allProspects.filter(p => !p.archived);
-  const { data } = await sbClient.from('prospects').select('sector,country,archived').eq('client_id', CLIENT_ID).eq('archived', false);
-  return (data || []).filter(p => !p.archived);
+  const { data } = await sbClient.from('prospects').select('sector,country,country_code,archived').eq('client_id', CLIENT_ID).eq('archived', false);
+  return (data || []).filter(p => !p.archived && _passesCountryFilter(p));
 }
 function _distRowHTML(name, count, total) {
   const pct = total ? Math.round(count / total * 100) : 0;
@@ -6609,7 +6631,7 @@ async function renderStatsSignal() {
     el.innerHTML = '<div style="color:var(--muted);font-size:var(--fs-sm);padding:8px 0">Aucune taxonomie de signaux configurée.</div>';
     return;
   }
-  const active = (_allProspects.length ? _allProspects : (await sbClient.from('prospects').select('signal_type,archived').eq('client_id', CLIENT_ID).eq('archived', false)).data || []).filter(p => !p.archived);
+  const active = (_allProspects.length ? _allProspects : (await sbClient.from('prospects').select('signal_type,country,country_code,archived').eq('client_id', CLIENT_ID).eq('archived', false)).data || []).filter(p => !p.archived && _passesCountryFilter(p));
   const prospectCounts = {};
   active.forEach(p => { const k = (p.signal_type || '').toUpperCase(); if (k) prospectCounts[k] = (prospectCounts[k] || 0) + 1; });
   const { data: attrData } = await sbClient.from('attribution_log').select('signal_type, amount').eq('client_id', CLIENT_ID);
