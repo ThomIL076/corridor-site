@@ -6824,13 +6824,37 @@ let _scannerLastResult = null;
 // _bcPersistFromScan plus bas) -- comportement standalone inchange sinon.
 let _scannerPreFill = null;
 let _scannerSource = null;
-function openScannerPanel(source) {
+// Rendu de l'intelligence entreprise (5 sections ##) partage entre un scan tout juste lance
+// (runScanner()) et un scan rechargé depuis scan_intelligence (openScannerPanel ci-dessous) --
+// fix 2026-09-16, persistance du scan sur la fiche prospect. Extrait de runScanner() sans
+// changer sa logique : meme découpage, meme rendu, juste reutilisable sur du texte déjà stocké.
+function _renderScannerBrief(briefText) {
+  const out = document.getElementById('scanner-ai-output');
+  const sigListEl = document.getElementById('scanner-signals-list');
+  const triggersCard = document.getElementById('scanner-triggers-card');
+  const triggersOut = document.getElementById('scanner-triggers-output');
+  const strategyCard = document.getElementById('scanner-strategy-card');
+  const strategyOut = document.getElementById('scanner-strategy-output');
+  const coreText = briefText.split(/\n##\s*DÉCLENCHEURS D'ACHAT/i)[0].trim();
+  if (out) out.innerHTML = renderMarkdown(coreText);
+  const triggersMatch = briefText.match(/^## DÉCLENCHEURS D'ACHAT\s*\n([\s\S]*?)(?=\n##\s|$)/mi);
+  const strategyMatch = briefText.match(/^## PROFIL COMPORTEMENTAL ET STRATÉGIE\s*\n([\s\S]*?)(?=\n##\s|$)/mi);
+  if (triggersMatch && triggersCard && triggersOut) { triggersCard.style.display = ''; triggersOut.innerHTML = renderMarkdown(triggersMatch[1].trim()); }
+  if (strategyMatch && strategyCard && strategyOut) { strategyCard.style.display = ''; strategyOut.innerHTML = renderMarkdown(strategyMatch[1].trim()); }
+  const sigs = _scannerDetectSignals(briefText);
+  if (sigs.length && sigListEl) {
+    sigListEl.innerHTML = '<div class="signal-list">' + sigs.map(s => `<span class="signal-tag signal-${s.type}">${_esc(s.label)}</span>`).join('') + '</div>';
+  }
+}
+async function openScannerPanel(source) {
   ['scanner-company','scanner-person','scanner-title','scanner-sector','scanner-url','scanner-context'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   const sr = document.getElementById('scanner-results'); if (sr) sr.style.display = 'none';
   const pa = document.getElementById('scanner-pipeline-action'); if (pa) pa.innerHTML = '';
   const cc = document.getElementById('scanner-contact-card'); if (cc) cc.style.display = 'none';
   const co = document.getElementById('scanner-contact-output'); if (co) co.textContent = 'La fiche apparaîtra ici...';
   const cmo = document.getElementById('scanner-committee-output'); if (cmo) cmo.textContent = 'Cliquez pour cartographier...';
+  const out = document.getElementById('scanner-ai-output'); if (out) out.textContent = 'L\'analyse apparaîtra ici...';
+  const btnLabel = document.getElementById('scanner-btn-label'); if (btnLabel) btnLabel.textContent = 'Analyser';
   _scannerLastResult = null;
   _scannerSource = source === 'drawer' ? 'drawer' : null;
   if (_scannerSource === 'drawer' && _scannerPreFill) {
@@ -6842,6 +6866,31 @@ function openScannerPanel(source) {
   document.getElementById('scanner-overlay').classList.add('open');
   document.getElementById('scanner-panel').classList.add('open');
   document.body.classList.add('scanner-open');
+  // Fix 2026-09-16 (BUG : le resultat du scan disparaissait a chaque fermeture/reouverture de la
+  // fiche prospect, relance necessaire a chaque fois -- vivait uniquement dans les elements DOM/
+  // variables JS du Scanner, jamais persiste). Recharge scan_intelligence depuis Supabase (requete
+  // explicite : cette colonne n'est pas dans le select() de loadKanban()/_allProspects, le cache
+  // _drawerProspect deja en memoire ne l'a donc jamais) quand le Scanner est ouvert depuis le
+  // tiroir d'un prospect reel -- au lieu de repartir d'un etat vide. "Analyser" devient
+  // "Rescanner" UNIQUEMENT si un resultat existant est trouve ; comportement inchange (etat vide,
+  // "Analyser") sinon. Buying committee non concerne ici : deja persiste independamment via
+  // buying_committee_members/_loadBuyingCommittee, qui fonctionnait deja correctement.
+  const _pid = _drawerPid();
+  if (_scannerSource === 'drawer' && _pid) {
+    try {
+      const { data } = await sbClient.from('prospects').select('scan_intelligence').eq('id', _pid).eq('client_id', CLIENT_ID).maybeSingle();
+      const stored = (data?.scan_intelligence || '').trim();
+      if (stored) {
+        const [_storedCompany, _storedContact] = stored.split(/\n---\n/);
+        if (_storedCompany) { _renderScannerBrief(_storedCompany.trim()); if (sr) sr.style.display = 'block'; }
+        if (_storedContact) {
+          if (cc) cc.style.display = '';
+          if (co) co.innerHTML = _esc(_storedContact.trim()).replace(/\n/g, '<br>');
+        }
+        if (btnLabel) btnLabel.textContent = 'Rescanner';
+      }
+    } catch(e) { console.warn('[openScannerPanel] lecture scan_intelligence:', e); }
+  }
 }
 function closeScannerPanel() {
   document.getElementById('scanner-overlay').classList.remove('open');
@@ -6910,11 +6959,14 @@ async function runScanner() {
   triggersCard.style.display = 'none'; triggersOut.innerHTML = '';
   strategyCard.style.display = 'none'; strategyOut.innerHTML = '';
   // Fiche contact (brief 2026-09-12) : en parallele du reste, seulement si un nom est fourni --
-  // fire-and-forget (ecrit dans son propre bloc DOM, n'affecte pas le flux principal).
+  // fire-and-forget (ecrit dans son propre bloc DOM, n'affecte pas le flux principal). Promesse
+  // conservee (contactPromise) uniquement pour pouvoir l'attendre plus bas avant persistance
+  // (fix 2026-09-16) -- ne change ni le declenchement ni l'affichage en direct, deja fire-and-forget.
   const contactCard = document.getElementById('scanner-contact-card');
+  let contactPromise = null;
   if (person) {
     contactCard.style.display = '';
-    _runContactIntelligence(company, person).catch(e => console.error('[_runContactIntelligence]', e));
+    contactPromise = _runContactIntelligence(company, person).catch(e => console.error('[_runContactIntelligence]', e));
   } else {
     contactCard.style.display = 'none';
   }
@@ -6992,19 +7044,41 @@ Règles : n'utilisez jamais de tiret cadratin (—) ni de ligne horizontale (---
       } else {
         // Decoupage identique a demo-private.html (extraction de reference, section 3) : zone
         // principale = texte avant DECLENCHEURS D'ACHAT, deux zones separees par regex ensuite --
-        // jamais de JSON ici, texte libre uniquement.
-        const coreText = briefText.split(/\n##\s*DÉCLENCHEURS D'ACHAT/i)[0].trim();
-        out.innerHTML = renderMarkdown(coreText);
-        const triggersMatch = briefText.match(/^## DÉCLENCHEURS D'ACHAT\s*\n([\s\S]*?)(?=\n##\s|$)/mi);
-        const strategyMatch = briefText.match(/^## PROFIL COMPORTEMENTAL ET STRATÉGIE\s*\n([\s\S]*?)(?=\n##\s|$)/mi);
-        if (triggersMatch) { triggersCard.style.display = ''; triggersOut.innerHTML = renderMarkdown(triggersMatch[1].trim()); }
-        if (strategyMatch) { strategyCard.style.display = ''; strategyOut.innerHTML = renderMarkdown(strategyMatch[1].trim()); }
-        const sigs = _scannerDetectSignals(briefText);
-        if (sigs.length) {
-          sigListEl.innerHTML = '<div class="signal-list">' + sigs.map(s => `<span class="signal-tag signal-${s.type}">${_esc(s.label)}</span>`).join('') + '</div>';
-        }
+        // jamais de JSON ici, texte libre uniquement. Extrait dans _renderScannerBrief() (fix
+        // 2026-09-16) pour etre reutilise a l'identique lors d'un rechargement depuis
+        // scan_intelligence -- meme decoupage, meme rendu, ce bloc ne change pas de comportement.
+        _renderScannerBrief(briefText);
       }
     }
+
+    // Fix 2026-09-16 (BUG : le resultat du scan disparaissait a chaque fermeture/reouverture de
+    // la fiche prospect, relance necessaire a chaque fois) : persiste l'intelligence entreprise +
+    // contact dans prospects.scan_intelligence (colonne text deja existante, deja utilisee pour la
+    // meme donnee sur demo-private.html/kaizenology.html -- wominds.html ne l'ecrivait jamais).
+    // Uniquement quand le Scanner est ouvert depuis le tiroir d'un prospect reel (source='drawer')
+    // ET que la societe scannee correspond encore a celle du prospect ouvert -- meme garde-fou que
+    // _bcPersistFromScan plus bas, pour ne jamais rattacher un scan a la mauvaise fiche si le champ
+    // societe a ete modifie manuellement apres l'ouverture. N'ecrit jamais icp_score/icp_reason :
+    // le scoring est deja gere par le webhook automatique (fix de la nuit derniere), pas duplique
+    // ici. Buying committee non concerne : deja persiste independamment (_bcPersistFromScan), deja
+    // fonctionnel.
+    try {
+      const _pid = _drawerPid();
+      if (_pid && _scannerSource === 'drawer' && _drawerProspect
+          && (_drawerProspect.company || '').trim().toLowerCase() === company.trim().toLowerCase()) {
+        if (contactPromise) await contactPromise;
+        const _contactBrief = (() => {
+          const t = (document.getElementById('scanner-contact-output')?.textContent || '').trim();
+          return (t && !t.startsWith('Recherche')) ? t : '';
+        })();
+        const _patchBrief = [briefText.trim(), _contactBrief ? '---\n' + _contactBrief : ''].filter(Boolean).join('\n\n').slice(0, 3000);
+        if (_patchBrief) {
+          const { error: _scanIntelErr } = await sbClient.from('prospects').update({ scan_intelligence: _patchBrief }).eq('id', _pid).eq('client_id', CLIENT_ID);
+          if (_scanIntelErr) console.warn('[runScanner] ecriture scan_intelligence:', _scanIntelErr);
+          else _patchProspectCaches(_pid, { scan_intelligence: _patchBrief });
+        }
+      }
+    } catch(e) { console.warn('[runScanner] persistance scan_intelligence:', e); }
 
     // ── 2. Score ICP detaille -- 6 champs JSON (brief 2026-09-13, item 2/3/4 du chantier
     // "Sous-scores ICP detailles") : role_score/size_score/signal_strength_score/mandate_fit_score
