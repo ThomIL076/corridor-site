@@ -1922,6 +1922,20 @@ body.new-nav { padding-left: 220px; }
     </div>
   </div>
 
+  <!-- ══ ONGLET : SEO (agent_proposals, agent_name='seo_agent' -- rapport hebdomadaire genere par
+       n8n chaque lundi, envoye aussi par email/Slack ; lecture seule ici, brief 2026-09-16 --
+       Elodie continue de copier-coller manuellement vers Hostinger et vers la publication
+       d'articles, aucune logique d'edition/publication automatique construite ici) ══ -->
+  <div class="tab-panel" id="tab-seo">
+    <div style="padding:24px 16px 0;max-width:800px;margin:0 auto;">
+      <div class="module-header" style="margin-bottom:20px;">
+        <div class="module-title">SEO</div>
+        <div class="section-sub">Audit technique et propositions de contenu, générés chaque lundi par l'agent SEO.</div>
+      </div>
+      <div id="seo-container"><div style="padding:32px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">Chargement…</div></div>
+    </div>
+  </div>
+
   <!-- ══ ONGLET : CLIENTS (crm_clients -- alimente automatiquement par les deals Clotures) ══ -->
   <div class="tab-panel" id="tab-clients">
     <div style="padding:24px 16px 0;max-width:800px;margin:0 auto;">
@@ -1996,6 +2010,7 @@ body.new-nav { padding-left: 220px; }
       <button class="more-row" onclick="switchTab('signals')"><span>Signaux</span><span class="more-chevron">›</span></button>
       <button class="more-row" onclick="switchTab('pipeintel')"><span>Santé du pipeline</span><span class="more-chevron">›</span></button>
       <button class="more-row" onclick="switchTab('reports')"><span>Rapports</span><span class="more-chevron">›</span></button>
+      <button class="more-row" onclick="switchTab('seo')"><span>SEO</span><span class="more-chevron">›</span></button>
       <button class="more-row" onclick="switchTab('clients')"><span>Clients</span><span class="more-chevron">›</span></button>
       <button class="more-row" onclick="switchTab('integrations')"><span>Intégrations</span><span class="more-chevron">›</span></button>
       <button class="more-row" onclick="switchTab('stats')"><span>Stats</span><span class="more-chevron">›</span></button>
@@ -2302,6 +2317,7 @@ function switchTab(name){
   if (name === 'agents') renderAgentsScreen();
   if (name === 'pipeintel') loadPipelineHealth();
   if (name === 'reports') _loadWeeklyReports();
+  if (name === 'seo') loadSeoTab();
   if (name === 'clients') loadClientsView();
   if (name === 'integrations') loadIntegrationsTab();
   if (name === 'stats') { renderStatsSector(); renderStatsCountry(); renderStatsRevenue(); renderStatsSignal(); renderStatsLearning(); }
@@ -6418,6 +6434,112 @@ function _switchRptTab(key) {
     if (panel) panel.style.display = k === key ? '' : 'none';
   });
   if (key === 'daily') _loadDailyReports();
+}
+
+// ── SEO (brief 2026-09-16) : agent_proposals, agent_name='seo_agent' -- audit hebdomadaire deja
+// en place et fonctionnel cote n8n/Supabase (envoie aussi par email et Slack chaque lundi), cette
+// section n'en est qu'une lecture. Lecture seule stricte : aucune ecriture, aucune logique
+// d'edition/publication -- Elodie continue de copier-coller manuellement vers Hostinger et vers
+// la publication d'articles. Une ligne par semaine en theorie (scan_date), mais plusieurs runs du
+// meme jour observes en base en pratique -- tri par scan_date PUIS created_at desc pour prendre
+// reellement la plus recente, jamais une ligne au hasard parmi des scan_date identiques.
+let _seoHostingerText = '';
+function _seoScoreColor(score) {
+  if (score == null) return 'var(--muted)';
+  if (score < 5) return 'var(--danger)';
+  if (score < 8) return 'var(--amber)';
+  return 'var(--green-brand)';
+}
+function _seoListHTML(items) {
+  if (!Array.isArray(items) || !items.length) return '<div class="pd-empty">Aucune donnée pour l\'instant.</div>';
+  return '<ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px;">'
+    + items.map(i => `<li style="font-size:var(--fs-sm);color:var(--text);line-height:1.5;">${_esc(i)}</li>`).join('')
+    + '</ul>';
+}
+function _seoVariantCardHTML(v, idx) {
+  return `<details class="card" style="margin-bottom:12px;">
+    <summary style="cursor:pointer;">
+      <div style="font-weight:700;color:var(--navy);font-size:var(--fs-sm);">${_esc(v.title || 'Proposition ' + (idx + 1))}</div>
+      <div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap;">
+        ${v.target_keyword ? `<span class="k-badge">${_esc(v.target_keyword)}</span>` : ''}
+      </div>
+    </summary>
+    <div style="margin-top:14px;">
+      ${v.angle ? `<div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:8px;"><strong style="color:var(--text);">Angle</strong> · ${_esc(v.angle)}</div>` : ''}
+      ${v.why_now ? `<div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:14px;"><strong style="color:var(--text);">Pourquoi maintenant</strong> · ${_esc(v.why_now)}</div>` : ''}
+      <div style="border-top:1px solid var(--border);padding-top:14px;font-size:var(--fs-sm);color:var(--text);line-height:1.6;">${v.body ? renderMarkdown(v.body) : ''}</div>
+    </div>
+  </details>`;
+}
+async function loadSeoTab() {
+  const container = document.getElementById('seo-container');
+  if (!container) return;
+  container.innerHTML = '<div style="padding:32px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">Chargement…</div>';
+  try {
+    const { data, error } = await sbClient.from('agent_proposals')
+      .select('id, scan_date, created_at, raw_payload, variants')
+      .eq('client_id', CLIENT_ID).eq('agent_name', 'seo_agent').eq('content_type', 'seo_audit_and_proposals')
+      .order('scan_date', { ascending: false }).order('created_at', { ascending: false })
+      .limit(1).maybeSingle();
+    if (error) throw error;
+    if (!data) {
+      container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">Aucun audit SEO disponible pour l\'instant. Cette section se remplira au prochain passage de l\'agent SEO (chaque lundi).</div>';
+      return;
+    }
+    const payload = data.raw_payload || {};
+    const variants = Array.isArray(data.variants) ? data.variants : [];
+    _seoHostingerText = payload.hostinger_instruction || '';
+    const scanDate = data.scan_date ? new Date(data.scan_date + 'T00:00:00') : null;
+    const scanDateAbs = scanDate ? scanDate.toLocaleDateString('fr-FR', { day:'numeric', month:'long', year:'numeric' }) : null;
+    const scanDateRel = scanDate ? _relDate(scanDate.toISOString()) : null;
+    const freshLabel = scanDateAbs ? (scanDateRel && scanDateRel !== scanDateAbs ? `${scanDateRel} (${scanDateAbs})` : scanDateAbs) : 'date inconnue';
+    const score = payload.audit_score != null ? Number(payload.audit_score) : null;
+    container.innerHTML = `
+      <div style="font-size:var(--fs-sm);color:var(--muted);margin-bottom:16px;">Dernier scan : ${_esc(freshLabel)}</div>
+      <div class="card" style="margin-bottom:16px;display:flex;align-items:center;gap:16px;">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:32px;font-weight:700;color:${_seoScoreColor(score)};">${score != null ? score.toFixed(1) : 'N/D'}<span style="font-size:16px;color:var(--muted);">/10</span></div>
+        <div style="font-size:var(--fs-sm);color:var(--muted);">Score d'audit global</div>
+      </div>
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-header"><span class="card-title">Problèmes techniques</span></div>
+        ${_seoListHTML(payload.technical_issues)}
+      </div>
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-header"><span class="card-title">Opportunités de mots-clés</span></div>
+        ${_seoListHTML(payload.keyword_opportunities)}
+      </div>
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-header"><span class="card-title">Recommandations</span></div>
+        ${_seoListHTML(payload.recommendations)}
+      </div>
+      ${_seoHostingerText ? `
+      <div class="card" style="margin-bottom:24px;border:1.5px solid var(--blue);background:var(--navy-light);">
+        <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+          <span class="card-title">À coller dans Hostinger Horizons</span>
+          <button class="btn-secondary btn-sm" id="seo-copy-hostinger-btn" onclick="_seoCopyHostinger()">Copier</button>
+        </div>
+        <div style="font-size:var(--fs-sm);color:var(--text);line-height:1.6;white-space:pre-wrap;">${_esc(_seoHostingerText)}</div>
+      </div>` : ''}
+      <div class="module-header" style="margin-bottom:14px;">
+        <div class="module-title" style="font-size:var(--fs-base);">Propositions de contenu</div>
+        <div class="section-sub">3 articles prêts à relire et publier.</div>
+      </div>
+      ${variants.length ? variants.map((v, i) => _seoVariantCardHTML(v, i)).join('') : '<div class="pd-empty">Aucune proposition de contenu pour ce scan.</div>'}
+    `;
+  } catch(e) {
+    console.warn('[loadSeoTab]', e);
+    container.innerHTML = '<div style="padding:32px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">Impossible de charger l\'audit SEO pour le moment.</div>';
+  }
+}
+function _seoCopyHostinger() {
+  if (!_seoHostingerText) return;
+  navigator.clipboard.writeText(_seoHostingerText).then(() => {
+    const btn = document.getElementById('seo-copy-hostinger-btn');
+    if (!btn) return;
+    const orig = btn.textContent;
+    btn.textContent = 'Copié !';
+    setTimeout(() => { btn.textContent = orig; }, 1500);
+  });
 }
 
 // ── CLIENTS ──────────────────────────────────────────────────────────────────
