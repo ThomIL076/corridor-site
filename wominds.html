@@ -3185,13 +3185,23 @@ async function loadKanban(force){
   if (btn) btn.disabled = true;
   try {
     await _loadSignalTaxonomy();
-    const { data, error } = await sbClient.from('prospects')
-      .select('id, name, company, title, sector, region, country, country_code, stage, icp_score, icp_reason, signal, signal_url, signal_type, signal_interpretation, signal_date, notes, created_at, archived, email, phone, linkedin, website_url, company_size, funding_stage, last_funding_date, total_funding, hard_criteria_met, company_verified, identity_confidence, score_role, score_size, score_signal_strength, score_recency, score_mandate_fit, score_completeness, reminder_date, deal_value, deal_currency, deal_structure, deal_weighted, next_action, next_action_date, next_action_cache, next_action_generated_at, origin')
-      .eq('client_id', CLIENT_ID)
-      .order('created_at', { ascending: false })
-      .limit(1000);
-    if (error) throw error;
-    _allProspects = (data || []).filter(p => !p.archived && _passesCountryFilter(p));
+    // Pagination complete via .range() (meme mecanisme que demo-private.html loadKanban) --
+    // un .limit(1000) tronquait silencieusement au-dela de 1000 lignes (bug 2026-09-17 :
+    // badge pipeline bloque a 1000, colonne Connecte a 0 alors que les 4 prospects concernes
+    // existaient bien, juste hors des 1000 plus recents par created_at).
+    let _kAll = [], _kFrom = 0;
+    while (true) {
+      const { data: chunk, error } = await sbClient.from('prospects')
+        .select('id, name, company, title, sector, region, country, country_code, stage, icp_score, icp_reason, signal, signal_url, signal_type, signal_interpretation, signal_date, notes, created_at, archived, email, phone, linkedin, website_url, company_size, funding_stage, last_funding_date, total_funding, hard_criteria_met, company_verified, identity_confidence, score_role, score_size, score_signal_strength, score_recency, score_mandate_fit, score_completeness, reminder_date, deal_value, deal_currency, deal_structure, deal_weighted, next_action, next_action_date, next_action_cache, next_action_generated_at, origin')
+        .eq('client_id', CLIENT_ID)
+        .order('created_at', { ascending: false })
+        .range(_kFrom, _kFrom + 999);
+      if (error) throw error;
+      _kAll = _kAll.concat(chunk || []);
+      if (!chunk || chunk.length < 1000) break;
+      _kFrom += 1000;
+    }
+    _allProspects = _kAll.filter(p => !p.archived && _passesCountryFilter(p));
     renderKanban(_allProspects);
   } catch(e) {
     console.error('[loadKanban]', e);
@@ -5432,13 +5442,21 @@ async function loadSendView() {
   if (!listEl) return;
   listEl.innerHTML = '<div style="padding:20px;color:var(--muted);font-size:var(--fs-base)">Chargement…</div>';
   try {
-    const { data: prospects, error: pErr } = await sbClient.from('prospects')
-      .select('id,name,company,title,sector,stage,linkedin,last_contact,linkedin_tag,icp_score,client_id,created_at,signal,signal_url,signal_type,signal_date,email,phone,website_url,region,country,country_code,icp_reason,signal_interpretation,company_size,funding_stage,last_funding_date,total_funding,hard_criteria_met,company_verified,identity_confidence,score_role,score_size,score_signal_strength,score_recency,score_mandate_fit,score_completeness,reminder_date,deal_value,deal_currency,deal_structure,deal_weighted,next_action,next_action_date,next_action_cache,next_action_generated_at,origin')
-      .eq('client_id', CLIENT_ID).eq('archived', false)
-      .order('created_at', { ascending: false })
-      .limit(1000);
-    if (pErr) throw pErr;
-    _sendProspects = (prospects || []).filter(_passesCountryFilter);
+    // Pagination complete via .range() (meme mecanisme que demo-private.html loadSendView,
+    // meme bug de troncature a 1000 lignes que loadKanban ci-dessus).
+    let _spAll = [], _spFrom = 0;
+    while (true) {
+      const { data: chunk, error: pErr } = await sbClient.from('prospects')
+        .select('id,name,company,title,sector,stage,linkedin,last_contact,linkedin_tag,icp_score,client_id,created_at,signal,signal_url,signal_type,signal_date,email,phone,website_url,region,country,country_code,icp_reason,signal_interpretation,company_size,funding_stage,last_funding_date,total_funding,hard_criteria_met,company_verified,identity_confidence,score_role,score_size,score_signal_strength,score_recency,score_mandate_fit,score_completeness,reminder_date,deal_value,deal_currency,deal_structure,deal_weighted,next_action,next_action_date,next_action_cache,next_action_generated_at,origin')
+        .eq('client_id', CLIENT_ID).eq('archived', false)
+        .order('created_at', { ascending: false })
+        .range(_spFrom, _spFrom + 999);
+      if (pErr) throw pErr;
+      _spAll = _spAll.concat(chunk || []);
+      if (!chunk || chunk.length < 1000) break;
+      _spFrom += 1000;
+    }
+    _sendProspects = _spAll.filter(_passesCountryFilter);
     _sendProspects.forEach(p => { if (!_prospectsById[p.id]) _prospectsById[p.id] = p; });
 
     const { data: seqs, error: sErr } = await sbClient.from('sequences')
