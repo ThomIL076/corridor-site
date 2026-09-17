@@ -1028,6 +1028,11 @@ body.new-nav { padding-left: 220px; }
   display: block; font-size: var(--sidebar-label-size); font-weight: 500; letter-spacing: 0.03em;
   color: #B7BFD6; padding: 14px 8px 4px;
 }
+/* F15 (port kaizenology, 2026-09-17) : "Configuration" en retrait visuel, meme regle que
+   demo-private.html. */
+.snav-section-muted .snav-section-label { opacity: 0.6; }
+.snav-section-muted .snav-item { font-size: 12px; opacity: 0.72; }
+.snav-section-muted .snav-item:hover, .snav-section-muted .snav-item.active { opacity: 1; }
 .snav-item {
   display: flex; align-items: center; gap: 8px;
   width: 100%; text-align: left;
@@ -1206,32 +1211,55 @@ body.new-nav { padding-left: 220px; }
     <div class="snav-logo-mark"><span></span><span></span><span></span><span></span></div>
     <span class="snav-logo-text">CORRIDOR</span>
   </div>
+  <!-- F15 (port kaizenology, 2026-09-17) : regroupe en 4 taches principales + Configuration
+       attenue, meme structure que demo-private.html -- ids/onclick/icones kaizenology inchanges,
+       seul "Proposals" est renomme "Drafts & approvals" (meme collision de mot avec le stage
+       pipeline "Proposal" que sur demo-private.html, confirme present ici aussi :
+       KANBAN_STAGES contient 'Proposal'). Pas de badge invente pour Signals/Send/Inbox/Pipeline
+       health : aucune donnee reelle ne les alimente cote kaizenology (contrairement a
+       demo-private.html), contrairement a Proposals/Approvals qui gardent leurs badges reels
+       (_setProposalsBadge, pending-actions). -->
   <div class="snav-section">
+    <span class="snav-section-label" data-en="Today" data-fr="Aujourd'hui">Today</span>
     <button class="snav-item" data-nav="priorities" onclick="_switchNewNav('priorities')">
       <span class="snav-icon">⭐</span><span data-en="Priorities" data-fr="Priorités">Priorities</span>
     </button>
+  </div>
+  <div class="snav-section">
+    <span class="snav-section-label" data-en="Prospects" data-fr="Prospects">Prospects</span>
     <button class="snav-item" data-nav="pipeline" onclick="_switchNewNav('pipeline')">
       <span class="snav-icon">📊</span> Pipeline
     </button>
+    <button class="snav-item" data-nav="clients" onclick="_switchNewNav('clients')">
+      <span class="snav-icon">🏢</span> Clients
+    </button>
+    <button class="snav-item snav-sub" data-nav="system-signals" onclick="_switchNewNav('system','signals')">
+      <span class="snav-icon">🚨</span><span data-en="Signals" data-fr="Signaux">Signals</span>
+    </button>
+  </div>
+  <div class="snav-section">
+    <span class="snav-section-label" data-en="Conversations" data-fr="Conversations">Conversations</span>
     <button class="snav-item" data-nav="send" onclick="_switchNewNav('send')">
       <span class="snav-icon">📤</span><span data-en="Send" data-fr="Envoyer">Send</span>
     </button>
-    <button class="snav-item" data-nav="proposals" onclick="_switchNewNav('proposals')">
-      <span class="snav-icon">📝</span><span data-en="Proposals" data-fr="Propositions">Proposals</span>
-      <span class="send-badge-count" id="proposals-badge"><span id="proposals-count">0</span></span>
+    <button class="snav-item" data-nav="inbox" onclick="_switchNewNav('inbox')">
+      <span class="snav-icon">📩</span><span data-en="Inbox" data-fr="Boîte de réception">Inbox</span>
     </button>
     <button class="snav-item" data-nav="pending-actions" onclick="_switchNewNav('pending-actions')">
       <span class="snav-icon">✅</span><span data-en="Approvals" data-fr="Actions en attente">Approvals</span>
       <span class="send-badge-count" id="pending-actions-badge"><span id="pending-actions-count">0</span></span>
     </button>
-    <button class="snav-item" data-nav="inbox" onclick="_switchNewNav('inbox')">
-      <span class="snav-icon">📩</span><span data-en="Inbox" data-fr="Boîte de réception">Inbox</span>
+    <!-- F15 point 2 (port kaizenology) : renomme depuis "Proposals" -- collision de mot avec le
+         stage pipeline "Proposal", meme raison que demo-private.html. -->
+    <button class="snav-item" data-nav="proposals" onclick="_switchNewNav('proposals')">
+      <span class="snav-icon">📝</span><span data-en="Drafts &amp; approvals" data-fr="Brouillons et validations">Drafts &amp; approvals</span>
+      <span class="send-badge-count" id="proposals-badge"><span id="proposals-count">0</span></span>
     </button>
   </div>
   <div class="snav-section">
-    <span class="snav-section-label">Intelligence</span>
-    <button class="snav-item snav-sub" data-nav="system-signals" onclick="_switchNewNav('system','signals')">
-      <span class="snav-icon">🚨</span><span data-en="Signals" data-fr="Signaux">Signals</span>
+    <span class="snav-section-label" data-en="Results" data-fr="Résultats">Results</span>
+    <button class="snav-item" data-nav="stats" onclick="_switchNewNav('stats')">
+      <span class="snav-icon">📈</span> Stats
     </button>
     <button class="snav-item snav-sub" data-nav="system-pipeintel" onclick="_switchNewNav('system','pipeintel')">
       <span class="snav-icon">📈</span><span data-en="Pipeline health" data-fr="Santé du pipeline">Pipeline health</span>
@@ -1240,21 +1268,16 @@ body.new-nav { padding-left: 220px; }
       <span class="snav-icon">📋</span><span data-en="Reports" data-fr="Rapports">Reports</span>
     </button>
   </div>
-  <div class="snav-section">
-    <span class="snav-section-label">Agents</span>
+  <div class="snav-section snav-section-muted">
+    <span class="snav-section-label" data-en="Configuration" data-fr="Configuration">Configuration</span>
     <button class="snav-item" data-nav="agents" onclick="_switchNewNav('agents')">
       <span class="snav-icon">🤖</span><span data-en="Agents" data-fr="Agents">Agents</span>
     </button>
-  </div>
-  <div class="snav-footer">
-    <button class="snav-item" data-nav="clients" onclick="_switchNewNav('clients')">
-      <span class="snav-icon">🏢</span> Clients
-    </button>
-    <button class="snav-item" data-nav="stats" onclick="_switchNewNav('stats')">
-      <span class="snav-icon">📈</span> Stats
-    </button>
     <button class="snav-item" data-nav="integrations" onclick="_switchNewNav('integrations')">
       <span class="snav-icon">🔗</span> Integrations
+    </button>
+    <button class="snav-item" data-nav="mandate" onclick="_switchNewNav('mandate')">
+      <span class="snav-icon">📜</span><span data-en="Mandate &amp; ICP" data-fr="Mandat &amp; ICP">Mandate &amp; ICP</span>
     </button>
   </div>
   <div class="snav-scanner-zone">
@@ -1263,9 +1286,6 @@ body.new-nav { padding-left: 220px; }
     </button>
     <button class="snav-item" onclick="_openAskPanel(null)" aria-label="Ask Corridor">
       <span class="snav-icon"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span><span data-en="Ask Corridor" data-fr="Demander à Corridor">Ask Corridor</span>
-    </button>
-    <button class="snav-item" data-nav="mandate" onclick="_switchNewNav('mandate')">
-      <span class="snav-icon">📜</span><span data-en="Mandate &amp; ICP" data-fr="Mandat &amp; ICP">Mandate &amp; ICP</span>
     </button>
   </div>
 </aside>
@@ -1729,7 +1749,7 @@ body.new-nav { padding-left: 220px; }
   <div class="tab-panel" id="tab-proposals">
     <div style="padding:24px 16px 0;max-width:800px;margin:0 auto;">
       <div class="module-header">
-        <div class="module-title">Proposals</div>
+        <div class="module-title" data-en="Drafts &amp; approvals" data-fr="Brouillons et validations">Drafts &amp; approvals</div>
         <div class="section-sub">Content drafted by agents, waiting for a variant to be approved or rejected.</div>
       </div>
       <div id="proposals-container"></div>
@@ -6518,6 +6538,13 @@ function _renderSendSection(title, prospects, touchType) {
             ${p.signal ? `<div style="margin-top:3px;">${_sigBadge(p.signal_type)}</div>` : ''}
           </div>
           <span class="send-touch ${TOUCH_LABELS[touchType]?.class||'touch-j0'}">${TOUCH_LABELS[touchType]?.label||touchType}</span>
+          <!-- F09 (port kaizenology, 2026-09-17) : meme badge que demo-private.html -- reutilise
+               hasBody/isReady deja calcules ci-dessus, aucune nouvelle donnee. -->
+          ${isReady
+            ? `<span class="send-touch" style="background:var(--green-bg);color:var(--green);">✓ Ready</span>`
+            : hasBody
+              ? `<span class="send-touch" style="background:var(--chip-bg);color:var(--indigo);">Draft saved</span>`
+              : `<span class="send-touch" style="background:#f3f4f6;color:#6b7280;">No draft</span>`}
         </div>
         <div class="send-expand" id="se-${p.id}" style="display:none">
           <div class="ai-box" style="margin-top:10px">
