@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = 'https://oanokmugroiahtgcecbn.supabase.co';
-const supabase = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+const supabase = createClient(SUPABASE_URL, process.env.SUPABASE_SECRET_KEY);
 
 function htmlPage(body, title) {
   return '<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><title>' + title + '</title>'

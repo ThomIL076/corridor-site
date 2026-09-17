@@ -11,7 +11,11 @@
 set -uo pipefail
 
 SUPABASE_URL="https://oanokmugroiahtgcecbn.supabase.co"
-ANON_KEY="sb_publishable_2EjvzlNU58xml_Q6lqt9IQ_2jWeGvmQ"
+# service_role, jamais codee en dur (meme regle que les credentials n8n) -- lue depuis
+# l'environnement. Fix securite RLS du 2026-09-11 : anon a perdu SELECT sur workflow_health
+# intentionnellement (ne doit plus jamais y avoir acces), donc TEST 1 ne peut plus utiliser
+# la cle publique -- service_role est necessaire pour lire cette table de monitoring interne.
+SUPABASE_SECRET_KEY="${SUPABASE_SECRET_KEY:-}"
 
 # Compteur d'echecs reels (pas les warnings ⚠, juste ce qui est sans ambiguite casse) --
 # ajoute pour que deploy.sh puisse detecter un echec via le code de sortie plutot que de
@@ -27,48 +31,68 @@ echo "============================================================"
 # TEST 1 — Fraîcheur des workflows critiques (workflow_health)
 # Détecte un cron silencieusement cassé sans attendre l'alerte
 # Health Watchdog (qui ne se déclenche qu'après 26h de silence).
+#
+# NOTE (2026-09-17) : ce test peut échouer ou se comporter de façon
+# inattendue tant que SUPABASE_SECRET_KEY reste typée "Sensitive" côté
+# Vercel -- cette catégorie bloque définitivement la relecture de la
+# valeur en clair via CLI/API (`vercel env pull` la renvoie toujours
+# vide, ce n'est pas un bug). Toute portion de ce script qui dépend de
+# la clé lue localement (plutôt que déjà présente dans l'environnement
+# d'exécution) ne pourra donc pas s'exécuter automatiquement sans
+# action manuelle. Deux options pour rétablir l'exécution automatique
+# si besoin un jour :
+#   1. Exporter la clé localement à partir de la valeur déjà détenue
+#      par ailleurs (password manager, note) -- jamais en dur ici.
+#   2. Repasser la variable en type standard non-Sensitive dans le
+#      dashboard Vercel -- moins sûr.
 # ------------------------------------------------------------
 echo ""
 echo "--- TEST 1 : Fraîcheur workflow_health (workflows critiques) ---"
 
-CRITICAL_WORKFLOWS=(
-  "Morning Scan — Corridor"
-  "Morning Scan — Kaizenology"
-  "Corridor - Auto ICP Scoring v1"
-  "auto_icp_scoring_kaizenology"
-  "Trigify Signal Sync v1 — Thomas"
-  "Trigify Signal Sync v1 — Kaizenology"
-  "Corridor - Auto Invitations LinkedIn v1"
-)
+if [ -z "$SUPABASE_SECRET_KEY" ]; then
+  # Echec propre plutot qu'un 401 silencieux -- sans cette variable, les 7 requetes ci-dessous
+  # echoueraient une par une avec une erreur PostgREST peu parlante (et anon n'est plus une
+  # option de repli valide : cf. fix securite RLS ci-dessus).
+  echo "  ❌ SUPABASE_SECRET_KEY n'est pas definie dans l'environnement -- TEST 1 impossible."
+  echo "     export SUPABASE_SECRET_KEY='...' avant de relancer ce script (jamais en dur ici)."
+  FAILED=$((FAILED + 1))
+else
+  CRITICAL_WORKFLOWS=(
+    "Morning Scan — Corridor"
+    "Morning Scan — Kaizenology"
+    "Corridor - Auto ICP Scoring v1"
+    "auto_icp_scoring_kaizenology"
+    "Trigify Signal Sync v1 — Thomas"
+    "Trigify Signal Sync v1 — Kaizenology"
+    "Corridor - Auto Invitations LinkedIn v1"
+  )
 
-for wf in "${CRITICAL_WORKFLOWS[@]}"; do
-  # Fix 2026-09-10 : python3 resout vers un stub Windows Store sur Git Bash/Windows (exit non-zero,
-  # message d'erreur -- pas un vrai interpreteur), donc le fallback `|| echo "$wf"` se declenchait
-  # en silence et envoyait le nom de workflow BRUT (espaces + tiret cadratin non encodes) dans
-  # l'URL -- curl echouait purement et simplement (HTTP_STATUS:000), jamais une vraie reponse
-  # PostgREST. node est deja une dependance confirmee de ce repo (deploy.sh, autres scripts) et
-  # fonctionne de facon fiable ici, contrairement a python3 -- plus de fallback silencieux errone.
-  encoded=$(node -e "console.log(encodeURIComponent(process.argv[1]))" "$wf")
-  result=$(curl -s "$SUPABASE_URL/rest/v1/workflow_health?workflow_name=eq.$encoded&select=last_success_at" \
-    -H "apikey: $ANON_KEY")
-  # Detection d'erreur ajoutee (trouve en test le 10/09 : la reponse etait un objet d'erreur
-  # PostgREST -- {"code":"42501",...} GRANT manquant sur workflow_health pour le role anon --
-  # et ce test l'imprimait tel quel sans jamais le signaler comme un echec, silencieux depuis
-  # une duree indeterminee).
-  if echo "$result" | grep -q '"code"'; then
-    echo "  $wf : ❌ ERREUR REQUETE -- $result"
-    FAILED=$((FAILED + 1))
-  elif [ -z "$result" ] || [ "$result" = "[]" ]; then
-    # 2026-09-10 : GRANT confirme present sur cette table (verifie par Thomas), donc un [] silencieux
-    # (200 OK, zero ligne, meme sans filtre de nom du tout) pointe vers RLS actif sans policy SELECT
-    # pour anon plutot que vers un GRANT manquant -- les deux causes ont des symptomes differents
-    # (42501 = GRANT, [] = RLS) mais le meme effet visible ici. Verifier : SELECT * FROM pg_policies
-    # WHERE tablename = 'workflow_health';
-    echo "  $wf : ⚠ Aucune ligne retournee (workflow jamais execute, nom desynchronise, ou policy RLS manquante pour anon malgre un GRANT correct)"
-  else
-    echo "  $wf : $result"
-  fi
-done
+  for wf in "${CRITICAL_WORKFLOWS[@]}"; do
+    # Fix 2026-09-10 : python3 resout vers un stub Windows Store sur Git Bash/Windows (exit non-zero,
+    # message d'erreur -- pas un vrai interpreteur), donc le fallback `|| echo "$wf"` se declenchait
+    # en silence et envoyait le nom de workflow BRUT (espaces + tiret cadratin non encodes) dans
+    # l'URL -- curl echouait purement et simplement (HTTP_STATUS:000), jamais une vraie reponse
+    # PostgREST. node est deja une dependance confirmee de ce repo (deploy.sh, autres scripts) et
+    # fonctionne de facon fiable ici, contrairement a python3 -- plus de fallback silencieux errone.
+    encoded=$(node -e "console.log(encodeURIComponent(process.argv[1]))" "$wf")
+    result=$(curl -s "$SUPABASE_URL/rest/v1/workflow_health?workflow_name=eq.$encoded&select=last_success_at" \
+      -H "apikey: $SUPABASE_SECRET_KEY" \
+      -H "Authorization: Bearer $SUPABASE_SECRET_KEY")
+    # Detection d'erreur ajoutee (trouve en test le 10/09 : la reponse etait un objet d'erreur
+    # PostgREST -- {"code":"42501",...} GRANT manquant -- et ce test l'imprimait tel quel sans
+    # jamais le signaler comme un echec, silencieux depuis une duree indeterminee). Avec
+    # service_role (bypass RLS/GRANT par nature), un 42501 ici pointerait vers autre chose
+    # qu'un probleme de droits anon -- a investiguer specifiquement si ca se reproduit.
+    if echo "$result" | grep -q '"code"'; then
+      echo "  $wf : ❌ ERREUR REQUETE -- $result"
+      FAILED=$((FAILED + 1))
+    elif [ -z "$result" ] || [ "$result" = "[]" ]; then
+      echo "  $wf : ⚠ Aucune ligne retournee (workflow jamais execute, ou nom desynchronise)"
+    else
+      echo "  $wf : $result"
+    fi
+  done
+fi
 
 echo ""
 echo "  ATTENDU : last_success_at récent (dans la fenêtre attendue de"

@@ -4,7 +4,7 @@ const GRANOLA_BASE = 'https://public-api.granola.ai/v1';
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
+  process.env.SUPABASE_SECRET_KEY
 );
 
 export const config = { runtime: 'nodejs' };

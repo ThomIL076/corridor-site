@@ -25,7 +25,7 @@ export default async function handler(req, res) {
   const isThomas = client_id === 'thomas';
   let apiKey = null, accountId = null;
   try {
-    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SECRET_KEY);
     const { data } = await supabase
       .from('clients')
       .select('heyreach_api_key, heyreach_linkedin_account_id')

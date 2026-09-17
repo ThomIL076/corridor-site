@@ -33,10 +33,10 @@ if (!CLIENT_ID) {
 // ── Supabase ──────────────────────────────────────────────────────────────────
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const SUPABASE_KEY = process.env.SUPABASE_SECRET_KEY;
 
 if (!SUPABASE_URL || !SUPABASE_KEY) {
-  console.error('Erreur : SUPABASE_URL et SUPABASE_SERVICE_ROLE_KEY doivent être définies (voir .env.local, lancer avec --env-file=.env.local)');
+  console.error('Erreur : SUPABASE_URL et SUPABASE_SECRET_KEY doivent être définies (voir .env.local, lancer avec --env-file=.env.local)');
   process.exit(1);
 }
 
