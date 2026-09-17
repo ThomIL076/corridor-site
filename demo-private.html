@@ -1591,9 +1591,11 @@ body.new-nav { padding-left: 220px; }
     <button class="snav-item" data-nav="mandate" onclick="_switchNewNav('mandate')">
       <span data-en="Mandate &amp; ICP" data-fr="Mandat &amp; ICP">Mandate &amp; ICP</span>
     </button>
+    <!-- F13 (audit 2026-09-17) : badge desormais reel (workflow_health), plus de dot vert fixe
+         affiche meme si le Morning Scan du jour a totalement echoue -- cf. _loadSystemActiveStatus(). -->
     <div class="snav-system-active">
-      <span class="snav-live-dot" aria-hidden="true"></span>
-      <span data-en="System active" data-fr="Système actif">System active</span>
+      <span class="snav-live-dot" id="system-active-dot" aria-hidden="true"></span>
+      <span id="system-active-label" data-en="System active" data-fr="Système actif">System active</span>
     </div>
     <button id="signout-btn" class="snav-signout" onclick="signOut()" aria-label="Sign out">
       <span data-en="Sign out" data-fr="Se déconnecter">Sign out</span>
@@ -3869,6 +3871,7 @@ async function showDemo(){
   loadSendView();
   loadInboxDrafts('pending');
   loadClientsKanban(); // idem, alimente aussi le compte CLIENT de la spine (Phase 1)
+  _loadSystemActiveStatus(); // F13, meme principe fire-and-forget
   _initHpFilters();
   // Init unique post-login : Priorities par défaut + scroll en haut (PWA démarre proprement)
   if (!_demoStarted) {
@@ -3996,6 +3999,72 @@ function _mirrorSessionCookie(session) {
     document.cookie = 'corridor_session=; Secure; SameSite=Lax; Path=/; Max-Age=0';
   }
 }
+// F13 (audit 2026-09-17) : badge "System active" etait entierement statique (HTML fixe, aucune
+// donnee) -- affichait "System active" meme si le Morning Scan du jour avait totalement echoue.
+// workflow_name exact de CE fichier (demo-private.html = Corridor) ; kaizenology.html/wominds.html
+// ont chacun leur propre nom de workflow, a traiter separement une fois celui-ci valide.
+// workflow_health n'a qu'une policy RLS service_role (voir smoke-tests-corridor.sh) -- passe donc
+// par /api/workflow-status (meme mecanisme que /api/client-profile) plutot qu'un select direct,
+// qui reviendrait toujours vide.
+const _SYSTEM_ACTIVE_WORKFLOW = 'Morning Scan — Corridor';
+// Etat brut mis en cache (pas de refetch au changement de langue) -- null tant que
+// _loadSystemActiveStatus() n'a pas resolu au moins une fois.
+let _systemActiveState = null;
+// Rendu pur a partir de _systemActiveState + currentLang -- separee de la recuperation reseau
+// pour que setLang() puisse re-traduire ce badge sans nouvel appel a /api/workflow-status (les
+// autres loaders fire-and-forget de showDemo() ne se retraduisent pas au changement de langue,
+// mais ici le cout est nul : aucune donnee a rafraichir, juste le texte).
+function _renderSystemActiveLabel() {
+  const dot = document.getElementById('system-active-dot');
+  const label = document.getElementById('system-active-label');
+  if (!dot || !label || !_systemActiveState) return;
+  const isFr = typeof currentLang !== 'undefined' && currentLang === 'fr';
+  const L = isFr
+    ? { active: 'Système actif', delayed: 'Scan retardé', unknown: 'État inconnu' }
+    : { active: 'System active', delayed: 'Scan delayed', unknown: 'Status unknown' };
+  const { tier, lastSuccessAt } = _systemActiveState;
+  if (tier === 'unknown') {
+    dot.style.background = 'var(--muted)';
+    dot.style.animation = 'none';
+    label.textContent = L.unknown;
+    label.title = '';
+    return;
+  }
+  const lastSuccessLabel = lastSuccessAt ? new Date(lastSuccessAt).toLocaleString(isFr ? 'fr-FR' : 'en-US') : '';
+  if (tier === 'active') {
+    dot.style.background = 'var(--success)';
+    dot.style.animation = '';
+    label.textContent = L.active;
+  } else {
+    dot.style.background = 'var(--amber)';
+    dot.style.animation = 'none';
+    label.textContent = L.delayed;
+  }
+  label.title = (isFr ? 'Dernier succès : ' : 'Last successful run: ') + lastSuccessLabel;
+}
+async function _loadSystemActiveStatus() {
+  try {
+    const res = await fetch('/api/workflow-status?workflow_name=' + encodeURIComponent(_SYSTEM_ACTIVE_WORKFLOW), {
+      headers: await _getAuthHeaders()
+    });
+    // Requete echouee ou aucune ligne trouvee -> etat inconnu explicite, jamais un repli
+    // silencieux sur "actif" par defaut (un etat inconnu ne doit jamais s'afficher comme sain).
+    if (!res.ok) { _systemActiveState = { tier: 'unknown' }; _renderSystemActiveLabel(); return; }
+    const data = await res.json();
+    if (!data || !data.last_success_at) { _systemActiveState = { tier: 'unknown' }; _renderSystemActiveLabel(); return; }
+    const minutesSince = (Date.now() - new Date(data.last_success_at).getTime()) / 60000;
+    const expected = data.expected_interval_minutes || 1440; // repli 24h si jamais renseigne, jamais invente au-dela
+    _systemActiveState = {
+      tier: minutesSince <= expected * 1.5 ? 'active' : 'delayed',
+      lastSuccessAt: data.last_success_at,
+    };
+    _renderSystemActiveLabel();
+  } catch(e) {
+    console.error('[_loadSystemActiveStatus]', e);
+    _systemActiveState = { tier: 'unknown' };
+    _renderSystemActiveLabel();
+  }
+}
 sbClient.auth.getSession().then(({ data }) => { checkAccess(data.session); });
 let _lastAuthUserId = null;
 sbClient.auth.onAuthStateChange((_e, session) => {
@@ -4096,6 +4165,7 @@ function setLang(lang) {
   applyLang();
   renderWelcome();
   paintBlocked();      // écran "essai terminé" / "accès refusé" suit la langue
+  _renderSystemActiveLabel(); // F13 -- re-traduit depuis le cache, pas de nouvel appel reseau
 }
 
 function _relTimeShort(iso) {
