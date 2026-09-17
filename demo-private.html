@@ -1683,8 +1683,11 @@ body.new-nav { padding-left: 220px; }
   </button>
   <button class="spine-stage" data-spine="indeal" onclick="_switchNewNav('pipeline')">
     <span class="spine-dot"></span>
-    <span class="spine-label">In deal</span>
-    <div class="spine-row"><span class="spine-count" id="spine-count-indeal"></span><span class="spine-note">engaged +</span></div>
+    <!-- F10 : "In deal" survendait la maturite reelle (le calcul reste stage rank >= Engaged,
+         hors Closed -- inchange, cf. renderKanban plus bas). "Engaged+" est le titre principal
+         desormais ; l'ancienne note "engaged +" devient redondante avec lui, retiree. -->
+    <span class="spine-label">Engaged+</span>
+    <div class="spine-row"><span class="spine-count" id="spine-count-indeal"></span><span class="spine-note"></span></div>
     <span class="spine-rail"></span>
   </button>
   <button class="spine-stage" data-spine="client" onclick="_switchNewNav('clients')">
