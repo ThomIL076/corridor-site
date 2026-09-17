@@ -14146,7 +14146,12 @@ async function _autoGenerateCsSteps(row) {
   try {
     const res = await fetch(API_URL, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 500, system: systemPrompt, messages: [{ role: 'user', content: userMsg }] })
+      // Fix 2026-09-17 (trace Langfuse reelle, execution ac58a53fa53df0e55d9cdca9550bdd5b) :
+      // 500 tokens ne laissaient pas assez de marge apres le raisonnement interne du modele --
+      // appel facture (97 tokens de sortie) mais thinking="" et text="" vides, rien genere.
+      // Meme cause racine et meme correctif que le bug deja documente sur ICP Score Batch
+      // (workflow n8n) : 4000 tokens alloues la-bas, meme budget repris ici.
+      body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 4000, system: systemPrompt, messages: [{ role: 'user', content: userMsg }] })
     });
     if (!res.ok) return;
     const data = await res.json();
