@@ -1,3 +1,11 @@
 User-agent: *
 Allow: /
+Disallow: /demo-private
+Disallow: /demo-private.html
+Disallow: /kaizenology.html
+Disallow: /yellowwood-demo.html
+Disallow: /phci-demo.html
+Disallow: /lka-demo.html
+Disallow: /partner-demo
+Disallow: /partner-demo.html
 Sitemap: https://www.corridor.systems/sitemap.xml

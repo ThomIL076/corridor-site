@@ -207,6 +207,20 @@ export default async function handler(req, res) {
       ];
     }
 
+    if (data.type === 'error') {
+      // Erreur en-bande renvoyee par Anthropic (429/529/etc, HTTP 200 cote fetch donc pas
+      // interceptee par le catch) -- jusqu'ici loggee comme une completion normale dans Langfuse
+      // (generation.end sans level:'ERROR'), aucune trace exploitable pour diagnostiquer un
+      // incident apres coup. Fix 2026-09-13 (brief Escalation Handler) : marquer explicitement
+      // l'echec + logger le type/message reel cote serveur (console.error, meme convention que
+      // les autres api/*.js -- ex. email-send.js/enrich.js sur un non-2xx).
+      console.error('[generate] Anthropic in-band error:', data.error?.type || 'unknown_type', data.error?.message || data.error);
+      generation.end({ level: 'ERROR', statusMessage: data.error?.message || 'Anthropic API error', output: data.error });
+      trace.update({ output: { error: data.error } });
+      await langfuse.flushAsync();
+      return res.status(502).json({ error: data.error?.message || 'Anthropic API error', errorType: data.error?.type || null });
+    }
+
     generation.end({
       output: data.content,
       usage: totalInputTokens || totalOutputTokens
@@ -214,13 +228,10 @@ export default async function handler(req, res) {
         : undefined,
     });
     trace.update({ output: data.content });
-
     await langfuse.flushAsync();
-    if (data.type === 'error') {
-      return res.status(502).json({ error: data.error?.message || 'Anthropic API error' });
-    }
     res.status(200).json(data);
   } catch (e) {
+    console.error('[generate] exception:', e.message);
     generation.end({ level: 'ERROR', statusMessage: e.message });
     trace.update({ output: { error: e.message } });
     await langfuse.flushAsync();

@@ -1539,6 +1539,10 @@ body.new-nav { padding-left: 220px; }
       <span data-en="Proposals" data-fr="Propositions">Proposals</span>
       <span class="snav-badge" id="snav-badge-proposals"></span>
     </button>
+    <button class="snav-item" data-nav="pending-actions" onclick="_switchNewNav('pending-actions')">
+      <span data-en="Approvals" data-fr="Actions en attente">Approvals</span>
+      <span class="snav-badge" id="snav-badge-pending-actions"></span>
+    </button>
   </div>
   <div class="snav-section">
     <span class="snav-section-label">Intelligence</span>
@@ -1583,6 +1587,9 @@ body.new-nav { padding-left: 220px; }
     <button class="snav-item" onclick="_openAskPanel(null)" aria-label="Ask Corridor">
       <span data-en="Ask Corridor" data-fr="Demander à Corridor">Ask Corridor</span>
       <span class="snav-live-dot" aria-hidden="true"></span>
+    </button>
+    <button class="snav-item" data-nav="mandate" onclick="_switchNewNav('mandate')">
+      <span data-en="Mandate &amp; ICP" data-fr="Mandat &amp; ICP">Mandate &amp; ICP</span>
     </button>
     <div class="snav-system-active">
       <span class="snav-live-dot" aria-hidden="true"></span>
@@ -2413,6 +2420,17 @@ body.new-nav { padding-left: 220px; }
     </div>
   </div>
 
+  <!-- ══ TAB: PENDING ACTIONS (autonomie "approve") ══ -->
+  <div class="tab-panel" id="tab-pending-actions">
+    <div style="padding:24px 16px 0;max-width:800px;margin:0 auto;">
+      <div class="module-header">
+        <div class="module-title">Approvals</div>
+        <div class="section-sub">Drafts generated for clients on the "approve" autonomy level — nothing is sent until you approve or reject each one.</div>
+      </div>
+      <div id="pending-actions-container"></div>
+    </div>
+  </div>
+
   <!-- ══ TAB: STATS ══ -->
   <!-- Absorption PARTIELLE (Phase 4, arbitrage Thomas) : le funnel (ex-Section A) et les 4 KPI
        (ex-Section C, dont "Building") migrent vers Pipeline (#pipeline-stats-card) -- une seule
@@ -2708,7 +2726,12 @@ body.new-nav { padding-left: 220px; }
             oninput="_hsOnKeyInput()">
           <button class="btn-secondary btn-sm" onclick="_hsRevealKey()" id="hs-reveal-btn"
             title="Reveal / hide" style="padding:7px 10px;font-size:15px;line-height:1;">👁</button>
-          <button class="btn-secondary btn-sm" onclick="_hsCopyKey()" style="white-space:nowrap;">Copy</button>
+          <button class="btn-secondary btn-sm" onclick="_hsCopyKey()" id="hs-copy-btn" style="white-space:nowrap;">Copy</button>
+        </div>
+        <div id="hs-configured-row" style="display:none;margin-top:8px;font-size:var(--fs-sm);color:var(--muted);">
+          Connected — value hidden for security.
+          <button class="btn-secondary btn-sm" onclick="_reconnectPanel('hubspot')">Reconnect</button>
+          <button class="btn-secondary btn-sm" onclick="_disconnectIntegration('hubspot')">Disconnect</button>
         </div>
       </div>
 
@@ -2762,8 +2785,8 @@ body.new-nav { padding-left: 220px; }
           <div style="display:flex;gap:8px;align-items:center;">
             <input type="password" id="sf-client-id" class="input-field" placeholder="••••••••"
               style="flex:1;font-family:monospace;font-size:var(--fs-sm);letter-spacing:0.04em;" oninput="_sfOnFieldInput()">
-            <button class="btn-secondary btn-sm" onclick="_sfRevealField('sf-client-id')" title="Reveal / hide" style="padding:7px 10px;font-size:15px;line-height:1;">👁</button>
-            <button class="btn-secondary btn-sm" onclick="_sfCopyField('sf-client-id')" style="white-space:nowrap;">Copy</button>
+            <button class="btn-secondary btn-sm" id="sf-reveal-client-id" onclick="_sfRevealField('sf-client-id')" title="Reveal / hide" style="padding:7px 10px;font-size:15px;line-height:1;">👁</button>
+            <button class="btn-secondary btn-sm" id="sf-copy-client-id" onclick="_sfCopyField('sf-client-id')" style="white-space:nowrap;">Copy</button>
           </div>
         </div>
         <div>
@@ -2771,8 +2794,8 @@ body.new-nav { padding-left: 220px; }
           <div style="display:flex;gap:8px;align-items:center;">
             <input type="password" id="sf-client-secret" class="input-field" placeholder="••••••••"
               style="flex:1;font-family:monospace;font-size:var(--fs-sm);letter-spacing:0.04em;" oninput="_sfOnFieldInput()">
-            <button class="btn-secondary btn-sm" onclick="_sfRevealField('sf-client-secret')" title="Reveal / hide" style="padding:7px 10px;font-size:15px;line-height:1;">👁</button>
-            <button class="btn-secondary btn-sm" onclick="_sfCopyField('sf-client-secret')" style="white-space:nowrap;">Copy</button>
+            <button class="btn-secondary btn-sm" id="sf-reveal-client-secret" onclick="_sfRevealField('sf-client-secret')" title="Reveal / hide" style="padding:7px 10px;font-size:15px;line-height:1;">👁</button>
+            <button class="btn-secondary btn-sm" id="sf-copy-client-secret" onclick="_sfCopyField('sf-client-secret')" style="white-space:nowrap;">Copy</button>
           </div>
         </div>
         <div>
@@ -2785,10 +2808,15 @@ body.new-nav { padding-left: 220px; }
           <div style="display:flex;gap:8px;align-items:center;">
             <input type="password" id="sf-password" class="input-field" placeholder="••••••••"
               style="flex:1;font-family:monospace;font-size:var(--fs-sm);letter-spacing:0.04em;" oninput="_sfOnFieldInput()">
-            <button class="btn-secondary btn-sm" onclick="_sfRevealField('sf-password')" title="Reveal / hide" style="padding:7px 10px;font-size:15px;line-height:1;">👁</button>
-            <button class="btn-secondary btn-sm" onclick="_sfCopyField('sf-password')" style="white-space:nowrap;">Copy</button>
+            <button class="btn-secondary btn-sm" id="sf-reveal-password" onclick="_sfRevealField('sf-password')" title="Reveal / hide" style="padding:7px 10px;font-size:15px;line-height:1;">👁</button>
+            <button class="btn-secondary btn-sm" id="sf-copy-password" onclick="_sfCopyField('sf-password')" style="white-space:nowrap;">Copy</button>
           </div>
-          <div style="font-size:var(--fs-xs);color:var(--muted);margin-top:4px;">Mot de passe Salesforce concaténé avec le security token (pas d'espace).</div>
+          <div style="font-size:var(--fs-xs);color:var(--muted);margin-top:4px;">Salesforce password concatenated with the security token (no space).</div>
+        </div>
+        <div id="sf-configured-row" style="display:none;font-size:var(--fs-sm);color:var(--muted);">
+          Connected — values hidden for security.
+          <button class="btn-secondary btn-sm" onclick="_reconnectPanel('salesforce')">Reconnect</button>
+          <button class="btn-secondary btn-sm" onclick="_disconnectIntegration('salesforce')">Disconnect</button>
         </div>
       </div>
 
@@ -2837,9 +2865,14 @@ body.new-nav { padding-left: 220px; }
             oninput="_pdrvOnKeyInput()">
           <button class="btn-secondary btn-sm" onclick="_pdrvRevealKey()" id="pdrv-reveal-btn"
             title="Reveal / hide" style="padding:7px 10px;font-size:15px;line-height:1;">👁</button>
-          <button class="btn-secondary btn-sm" onclick="_pdrvCopyKey()" style="white-space:nowrap;">Copy</button>
+          <button class="btn-secondary btn-sm" onclick="_pdrvCopyKey()" id="pdrv-copy-btn" style="white-space:nowrap;">Copy</button>
         </div>
         <div style="font-size:var(--fs-xs);color:var(--muted);margin-top:4px;">Settings → Personal preferences → API in Pipedrive.</div>
+        <div id="pdrv-configured-row" style="display:none;margin-top:8px;font-size:var(--fs-sm);color:var(--muted);">
+          Connected — value hidden for security.
+          <button class="btn-secondary btn-sm" onclick="_reconnectPanel('pipedrive')">Reconnect</button>
+          <button class="btn-secondary btn-sm" onclick="_disconnectIntegration('pipedrive')">Disconnect</button>
+        </div>
       </div>
 
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
@@ -2889,9 +2922,14 @@ body.new-nav { padding-left: 220px; }
             oninput="_slkOnFieldInput()">
           <button class="btn-secondary btn-sm" onclick="_slkRevealField()" id="slk-reveal-btn"
             title="Reveal / hide" style="padding:7px 10px;font-size:15px;line-height:1;">👁</button>
-          <button class="btn-secondary btn-sm" onclick="_slkCopyField()" style="white-space:nowrap;">Copy</button>
+          <button class="btn-secondary btn-sm" onclick="_slkCopyField()" id="slk-copy-btn" style="white-space:nowrap;">Copy</button>
         </div>
         <div style="font-size:var(--fs-xs);color:var(--muted);margin-top:4px;">Slack → Apps → Incoming Webhooks.</div>
+        <div id="slk-configured-row" style="display:none;margin-top:8px;font-size:var(--fs-sm);color:var(--muted);">
+          Connected — value hidden for security.
+          <button class="btn-secondary btn-sm" onclick="_reconnectPanel('slack')">Reconnect</button>
+          <button class="btn-secondary btn-sm" onclick="_disconnectIntegration('slack')">Disconnect</button>
+        </div>
       </div>
 
       <div style="margin-bottom:16px;">
@@ -2958,6 +2996,35 @@ body.new-nav { padding-left: 220px; }
       </div>
       <button class="btn-secondary btn-sm" onclick="_intClosePanel()">← Back to Integrations</button>
     </div>
+
+    <!-- ── MICROSOFT 365 (indicateur statique -- pas de config, la surveillance de boite reelle
+         (owner_inbox_email / _ownerInboxEmail(), colonne kanban "Replied") existe deja ailleurs
+         dans le produit ; cette carte ne fait qu'exposer visuellement un statut qui est vrai en
+         permanence pour ce compte, meme principe que le "coming_soon" fixe de Gmail ci-dessus ── -->
+    <div class="card int-panel" id="int-panel-m365" style="display:none;max-width:620px;">
+      <div class="card-header">
+        <span class="card-title">Microsoft 365</span>
+        <span class="card-badge badge-ai">Connected</span>
+      </div>
+      <div style="font-size:var(--fs-sm);color:var(--text);margin-bottom:8px;"><strong>Monitored inbox:</strong> <span id="m365-inbox-email"></span></div>
+      <div style="font-size:var(--fs-sm);color:var(--muted);margin-bottom:16px;">
+        Corridor detects prospect replies received on this address and updates the pipeline
+        automatically. Email content is never displayed in the dashboard.
+      </div>
+      <button class="btn-secondary btn-sm" onclick="_intClosePanel()">← Back to Integrations</button>
+    </div>
+  </div>
+
+  <!-- ══ TAB: MANDATE & ICP (lecture seule -- porte depuis wominds.html, brief 2026-09-12) ══ -->
+  <div class="tab-panel" id="tab-mandate">
+    <div style="padding:24px 16px 0;max-width:800px;margin:0 auto;">
+      <div class="module-header" style="margin-bottom:20px;">
+        <div class="module-title" data-en="Mandate &amp; ICP" data-fr="Mandat &amp; ICP">Mandate &amp; ICP</div>
+        <div class="section-sub" data-en="Targeting criteria already configured in the database — read-only for now." data-fr="Critères de ciblage déjà configurés en base — en lecture seule pour l'instant.">Targeting criteria already configured in the database — read-only for now.</div>
+      </div>
+      <div id="mandate-container"></div>
+      <div id="taxonomy-container" style="margin-top:24px;"></div>
+    </div>
   </div>
 
   <!-- MORE (Phase 1 chunk 5) : liste mobile des destinations secondaires -- Stats ajoutee aux
@@ -2985,6 +3052,16 @@ body.new-nav { padding-left: 220px; }
         </span>
         <span class="more-chevron">›</span>
       </button>
+      <!-- Meme traitement secondaire que Proposals ci-dessus (pas encore de trafic reel pour la
+           barre primaire) -- meme pattern .mtab-badge dans un more-row. -->
+      <button class="more-row" onclick="_switchNewNav('pending-actions')">
+        <span style="display:flex;align-items:center;gap:8px;">
+          <span data-en="Approvals" data-fr="Actions en attente">Approvals</span>
+          <span class="mtab-badge" id="mtab-badge-pending-actions"></span>
+        </span>
+        <span class="more-chevron">›</span>
+      </button>
+      <button class="more-row" onclick="_switchNewNav('mandate')"><span data-en="Mandate &amp; ICP" data-fr="Mandat &amp; ICP">Mandate &amp; ICP</span><span class="more-chevron">›</span></button>
       <!-- Sign out (cleanup) : sidebar (donc Sign Out) inaccessible sous 768px -- seul point
            d'acces mobile, meme onclick="signOut()" que le bouton sidebar, aucune 2e logique. -->
       <button class="more-row" onclick="signOut()"><span data-en="Sign out" data-fr="Se déconnecter">Sign out</span><span class="more-chevron">›</span></button>
@@ -3014,7 +3091,7 @@ function _newNavActive(key) {
 // affichee, meme principe de derivation que la spine -- un seul point d'accroche (_newNavActive),
 // pas un troisieme mecanisme de navigation separe.
 const MOBILE_TAB_PRIMARY = { 'priorities': true, 'pipeline': true, 'send': true, 'inbox': true };
-const MOBILE_TAB_SECONDARY = { 'system-signals': true, 'system-pipeintel': true, 'system-weekly': true, 'agents': true, 'clients': true, 'integrations': true, 'stats': true, 'proposals': true, 'more': true };
+const MOBILE_TAB_SECONDARY = { 'system-signals': true, 'system-pipeintel': true, 'system-weekly': true, 'agents': true, 'clients': true, 'integrations': true, 'stats': true, 'proposals': true, 'pending-actions': true, 'more': true };
 function _updateMobileTabActive(key) {
   const bar = document.getElementById('mobile-tabbar');
   if (!bar) return;
@@ -3901,9 +3978,25 @@ async function doLogin(e){
   // onAuthStateChange déclenche checkAccess() après le SIGNED_IN.
 }
 async function signOut(){ await sbClient.auth.signOut(); showLogin(); }
+// Chantier A (2026-09-11) : maintient le cookie miroir lu par middleware.js en synchro avec la
+// session reelle -- le SDK reste en localStorage, ce cookie existe uniquement pour que l'Edge
+// Middleware puisse verifier une session valide AVANT de servir ce fichier complet. Synchronise
+// a chaque evenement, y compris un refresh token silencieux (sinon le cookie expirerait avant
+// la session, et un hard refresh renverrait a tort le shell de login a un utilisateur toujours
+// connecte) ; efface explicitement au sign-out (sinon un cookie perime resterait valide pour le
+// middleware jusqu'a son Max-Age malgre une deconnexion volontaire).
+function _mirrorSessionCookie(session) {
+  if (session?.access_token) {
+    const maxAge = session.expires_in || 3600;
+    document.cookie = 'corridor_session=' + encodeURIComponent(session.access_token) + '; Secure; SameSite=Lax; Path=/; Max-Age=' + maxAge;
+  } else {
+    document.cookie = 'corridor_session=; Secure; SameSite=Lax; Path=/; Max-Age=0';
+  }
+}
 sbClient.auth.getSession().then(({ data }) => { checkAccess(data.session); });
 let _lastAuthUserId = null;
 sbClient.auth.onAuthStateChange((_e, session) => {
+  _mirrorSessionCookie(session);
   const uid = session?.user?.id || null;
   if (uid && uid === _lastAuthUserId) return; // meme utilisateur deja connu -- ignore les re-emissions
                                                 // SIGNED_IN declenchees par _recoverAndRefresh au retour
@@ -4072,9 +4165,11 @@ function switchTab(name, fromClick = false) {
   if (name === 'priorities') { loadDailyPriorities(); _loadAgentsAtWork(); _fetchTodaySendCounts().catch(err => console.error('_fetchTodaySendCounts:', err)); _loadFollowUpsDue(); }
   if (name === 'inbox') loadInboxDrafts();
   if (name === 'proposals') loadProposalsView();
+  if (name === 'pending-actions') loadPendingActionsView();
   if (name === 'stats') { if (!_kanbanLoaded) { loadKanban().then(() => renderStats()); } else { renderStats(); } }
   if (name === 'clients') loadClientsKanban();
   if (name === 'integrations') loadIntegrationsTab();
+  if (name === 'mandate') loadMandateView();
   // Scroll vers le panel actif uniquement sur clic utilisateur (pas au lancement de la PWA).
   // Offset calculé dynamiquement (hauteur réelle des barres fixes) — fiable sur iPhone.
   if (fromClick) {
@@ -4652,7 +4747,7 @@ Language instruction: Write your entire response in ${currentLang === 'fr' ? 'Fr
       if (_scoreResult.size_score != null && _scoreResult.size_score >= 0) {
         _breakdown.company_size_fit = _scoreResult.size_score * 10;
       }
-      _renderBreakdownPanel(_breakdown);
+      _renderBreakdownPanel(_breakdown, undefined, ICP_WEIGHTS);
     } else {
       const _stEl = document.getElementById('sc-total');
       if (_stEl) { _stEl.textContent = 'Failed'; _stEl.title = 'Scoring failed — check console'; }
@@ -6036,8 +6131,18 @@ function initKanbanDnD() {
       }
       updateKanbanCounts();
       const stage = targetCol.dataset.stage;
-      if (stage && cardToMove.dataset.id) {
-        persistStage(cardToMove.dataset.id, STAGE_DB[stage] || stage);
+      const draggedId = cardToMove.dataset.id;
+      if (stage && draggedId) {
+        const newStage = STAGE_DB[stage] || stage;
+        persistStage(draggedId, newStage);
+        // Fix audit 2026-09-11 (KPI "In conversation" incoherent entre renderKanban() et
+        // _updateKpiCards()) : persistStage() ecrit en DB mais ne mettait a jour ni le DOM ni
+        // le cache -- _updateKpiCards() (lit cards.dataset.stage) et toute autre lecture de
+        // _prospectsById[id].stage restaient bloquees sur l'ancienne etape jusqu'au prochain
+        // loadKanban(true) complet. Optimiste comme le deplacement DOM ci-dessus (deja fait
+        // avant meme que persistStage() ait resolu) -- meme niveau de risque, pas nouveau.
+        cardToMove.dataset.stage = newStage;
+        if (_prospectsById[draggedId]) _prospectsById[draggedId].stage = newStage;
       }
     }
   }, true);
@@ -7067,6 +7172,10 @@ function _sendCardHTML(p, touchType, expanded = false) {
         </div>
         <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center">
           <button class="btn-secondary btn-sm" onclick="_generateSequenceMessage('${p.id}','${touchType}'${touchType === 'j5' && hasBody ? ',true' : ''})" id="sg-${p.id}">${hasBody ? '🔄 Regenerate' : '▶ Generate'}</button>
+          <select id="sl-${p.id}" title="Message language" style="padding:5px 6px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:var(--fs-xs);font-family:inherit;color:var(--text);background:#fff;">
+            <option value="EN" ${_sendDefaultLang() === 'EN' ? 'selected' : ''}>EN</option>
+            <option value="FR" ${_sendDefaultLang() === 'FR' ? 'selected' : ''}>FR</option>
+          </select>
           <button class="btn-secondary btn-sm" onclick="_saveSequenceDraft('${p.id}','${touchType}')" id="sv-${p.id}" disabled style="opacity:0.45;cursor:not-allowed">Save draft</button>
           <button class="btn-secondary btn-sm" onclick="_markReady('${p.id}')" id="sr-${p.id}" ${isReady?'style="border-color:var(--green);color:var(--green)"':''}>${isReady ? '✓ Ready' : 'Mark ready'}</button>
           <button class="btn-secondary btn-sm" onclick="_markSent('${p.id}','${touchType}')" id="sms-${p.id}">✓ Mark as sent</button>
@@ -7306,6 +7415,10 @@ function _renderManualSection(containerId = 'manual-send-section', pid = _manual
           </div>
           <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
             <button class="btn-primary btn-md" onclick="_generateSequenceMessage('${p.id}','${currentTouch}',false,'${elPrefix}')" id="${elPrefix}sg-${p.id}">▶ Generate</button>
+            <select id="${elPrefix}sl-${p.id}" title="Message language" style="padding:5px 6px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:var(--fs-xs);font-family:inherit;color:var(--text);background:#fff;">
+              <option value="EN" ${_sendDefaultLang() === 'EN' ? 'selected' : ''}>EN</option>
+              <option value="FR" ${_sendDefaultLang() === 'FR' ? 'selected' : ''}>FR</option>
+            </select>
             <button class="btn-secondary btn-md" onclick="_saveSequenceDraft('${p.id}','${currentTouch}',undefined,'${elPrefix}')" id="${elPrefix}sv-${p.id}" disabled style="opacity:0.45;cursor:not-allowed">Save draft</button>
             <button class="btn-secondary btn-md" onclick="_markReady('${p.id}','${elPrefix}')" id="${elPrefix}sr-${p.id}" ${isReady?'style="border-color:var(--green);color:var(--green)"':''}>${isReady?'✓ Ready':'Mark ready'}</button>
             <button class="btn-primary btn-md" onclick="_sendViaLinkedIn('${p.id}','${currentTouch}','${elPrefix}')" id="${elPrefix}sli-${p.id}" ${sendDisabled?'disabled':''} ${sendBlocked?'style="opacity:0.4;cursor:not-allowed" title="Connection not yet accepted"':''}>Send via LinkedIn</button>
@@ -7392,10 +7505,17 @@ async function _humanConnectionPoint(prospect) {
   return null;
 }
 
+// Langue par carte (brief Thomas, 2026-09-12) : le filtre global #send-filter-lang reste en
+// haut de page comme valeur PAR DEFAUT (moins de refactoring -- il ne pilotait deja aucun
+// filtrage de liste, seulement cette lecture-ci) ; chaque carte a maintenant son propre select
+// (id "sl-"+pid, ou elPrefix+"sl-"+pid pour Manual send/le tiroir) qui la surcharge
+// individuellement une fois ouvert. _sendDefaultLang() centralise la lecture du filtre global
+// pour peupler la valeur initiale de chaque select carte au rendu.
+function _sendDefaultLang() { return document.getElementById('send-filter-lang')?.value || 'EN'; }
 async function _generateSequenceMessage(pid, touch, forceGenerate = false, elPrefix = '') {
   const p = _sendProspects.find(x => x.id === pid) || _prospectsById[pid];
   if (!p) return;
-  const lang = document.getElementById('send-filter-lang')?.value || 'EN';
+  const lang = document.getElementById(elPrefix + 'sl-' + pid)?.value || _sendDefaultLang();
   const langRule = lang === 'FR'
     ? "Write the message in French. Use 'vous' (not 'tu') — professional tone, respectful distance. Use correct French accents (où, é, è, ê, à, etc.) — never write 'ou' without accent when the meaning is 'where/when'. Write natural idiomatic French — avoid calques from English."
     : "Write the message in English.";
@@ -7640,6 +7760,24 @@ ${langRule}
         ? `\nOPTIONAL HUMAN CONNECTION POINT (use ONLY if it fits naturally in one of your two sentences without forcing it — otherwise ignore completely): You and the sender both have a background at ${_hcp.value}.\n`
         : `\nOPTIONAL HUMAN CONNECTION POINT (use ONLY if it fits naturally in one of your two sentences without forcing it — otherwise ignore completely): You and the sender are both based in ${_hcp.value}.\n`)
     : '';
+  // Fix explicabilite 2026-09-11 : next_action_cache est maintenant un JSON structure (v2, 5 champs
+  // why_now/why_this_person/why_this_action/what_not_to_say + channel) ou l'ancien format v1
+  // (channel/action/why, entrees pas encore regenerees) -- on ne colle plus jamais le JSON brut
+  // dans ce prompt (v1 ou v2), on choisit explicitement les deux champs qui nourrissaient deja
+  // cette section (canal + angle) plutot que les 4 nouveaux champs bruts d'un coup.
+  const _naParsed = p.next_action_cache ? _parseNextActionJSON(p.next_action_cache) : null;
+  let _recommendedApproachBlock = '';
+  if (_naParsed && (_naParsed.format === 'v2' || _naParsed.format === 'v1')) {
+    const _angle = _naParsed.format === 'v2' ? _naParsed.why_this_action : _naParsed.action;
+    const _lines = [
+      _naParsed.channel ? 'Recommended channel: ' + _naParsed.channel : null,
+      _angle ? 'Recommended angle: ' + _angle : null,
+    ].filter(Boolean);
+    if (_lines.length) _recommendedApproachBlock = 'RECOMMENDED APPROACH (from prior analysis -- use as guidance for channel and angle unless recent interactions suggest a different approach; do not contradict it without reason):\n' + _lines.join('\n') + '\n';
+  } else if (p.next_action_cache) {
+    // Entrees pre-JSON (legacy, texte markdown libre) : comportement inchange par rapport a avant ce fix.
+    _recommendedApproachBlock = 'RECOMMENDED APPROACH (from prior analysis -- use as guidance for channel and angle unless recent interactions suggest a different approach; do not contradict it without reason):\n' + p.next_action_cache + '\n';
+  }
   const prompt = ambassadorPrompt || redirectPrompt || (isInvestor && investorPrompts[touch]
     ? investorPrompts[touch]
     : `Write ${touchDescriptions[touch]||'a LinkedIn outreach message'} for this prospect.
@@ -7648,7 +7786,7 @@ Prospect: ${p.name}, ${p.title||'unknown title'} at ${p.company}${(p.sector || p
 ${intCtx ? 'Recent interactions: ' + intCtx : ''}
 ${_senderBio()}
 ${_activeMandate ? 'ACTIVE MANDATE CONTEXT (defines the purpose of every message; the signal below informs the angle but must not contradict this mandate):' + '\n' + _mandateContext() + '\n---\n' : ''}
-${liveBlock}${personBlock}${prevMsgBlock}${inviteBlock}${originBlock}${memoryBlock}${touch === 'invite' ? `CRITICAL INVITE RULE (non-negotiable): LinkedIn connection request. STRUCTURE: one factual observation (max 15 words) + one short question (max 10 words) + sign off "Thomas" on its own line. TOTAL under 200 characters. NO greeting. NO Corridor. NO URL. NO closing line. NO "Sent via". Output ONLY the 2-sentence message + Thomas, nothing else.` : ''}\n${p.next_action_cache ? 'RECOMMENDED APPROACH (from prior analysis -- use as guidance for channel and angle unless recent interactions suggest a different approach; do not contradict it without reason):\n' + p.next_action_cache + '\n' : ''}\nRules: NEVER use em-dashes (—) in any message, replace with a period or comma. No bullet points. No mention of "Alliance Grid" or "Corridor" in the main message body (sentences 1 and 2 only -- the mandatory closing line appended below is the only exception and must be reproduced exactly as given). ${langRule} Replace every vague claim with something specific and provable. Never write 'I help companies grow' or 'I drive results'. Write what you actually observed about this company and why it is relevant right now.${(touch === 'invite' || touch === 'j0') ? ' Strip all marketing language. No buzzwords, no value propositions, no product claims. Rewrite as a text a peer would send to another peer -- direct, human, zero corporate tone.' : ''}${(touch === 'j0' || touch === 'j5') ? ` NEVER reference Thomas's own work history, a company he previously worked at, or a personal case he lived through as the opening observation, hook, or social proof (e.g. "when I scaled Hi-Media's Benelux operation..."). The opening angle must come only from the prospect's own context -- their signal, sector, or company size -- never from Thomas's background. NEVER include a line that describes or promotes Corridor as a product or system anywhere in the message (e.g. "Thomas | Corridor: the GTM system doing this end to end") -- if a sign-off beyond the plain name "Thomas" is needed, it must be exactly "Thomas | linkedin.com/company/corridor-gtm-system" and nothing more elaborate.` : ''} NEVER claim or imply that the prospect asked a question, made a specific statement, or expressed a specific interest unless that exact information is explicitly given in the prompt -- if no such detail is provided, do not invent one. NEVER state or imply a specific niche focus for the sender (e.g. a named industry, a named type of deal) that is not listed in their background above. NEVER use generic AI-sounding filler phrases (e.g. "passionate about", "excited to connect", "love what you're building") -- ground every claim in a real fact from the sender's background above or the prospect's own title/company/signal. NEVER open with false familiarity — "I've been following your work", "I've been following your journey", "I came across your profile", "I noticed your work", and all variants are prohibited: they imply sustained prior attention that did not exist and collapse under any verification question from the prospect. Output the message only, no preamble.${touch === 'j5' ? '\n\nFOLLOW-UP TONE RULES (mandatory):\n- This is an EMAIL, not a LinkedIn message. Under 90 words.\n- Do NOT include a subject line or the word "Subject:" anywhere -- output only the email body text itself, nothing before it.\n- NEVER use: "follow up", "following up", "checking in", "touching base", "circling back", "just wanted to", "I wanted to reach out", "hope this finds you well"\n- Do NOT open with a reference to the previous message (e.g. "I sent you a note last week")\n- Write as if continuing a conversation, not tracking an unanswered message\n- Introduce a NEW angle, observation, or question — never repeat the idea from the previous message\n- Conversational tone: peer to peer, not vendor to prospect\n- j5: one specific observation or question that opens a thread — no CTA harder than "thoughts?" or "does this resonate?"\n- The closing question must be different from the J+0 question. Never use "Curious what the growth focus looks like" or any variation of it.\n- Previous message sent: "' + (intCtx || 'not available') + '" — do not repeat its angle, observation, or closing question.' : ''}${j0LinkedInNote}${j0CtaNote}${j0NoContextNote}${stealthBlock}${signalBlock}${hcpBlock}`);
+${liveBlock}${personBlock}${prevMsgBlock}${inviteBlock}${originBlock}${memoryBlock}${touch === 'invite' ? `CRITICAL INVITE RULE (non-negotiable): LinkedIn connection request. STRUCTURE: one factual observation (max 15 words) + one short question (max 10 words) + sign off "Thomas" on its own line. TOTAL under 200 characters. NO greeting. NO Corridor. NO URL. NO closing line. NO "Sent via". Output ONLY the 2-sentence message + Thomas, nothing else.` : ''}\n${_recommendedApproachBlock}\nRules: NEVER use em-dashes (—) in any message, replace with a period or comma. No bullet points. No mention of "Alliance Grid" or "Corridor" in the main message body (sentences 1 and 2 only -- the mandatory closing line appended below is the only exception and must be reproduced exactly as given). ${langRule} Replace every vague claim with something specific and provable. Never write 'I help companies grow' or 'I drive results'. Write what you actually observed about this company and why it is relevant right now.${(touch === 'invite' || touch === 'j0') ? ' Strip all marketing language. No buzzwords, no value propositions, no product claims. Rewrite as a text a peer would send to another peer -- direct, human, zero corporate tone.' : ''}${(touch === 'j0' || touch === 'j5') ? ` NEVER reference Thomas's own work history, a company he previously worked at, or a personal case he lived through as the opening observation, hook, or social proof (e.g. "when I scaled Hi-Media's Benelux operation..."). The opening angle must come only from the prospect's own context -- their signal, sector, or company size -- never from Thomas's background. NEVER include a line that describes or promotes Corridor as a product or system anywhere in the message (e.g. "Thomas | Corridor: the GTM system doing this end to end") -- if a sign-off beyond the plain name "Thomas" is needed, it must be exactly "Thomas | linkedin.com/company/corridor-gtm-system" and nothing more elaborate.` : ''} NEVER claim or imply that the prospect asked a question, made a specific statement, or expressed a specific interest unless that exact information is explicitly given in the prompt -- if no such detail is provided, do not invent one. NEVER state or imply a specific niche focus for the sender (e.g. a named industry, a named type of deal) that is not listed in their background above. NEVER use generic AI-sounding filler phrases (e.g. "passionate about", "excited to connect", "love what you're building") -- ground every claim in a real fact from the sender's background above or the prospect's own title/company/signal. NEVER open with false familiarity — "I've been following your work", "I've been following your journey", "I came across your profile", "I noticed your work", and all variants are prohibited: they imply sustained prior attention that did not exist and collapse under any verification question from the prospect. Output the message only, no preamble.${touch === 'j5' ? '\n\nFOLLOW-UP TONE RULES (mandatory):\n- This is an EMAIL, not a LinkedIn message. Under 90 words.\n- Do NOT include a subject line or the word "Subject:" anywhere -- output only the email body text itself, nothing before it.\n- NEVER use: "follow up", "following up", "checking in", "touching base", "circling back", "just wanted to", "I wanted to reach out", "hope this finds you well"\n- Do NOT open with a reference to the previous message (e.g. "I sent you a note last week")\n- Write as if continuing a conversation, not tracking an unanswered message\n- Introduce a NEW angle, observation, or question — never repeat the idea from the previous message\n- Conversational tone: peer to peer, not vendor to prospect\n- j5: one specific observation or question that opens a thread — no CTA harder than "thoughts?" or "does this resonate?"\n- The closing question must be different from the J+0 question. Never use "Curious what the growth focus looks like" or any variation of it.\n- Previous message sent: "' + (intCtx || 'not available') + '" — do not repeat its angle, observation, or closing question.' : ''}${j0LinkedInNote}${j0CtaNote}${j0NoContextNote}${stealthBlock}${signalBlock}${hcpBlock}`);
   console.log('[gen] calling Anthropic. touch:', touch, 'prompt chars:', prompt.length);
   try {
     const res = await fetch(API_URL, {
@@ -7754,7 +7892,22 @@ async function _sendViaLinkedIn(pid, touch, elPrefix = '') {
     if (_seErr1) console.error('[_sendViaLinkedIn] send_error insert failed:', _seErr1);
     return;
   }
-  if (!p.linkedin) { showToast('No LinkedIn URL for this prospect'); return; }
+  if (!p.linkedin) {
+    // Garde-fou fraicheur (bug Shy Dekel, 2026-09-12) : `p` peut venir d'une copie perimee de
+    // _sendProspects, chargee avant une edition dans le tiroir (cf. _patchProspectCaches).
+    // Avant de bloquer l'utilisateur sur une valeur qui pourrait juste etre en retard d'un
+    // rechargement, on relit ce seul champ en base -- un aller-retour bon marche, uniquement
+    // sur le chemin qui s'apprete a bloquer, jamais sur le chemin normal.
+    const { data: freshRow } = await sbClient.from('prospects').select('linkedin, linkedin_tag').eq('id', pid).eq('client_id', CLIENT_ID).maybeSingle();
+    if (freshRow?.linkedin) {
+      p.linkedin = freshRow.linkedin;
+      p.linkedin_tag = freshRow.linkedin_tag;
+      _patchProspectCaches(pid, { linkedin: freshRow.linkedin, linkedin_tag: freshRow.linkedin_tag });
+    } else {
+      showToast('No LinkedIn URL for this prospect');
+      return;
+    }
+  }
   // Guard: j0/j5/j12 require 1st-degree connection. Block and log if not connected.
   if (touch !== 'invite' && p.linkedin_tag !== 'connection-accepted') {
     showToast('Blocked: not yet connected with this prospect');
@@ -7963,8 +8116,21 @@ async function _markSent(pid, touch, auto = false, msgText = '', elPrefix = '') 
 // generateSend(i) supprimé — la génération de message vit maintenant dans _generateSequenceMessage() (Phase 3).
 
 // ── CSV IMPORT / EXPORT (Pipeline View) ──
+// Fix audit Stephane point 5 (2026-09-11) : colonne "ICP Fit Score" seule, sans indication de
+// fiabilite, sortait du dashboard sans aucune trace des flags company_verified/identity_confidence
+// -- une donnee exportee (CSV, potentiellement reimportee ailleurs) doit porter le meme avertissement
+// que le dashboard, pas moins. Reutilise les data-attributes deja poses par buildCard() (aucun
+// nouveau calcul, aucune requete supplementaire).
+function _dataReliabilityLabel(companyVerifiedAttr, identityConfidenceAttr) {
+  const companyUnconfirmed = companyVerifiedAttr === 'false';
+  const identityUnconfirmed = identityConfidenceAttr === 'low';
+  if (companyUnconfirmed && identityUnconfirmed) return 'Company & identity unconfirmed';
+  if (companyUnconfirmed) return 'Company unconfirmed';
+  if (identityUnconfirmed) return 'Identity unconfirmed';
+  return 'Verified';
+}
 function exportCSV(){
-  const rows = [['Name','Company','Sector','Stage','ICP Score','Country']];
+  const rows = [['Name','Company','Sector','Stage','ICP Fit Score','Data reliability','Country']];
   document.querySelectorAll('#tab-pipeline .kanban-col').forEach(col => {
     const head = col.querySelector('.kanban-col-head span');
     const stage = head ? (head.dataset.en || head.textContent.trim()) : '';
@@ -7974,7 +8140,8 @@ function exportCSV(){
       const company = companyRaw.split('·')[0].trim();
       const sector = (card.querySelector('.k-badge-sector')?.textContent || '').trim();
       const score = card.dataset.icpScore || '';
-      rows.push([name, company, sector, stage, score, card.dataset.country || card.dataset.region || '']);
+      const reliability = _dataReliabilityLabel(card.dataset.companyVerified, card.dataset.identityConfidence);
+      rows.push([name, company, sector, stage, score, reliability, card.dataset.country || card.dataset.region || '']);
     });
   });
   const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
@@ -8256,12 +8423,20 @@ function _bcIsStale(row) {
 async function _discoverBuyingCommittee(prospect) {
   const co = prospect.company;
   if (!co) return null;
-  const liveCtx = await _prefetchWebContext(co, 'buying committee decision makers');
-  const prompt = 'Based ONLY on the web context below, identify up to three specific individuals at ' + co + ' who would be involved in a B2B GTM purchase decision, one per role:\n\n'
+  // Fix 2026-09-11 (meme bug confirme que kaizenology.html, cf. audit externe 6/25 fiches Hot+Signal
+  // avec un homonyme errone) : le role-indice ecrasait le vrai parametre sector de
+  // _prefetchWebContext -- la recherche web ne portait que sur le nom brut de la societe,
+  // sans secteur ni pays, ce qui laissait remonter n'importe quel homonyme. Le role-indice reste
+  // dans la requete (utile pour orienter la recherche vers le bon type de contenu) mais s'ajoute au
+  // vrai secteur au lieu de l'ecraser ; le pays, quand connu, est ajoute au prompt Claude.
+  const sectorCtx = [prospect.sector, 'buying committee decision makers'].filter(Boolean).join(' ');
+  const liveCtx = await _prefetchWebContext(co, sectorCtx);
+  const prompt = 'Based ONLY on the web context below, identify up to three specific individuals at ' + co + (prospect.country ? ' (based in ' + prospect.country + ')' : '') + ' who would be involved in a B2B GTM purchase decision, one per role:\n\n'
     + '- economic_buyer: the person with budget authority for this type of decision\n'
     + '- champion: the person likely to advocate for this internally\n'
     + '- technical_evaluator: the person who would validate the solution technically\n\n'
     + 'WEB CONTEXT:\n' + (liveCtx || 'No live context available.') + '\n\n'
+    + 'DISAMBIGUATION: Multiple unrelated companies can share the same name in different countries or industries. If multiple companies share the name "' + co + '", only use information that matches this company\'s known sector' + (prospect.sector ? ' (' + prospect.sector + ')' : '') + (prospect.country ? ' and country (' + prospect.country + ')' : '') + '. If you cannot confirm the web context is about this specific company, set confidence to "not_found" rather than guessing.\n\n'
     + 'Return a single JSON object, no prose, no markdown fences, exactly this shape:\n'
     + '{"economic_buyer":{"name":"Full Name" or null,"title":"Title" or null,"linkedin":URL only if explicitly stated in the context above else null,"confidence":"high" or "low" or "not_found"},"champion":{...same structure...},"technical_evaluator":{...same structure...}}\n\n'
     + 'For each role, if the context does not clearly confirm a specific named individual in that role at this company, set confidence to "not_found" and name to null. Never invent a name or construct a URL from a name.';
@@ -8383,11 +8558,17 @@ async function _bcPersistFromScan(stakeholders, company) {
   if (!prospectId) return;
   if ((_drawerProspect.company || '').trim().toLowerCase() !== (company || '').trim().toLowerCase()) return;
 
+  // Ne pas ecraser une ligne existante qui a deja un vrai resultat positif (confidence !=
+  // 'not_found' ET name renseigne) -- une ligne 'not_found' ou absente reste ecrasable.
+  const existingByRole = await _bcFetchByRole(prospectId);
+
   const mapped = _bcMapScanToRoles(stakeholders);
   const nowIso = new Date().toISOString();
   const upsertRows = _BC_ROLES.map(role => {
     const s = mapped[role];
     if (!s) return null;
+    const existing = existingByRole[role];
+    if (existing && existing.confidence !== 'not_found' && existing.name) return null;
     return {
       client_id: CLIENT_ID, prospect_id: prospectId, role,
       name: s.name, title: s.title || null, linkedin: s.linkedin_url || null,
@@ -8422,7 +8603,17 @@ function _buildProspectLinks(p) {
 async function openDrawer(card, initialTab = 'activity') {
   const prospectId   = card.dataset.id          || null;
   const name         = (card.querySelector('.k-card-name')?.textContent    || '').trim();
-  const company      = (card.querySelector('.k-card-company')?.textContent || '').trim();
+  // Fix 2026-09-11 (audit comite d'achat, cas Daniel Lev/Coinflow) : le texte DOM de
+  // .k-card-company inclut " · {country}" quand buildCard() a un pays connu (l.12373) --
+  // lire card.dataset.company (valeur brute p.company, toujours posee par buildCard(), l.12368)
+  // au lieu de parser le texte affiche. _drawerProspect.company sert de comparaison directe dans
+  // _bcPersistFromScan() et de valeur de repli dans le champ Company editable du tiroir
+  // (_drawerProfileHTML fb.company) -- le suffixe pays y causait soit un echec silencieux de la
+  // comparaison societe (l'ecriture buying_committee_members ne se declenchait jamais), soit un
+  // risque de corruption si ce repli avait ete sauvegarde tel quel. Repli sur l'ancien parsing DOM
+  // uniquement si data-company est absent (ne devrait jamais arriver pour une carte issue de
+  // buildCard(), garde-fou pur).
+  const company      = (card.dataset.company || '').trim() || (card.querySelector('.k-card-company')?.textContent || '').trim();
   const _p           = _prospectsById[prospectId] || {};
   const score        = 'ICP ' + _calcICP(_p);
   const icpVal       = parseFloat(_calcICP(_p));
@@ -8500,8 +8691,8 @@ async function openDrawer(card, initialTab = 'activity') {
           </div>
           <div class="pd-role">${[_p.title, company].filter(Boolean).map(s => _esc(s)).join(' · ')}</div>
           ${firmoParts.length ? `<div class="pd-firmo">${firmoParts.map(s => _esc(s)).join(' · ')}</div>` : ''}
-          ${_p.company_verified === false ? `<div style="margin-top:5px;"><span style="font-size:10px;font-weight:700;color:#b45309;background:#fef3c7;border:1px solid #fde68a;border-radius:20px;padding:1px 6px;">⚠ Société non confirmée</span></div>` : ''}
-          ${_p.identity_confidence === 'low' ? `<div style="margin-top:3px;"><span style="font-size:10px;font-weight:700;color:#6b7280;background:#f3f4f6;border:1px solid #d1d5db;border-radius:20px;padding:1px 6px;">? Identité à vérifier</span></div>` : ''}
+          ${_p.company_verified === false ? `<div style="margin-top:5px;"><span style="font-size:10px;font-weight:700;color:#b45309;background:#fef3c7;border:1px solid #fde68a;border-radius:20px;padding:1px 6px;">⚠ Company not confirmed</span></div>` : ''}
+          ${_p.identity_confidence === 'low' ? `<div style="margin-top:3px;"><span style="font-size:10px;font-weight:700;color:#6b7280;background:#f3f4f6;border:1px solid #d1d5db;border-radius:20px;padding:1px 6px;">? Identity to verify</span></div>` : ''}
           <div class="drawer-last-contact" style="font-size:11px;color:var(--dim);margin-top:5px;">${lcStr ? 'Last contact: ' + _esc(lcStr) : 'No contact logged yet'}</div>
         </div>
         <div style="display:flex;gap:6px;flex-shrink:0;">
@@ -8516,8 +8707,9 @@ async function openDrawer(card, initialTab = 'activity') {
       </div>
       <div class="pd-stats">
         <div class="pd-stat">
-          <div class="pd-stat-label">ICP score</div>
+          <div class="pd-stat-label">ICP Fit Score</div>
           <div class="pd-stat-value">${_esc(_icpLbl)}</div>
+          ${(() => { const _relB = _scoreReliabilityBadge(_p); return _relB ? `<div style="font-size:10px;font-weight:700;color:${_relB.color};margin-top:2px;" title="${_esc(_relB.title)}">${_relB.icon} ${_esc(_relB.title)}</div>` : ''; })()}
         </div>
         <div class="pd-stat">
           <div class="pd-stat-label">Stage age</div>
@@ -8812,7 +9004,7 @@ function openScannerPanel(source) {
       const _st = document.getElementById('sc-total');
       if (_sr) _sr.style.display = 'block';
       if (_sg) _sg.style.display = '';
-      if (_st) { _st.textContent = ctx.icp_score + '/10'; _st.title = 'Score stocké — recalculé au prochain scan'; }
+      if (_st) { _st.textContent = ctx.icp_score + '/10'; _st.title = 'Stored score — recalculated on next scan'; }
     }
   }
   document.getElementById('scanner-overlay').classList.add('open');
@@ -9223,18 +9415,31 @@ async function _clearReminder() {
   showToast('Reminder cleared');
 }
 
-// Format next_action_cache (JSON {channel,action,why}) into HTML. Old cache entries predate the
-// JSON format and are plain markdown text -- JSON.parse fails on those, so we fall back to the
-// legacy markdown renderer rather than showing raw JSON or throwing. They self-heal on next
-// Regenerate, no migration needed.
+// Format next_action_cache into HTML. Deux formats JSON coexistent en base (audit explicabilite
+// 2026-09-11 : format v2 a 5 champs, why_now/why_this_person/why_this_action/what_not_to_say +
+// channel) -- les entrees v1 (channel/action/why, format d'avant ce soir) restent en base tant
+// qu'elles n'ont pas ete regenerees, jamais de migration retroactive. Les entrees pre-JSON
+// (encore plus anciennes, texte markdown libre) retombent sur le rendu markdown legacy.
 function _parseNextActionJSON(raw) {
   if (!raw) return null;
   const trimmed = raw.trim();
   if (!trimmed.startsWith('{')) return null;
   try {
     const obj = JSON.parse(trimmed);
-    if (obj && typeof obj === 'object' && (obj.action || obj.why || obj.channel)) {
-      return { channel: String(obj.channel || ''), action: String(obj.action || ''), why: String(obj.why || '') };
+    if (!obj || typeof obj !== 'object') return null;
+    const hasV2Fields = obj.why_now != null || obj.why_this_person != null || obj.why_this_action != null || obj.what_not_to_say != null;
+    if (hasV2Fields) {
+      return {
+        format: 'v2',
+        channel: String(obj.channel || ''),
+        why_now: obj.why_now ? String(obj.why_now) : null,
+        why_this_person: obj.why_this_person ? String(obj.why_this_person) : null,
+        why_this_action: obj.why_this_action ? String(obj.why_this_action) : null,
+        what_not_to_say: obj.what_not_to_say ? String(obj.what_not_to_say) : null,
+      };
+    }
+    if (obj.action || obj.why || obj.channel) {
+      return { format: 'v1', channel: String(obj.channel || ''), action: String(obj.action || ''), why: String(obj.why || '') };
     }
   } catch(_) {}
   return null;
@@ -9247,9 +9452,25 @@ function _renderNextActionHTML(raw, linkColor) {
     '<a href="mailto:$1" style="color:' + linkColor + ';text-decoration:underline">$1</a>'
   );
   const parsed = _parseNextActionJSON(raw);
-  if (parsed) {
+  const channelHTML = ch => ch ? '<div style="display:flex;align-items:center;gap:8px;"><span style="font-family:\'IBM Plex Mono\',monospace;font-size:9.5px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);">Channel</span><span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:var(--radius-pill);background:var(--chip-bg);color:var(--indigo);">' + _esc(ch) + '</span></div>' : '';
+  if (parsed && parsed.format === 'v2') {
+    const fields = [
+      ['Why now', parsed.why_now],
+      ['Why this person', parsed.why_this_person],
+      ['Why this action', parsed.why_this_action],
+      ['What not to say', parsed.what_not_to_say],
+    ].filter(([, v]) => v);
     return '<div style="display:flex;flex-direction:column;gap:6px;">'
-      + (parsed.channel ? '<div style="display:flex;align-items:center;gap:8px;"><span style="font-family:\'IBM Plex Mono\',monospace;font-size:9.5px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);">Channel</span><span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:var(--radius-pill);background:var(--chip-bg);color:var(--indigo);">' + _esc(parsed.channel) + '</span></div>' : '')
+      + channelHTML(parsed.channel)
+      + fields.map(([label, v]) =>
+          '<div><span style="font-family:\'IBM Plex Mono\',monospace;font-size:9px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted);">' + label + '</span>'
+          + '<div style="font-size:var(--fs-xs);line-height:1.5;color:' + linkColor + ';">' + linkify(_esc(v)) + '</div></div>'
+        ).join('')
+      + '</div>';
+  }
+  if (parsed && parsed.format === 'v1') {
+    return '<div style="display:flex;flex-direction:column;gap:6px;">'
+      + channelHTML(parsed.channel)
       + (parsed.action ? '<div style="font-size:var(--fs-sm);line-height:1.6;color:' + linkColor + ';">' + linkify(_esc(parsed.action)) + '</div>' : '')
       + (parsed.why ? '<div style="font-size:var(--fs-xs);color:var(--muted);line-height:1.5;">' + linkify(_esc(parsed.why)) + '</div>' : '')
       + '</div>';
@@ -9287,8 +9508,8 @@ ANTI-HALLUCINATION RULES — strictly enforced:
 2. If no verified context is available, base your output solely on stage, sector, score, and logged interactions. Do not fill gaps with plausible-sounding invented details.
 3. Two calls on the same prospect must produce consistent outputs — never contradict yourself by inventing different facts each time.
 4. If SIGNAL INTERPRETATION is provided below, it has already been analyzed and verified — use it as given, do not re-derive or contradict it.
-5. If EMPLOYER UNCONFIRMED is flagged below, explicitly state in the "why" field that the employer is unconfirmed before recommending anything tied to the current company.
-6. If IDENTITY UNCONFIRMED is flagged below, explicitly state in the "why" field that this contact's identity is not reliably confirmed.`;
+5. If EMPLOYER UNCONFIRMED is flagged below, mention in "what_not_to_say" that the employer is unconfirmed and should not be stated as certain.
+6. If IDENTITY UNCONFIRMED is flagged below, mention in "what_not_to_say" that this contact's identity is not reliably confirmed.`;
 
   const userMsg = `Prospect: ${p.name} at ${p.company||'unknown'} (${p.sector||'unknown sector'}). Stage: ${p.stage||'unknown'}. Score: ${p.score||'not set'}.${p.email ? ' Email: ' + p.email + '.' : ''}
 ${(_signalType || _signal) ? 'Signal: ' + (_signalType ? '[' + _signalType + '] ' : '') + (_signal ? _signal.replace(/<[^>]*>/g,'').slice(0, 200) : '') : ''}
@@ -9299,9 +9520,11 @@ ${ctx ? 'Recent interactions: ' + ctx : 'No interactions logged.'}
 ${rem ? 'Next reminder: ' + rem : ''}
 ${_drMemory ? '\nPROSPECT MEMORY:\n' + _drMemory : ''}
 ${contextBlock}
-Recommend the single best next action. Respond with ONLY a strict JSON object — no markdown, no code fences, no text before or after:
+Recommend the single best next action, broken into explicit reasoning angles (explainability, 2026-09-11 — same discipline as the buying committee prompt: null rather than a generic filler when there isn't enough real signal to answer specifically). Respond with ONLY a strict JSON object — no markdown, no code fences, no text before or after:
 
-{"channel": "${p.email ? 'LinkedIn | Email | Call' : 'LinkedIn | Call'}", "action": "one sentence, max 20 words — what to do and what angle to take; do not include the prospect's email address in this text", "why": "one sentence, max 15 words — why this moves this specific deal right now"}
+{"channel": "${p.email ? 'LinkedIn | Email | Call' : 'LinkedIn | Call'}", "why_now": "one sentence, max 15 words — why this specific moment/stage/signal makes this timely, or null if no real timing signal exists", "why_this_person": "one sentence, max 15 words — why this specific contact (role, seniority, behavior) matters here, or null if nothing specific is known about them beyond their title", "why_this_action": "one sentence, max 20 words — what to do and why this exact action fits now; do not include the prospect's email address in this text, or null if insufficient context", "what_not_to_say": "one short phrase, max 12 words — a specific claim or angle to avoid given known facts, or null if nothing specific to avoid"}
+
+For each of the four why_now/why_this_person/why_this_action/what_not_to_say fields, if you do not have enough real signal to answer specifically, respond with null rather than a generic statement. Never invent a fact not present in the context above.
 
 No em-dashes.
 ${typeof _langLine === 'function' ? _langLine() : ''}`;
@@ -9311,7 +9534,13 @@ ${typeof _langLine === 'function' ? _langLine() : ''}`;
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model: 'claude-sonnet-5',
-      max_tokens: 400,
+      // 400 -> 1500 (2026-09-11) : teste en conditions reelles contre /api/generate avant deploiement
+      // (voir instruction explicite de Thomas) -- le nouveau prompt v2 (5 champs) fait consommer au
+      // modele ~200-370 tokens de "thinking" internes avant la sortie JSON visible ; 400 coupait la
+      // reponse en plein milieu (stop_reason:"max_tokens", JSON imparsable). 1500 valide sur 2 cas
+      // reels (dont un avec EMPLOYER/IDENTITY UNCONFIRMED), stop_reason:"end_turn" les deux fois,
+      // usage observe 291-414 tokens de sortie totale.
+      max_tokens: 1500,
       system: systemPrompt,
       messages: [{ role: 'user', content: userMsg }]
     })
@@ -9599,10 +9828,15 @@ function _renderPriorityCards(prospects) {
     // _renderBreakdownPanel (targetId=null -> juste le HTML, pas d'ecriture DOM) plutot que de
     // recalculer l'affichage. Rien si aucune des 6 colonnes score_* n'est renseignee.
     const _bd = _icpBreakdownFromColumns(p);
+    // Fiabilite a cote du score (audit Stephane point 5) : colonne dediee 74px avec de la marge
+    // verticale (padding 16px), pas de largeur/hauteur fixe -- une ligne compacte de plus ne casse
+    // rien ici, contrairement au kanban.
+    const _relB = _scoreReliabilityBadge(p);
     const scoreColHtml = `<div style="width:74px;flex-shrink:0;border-right:1px solid var(--border);padding:16px 8px;text-align:center;${_bd ? 'position:relative;' : ''}" class="${_bd ? 'pri-score-wrap' : ''}">
         <div style="font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;color:var(--navy);">${scoreVal}</div>
         <div style="font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:0.16em;text-transform:uppercase;color:var(--muted);margin-top:2px;">ICP</div>
-        ${_bd ? `<div class="pri-score-tooltip" style="width:200px;">${_renderBreakdownPanel(_bd, null)}</div>` : ''}
+        ${_relB ? `<div style="margin-top:3px;font-size:11px;font-weight:700;color:${_relB.color};" title="${_esc(_relB.title)}">${_relB.icon}${_relB.both ? '?' : ''}</div>` : ''}
+        ${_bd ? `<div class="pri-score-tooltip" style="width:200px;">${_renderBreakdownPanel(_bd, null, ICP_WEIGHTS)}</div>` : ''}
       </div>`;
 
     return `<div class="priority-card" data-id="${p.id}"
@@ -9621,8 +9855,8 @@ function _renderPriorityCards(prospects) {
             ${p.sector ? `<span style="font-size:var(--fs-xs);font-weight:600;padding:2px 8px;
               background:var(--chip-bg);border-radius:var(--radius-pill);color:var(--indigo);">
               ${_esc(p.sector)}</span>` : ''}
-            ${p.company_verified === false ? `<span style="font-size:10px;font-weight:700;color:#b45309;background:#fef3c7;border:1px solid #fde68a;border-radius:20px;padding:1px 6px;white-space:nowrap;" title="Société non confirmée par la source de données">⚠ Société non confirmée</span>` : ''}
-            ${p.identity_confidence === 'low' ? `<span style="font-size:10px;font-weight:700;color:#6b7280;background:#f3f4f6;border:1px solid #d1d5db;border-radius:20px;padding:1px 6px;white-space:nowrap;" title="Identité non confirmée">? Identité à vérifier</span>` : ''}
+            ${p.company_verified === false ? `<span style="font-size:10px;font-weight:700;color:#b45309;background:#fef3c7;border:1px solid #fde68a;border-radius:20px;padding:1px 6px;white-space:nowrap;" title="Company not confirmed by the data source">⚠ Company not confirmed</span>` : ''}
+            ${p.identity_confidence === 'low' ? `<span style="font-size:10px;font-weight:700;color:#6b7280;background:#f3f4f6;border:1px solid #d1d5db;border-radius:20px;padding:1px 6px;white-space:nowrap;" title="Identity not confirmed">? Identity to verify</span>` : ''}
             ${p._morningScanCategory === 'today_action' ? `<span style="font-size:10px;font-weight:700;color:var(--red);background:var(--red-bg);border:1px solid var(--red-light);border-radius:20px;padding:1px 6px;white-space:nowrap;" title="Flagged for action by this morning's scan">⚡ Today</span>` : ''}
             ${p._morningScanCategory === 'opportunistic_connection' ? `<span style="font-size:10px;font-weight:700;color:#6b7280;background:#f3f4f6;border:1px solid #d1d5db;border-radius:20px;padding:1px 6px;white-space:nowrap;" title="Opportunistic connection flagged by this morning's scan">🔗 Opportunistic</span>` : ''}
           </div>
@@ -9896,7 +10130,7 @@ function _renderInboxCards(drafts, view = 'pending') {
            style="background:none;border:none;padding:0;cursor:pointer;font-weight:700;font-size:var(--fs-base);color:var(--navy);text-decoration:underline;text-align:left;"
          >${_esc(p.name || '—')}</button>
          <span style="font-size:var(--fs-sm);color:var(--muted);">${_esc(p.company || '—')}</span>`
-      : `<span style="font-size:var(--fs-sm);font-weight:600;padding:2px 8px;background:#fef3c7;border:1px solid #fde68a;border-radius:var(--radius-pill);color:#b45309;">Prospect non identifié</span>`;
+      : `<span style="font-size:var(--fs-sm);font-weight:600;padding:2px 8px;background:#fef3c7;border:1px solid #fde68a;border-radius:var(--radius-pill);color:#b45309;">Prospect not identified</span>`;
 
     // Bloc de liens (pending + history, cf. regression du commit 0bc0490 -- history en avait
     // perdu tout lien) : _buildProspectLinks() + "Full thread" en 4e entree. "Full thread" gate
@@ -9972,8 +10206,8 @@ function _renderInboxCards(drafts, view = 'pending') {
            >${_esc(variants[0].text)}</textarea>
          </div>`
       : `<div style="margin-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-           <span style="font-size:var(--fs-xs);font-style:italic;color:var(--muted);">Brouillon non généré — message source non reconnu</span>
-           ${CLIENT_ID === 'thomas' && draft.raw_payload ? `<button onclick="_inboxShowRaw('${draft.id}')" style="font-size:var(--fs-xs);padding:3px 8px;border-radius:var(--radius-pill);border:1px solid var(--border);background:none;color:var(--text);cursor:pointer;">Voir raw_payload</button>` : ''}
+           <span style="font-size:var(--fs-xs);font-style:italic;color:var(--muted);">Draft not generated — source message not recognized</span>
+           ${CLIENT_ID === 'thomas' && draft.raw_payload ? `<button onclick="_inboxShowRaw('${draft.id}')" style="font-size:var(--fs-xs);padding:3px 8px;border-radius:var(--radius-pill);border:1px solid var(--border);background:none;color:var(--text);cursor:pointer;">View raw_payload</button>` : ''}
          </div>`;
     // "Other angles" retiree (redondant, 3 angles deja proposes par defaut desormais).
     const actionBtns = `<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
@@ -10260,6 +10494,110 @@ function _removeProposalCard(id) {
   const card = document.getElementById('proposal-card-' + id);
   if (card) card.remove();
   _setProposalsBadge(document.querySelectorAll('.proposal-card').length);
+}
+
+// ── PENDING ACTIONS (autonomie "approve", chantier n8n 12/09) ──
+// linkedinSendBody/leadPayload (dans payload) sont deja des payloads d'envoi prets (bon compte
+// d'automatisation LinkedIn / bonne campagne de sequence email) -- usage exclusif du workflow n8n
+// "Execute Approved Actions", jamais affiches ici. Seul le texte lisible (note/message/body) +
+// nom/entreprise comptent pour la decision d'approbation.
+const _PENDING_ACTION_TYPE_LABELS = {
+  linkedin_invite: 'LinkedIn invite',
+  linkedin_message: 'LinkedIn message (J0)',
+  email_j5: 'Follow-up email (J+5)',
+  // buying_committee_map : aucun reglage d'autonomie ne le met en 'approve' actuellement (brief
+  // 2026-09-12) -- label prevu pour ne pas planter l'affichage si une ligne apparait un jour,
+  // sans etre un engagement de forme de payload pour ce type.
+  buying_committee_map: 'Buying committee map',
+};
+
+function _paActionText(action) {
+  const p = action.payload || {};
+  switch (action.action_type) {
+    case 'linkedin_invite': return p.note || '';
+    case 'linkedin_message': return p.message || '';
+    case 'email_j5': return p.body || '';
+    default: return p.note || p.message || p.body || p.text || JSON.stringify(p);
+  }
+}
+
+function _setPendingActionsBadge(n) {
+  const el = document.getElementById('snav-badge-pending-actions');
+  if (el) el.textContent = n > 0 ? n : '';
+  const mtabEl = document.getElementById('mtab-badge-pending-actions');
+  if (mtabEl) mtabEl.textContent = n > 0 ? n : '';
+}
+
+async function loadPendingActionsView() {
+  const container = document.getElementById('pending-actions-container');
+  if (!container) return;
+  container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">Loading...</div>';
+  try {
+    const { data: actions, error } = await sbClient.from('pending_actions')
+      .select('*')
+      .eq('client_id', CLIENT_ID)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: true })
+      .limit(200);
+    if (error) throw error;
+    if (!actions || !actions.length) {
+      container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">No drafts waiting for approval.</div>';
+      _setPendingActionsBadge(0);
+      return;
+    }
+    container.innerHTML = actions.map(_renderPendingActionCard).join('');
+    _setPendingActionsBadge(actions.length);
+  } catch(e) {
+    console.error('[loadPendingActionsView]', e);
+    container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">Unable to load pending actions right now.</div>';
+  }
+}
+
+function _renderPendingActionCard(action) {
+  const p = action.payload || {};
+  const name = p.name || '—';
+  const company = p.company || '';
+  const typeLbl = _PENDING_ACTION_TYPE_LABELS[action.action_type] || action.action_type;
+  const text = _paActionText(action);
+  return `<div class="priority-card pending-action-card" id="pending-action-card-${action.id}"
+      style="background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius-md);padding:18px 20px;margin-bottom:12px;">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+      <span style="font-weight:700;font-size:var(--fs-base);color:var(--navy);">${_esc(name)}</span>
+      ${company ? `<span style="font-size:var(--fs-sm);color:var(--muted);">${_esc(company)}</span>` : ''}
+      <span class="card-badge badge-auto" style="margin-left:auto;">${_esc(typeLbl.toUpperCase())}</span>
+    </div>
+    <div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:8px;">${_esc(action.client_id)} · ${_relTimeShort(action.created_at)}</div>
+    <div style="border:1px solid var(--border);border-radius:var(--radius-md);padding:12px 14px;font-size:var(--fs-sm);color:var(--text);line-height:1.5;white-space:pre-wrap;">${_esc(text)}</div>
+    <div style="display:flex;gap:8px;margin-top:12px;">
+      <button onclick="_paApprove('${action.id}')"
+        style="padding:7px 16px;border-radius:var(--radius-pill);background:var(--navy);color:#fff;border:none;font-size:var(--fs-sm);font-weight:600;cursor:pointer;">Approve</button>
+      <button onclick="_paReject('${action.id}')"
+        style="padding:7px 16px;border-radius:var(--radius-pill);background:none;border:1px solid var(--border);color:var(--text);font-size:var(--fs-sm);cursor:pointer;">Reject</button>
+    </div>
+  </div>`;
+}
+
+async function _paApprove(id) {
+  const { error } = await sbClient.from('pending_actions')
+    .update({ status: 'approved', decided_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) { console.error('[_paApprove]', error); showToast('Error approving action'); return; }
+  showToast('Approved — will send within 10 min ✓');
+  _removePendingActionCard(id);
+}
+
+async function _paReject(id) {
+  const { error } = await sbClient.from('pending_actions')
+    .update({ status: 'rejected', decided_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) { console.error('[_paReject]', error); showToast('Error rejecting action'); return; }
+  _removePendingActionCard(id);
+}
+
+function _removePendingActionCard(id) {
+  const card = document.getElementById('pending-action-card-' + id);
+  if (card) card.remove();
+  _setPendingActionsBadge(document.querySelectorAll('.pending-action-card').length);
 }
 
 function _inboxShowRaw(draftId) {
@@ -10811,7 +11149,11 @@ async function _scannerMapCommittee() {
 
   const _urlBlock = siteUrl
     ? '\nCOMPANY WEBSITE (authoritative identifier): ' + siteUrl + '\nVerify each person individually against the LIVE CONTEXT. Include a person only if BOTH conditions hold:\n1. They are explicitly mentioned in the LIVE CONTEXT as affiliated with ' + siteUrl + ' — not a company with a similar name.\n2. Their LinkedIn URL appears explicitly in the LIVE CONTEXT.\nIf a person fails either condition, omit that person — include others who pass both. NEVER use a job title as the "name" value ("CEO", "CTO", "Co-Founder" are forbidden — use the real first+last name). If no one passes both conditions, return [].\n'
-    : '\nDISAMBIGUATION: The company you are researching is exactly "' + company + '" (as provided) — not a similarly-named but distinct company that may appear in the search results (e.g. a different entity sharing part of the name). Only use information explicitly tied to "' + company + '" as named. If search results mention multiple entities with similar names, do not discard the entire result set due to that ambiguity — evaluate each candidate individually: include those clearly attributed to "' + company + '" specifically, exclude only the ones you cannot confidently attribute to it. Never return an empty list solely because the search results contain a mix of entities; return an empty list only if none of the candidates can be confidently attributed to "' + company + '".\n';
+    // Fix 2026-09-11 (meme audit que _discoverBuyingCommittee : la confirmation societe/tiroir
+    // apres-coup ne protege pas contre une recherche web qui a deja ramene le mauvais
+    // homonyme -- sector ajoute ici a la disambiguation, seul signal disponible dans ce flow
+    // manuel (pas de champ pays dans le formulaire Scanner, residuel, pas invente ici).
+    : '\nDISAMBIGUATION: The company you are researching is exactly "' + company + '" (as provided), in the ' + sector + ' sector — not a similarly-named but distinct company in a different sector or country that may appear in the search results (e.g. a different entity sharing part of the name). Only use information explicitly tied to "' + company + '" as named and consistent with that sector. If search results mention multiple entities with similar names, do not discard the entire result set due to that ambiguity — evaluate each candidate individually: include those clearly attributed to "' + company + '" specifically, exclude only the ones you cannot confidently attribute to it. Never return an empty list solely because the search results contain a mix of entities; return an empty list only if none of the candidates can be confidently attributed to "' + company + '".\n';
   console.log('[sm:liveContext]', liveBlock);
   const stakeholderPrompt = liveBlock +
     _urlBlock +
@@ -11629,7 +11971,7 @@ function _drawerProfileHTML(id, p, colStage, fb){
       (p.icp_reason ? `<div style="background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--ink);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:10px;opacity:0.65;display:block;margin-bottom:3px">✦ ${currentLang==='fr'?'Justification du score':'Score rationale'}</span>${v(stripHtml(p.icp_reason))}</div>` : '') +
       (p.hard_criteria_met ? `<div style="background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--ink);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:10px;opacity:0.65;display:block;margin-bottom:3px">✦ ${currentLang==='fr'?'Critères remplis':'Criteria met'}</span><ul style="margin:0;padding-left:16px">${p.hard_criteria_met.split(';').map(c => c.trim()).filter(Boolean).map(c => `<li>${v(stripHtml(c))}</li>`).join('')}</ul></div>` : '')
     )}
-    ${(() => { const _bd = _icpBreakdownFromColumns(p); return _bd ? _renderBreakdownPanel(_bd, null) : ''; })()}
+    ${(() => { const _bd = _icpBreakdownFromColumns(p); return _bd ? _renderBreakdownPanel(_bd, null, ICP_WEIGHTS) : ''; })()}
     ${card(
       lbl('Deal Value') +
       `<div class="dv-field-row" style="margin-bottom:6px">
@@ -11756,6 +12098,32 @@ async function _promoteContact(primaryPid, cIdx) {
   }
 }
 
+// Fix fraicheur (bug Shy Dekel, remonte par Thomas 2026-09-12) : l'ecriture Supabase dans
+// saveProspectEdit() a toujours fonctionne -- le probleme est que ce prospect existe en memoire
+// sous plusieurs copies INDEPENDANTES (meme id, objets differents) : _prospectsById est reconstruit
+// a neuf par renderKanban() (via loadKanban(true) plus bas), mais _sendProspects (Send),
+// _priorityShownProspects/_reminderShownProspects (Today's run), _inboxProspectsById (Inbox) et
+// _drawerProspect ne sont JAMAIS rafraichis par cet appel -- chacun garde sa propre copie perimee
+// tant que son propre ecran n'est pas revisite. _sendViaLinkedIn()/_generateSequenceMessage()
+// lisent `_sendProspects.find(...) || _prospectsById[pid]` : si Thomas avait deja ouvert Send (ou
+// le mini-Send du tiroir, cf. _promoteContact ci-dessus) avant l'edition, _sendProspects.find()
+// retombe sur la copie perimee EN PREMIER, avant meme que le fallback _prospectsById (frais) ne
+// soit essaye -- d'ou "No LinkedIn URL" alors que la base est correcte.
+// Patch immediat (avant le round-trip async loadKanban(true)) de toutes les copies connues, par
+// reference partagee quand elle existe (mutation visible partout d'un coup) sinon par recherche+
+// assign. Champ generique : n'importe quel champ edite ici (email, titre, secteur, stage...) est
+// couvert de la meme facon, pas seulement linkedin -- meme patron de peremption, meme fix.
+function _patchProspectCaches(id, updates) {
+  const applyTo = (obj) => { if (obj) Object.assign(obj, updates); };
+  applyTo(_prospectsById[id]);
+  applyTo(_inboxProspectsById[id]);
+  if (_drawerProspect && _drawerProspect.id === id) applyTo(_drawerProspect);
+  [_allProspects, _sendProspects, _priorityShownProspects, _reminderShownProspects].forEach(arr => {
+    if (!Array.isArray(arr)) return;
+    const match = arr.find(p => p && p.id === id);
+    if (match) applyTo(match);
+  });
+}
 async function saveProspectEdit(id){
   if (!id) return;
   const g = x => (document.getElementById(x)?.value || '').trim();
@@ -11796,6 +12164,10 @@ async function saveProspectEdit(id){
     }
     const { error } = await sbClient.from('prospects').update(row).eq('client_id', CLIENT_ID).eq('id', id);
     if (error) throw error;
+    // Patch immediat de toutes les copies en memoire (cf. commentaire sur _patchProspectCaches) --
+    // avant meme le round-trip async de loadKanban(true), pour que Send/Today's run/Inbox/le
+    // tiroir lisent tous la meme valeur fraiche des la fermeture de ce formulaire.
+    _patchProspectCaches(id, row);
     showToast(currentLang === 'fr' ? 'Prospect mis à jour' : 'Prospect updated');
     closeDrawer(); loadKanban(true);
   } catch(e){ console.error('[saveProspectEdit]', e); showToast(currentLang === 'fr' ? 'Échec de la sauvegarde' : 'Save failed'); }
@@ -12008,17 +12380,20 @@ function _calcCompleteness(p) {
   const fields = [p.name, p.company, p.title, p.email, p.linkedin, p.sector, p.country];
   return Math.round(fields.filter(Boolean).length / fields.length * 10);
 }
+// Poids reels de la formule ICP -- memes valeurs que le workflow n8n "Corridor - Auto ICP
+// Scoring v1" (grille unifiee du 13/08, confirme identique cote serveur). Extraits en constantes
+// nommees (au lieu de litteraux inline) pour que _renderBreakdownPanel puisse les reafficher a
+// cote de chaque barre sans les dupliquer (audit explicabilite 2026-09-11).
+const ICP_WEIGHTS = { role_fit: 0.35, company_size_fit: 0.20, signal_strength: 0.20, mandate_fit: 0.10, recency: 0.10, completeness: 0.05 };
+const ICP_WEIGHTS_DEAL = { role_fit: 0.30, company_size_fit: 0.20, signal_strength: 0.15, mandate_fit: 0.10, recency: 0.10, completeness: 0.05, deal_value: 0.10 };
 function _calcComposite(role, size, signal, mandateFit, recency, completeness, dealValue) {
   const s = (size === -1) ? 5 : size;
   const hasDeal = (dealValue !== undefined && dealValue !== -1);
-  if (!hasDeal) {
-    return Math.min(10, Math.max(0,
-      role * 0.35 + s * 0.20 + signal * 0.20 + mandateFit * 0.10 + recency * 0.10 + completeness * 0.05
-    ));
-  }
-  return Math.min(10, Math.max(0,
-    role * 0.30 + s * 0.20 + signal * 0.15 + mandateFit * 0.10 + recency * 0.10 + completeness * 0.05 + dealValue * 0.10
-  ));
+  const w = hasDeal ? ICP_WEIGHTS_DEAL : ICP_WEIGHTS;
+  const sum = role * w.role_fit + s * w.company_size_fit + signal * w.signal_strength
+    + mandateFit * w.mandate_fit + recency * w.recency + completeness * w.completeness
+    + (hasDeal ? dealValue * w.deal_value : 0);
+  return Math.min(10, Math.max(0, sum));
 }
 function _calcICP(p) {
   if (p.icp_score && Number(p.icp_score) > 0) return Number(p.icp_score).toFixed(1);
@@ -12332,9 +12707,17 @@ function buildCard(p){
   const _dc = _hs && _sv >= 9 ? 'var(--danger)' : _hs && _sv >= 8 ? 'var(--amber)' : 'var(--muted)';
   const _lbl = _hs ? (_isEst ? '~' : '') + (_sv % 1 === 0 ? String(Math.round(_sv)) : _sv.toFixed(1)) : '—';
   const _dial = `<svg width="26" height="26" viewBox="0 0 26 26" style="position:absolute;top:8px;right:8px;${_isEst ? 'opacity:0.72;' : ''}" aria-hidden="true"${_isEst ? ' title="Estimated score"' : ''}><circle cx="13" cy="13" r="11.25" fill="none" stroke="${_dc}" stroke-width="1.5"/><text x="13" y="17" text-anchor="middle" font-size="9" font-weight="700" fill="${_dc}" font-family="'IBM Plex Mono',monospace">${_lbl}</text></svg>`;
-  return `<div class="k-card" role="button" tabindex="0" data-id="${_esc(id)}" data-last-contact="${_esc(p.last_contact || '')}" data-reminder-date="${_esc(p.reminder_date || '')}" data-client-id="${CLIENT_ID}" data-linkedin-tag="${_esc(p.linkedin_tag || '')}" data-name="${_esc(p.name || '')}" data-company="${_esc(p.company || '')}" data-sector="${_esc(p.sector || '')}" data-region="${_esc(p.region || '')}" data-stage="${_esc(p.stage || '')}" data-icp-score="${score}" data-country="${_esc(p.country || '')}" data-signal-type="${_esc(p.signal_type || '')}" data-origin="${_esc(p.origin || '')}" data-deal="${Number(p.deal_value) || 0}" data-confidence="${_calcConfidence(p)}" data-job-title="${_esc(p.title || '')}" data-next-action="${p.next_action ? '1' : '0'}" data-next-action-date="${_esc(p.next_action_date || '')}" data-has-signal="${!!(p.signal_type) && !!(p.signal) && !_GENERIC_SIGNAL_TYPES.has(p.signal_type) ? 'true' : 'false'}">`
+  // Pastille fiabilite (audit Stephane point 5) : coin bas-droit de l'anneau, comme une pastille de
+  // notification -- ne prend pas de place dans le flux (position:absolute, meme coordonnee que
+  // l'anneau lui-meme), donc aucun risque de reflow sur une carte deja dense. Duplique l'info deja
+  // presente dans .k-card-badges plus bas (pas retiree de la, juste dupliquee ici en compact) --
+  // a verifier visuellement, c'est le placement le plus incertain des 3 ecrans sans rendu reel.
+  const _relB = _scoreReliabilityBadge(p);
+  const _relDot = _relB ? `<span style="position:absolute;top:29px;right:6px;width:9px;height:9px;border-radius:50%;background:${_relB.color};border:1.5px solid #fff;z-index:1;" title="${_esc(_relB.title)}"></span>` : '';
+  return `<div class="k-card" role="button" tabindex="0" data-id="${_esc(id)}" data-last-contact="${_esc(p.last_contact || '')}" data-reminder-date="${_esc(p.reminder_date || '')}" data-client-id="${CLIENT_ID}" data-linkedin-tag="${_esc(p.linkedin_tag || '')}" data-name="${_esc(p.name || '')}" data-company="${_esc(p.company || '')}" data-sector="${_esc(p.sector || '')}" data-region="${_esc(p.region || '')}" data-stage="${_esc(p.stage || '')}" data-icp-score="${score}" data-country="${_esc(p.country || '')}" data-signal-type="${_esc(p.signal_type || '')}" data-origin="${_esc(p.origin || '')}" data-deal="${Number(p.deal_value) || 0}" data-confidence="${_calcConfidence(p)}" data-job-title="${_esc(p.title || '')}" data-next-action="${p.next_action ? '1' : '0'}" data-next-action-date="${_esc(p.next_action_date || '')}" data-has-signal="${!!(p.signal_type) && !!(p.signal) && !_GENERIC_SIGNAL_TYPES.has(p.signal_type) ? 'true' : 'false'}" data-company-verified="${p.company_verified === false ? 'false' : 'true'}" data-identity-confidence="${_esc(p.identity_confidence || '')}">`
     + `<input type="checkbox" class="k-card-select" data-pid="${_esc(id)}" onchange="_onCardSelect(this)" onclick="event.stopPropagation()" style="position:absolute;top:10px;left:8px;width:14px;height:14px;cursor:pointer;z-index:2;accent-color:var(--ink);">`
     + _dial
+    + _relDot
     + `<span class="momentum-dot-inline momentum-${momentum}"></span>`
     + `<div class="k-card-name">${_esc(p.name || '—')}</div>`
     + `<div class="k-card-company">${_esc(p.company || '')}${place ? ' · ' + _esc(place) : ''}</div>`
@@ -12345,8 +12728,8 @@ function buildCard(p){
     +   (dealBadge ? `<span class="k-badge k-badge-deal">${_esc(dealBadge)}</span>` : '')
     +   (_ac.length > 0 ? `<span class="k-badge">+${_ac.length} contacts</span>` : '')
     +   (p.mandate_id && typeof _mandatesById !== 'undefined' && _mandatesById[p.mandate_id]?.name ? `<span class="k-badge">${_esc(_mandatesById[p.mandate_id].name)}</span>` : '')
-    +   (p.company_verified === false ? `<span class="k-badge" style="color:#b45309;background:#fef3c7;border-color:#fde68a;" title="Société non confirmée">⚠ Société</span>` : '')
-    +   (p.identity_confidence === 'low' ? `<span class="k-badge" style="color:#6b7280;" title="Identité à vérifier">? Identité</span>` : '')
+    +   (p.company_verified === false ? `<span class="k-badge" style="color:#b45309;background:#fef3c7;border-color:#fde68a;" title="Company not confirmed">⚠ Company</span>` : '')
+    +   (p.identity_confidence === 'low' ? `<span class="k-badge" style="color:#6b7280;" title="Identity to verify">? Identity</span>` : '')
     + `</div>`
     + (p.linkedin_tag === 'connection-accepted' && p.stage === 'Engaged' && parseFloat(p.icp_score) >= 8 && p.last_contact
         ? `<div class="k-j5-badge" onclick="_j5BadgeClick(event,'${_esc(id)}')">J+5</div>`
@@ -12978,6 +13361,13 @@ function _updateKpiCards() {
   KANBAN_STAGES.forEach(s => counts[s] = 0);
   cards.forEach(c => { const k = _stageKey(c.dataset.stage); counts[k] = (counts[k] || 0) + 1; });
   _renderPipelineStatsCard({ counts, total, inConv, highPrio, emea, na });
+  // Fix audit 2026-09-11 : "X prospects under management" (pipeline-total-count) n'etait mis a
+  // jour que par renderKanban() (jeu complet, jamais filtre) -- pendant qu'un filtre Hot/Warm/
+  // Cold ou signal est actif, le reste de cette carte (In conversation, Conversion, etc.) reflete
+  // le sous-ensemble visible, mais l'en-tete restait fige sur le total non filtre : meme carte,
+  // deux echelles differentes, sans rien pour les distinguer a l'oeil. Meme scope desormais.
+  const totalEl = document.getElementById('pipeline-total-count');
+  if (totalEl) totalEl.textContent = total;
 }
 
 let _hpFilter = 'all';
@@ -13088,7 +13478,19 @@ async function _startEmailSeq(id, requireDraft = true) {
   const statusEl = document.getElementById('seq-status-' + id);
   const btn = document.getElementById('start-seq-' + id);
   if (!p) { if (statusEl) statusEl.textContent = 'Prospect not found'; else showToast('Prospect not found'); return; }
-  if (!p.email) { if (statusEl) statusEl.textContent = 'No email on record'; else showToast('No email on record'); return; }
+  if (!p.email) {
+    // Meme garde-fou fraicheur que _sendViaLinkedIn() (bug Shy Dekel, 2026-09-12) : email est
+    // un champ edite depuis le meme formulaire tiroir (ed-email) que linkedin -- meme risque de
+    // copie perimee, meme correctif.
+    const { data: freshRow } = await sbClient.from('prospects').select('email').eq('id', id).eq('client_id', CLIENT_ID).maybeSingle();
+    if (freshRow?.email) {
+      p.email = freshRow.email;
+      _patchProspectCaches(id, { email: freshRow.email });
+    } else {
+      if (statusEl) statusEl.textContent = 'No email on record'; else showToast('No email on record');
+      return;
+    }
+  }
   const seq = (_sendSequences[id] || []).find(s => s.touch === 'j5');
   if (requireDraft && (!seq || !seq.body)) {
     showToast('Generate and mark the message ready first');
@@ -13168,18 +13570,37 @@ async function _startEmailSeq(id, requireDraft = true) {
   }
 }
 
+// Badge compact "fiabilite" a poser a cote d'un score ICP (audit Stephane point 5, 2026-09-11) --
+// memes flags/couleurs que les pastilles textuelles deja existantes (kanban/priority/tiroir),
+// jamais une deuxieme logique de calcul : juste un format compact (icone + tooltip) pour les
+// endroits ou le score n'a pas la place pour une pastille texte complete a cote de lui.
+function _scoreReliabilityBadge(p) {
+  const companyUnconfirmed = p.company_verified === false;
+  const identityUnconfirmed = p.identity_confidence === 'low';
+  if (!companyUnconfirmed && !identityUnconfirmed) return null;
+  return {
+    icon: companyUnconfirmed ? '⚠' : '?',
+    both: companyUnconfirmed && identityUnconfirmed,
+    color: companyUnconfirmed ? '#b45309' : '#6b7280',
+    title: companyUnconfirmed && identityUnconfirmed ? 'Company & identity unconfirmed' : companyUnconfirmed ? 'Company not confirmed' : 'Identity to verify',
+  };
+}
+
 // targetId undefined -> ecrit dans le panneau global du Scanner ('breakdown-panel', comportement
 // d'origine). targetId === null -> ne touche pas le DOM, retourne juste le HTML (permet de
 // l'embarquer directement dans un template string construit avant insertion, ex: tiroir/priority
 // cards, sans dependre d'un element deja present dans le DOM).
-function _renderBreakdownPanel(scores, targetId) {
+function _renderBreakdownPanel(scores, targetId, weights) {
   const rows = Object.entries(scores || {}).map(([k, v]) => {
     const label = k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
     const pct = Math.min(100, Math.max(0, Number(v) || 0));
     const color = pct >= 75 ? '#1a7a4a' : pct >= 50 ? 'var(--amber)' : '#9b1c1c';
+    // Poids (audit explicabilite 2026-09-11) : optionnel, absent -> pas de mention (comportement
+    // inchange pour un appelant qui ne passe pas ce 3e argument).
+    const wPct = weights && weights[k] != null ? Math.round(weights[k] * 100) : null;
     return `<div style="margin-bottom:6px;">
       <div style="display:flex;justify-content:space-between;font-size:var(--fs-xs);margin-bottom:2px;">
-        <span style="color:var(--muted)">${label}</span>
+        <span style="color:var(--muted)">${label}${wPct != null ? ` <span style="opacity:.6">(${wPct}% weight)</span>` : ''}</span>
         <span style="font-weight:600;color:${color}">${pct}</span>
       </div>
       <div style="height:4px;background:var(--border);border-radius:2px;">
@@ -13760,6 +14181,84 @@ async function _crmSaveStep(stepId) {
   }
 }
 
+// ── MANDATE & ICP (lecture seule -- porte depuis wominds.html, brief 2026-09-12) ──────────────
+// Contenu dynamique bilingue via currentLang (meme technique que _askRenderWelcome ci-dessus),
+// pas data-en/data-fr (ignores par ce mecanisme sur du contenu injecte par innerHTML apres coup).
+function _employeeRange(min, max){
+  const fr = (typeof currentLang !== 'undefined' && currentLang === 'fr');
+  if (min != null && max != null) return min + '–' + max + (fr ? ' salariés' : ' employees');
+  if (min != null) return min + '+' + (fr ? ' salariés' : ' employees');
+  if (max != null) return (fr ? "jusqu'à " : 'up to ') + max + (fr ? ' salariés' : ' employees');
+  return null;
+}
+async function loadMandateView(){
+  const fr = (typeof currentLang !== 'undefined' && currentLang === 'fr');
+  const container = document.getElementById('mandate-container');
+  const taxContainer = document.getElementById('taxonomy-container');
+  if (!container) return;
+  container.innerHTML = `<div style="padding:40px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">${fr ? 'Chargement…' : 'Loading...'}</div>`;
+  taxContainer.innerHTML = '';
+  try {
+    const { data: mandates, error } = await sbClient.from('mandates')
+      .select('id, segment, name, status, icp_criteria, geography, sectors, decision_makers, signals, exclusions, min_employees, max_employees, target_role_keywords')
+      .eq('client_id', CLIENT_ID)
+      .eq('status', 'active')
+      .order('segment').order('name');
+    if (error) throw error;
+    if (!mandates || !mandates.length) {
+      // Repli client_icp_params (cas Corridor, brief 2026-09-13) : certains comptes (config ICP
+      // unique, pas de modele multi-mandats) n'ont jamais eu de ligne dans `mandates` -- meme
+      // colonnes (icp_criteria/decision_makers/sectors/geography/signals/exclusions/min_employees/
+      // max_employees), juste pas de name/segment/target_role_keywords. Rendu via le meme
+      // _mandateCardHTML (les champs absents/null -- ex. signals ici -- sont deja filtres par la
+      // fonction elle-meme, jamais affiches en brut).
+      const { data: icpParams, error: icpErr } = await sbClient.from('client_icp_params')
+        .select('icp_criteria, decision_makers, sectors, geography, signals, exclusions, min_employees, max_employees')
+        .eq('client_id', CLIENT_ID)
+        .maybeSingle();
+      if (!icpErr && icpParams) {
+        const accountLabel = (_clientProfile && (_clientProfile.company_name || _clientProfile.display_name)) || (fr ? 'Ce compte' : 'This account');
+        container.innerHTML = _mandateCardHTML({ ...icpParams, name: accountLabel }, fr);
+        return;
+      }
+      container.innerHTML = `<div style="padding:40px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">${fr ? 'Aucun mandat actif trouvé.' : 'No active mandate found.'}</div>`;
+      return;
+    }
+    container.innerHTML = mandates.map(m => _mandateCardHTML(m, fr)).join('');
+    const taxonomy = await _loadSignalTaxonomy();
+    const codes = Object.keys(taxonomy).sort();
+    if (codes.length) {
+      taxContainer.innerHTML = `<div class="card">
+        <div class="card-header"><span class="card-title">${fr ? 'Signaux suivis' : 'Signals tracked'}</span></div>
+        <div>${codes.map(c => {
+          const t = taxonomy[c];
+          return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);">
+            <span style="font-size:16px;">${_esc(t.icon || '📡')}</span>
+            <span style="font-size:var(--fs-xs);font-weight:700;color:var(--navy);min-width:32px;">${_esc(c)}</span>
+            <span style="font-size:var(--fs-sm);color:var(--text);">${_esc(t.label || c)}</span>
+          </div>`;
+        }).join('')}</div>
+      </div>`;
+    }
+  } catch(e) {
+    console.error('[loadMandateView]', e);
+    container.innerHTML = `<div style="padding:40px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">${fr ? 'Impossible de charger le mandat pour le moment.' : 'Unable to load the mandate right now.'}</div>`;
+  }
+}
+function _mandateCardHTML(m, fr){
+  const L = fr
+    ? { dm: 'Décideurs cibles', sect: 'Secteurs', sig: 'Signaux', emp: 'Effectifs', geo: 'Zone géographique', kw: 'Mots-clés de poste', excl: 'Exclusions', icp: 'Critères ICP', active: 'ACTIF' }
+    : { dm: 'Target decision-makers', sect: 'Sectors', sig: 'Signals', emp: 'Headcount', geo: 'Geography', kw: 'Role keywords', excl: 'Exclusions', icp: 'ICP criteria', active: 'ACTIVE' };
+  const rows = [
+    [L.dm, m.decision_makers], [L.sect, m.sectors], [L.sig, m.signals],
+    [L.emp, _employeeRange(m.min_employees, m.max_employees)], [L.geo, m.geography],
+    [L.kw, m.target_role_keywords], [L.excl, m.exclusions], [L.icp, m.icp_criteria],
+  ].filter(([, v]) => v != null && v !== '');
+  return `<div class="card" style="margin-bottom:16px;">
+    <div class="card-header"><span class="card-title">${_esc(m.name || m.segment || 'Mandate')}</span><span class="card-badge badge-auto">${L.active}</span></div>
+    <div>${rows.map(([label, val]) => `<div style="padding:8px 0;border-bottom:1px solid var(--border);"><div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;">${_esc(label)}</div><div style="font-size:var(--fs-sm);color:var(--text);white-space:pre-wrap;">${_esc(val)}</div></div>`).join('')}</div>
+  </div>`;
+}
 async function loadKanban(force){
   if (_kanbanLoaded && !force) return;
   const btn = document.getElementById('kanban-refresh-btn');
@@ -13819,13 +14318,14 @@ async function loadClientProfile() {
   try {
     const { data: { user } } = await _supabase.auth.getUser();
     if (!user) return false;
-    const { data, error } = await _supabase
-      .from('clients')
-      .select('client_id, contact_name, company_name, display_name, avatar_url, sender_bio, owner_inbox_email, email_campaign_id, hubspot_api_key, hubspot_stage_mapping, hubspot_last_sync, salesforce_enabled, salesforce_client_id, salesforce_client_secret, salesforce_username, salesforce_password, salesforce_instance_url, salesforce_stage_mapping, salesforce_last_sync, pipedrive_enabled, pipedrive_api_key, pipedrive_stage_mapping, pipedrive_last_sync, slack_enabled, slack_webhook_url, slack_events')
-      .eq('auth_user_id', user.id)
-      .single();
-    if (error || !data) {
-      _lastProfileErrorInfo = { at: new Date(), status: error ? (error.message || error.code || 'query failed') : 'no data returned' };
+    // Fix securite 2026-09-11 : passe par /api/client-profile (service_role cote serveur) au lieu
+    // d'un select direct Supabase depuis le navigateur -- les 6 champs secrets d'integration ne
+    // sont plus jamais renvoyes en clair (voir api/client-profile.js), remplaces par des booleens
+    // `<champ>_configured` que loadIntegrationsTab() utilise pour l'etat masque/reconnect.
+    const res = await fetch('/api/client-profile', { headers: await _getAuthHeaders() });
+    const data = res.ok ? await res.json() : null;
+    if (!res.ok || !data) {
+      _lastProfileErrorInfo = { at: new Date(), status: data?.error || ('HTTP ' + res.status) };
       return false;
     }
     if (!data.client_id) {
@@ -13974,17 +14474,38 @@ Produce:
 
 Be direct. No corporate language.`;
 
-  try {
+  // Echec transitoire observe (brief 2026-09-13, Guy Elyashiv) : 1er clic -> "Error try again"
+  // generique, 2e clic identique -> reponse correcte. Cause reelle : res.ok/data.type==='error'
+  // jamais verifies -- une erreur en-bande (429/529/etc, HTTP 200 cote fetch) tombait silencieuse-
+  // ment dans le fallback textuel generique, sans aucun log. Pas de pattern de retry automatique
+  // existant ailleurs dans ce fichier pour les appels /api/generate (seul _retryProfileLoad() en a
+  // un, specifique au bootstrap client-profile) -- 1 retry silencieux ajoute ici specifiquement,
+  // scope volontairement limite a cet appel plutot que generalise sans validation plus large.
+  const _escCallOnce = async () => {
     const res = await fetch('/api/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ messages: [{ role: 'user', content: prompt }], max_tokens: 700 })
     });
-    const data = await res.json();
-    const text = (Array.isArray(data.content) ? data.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim() : '') || 'Error — try again.';
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.type === 'error' || data.error) {
+      const detail = (data.error && data.error.message) || data.error || ('HTTP ' + res.status);
+      throw new Error(detail);
+    }
+    return (Array.isArray(data.content) ? data.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim() : '') || 'Empty response.';
+  };
+  try {
+    let text;
+    try {
+      text = await _escCallOnce();
+    } catch (e1) {
+      console.warn('[_escalateProspect] first attempt failed, retrying once:', e1.message);
+      text = await _escCallOnce();
+    }
     output.innerHTML = renderMarkdown(text);
   } catch(e) {
-    output.textContent = 'Error — check your connection and try again.';
+    console.error('[_escalateProspect] failed after retry:', e.message);
+    output.textContent = 'Error: ' + e.message + '. Click Escalation Handler again to retry.';
   } finally {
     btn.disabled = false;
     btn.textContent = 'Escalation Handler';
@@ -14016,6 +14537,7 @@ const INTEGRATIONS_META = {
   pipedrive:  { label: 'Pipedrive',  color: '#24B14C', mono: 'PD' },
   slack:      { label: 'Slack',      color: '#4A154B', mono: 'SL', logo: '/logos/slack.svg' },
   gmail:      { label: 'Gmail',      color: '#EA4335', mono: 'G',  logo: '/logos/gmail.svg' },
+  m365:       { label: 'Microsoft 365', color: '#0078D4', mono: 'M365' },
 };
 
 function loadIntegrationsTab() {
@@ -14067,18 +14589,84 @@ function loadIntegrationsTab() {
     if (cb) cb.checked = slkEvents[evt] !== false;
   });
 
+  // Etat masque/reconnect (fix securite 2026-09-11) -- les champs ci-dessus sont deja vides
+  // (_clientProfile ne porte plus les valeurs reelles), ceci ajoute juste disabled + masque
+  // Reveal/Copy + affiche la ligne Connected/Reconnect/Disconnect quand une valeur existe.
+  _applyCredentialMask('hubspot',    !!_clientProfile.hubspot_api_key_configured);
+  _applyCredentialMask('salesforce', !!(_clientProfile.salesforce_client_id_configured || _clientProfile.salesforce_client_secret_configured || _clientProfile.salesforce_password_configured));
+  _applyCredentialMask('pipedrive',  !!_clientProfile.pipedrive_api_key_configured);
+  _applyCredentialMask('slack',      !!_clientProfile.slack_webhook_url_configured);
+
   _intRenderGrid();
+}
+
+// Fix securite 2026-09-11 (point 2 de l'audit) : les 4 integrations ci-dessous chargent leurs
+// champs sensibles vides par construction (/api/client-profile ne renvoie plus jamais le
+// plaintext, cf. loadClientProfile()) -- cette table decrit juste quels elements DOM masquer/
+// afficher selon l'etat "deja configure", et quels champs clients.* remettre a null au Disconnect.
+const _INT_MASKED_FIELDS = {
+  hubspot:    { inputs: ['hs-api-key'], reveal: ['hs-reveal-btn'], copy: ['hs-copy-btn'], row: 'hs-configured-row', testBtn: 'hs-test-btn' },
+  salesforce: { inputs: ['sf-client-id', 'sf-client-secret', 'sf-password'], reveal: ['sf-reveal-client-id', 'sf-reveal-client-secret', 'sf-reveal-password'], copy: ['sf-copy-client-id', 'sf-copy-client-secret', 'sf-copy-password'], row: 'sf-configured-row', testBtn: 'sf-test-btn' },
+  pipedrive:  { inputs: ['pdrv-api-key'], reveal: ['pdrv-reveal-btn'], copy: ['pdrv-copy-btn'], row: 'pdrv-configured-row', testBtn: 'pdrv-test-btn' },
+  slack:      { inputs: ['slk-webhook-url'], reveal: ['slk-reveal-btn'], copy: ['slk-copy-btn'], row: 'slk-configured-row', testBtn: null },
+};
+
+function _applyCredentialMask(name, isConfigured) {
+  const cfg = _INT_MASKED_FIELDS[name];
+  if (!cfg) return;
+  cfg.inputs.forEach(id => { const el = document.getElementById(id); if (el) el.disabled = isConfigured; });
+  cfg.reveal.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = isConfigured ? 'none' : ''; });
+  cfg.copy.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = isConfigured ? 'none' : ''; });
+  const row = document.getElementById(cfg.row);
+  if (row) row.style.display = isConfigured ? '' : 'none';
+}
+
+function _reconnectPanel(name) {
+  const cfg = _INT_MASKED_FIELDS[name];
+  if (!cfg) return;
+  _applyCredentialMask(name, false);
+  cfg.inputs.forEach((id, i) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.value = '';
+    if (i === 0) el.focus();
+  });
+  if (cfg.testBtn) { const b = document.getElementById(cfg.testBtn); if (b) b.disabled = true; }
+}
+
+async function _disconnectIntegration(name) {
+  const label = INTEGRATIONS_META[name]?.label || name;
+  if (!confirm('Disconnect ' + label + '? You will need to re-enter credentials to reconnect.')) return;
+  const CLEAR_FIELDS = {
+    hubspot:    { hubspot_api_key: null },
+    salesforce: { salesforce_enabled: false, salesforce_client_id: null, salesforce_client_secret: null, salesforce_username: null, salesforce_password: null, salesforce_instance_url: null },
+    pipedrive:  { pipedrive_enabled: false, pipedrive_api_key: null },
+    slack:      { slack_enabled: false, slack_webhook_url: null },
+  };
+  const updates = CLEAR_FIELDS[name];
+  if (!updates) return;
+  const { error } = await sbClient.from('clients').update(updates).eq('client_id', CLIENT_ID);
+  if (error) { showToast('Disconnect failed: ' + error.message); return; }
+  Object.keys(updates).forEach(f => {
+    if ((f + '_configured') in _clientProfile) _clientProfile[f + '_configured'] = false;
+    else _clientProfile[f] = updates[f];
+  });
+  loadIntegrationsTab();
+  showToast(label + ' disconnected');
 }
 
 // Statut REEL par integration, jamais invente : lu directement depuis _clientProfile (colonnes
 // clients.*), meme source que ce que chaque panneau affiche/ecrit.
 function _intStatus(name) {
   const p = _clientProfile || {};
-  if (name === 'hubspot') return p.hubspot_api_key ? 'connected' : 'not_connected';
-  if (name === 'salesforce') return (p.salesforce_enabled && p.salesforce_client_id && p.salesforce_client_secret && p.salesforce_username && p.salesforce_password) ? 'connected' : 'not_connected';
-  if (name === 'pipedrive') return (p.pipedrive_enabled && p.pipedrive_api_key) ? 'connected' : 'not_connected';
-  if (name === 'slack') return (p.slack_enabled && p.slack_webhook_url) ? 'connected' : 'not_connected';
+  // *_configured (booleens renvoyes par /api/client-profile) au lieu des colonnes en clair --
+  // fix securite 2026-09-11, les valeurs reelles ne sont plus jamais dans _clientProfile.
+  if (name === 'hubspot') return p.hubspot_api_key_configured ? 'connected' : 'not_connected';
+  if (name === 'salesforce') return (p.salesforce_enabled && p.salesforce_client_id_configured && p.salesforce_client_secret_configured && p.salesforce_username && p.salesforce_password_configured) ? 'connected' : 'not_connected';
+  if (name === 'pipedrive') return (p.pipedrive_enabled && p.pipedrive_api_key_configured) ? 'connected' : 'not_connected';
+  if (name === 'slack') return (p.slack_enabled && p.slack_webhook_url_configured) ? 'connected' : 'not_connected';
   if (name === 'gmail') return 'coming_soon';
+  if (name === 'm365') return 'connected'; // indicateur statique, pas une integration configurable -- cf. commentaire du panneau
   return 'not_connected';
 }
 
@@ -14112,11 +14700,21 @@ function _intOpenPanel(name) {
   document.getElementById('int-grid').style.display = 'none';
   const panel = document.getElementById('int-panel-' + name);
   if (panel) panel.style.display = '';
+  // Reutilise _ownerInboxEmail() (deja la source pour inbox-send) plutot que de figer
+  // thomas@corridor.systems en dur -- reste correct si owner_inbox_email differe par client.
+  if (name === 'm365') {
+    const emailEl = document.getElementById('m365-inbox-email');
+    if (emailEl) emailEl.textContent = _ownerInboxEmail();
+  }
 }
 
 function _intClosePanel() {
   document.querySelectorAll('.int-panel').forEach(el => el.style.display = 'none');
-  document.getElementById('int-grid').style.display = '';
+  // 'grid' explicite, pas '' -- '' ne restaure pas le display:grid inline initial, il le
+  // supprime purement et simplement (une fois ecrase par _intOpenPanel a 'none'), et #int-grid
+  // n'a aucune regle CSS de secours : le div retombe sur son display par defaut 'block',
+  // grid-template-columns/gap deviennent alors sans effet (grille -> liste empilee).
+  document.getElementById('int-grid').style.display = 'grid';
 }
 
 function _hsOnKeyInput() {
@@ -14812,7 +15410,7 @@ if ('serviceWorker' in navigator) {
       style="width:100%; margin-top:8px; resize:vertical;"></textarea>
     <div id="scanner-results" style="display:none">
       <div class="score-grid" id="scanner-score-grid">
-        <div class="score-kpi"><span class="score-kpi-val green" id="sc-total">—</span><span class="score-kpi-label" data-en="ICP Score" data-fr="Score ICP">ICP Score</span></div>
+        <div class="score-kpi"><span class="score-kpi-val green" id="sc-total">—</span><span class="score-kpi-label" data-en="ICP Fit Score" data-fr="Score de fit ICP">ICP Fit Score</span></div>
         <div class="score-kpi"><span class="score-kpi-val amber" id="sc-signals">—</span><span class="score-kpi-label" data-en="Signals detected" data-fr="Signaux détectés">Signals detected</span></div>
       </div>
       <div id="breakdown-panel" style="display:none;margin-bottom:16px;"></div>

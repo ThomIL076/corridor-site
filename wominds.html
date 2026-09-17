@@ -4124,21 +4124,27 @@ function openProspectDetail(id){
     _pdNextActionHTML(p) +
     _pdMessageHistorySectionHTML() +
     _pdBuyingCommitteeHTML(id) +
-    _pdEditSectionHTML(id, p);
+    _pdEditSectionHTML(id, p) +
+    `<div id="dpanel-send" style="display:none;padding:16px 0 8px;border-top:1px solid var(--border);margin-top:4px"></div>`;
   const drawerEl = document.getElementById('drawer');
   drawerEl.dataset.pid = id;
+  drawerEl.dataset.drawerTouch = '';
   drawerEl.classList.add('open');
   document.getElementById('drawer-overlay').classList.add('open');
   document.body.classList.add('drawer-open');
   // Barre d'actions persistante (parite demo-private.html .pd-footer, brief 2026-09-13 point 5b) --
   // frere de #prospect-detail-body dans #drawer (flex-direction:column), reste visible quel que
-  // soit le defilement. Seul "Archiver" y vit ("Enregistrer" reste dans le formulaire d'edition,
-  // "Generate message" delibere absent -- pas de workflow d'envoi Wominds).
+  // soit le defilement. "Generate message" ajoute (parite structurelle demo-private.html point 1
+  // du brief du jour, reutilise le mini panneau Send deja fonctionnel de l'onglet Envoyer --
+  // _sendCardHTML/_generateSequenceMessage/_markReady/_sendViaLinkedIn, aucune logique dupliquee) ;
+  // "Enregistrer" reste dans le formulaire d'edition.
   const footerEl = document.getElementById('pd-footer');
   if (footerEl) {
-    footerEl.innerHTML = `<button class="btn-secondary btn-md" style="width:100%;justify-content:center;" onclick="archiveProspect('${id}')">Archiver ce prospect</button>`;
+    footerEl.innerHTML = `<button class="btn-primary btn-md" style="flex:1;justify-content:center" onclick="_pdToggleCompose(true)">Générer un message</button>
+      <button class="btn-secondary btn-md" onclick="archiveProspect('${id}')">Archiver ce prospect</button>`;
     footerEl.style.display = 'flex';
   }
+  _renderDrawerSendPanel(id);
   // Prefill Scanner si ouvert depuis ce tiroir (parite demo-private.html:8602/_scannerPreFill).
   _scannerPreFill = { company: p.company || '', sector: p.sector || '', icp_score: p.icp_score != null ? Number(p.icp_score) : null, person: p.name || null };
   _loadDrawerInteractions(id);
@@ -4391,17 +4397,28 @@ async function _generateNextAction(p) {
     ? `\nCONTEXTE WEB VÉRIFIÉ (recherche du jour) :\n${_drLive}\nN'utilisez que les faits explicitement mentionnés ci-dessus. N'extrapolez pas.\n`
     : `\nAUCUN CONTEXTE VÉRIFIÉ : la recherche web n'a donné aucun résultat spécifique pour ${p.company || 'cette entreprise'}. Vous NE DEVEZ PAS inventer de localisation de bureaux, taille d'équipe, acquisition, levée de fonds, ou tout autre détail spécifique à l'entreprise. Si votre recommandation nécessiterait de citer un fait sur l'entreprise, écrivez "aucun détail vérifié disponible" à la place.\n`;
 
-  const systemPrompt = `Vous êtes le coach pipeline d'une équipe commerciale. Recommandez la meilleure prochaine action pour un prospect GTM.
+  // Detail du score ICP (role_fit/company_size_fit/signal_strength/mandate_fit/recency/
+  // completeness) donne en contexte au modele -- reutilise _icpBreakdownFromColumns/
+  // _ICP_BREAKDOWN_LABELS_FR deja utilises par le panneau de score du tiroir (pas de recalcul
+  // ni de nouveau libelle), plutot que les champs GTM generiques (stage/secteur/score global
+  // seuls) qui ne disent rien du POURQUOI du score cote Wominds.
+  const _bd = _icpBreakdownFromColumns(_fullP);
+  const breakdownLine = _bd
+    ? Object.entries(_bd).map(([k, v]) => `${_ICP_BREAKDOWN_LABELS_FR[k] || k} ${(v / 10).toFixed(1)}/10`).join(', ')
+    : null;
+
+  const systemPrompt = `Vous êtes le coach pipeline de l'équipe commerciale de Wominds, plateforme de mesure, pilotage et mise en conformité de l'égalité professionnelle Femme-Homme (Baromètre de perception Égalité et module Pay Transparency). Recommandez la meilleure prochaine action pour un prospect commercial Wominds.
 
 RÈGLES ANTI-HALLUCINATION -- strictement appliquées :
 1. Ne mentionnez aucun fait spécifique à l'entreprise (taille d'équipe, localisation, acquisition, levée, nom de produit, plan d'expansion) sauf s'il apparaît mot pour mot dans le CONTEXTE WEB VÉRIFIÉ.
-2. Sans contexte vérifié, basez votre réponse uniquement sur l'étape, le secteur, le score et les interactions loguées. Ne comblez pas les manques avec des détails plausibles mais inventés.
+2. Sans contexte vérifié, basez votre réponse uniquement sur l'étape, le détail du score ICP et les interactions loguées. Ne comblez pas les manques avec des détails plausibles mais inventés.
 3. Deux appels sur le même prospect doivent produire des résultats cohérents -- ne vous contredisez jamais en inventant des faits différents.
 4. Si une INTERPRÉTATION DU SIGNAL est fournie ci-dessous, elle a déjà été analysée et vérifiée -- utilisez-la telle quelle, ne la réinterprétez pas.
 5. Si EMPLOYEUR NON CONFIRMÉ est signalé ci-dessous, mentionnez dans what_not_to_say que l'employeur n'est pas confirmé et ne doit pas être présenté comme certain.
 6. Si IDENTITÉ NON CONFIRMÉE est signalée ci-dessous, mentionnez dans what_not_to_say que l'identité de ce contact n'est pas fiablement confirmée.`;
 
-  const userMsg = `Prospect : ${p.name} chez ${p.company || 'inconnu'} (${p.sector || 'secteur inconnu'}). Étape : ${STAGE_LABEL_FR[p.stage] || p.stage || 'inconnue'}. Score : ${p.icp_score || 'non défini'}.${p.email ? ' Email : ' + p.email + '.' : ''}
+  const userMsg = `Prospect : ${p.name} chez ${p.company || 'inconnu'} (${p.sector || 'secteur inconnu'}). Étape : ${STAGE_LABEL_FR[p.stage] || p.stage || 'inconnue'}. Score ICP global : ${p.icp_score || 'non défini'}.${p.email ? ' Email : ' + p.email + '.' : ''}
+${breakdownLine ? 'Détail du score ICP : ' + breakdownLine + '.' : ''}
 ${(_signalType || _signal) ? 'Signal : ' + (_signalType ? '[' + _signalType + '] ' : '') + (_signal ? _signal.replace(/<[^>]*>/g,'').slice(0, 200) : '') : ''}
 ${_signalInterp ? 'INTERPRÉTATION DU SIGNAL (déjà analysée, utilisez-la telle quelle) : ' + _signalInterp : ''}
 ${_companyUnverified ? "EMPLOYEUR NON CONFIRMÉ : true -- la source de données n'a pas confirmé que cette personne travaille toujours dans cette entreprise." : ''}
@@ -5312,6 +5329,20 @@ function _todayCardHTML(p) {
   const tierColor = (p.icp_score || 0) >= 9 ? 'var(--danger)' : ((p.icp_score || 0) >= 8 ? 'var(--amber)' : 'var(--border)');
   const sig = p.signal_type ? _sigBadge(p.signal_type) : '';
   const signalText = p.signal ? _sanitizeSignal(p.signal).replace(/<[^>]*>/g, '').slice(0, 160) : '';
+  // Generate/NEXT ACTION par carte (parite demo-private.html:9757-9819, _priorityGenerate) --
+  // reutilise _renderNextActionHTML/_generateNextAction deja ecrits pour le tiroir, pas une
+  // deuxieme implementation. event.stopPropagation() necessaire : toute la carte ouvre deja
+  // le tiroir au clic (onclick plus bas), le bouton/panneau ne doivent pas le declencher aussi.
+  const cachedRendered = p.next_action_cache ? _renderNextActionHTML(p.next_action_cache, 'var(--navy)') : null;
+  const actionHtml = cachedRendered
+    ? `<div class="loaded" id="today-action-${p.id}" style="margin-top:10px;font-size:var(--fs-xs);line-height:1.6;" onclick="event.stopPropagation()">${cachedRendered}</div>`
+    : `<div id="today-action-${p.id}" style="margin-top:10px;" onclick="event.stopPropagation()">
+         <button id="today-gen-${p.id}" onclick="_todayGenerate('${p.id}')"
+           style="width:100%;padding:9px 12px;font-size:var(--fs-xs);border-radius:var(--radius-sm);
+                  background:var(--navy);color:#fff;border:none;cursor:pointer;font-weight:700;">
+           Générer
+         </button>
+       </div>`;
   return `<div class="card" style="display:flex;padding:0;margin-bottom:12px;overflow:hidden;cursor:pointer;" onclick="openProspectDetail('${p.id}')">
     <div style="width:4px;background:${tierColor};flex-shrink:0;"></div>
     <div style="width:70px;flex-shrink:0;border-right:1px solid var(--border);padding:14px 6px;text-align:center;">
@@ -5322,8 +5353,37 @@ function _todayCardHTML(p) {
       <div style="font-weight:700;font-size:var(--fs-base);color:var(--navy);">${_esc(p.name || 'Sans nom')}</div>
       <div style="font-size:var(--fs-sm);color:var(--muted);">${_esc(p.company || 'N/D')}${p.sector ? ' · ' + _esc(p.sector) : ''}</div>
       ${p.signal ? `<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:6px;line-height:1.4;">${sig} ${signalText}</div>` : ''}
+      ${actionHtml}
     </div>
   </div>`;
+}
+async function _todayGenerate(prospectId) {
+  const btn = document.getElementById('today-gen-' + prospectId);
+  const actionDiv = document.getElementById('today-action-' + prospectId);
+  const p = _prospectsById[prospectId];
+  if (!p || !actionDiv) return;
+  if (btn) { btn.disabled = true; btn.textContent = 'Génération…'; }
+  try {
+    const { data: ints } = await sbClient.from('interactions')
+      .select('id,type,note,created_at').eq('prospect_id', prospectId)
+      .order('created_at', { ascending: false }).limit(30);
+    _drawerInteractions = ints || [];
+  } catch(_) { _drawerInteractions = []; }
+  try {
+    const text = await _generateNextAction(p);
+    if (!text.trim()) {
+      console.error('[_todayGenerate] réponse vide pour', p.name, p.company);
+      actionDiv.innerHTML = `<span style="color:var(--muted);font-size:var(--fs-xs);">Pas de réponse de l'IA, réessayez.</span>`;
+      if (btn) { btn.disabled = false; btn.textContent = 'Générer'; }
+      return;
+    }
+    actionDiv.innerHTML = _renderNextActionHTML(text, 'var(--navy)');
+    actionDiv.classList.add('loaded');
+  } catch(e) {
+    console.error('[_todayGenerate] erreur :', e);
+    actionDiv.innerHTML = `<span style="color:var(--muted);font-size:var(--fs-xs);">Erreur : ${_esc(e.message || 'inconnue')}</span>`;
+    if (btn) { btn.disabled = false; btn.textContent = 'Générer'; }
+  }
 }
 
 // ── ENVOYER ─────────────────────────────────────────────────────────────────
@@ -5839,6 +5899,58 @@ function _renderManualSection() {
     </div>
     ${_sendCardHTML(p, _manualTouch, 'm-')}
   </div>`;
+}
+
+// ── Mini panneau Send dans le tiroir prospect (parite demo-private.html:8734-8854/7370-7429,
+// _renderManualSection/dpanel-send) -- reutilise _sendCardHTML/_generateSequenceMessage/
+// _saveSequenceDraft/_markReady/_sendViaLinkedIn/_markSent tels quels (memes fonctions que
+// l'onglet Envoyer, elPrefix='d-' pour des ids DOM distincts) : aucune logique d'envoi
+// dupliquee, seul le conteneur et le selecteur de touche (absent de _renderManualSection,
+// qui affiche un badge statique via _suggestTouch) sont nouveaux ici. Touches limitees a
+// invite/j0/j5 (les seules reellement cablees cote Wominds -- Ambassador/Redirect sont des
+// concepts specifiques au programme de parrainage Corridor, sans equivalent business ici ;
+// decision explicite de Thomas plutot qu'un choix invente).
+function _pdToggleCompose(forceOpen) {
+  const el = document.getElementById('dpanel-send');
+  if (!el) return;
+  const show = forceOpen === true || el.style.display === 'none';
+  el.style.display = show ? 'block' : 'none';
+  if (show) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+function _renderDrawerSendPanel(pid) {
+  const container = document.getElementById('dpanel-send');
+  if (!container || !pid) return;
+  const dEl = document.getElementById('drawer');
+  const p = _prospectsById[pid] || _sendProspects.find(x => x.id === pid);
+  if (!p) return;
+  const currentTouch = dEl?.dataset.drawerTouch || _suggestTouch(p);
+  if (dEl) dEl.dataset.drawerTouch = currentTouch;
+  const touchBtns = ['invite','j0','j5'].map(t => {
+    const active = t === currentTouch;
+    return `<button onclick="_setDrawerTouch('${t}')" style="padding:4px 10px;border-radius:var(--radius-sm);border:1px solid ${active?'var(--navy)':'var(--border)'};background:${active?'var(--navy)':'transparent'};color:${active?'#fff':'var(--text)'};font-size:var(--fs-xs);cursor:pointer;font-weight:${active?'700':'400'}">${TOUCH_LABELS[t]?.label||t}</button>`;
+  }).join('');
+  container.innerHTML = `<div style="font-size:var(--fs-micro);font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);margin-bottom:12px;">Message</div>
+    <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;">${touchBtns}</div>
+    ${_sendCardHTML(p, currentTouch, 'd-')}
+    ${_pdEmailSequenceButtonHTML()}`;
+}
+function _setDrawerTouch(t) {
+  const pid = _drawerPid();
+  if (!pid) return;
+  const dEl = document.getElementById('drawer');
+  if (dEl) dEl.dataset.drawerTouch = t;
+  _renderDrawerSendPanel(pid);
+}
+// Bouton "Demarrer la sequence email" -- visuel uniquement (brief explicite de Thomas, point 3) :
+// la campagne email J+5 Wominds n'est pas encore creee cote automatisation, ce bouton ne doit
+// donc appeler aucun endpoint reel. Desactive + info-bulle plutot qu'un clic menant nulle part.
+// Aucun nom de fournisseur dans le libelle/tooltip (regle transversale du projet).
+function _pdEmailSequenceButtonHTML() {
+  return `<button class="btn-lg" disabled title="Séquence email pas encore disponible — campagne pas encore configurée"
+      style="width:100%;margin-top:10px;background:var(--border);color:var(--muted);border:none;border-radius:var(--radius-sm);font-weight:500;cursor:not-allowed;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 6l-10 7L2 6"/></svg>
+      Démarrer la séquence email
+    </button>`;
 }
 
 // RECEMMENT ENVOYES (lecture seule, fenetre 7 jours -- identique demo-private.html:7233-7241)
