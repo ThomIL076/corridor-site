@@ -8005,6 +8005,36 @@ async function openDrawer(card, initialTab = 'activity') {
   const _cachedRendered = _p.next_action_cache
     ? _renderNextActionHTML(_p.next_action_cache, 'var(--navy)')
     : null;
+  // F16 (kaizenology, 2026-09-17) : "Why Corridor, now" fusionne signal+source+interpretation,
+  // remplace l'ancien encart signal/icp_reason fixe sous l'en-tete -- meme logique que
+  // demo-private.html/wominds.html. signal/signal_type/signal_date restent des champs uniques
+  // sur le prospect, pas un historique -- une seule ligne reelle au maximum, jamais completee
+  // par invention. Lien Source : _p.signal_url STRICTEMENT, jamais de fallback devine.
+  const _sigText = _p.signal ? _sanitizeSignal(_p.signal) : '';
+  const _sigUrl = (_p.signal_url || '').trim();
+  const _stripHtmlPd = s => (s || '').replace(/<a\s[^>]*>([^<]*)<\/a>/gi, '$1').replace(/<[^>]*>/g, '').trim();
+  const _sigInterp = _p.signal_interpretation ? _esc(_stripHtmlPd(_p.signal_interpretation)) : '';
+  const _whyNowHTML = _sigText ? `
+    <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px;">${_p.signal_type ? _sigBadge(_p.signal_type) : ''}<span style="font-size:var(--fs-xs);color:var(--muted);margin-left:auto;white-space:nowrap;">${_esc(_p.signal_date ? (_relDate(_p.signal_date) || '') : 'date not specified')}</span></div>
+    <div style="font-size:var(--fs-sm);color:var(--text);line-height:1.5;">${_sigText}</div>
+    ${_sigUrl ? `<a href="${_esc(_sigUrl)}" target="_blank" rel="noopener noreferrer" style="font-size:var(--fs-xs);color:var(--blue-brand);text-decoration:underline;font-weight:600;">Source →</a>` : ''}
+    ${_sigInterp ? `<div style="margin-top:8px;background:var(--navy-light);border:1px solid var(--blue);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--navy);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:10px;opacity:0.65;display:block;margin-bottom:3px">✦ ${currentLang==='fr'?'Analyse IA':'AI Insight'}</span>${_sigInterp}</div>` : ''}
+  ` : `<div style="font-size:var(--fs-sm);color:var(--dim);font-style:italic">No signal recorded yet.</div>`;
+  // F16 : "Priority reason" -- icp_reason jamais affiche dans le tiroir jusqu'ici (seulement
+  // dans Edit details), plus derniere verification (identity_verdict_checked_at/
+  // company_checked_at, le plus recent des deux). Rien affiche si aucun des deux n'est renseigne.
+  const _icpReasonHTML = _p.icp_reason ? _esc(_stripHtmlPd(_p.icp_reason)) : '';
+  const _lastCheckedAt = [_p.identity_verdict_checked_at, _p.company_checked_at].filter(Boolean).sort((a, b) => new Date(b) - new Date(a))[0] || null;
+  const _priorityReasonHTML = `
+    ${_icpReasonHTML ? `<div style="background:var(--navy-light);border:1px solid var(--blue);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--navy);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:10px;opacity:0.65;display:block;margin-bottom:3px">✦ ${currentLang==='fr'?'Justification du score':'Score rationale'}</span>${_icpReasonHTML}</div>` : `<div style="font-size:var(--fs-sm);color:var(--dim);font-style:italic">No score rationale recorded yet.</div>`}
+    ${_lastCheckedAt ? `<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:8px">Last verified: ${_esc(_relDate(_lastCheckedAt) || '')}</div>` : ''}
+  `;
+  // Refonte tiroir onglets -> corps unique (2026-09-17, demande Thomas "harmonie complete
+  // entre les 3 dashboards") : meme structure que demo-private.html (un seul scroll continu,
+  // .pd-footer persistant), contenu des 5 anciens onglets (Activity/Profile/Deal/AI/Send)
+  // integralement conserve -- rien retire, seulement reordonne/redeplace. Voir plan valide par
+  // Thomas : Next action -> Interactions -> Buying committee -> Call prep -> Edit details
+  // (repliee) -> Send (masque, revele par le pied de tiroir).
   document.getElementById('drawer').innerHTML = `
     <div class="drawer-head">
       <div style="flex:1;min-width:0">
@@ -8024,421 +8054,449 @@ async function openDrawer(card, initialTab = 'activity') {
       </button>
       <button class="drawer-close" onclick="closeDrawer()" aria-label="Close prospect drawer">✕</button>
     </div>
-    ${!!_p.signal_type && !!_p.signal
-      ? `<div style="margin:8px 22px 4px;padding:8px 12px;background:var(--navy-light);border-radius:var(--radius-md);font-size:var(--fs-xs);color:var(--text);line-height:1.5;border-left:3px solid var(--blue-brand);"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--blue-brand);margin-bottom:3px;">${_esc(_p.signal_type)}</div>${_sanitizeSignal((_p.signal||'').length>200?(_p.signal||'').slice(0,200)+'…':(_p.signal||''))}</div>`
-      : (_p.icp_reason ? `<div style="margin:8px 22px 4px;padding:7px 12px;background:#f1f2f4;border-radius:var(--radius-md);font-size:var(--fs-xs);color:var(--dim);line-height:1.5;"><span style="font-weight:700;opacity:0.75;margin-right:3px;">Correspond aux critères ICP :</span>${_esc(_p.icp_reason)}</div>` : '')}
-    <div class="drawer-tabs">
-      <div class="dtab active" onclick="_switchDTab('activity',this)">Activity</div>
-      <div class="dtab" onclick="_switchDTab('profile',this)">Profile</div>
-      <div class="dtab" onclick="_switchDTab('deal',this)">Deal</div>
-      <div class="dtab" onclick="_switchDTab('ai',this)">AI</div>
-      <div class="dtab" onclick="_switchDTab('send',this)">Send</div>
-    </div>
-    <div class="dtab-panel active" id="dpanel-activity">
-      ${_reminderBannerHTML(reminderDate)}
-      <div style="margin:12px 0 0;padding:12px;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--bg);">
-        <div style="font-size:var(--fs-micro);font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--dim);margin-bottom:8px">Next action</div>
-        <input id="drawer-next-action" class="dp-inp" value="${_esc(_p.next_action || '')}" placeholder="Next step..." style="margin-bottom:6px">
-        <div style="display:flex;gap:8px;align-items:center;">
-          <input id="drawer-next-action-date" type="date" class="dp-inp" value="${_esc((_p.next_action_date || '').slice(0,10))}" style="flex:1;min-width:0">
-          <button onclick="_saveNextAction('${_esc(prospectId)}')" style="font-size:var(--fs-sm);padding:5px 12px;background:var(--navy);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer;white-space:nowrap">Save</button>
+    <div id="drawer-body" style="flex:1;min-height:0;overflow-y:auto;">
+      <!-- 1. WHY CORRIDOR, NOW (F16, remplace l'ancien encart signal/icp_reason fixe) -->
+      <div style="padding:16px 20px;">
+        <div class="drawer-section-title">Why Corridor, now</div>
+        ${_whyNowHTML}
+      </div>
+      <!-- 2. PRIORITY REASON (F16, nouvelle section) -->
+      <div style="padding:16px 20px;border-top:1px solid var(--border)">
+        <div class="drawer-section-title">Priority reason</div>
+        ${_priorityReasonHTML}
+      </div>
+      <!-- 3. NEXT ACTION (depuis l'ancien onglet Activity) -->
+      <div style="padding:16px 20px;">
+        ${_reminderBannerHTML(reminderDate)}
+        <div style="margin-top:12px;padding:12px;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--bg);">
+          <div style="font-size:var(--fs-micro);font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--dim);margin-bottom:8px">Next action</div>
+          <input id="drawer-next-action" class="dp-inp" value="${_esc(_p.next_action || '')}" placeholder="Next step..." style="margin-bottom:6px">
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input id="drawer-next-action-date" type="date" class="dp-inp" value="${_esc((_p.next_action_date || '').slice(0,10))}" style="flex:1;min-width:0">
+            <button onclick="_saveNextAction('${_esc(prospectId)}')" style="font-size:var(--fs-sm);padding:5px 12px;background:var(--navy);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer;white-space:nowrap">Save</button>
+          </div>
         </div>
       </div>
-      <div class="int-log" id="drawer-int-list">
-        <div class="int-empty" style="color:var(--dim);font-size:var(--fs-sm)">Loading...</div>
-      </div>
-      <div class="int-form">
-        <div class="int-form-title">Log interaction</div>
-        <div class="int-type-btns">
-          ${['linkedin','email','call','meeting','note'].map((t,i) =>
-            `<button class="int-type-btn${i===0?' selected':''}" data-type="${t}"
-              onclick="_selIntType(this,'${t}')">${t}</button>`
-          ).join('')}
+      <!-- 4. INTERACTIONS (depuis Activity -- equivalent le plus proche du "Message history" de
+           demo-private.html, conceptuellement different (journal manuel, pas un historique des
+           messages envoyes) mais c'est ce qui existe reellement cote kaizenology : garde sous son
+           vrai nom, confirme par Thomas, plutot que de l'omettre ou de le faire passer pour autre
+           chose. -->
+      <div style="padding:16px 20px;border-top:1px solid var(--border)">
+        <div class="drawer-section-title" data-en="Interactions" data-fr="Journal d'interactions">Interactions</div>
+        <div class="int-log" id="drawer-int-list">
+          <div class="int-empty" style="color:var(--dim);font-size:var(--fs-sm)">Loading...</div>
         </div>
-        <textarea class="int-note-input" id="drawer-int-note"
-          placeholder="Add a note (optional)..." rows="2"></textarea>
-        <button class="int-save-btn" id="drawer-int-save" onclick="_saveInteraction()">
-          Save interaction
-        </button>
+        <div class="int-form">
+          <div class="int-form-title">Log interaction</div>
+          <div class="int-type-btns">
+            ${['linkedin','email','call','meeting','note'].map((t,i) =>
+              `<button class="int-type-btn${i===0?' selected':''}" data-type="${t}"
+                onclick="_selIntType(this,'${t}')">${t}</button>`
+            ).join('')}
+          </div>
+          <textarea class="int-note-input" id="drawer-int-note"
+            placeholder="Add a note (optional)..." rows="2"></textarea>
+          <button class="int-save-btn" id="drawer-int-save" onclick="_saveInteraction()">
+            Save interaction
+          </button>
+        </div>
       </div>
-    </div>
-    <div class="dtab-panel" id="dpanel-profile">
-      ${_drawerProfileHTML(prospectId, _prospectsById[prospectId] || {}, stage, { name, company, sector })}
-    </div>
-    <div class="dtab-panel" id="dpanel-deal">
-      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">
-        <div style="display:flex;gap:10px">
+      <!-- 5. BUYING COMMITTEE (extrait de _drawerProfileHTML, section top-level propre) -->
+      ${_drawerBuyingCommitteeHTML(prospectId, _prospectsById[prospectId] || {})}
+      <!-- 6. CALL PREP (depuis AI + Schedule call/Start email sequence deplaces depuis Deal --
+           demo-private.html les inclut aussi dans sa section Call prep brief). Masque si
+           stage === 'Identified' (F15 point 3, meme regle que demo-private.html) -- utilise
+           _p.stage (vrai champ prospects.stage), jamais la variable locale "stage" ci-dessus
+           (derivee du DOM de la colonne kanban d'origine, retombe sur 'Identified' code en dur
+           quand le tiroir est ouvert hors Pipeline -- meme piege documente sur demo-private.html). -->
+      ${_p.stage !== 'Identified' ? `
+      <div style="padding:16px 20px;border-top:1px solid var(--border)">
+        <div class="drawer-section-title" style="margin-bottom:10px">Call prep</div>
+        <button class="btn-accent" style="width:100%;justify-content:center;margin-bottom:12px"
+          onclick="_drawerAI()" id="drawer-next-btn">${_hasCachedAction ? '🔄 Regenerate' : '▶ Next recommended action'}</button>
+        <button class="btn-secondary" style="width:100%;justify-content:center;margin-bottom:12px" onclick="_escalateProspect()" id="drawer-escalate-btn">Escalation Handler</button>
+        <button class="btn-secondary" style="width:100%;justify-content:center;margin-bottom:12px" onclick="_sendDiscoveryBrief()" id="drawer-discovery-btn">Prepare discovery call</button>
+        <div class="ai-box">
+          <div class="ai-box-header">
+            <span class="ai-box-label">Call prep brief</span>
+          </div>
+          <div class="ai-box-body" id="pd-brief-card">No brief prepared yet — generate one above.</div>
+        </div>
+        <button class="btn-secondary" style="width:100%;justify-content:center;margin-bottom:12px" onclick="_pdCopyBrief()" id="pd-brief-copy-btn" disabled>Copy brief</button>
+        <div class="ai-box" id="escalate-box" style="display:none">
+          <div class="ai-box-header">
+            <span class="ai-box-label" style="color:#ef4444">Escalation Brief</span>
+            <div class="ai-spinner" id="escalate-spinner"></div>
+          </div>
+          <div class="ai-box-body" id="escalate-output"></div>
+        </div>
+        <div class="ai-box">
+          <div class="ai-box-header">
+            <span class="ai-box-label">Recommended Action</span>
+            <div class="ai-spinner" id="drawer-spinner"></div>
+          </div>
+          <div class="ai-box-body${_cachedRendered ? ' loaded' : ''}" id="drawer-output">${_cachedRendered || 'Click to generate the next step...'}</div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:16px">
           <button onclick="_scheduleCall('${prospectId}')" style="flex:1;font-size:12.5px;padding:9px;display:flex;align-items:center;justify-content:center;gap:6px;background:var(--white);color:var(--text);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;font-family:inherit">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
             Schedule call
           </button>
         </div>
-        <button id="start-seq-${prospectId}" onclick="_startEmailSeq('${prospectId}')" style="width:100%;background:var(--green-brand);color:#FFFFFF;border:none;border-radius:var(--radius-sm);font-size:12.5px;font-weight:500;display:flex;align-items:center;justify-content:center;gap:6px;padding:9px;cursor:pointer;font-family:inherit">
+        <button id="start-seq-${prospectId}" onclick="_startEmailSeq('${prospectId}')" style="width:100%;margin-top:10px;background:var(--green-brand);color:#FFFFFF;border:none;border-radius:var(--radius-sm);font-size:12.5px;font-weight:500;display:flex;align-items:center;justify-content:center;gap:6px;padding:9px;cursor:pointer;font-family:inherit">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 6l-10 7L2 6"/></svg>
           Start email sequence
         </button>
         <span id="seq-status-${prospectId}" style="font-size:var(--fs-xs);color:#6b7a99"></span>
-      </div>
-      <div style="border-top:1px solid var(--border);padding-top:16px;">
-        <div class="drawer-section-title" style="margin-bottom:12px" data-en="Deal Value" data-fr="Valeur du deal">Deal Value</div>
-        <div class="dv-row" style="margin-bottom:12px;">
-          <select id="dv-deal-type" onchange="_dvShowFields();recalcDealValue()" style="font-family:inherit;color:var(--text);background:var(--bg);">
-            <option value="">— Select deal type —</option>
-            <option value="retainer_only">Retainer only</option>
-            <option value="retainer_success">Retainer + Success</option>
-            <option value="prep_success">Preparation fee + Success</option>
-            <option value="success_only">Success only</option>
-            <option value="fixed">Fixed amount</option>
-            <option value="shared">Shared mandate</option>
-            <option value="referral">Referral commission</option>
-          </select>
-        </div>
-        <div class="dv-field-group" id="dvg-retainer" style="display:none;">
-          <div class="dv-field-row">
-            <label>Monthly retainer</label>
-            <input type="number" id="dv-retainer-monthly" min="0" step="100" placeholder="e.g. 5000" oninput="recalcDealValue()">
-          </div>
-          <div class="dv-field-row">
-            <label>Number of months</label>
-            <input type="number" id="dv-retainer-months" min="1" step="1" placeholder="e.g. 6" oninput="recalcDealValue()">
-          </div>
-        </div>
-        <div class="dv-field-group" id="dvg-prep" style="display:none;">
-          <div class="dv-field-row">
-            <label>Preparation fee</label>
-            <input type="number" id="dv-prep-fee" min="0" step="500" placeholder="e.g. 15000" oninput="recalcDealValue()">
-          </div>
-        </div>
-        <div class="dv-field-group" id="dvg-success" style="display:none;">
-          <div class="dv-field-row">
-            <label>Success rate</label>
-            <input type="number" id="dv-success-rate" min="0" max="100" step="0.5" placeholder="e.g. 7" oninput="recalcDealValue()">
-            <span class="dv-pct">%</span>
-          </div>
-          <div class="dv-field-row">
-            <label>Applied to</label>
-            <select id="dv-base-type" onchange="_dvShowFields();recalcDealValue()" style="font-family:inherit;color:var(--text);background:var(--bg);">
-              <option value="transaction_value">% of transaction value</option>
-              <option value="third_party_fee">% of a third party's fee</option>
-            </select>
-          </div>
-          <div class="dv-field-row">
-            <label id="dv-base-amount-lbl">Transaction value</label>
-            <input type="number" id="dv-base-amount" min="0" step="10000" placeholder="e.g. 2000000" oninput="recalcDealValue()">
-          </div>
-        </div>
-        <div class="dv-field-group" id="dvg-fixed" style="display:none;">
-          <div class="dv-field-row">
-            <label>Amount</label>
-            <input type="number" id="dv-fixed-amount" min="0" step="1000" placeholder="e.g. 50000" oninput="recalcDealValue()">
-          </div>
-        </div>
-        <div class="dv-field-group" id="dvg-shared" style="display:none;">
-          <div class="dv-field-row">
-            <label>Stéphane's share</label>
-            <input type="number" id="dv-share-pct" min="0" max="100" step="5" placeholder="e.g. 50" oninput="recalcDealValue()">
-            <span class="dv-pct">%</span>
-          </div>
-          <div class="dv-field-row">
-            <label>Sub-type</label>
-            <select id="dv-sub-type" onchange="_dvShowFields();recalcDealValue()" style="font-family:inherit;color:var(--text);background:var(--bg);">
-              <option value="retainer_only">Retainer only</option>
-              <option value="retainer_success">Retainer + Success</option>
-              <option value="prep_success">Preparation fee + Success</option>
-              <option value="success_only">Success only</option>
-              <option value="fixed">Fixed amount</option>
-            </select>
-          </div>
-          <div class="dv-field-row" id="dvg-gross-row" style="display:none;">
-            <label style="color:var(--muted)">Gross fee</label>
-            <span id="dv-gross-fee" style="font-size:var(--fs-sm);color:var(--muted);">—</span>
-          </div>
-        </div>
-        <div class="dv-field-group" id="dvg-referral" style="display:none;">
-          <div class="dv-field-row">
-            <label>Monthly base</label>
-            <input type="number" id="dv-referral-base" min="0" step="100" placeholder="e.g. 1500" oninput="recalcDealValue()">
-          </div>
-          <div class="dv-field-row">
-            <label>First month rate</label>
-            <input type="number" id="dv-referral-first" min="0" max="100" step="0.5" placeholder="e.g. 15" oninput="recalcDealValue()">
-            <span class="dv-pct">%</span>
-          </div>
-          <div class="dv-field-row">
-            <label>Subsequent rate</label>
-            <input type="number" id="dv-referral-sub" min="0" max="100" step="0.5" placeholder="e.g. 10" oninput="recalcDealValue()">
-            <span class="dv-pct">%</span>
-          </div>
-          <div class="dv-field-row">
-            <label>Duration (months)</label>
-            <input type="number" id="dv-referral-dur" min="1" step="1" placeholder="e.g. 12" oninput="recalcDealValue()">
-          </div>
-        </div>
-        <div class="dv-conf">
-          <label><span data-en="Confidence" data-fr="Confiance">Confidence</span> <span id="dv-conf-val">50%</span></label>
-          <input type="range" id="dv-conf" min="0" max="100" value="50" oninput="recalcDealValue()">
-        </div>
-        <div class="dv-results-box">
-          <div class="dv-results-row">
-            <span class="dv-results-lbl" data-en="Fee if closed" data-fr="Honoraires si deal conclu">Fee if closed</span>
-            <span id="dv-fee-if-closed" class="dv-results-val">—</span>
-          </div>
-          <div class="dv-results-row">
-            <span class="dv-results-lbl" data-en="Weighted expectation" data-fr="Espérance pondérée">Weighted expectation</span>
-            <span id="dv-weighted" class="dv-results-val dv-weighted">—</span>
-          </div>
-        </div>
-        <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">
-          <div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px;" data-en="Currency &amp; Manual override" data-fr="Devise &amp; Saisie manuelle">Currency &amp; Manual override</div>
-          <div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:4px;">Currency (applies to estimator &amp; manual)</div>
-          <select id="dv-currency" onchange="recalcDealValue()"
-            style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:var(--fs-sm);font-family:inherit;background:var(--bg);color:var(--text);margin-bottom:8px;">
-              <option value="">— —</option>
-              <optgroup label="Common">
-                <option value="EUR">EUR — Euro</option>
-                <option value="USD">USD — US Dollar</option>
-                <option value="GBP">GBP — British Pound</option>
-                <option value="CHF">CHF — Swiss Franc</option>
-                <option value="JPY">JPY — Japanese Yen</option>
-                <option value="CAD">CAD — Canadian Dollar</option>
-                <option value="AUD">AUD — Australian Dollar</option>
-                <option value="SGD">SGD — Singapore Dollar</option>
-                <option value="HKD">HKD — Hong Kong Dollar</option>
-                <option value="AED">AED — UAE Dirham</option>
-                <option value="SAR">SAR — Saudi Riyal</option>
-                <option value="QAR">QAR — Qatari Riyal</option>
-                <option value="NOK">NOK — Norwegian Krone</option>
-                <option value="SEK">SEK — Swedish Krona</option>
-                <option value="DKK">DKK — Danish Krone</option>
-                <option value="MAD">MAD — Moroccan Dirham</option>
-              </optgroup>
-              <optgroup label="All currencies">
-                <option value="AFN">AFN — Afghan Afghani</option>
-                <option value="ALL">ALL — Albanian Lek</option>
-                <option value="AMD">AMD — Armenian Dram</option>
-                <option value="ANG">ANG — Netherlands Antillean Guilder</option>
-                <option value="AOA">AOA — Angolan Kwanza</option>
-                <option value="ARS">ARS — Argentine Peso</option>
-                <option value="AWG">AWG — Aruban Florin</option>
-                <option value="AZN">AZN — Azerbaijani Manat</option>
-                <option value="BAM">BAM — Bosnia-Herzegovina Convertible Mark</option>
-                <option value="BBD">BBD — Barbadian Dollar</option>
-                <option value="BDT">BDT — Bangladeshi Taka</option>
-                <option value="BGN">BGN — Bulgarian Lev</option>
-                <option value="BHD">BHD — Bahraini Dinar</option>
-                <option value="BIF">BIF — Burundian Franc</option>
-                <option value="BMD">BMD — Bermudian Dollar</option>
-                <option value="BND">BND — Brunei Dollar</option>
-                <option value="BOB">BOB — Bolivian Boliviano</option>
-                <option value="BRL">BRL — Brazilian Real</option>
-                <option value="BSD">BSD — Bahamian Dollar</option>
-                <option value="BTN">BTN — Bhutanese Ngultrum</option>
-                <option value="BWP">BWP — Botswanan Pula</option>
-                <option value="BYN">BYN — Belarusian Ruble</option>
-                <option value="BZD">BZD — Belize Dollar</option>
-                <option value="CDF">CDF — Congolese Franc</option>
-                <option value="CLP">CLP — Chilean Peso</option>
-                <option value="CNY">CNY — Chinese Yuan</option>
-                <option value="COP">COP — Colombian Peso</option>
-                <option value="CRC">CRC — Costa Rican Colón</option>
-                <option value="CUP">CUP — Cuban Peso</option>
-                <option value="CVE">CVE — Cape Verdean Escudo</option>
-                <option value="CZK">CZK — Czech Koruna</option>
-                <option value="DJF">DJF — Djiboutian Franc</option>
-                <option value="DOP">DOP — Dominican Peso</option>
-                <option value="DZD">DZD — Algerian Dinar</option>
-                <option value="EGP">EGP — Egyptian Pound</option>
-                <option value="ERN">ERN — Eritrean Nakfa</option>
-                <option value="ETB">ETB — Ethiopian Birr</option>
-                <option value="FJD">FJD — Fijian Dollar</option>
-                <option value="FKP">FKP — Falkland Islands Pound</option>
-                <option value="GEL">GEL — Georgian Lari</option>
-                <option value="GHS">GHS — Ghanaian Cedi</option>
-                <option value="GIP">GIP — Gibraltar Pound</option>
-                <option value="GMD">GMD — Gambian Dalasi</option>
-                <option value="GNF">GNF — Guinean Franc</option>
-                <option value="GTQ">GTQ — Guatemalan Quetzal</option>
-                <option value="GYD">GYD — Guyanese Dollar</option>
-                <option value="HNL">HNL — Honduran Lempira</option>
-                <option value="HRK">HRK — Croatian Kuna</option>
-                <option value="HTG">HTG — Haitian Gourde</option>
-                <option value="HUF">HUF — Hungarian Forint</option>
-                <option value="IDR">IDR — Indonesian Rupiah</option>
-                <option value="ILS">ILS — Israeli New Shekel</option>
-                <option value="INR">INR — Indian Rupee</option>
-                <option value="IQD">IQD — Iraqi Dinar</option>
-                <option value="IRR">IRR — Iranian Rial</option>
-                <option value="ISK">ISK — Icelandic Króna</option>
-                <option value="JMD">JMD — Jamaican Dollar</option>
-                <option value="JOD">JOD — Jordanian Dinar</option>
-                <option value="KES">KES — Kenyan Shilling</option>
-                <option value="KGS">KGS — Kyrgystani Som</option>
-                <option value="KHR">KHR — Cambodian Riel</option>
-                <option value="KMF">KMF — Comorian Franc</option>
-                <option value="KPW">KPW — North Korean Won</option>
-                <option value="KRW">KRW — South Korean Won</option>
-                <option value="KWD">KWD — Kuwaiti Dinar</option>
-                <option value="KYD">KYD — Cayman Islands Dollar</option>
-                <option value="KZT">KZT — Kazakhstani Tenge</option>
-                <option value="LAK">LAK — Laotian Kip</option>
-                <option value="LBP">LBP — Lebanese Pound</option>
-                <option value="LKR">LKR — Sri Lankan Rupee</option>
-                <option value="LRD">LRD — Liberian Dollar</option>
-                <option value="LSL">LSL — Lesotho Loti</option>
-                <option value="LYD">LYD — Libyan Dinar</option>
-                <option value="MDL">MDL — Moldovan Leu</option>
-                <option value="MGA">MGA — Malagasy Ariary</option>
-                <option value="MKD">MKD — Macedonian Denar</option>
-                <option value="MMK">MMK — Myanmar Kyat</option>
-                <option value="MNT">MNT — Mongolian Tögrög</option>
-                <option value="MOP">MOP — Macanese Pataca</option>
-                <option value="MRU">MRU — Mauritanian Ouguiya</option>
-                <option value="MUR">MUR — Mauritian Rupee</option>
-                <option value="MVR">MVR — Maldivian Rufiyaa</option>
-                <option value="MWK">MWK — Malawian Kwacha</option>
-                <option value="MXN">MXN — Mexican Peso</option>
-                <option value="MYR">MYR — Malaysian Ringgit</option>
-                <option value="MZN">MZN — Mozambican Metical</option>
-                <option value="NAD">NAD — Namibian Dollar</option>
-                <option value="NGN">NGN — Nigerian Naira</option>
-                <option value="NIO">NIO — Nicaraguan Córdoba</option>
-                <option value="NPR">NPR — Nepalese Rupee</option>
-                <option value="NZD">NZD — New Zealand Dollar</option>
-                <option value="OMR">OMR — Omani Rial</option>
-                <option value="PAB">PAB — Panamanian Balboa</option>
-                <option value="PEN">PEN — Peruvian Sol</option>
-                <option value="PGK">PGK — Papua New Guinean Kina</option>
-                <option value="PHP">PHP — Philippine Peso</option>
-                <option value="PKR">PKR — Pakistani Rupee</option>
-                <option value="PLN">PLN — Polish Złoty</option>
-                <option value="PYG">PYG — Paraguayan Guaraní</option>
-                <option value="RON">RON — Romanian Leu</option>
-                <option value="RSD">RSD — Serbian Dinar</option>
-                <option value="RUB">RUB — Russian Ruble</option>
-                <option value="RWF">RWF — Rwandan Franc</option>
-                <option value="SBD">SBD — Solomon Islands Dollar</option>
-                <option value="SCR">SCR — Seychellois Rupee</option>
-                <option value="SDG">SDG — Sudanese Pound</option>
-                <option value="SHP">SHP — Saint Helena Pound</option>
-                <option value="SLL">SLL — Sierra Leonean Leone</option>
-                <option value="SOS">SOS — Somali Shilling</option>
-                <option value="SRD">SRD — Surinamese Dollar</option>
-                <option value="SSP">SSP — South Sudanese Pound</option>
-                <option value="STN">STN — São Tomé &amp; Príncipe Dobra</option>
-                <option value="SVC">SVC — Salvadoran Colón</option>
-                <option value="SYP">SYP — Syrian Pound</option>
-                <option value="SZL">SZL — Swazi Lilangeni</option>
-                <option value="THB">THB — Thai Baht</option>
-                <option value="TJS">TJS — Tajikistani Somoni</option>
-                <option value="TMT">TMT — Turkmenistani Manat</option>
-                <option value="TND">TND — Tunisian Dinar</option>
-                <option value="TOP">TOP — Tongan Paʻanga</option>
-                <option value="TRY">TRY — Turkish Lira</option>
-                <option value="TTD">TTD — Trinidad &amp; Tobago Dollar</option>
-                <option value="TWD">TWD — New Taiwan Dollar</option>
-                <option value="TZS">TZS — Tanzanian Shilling</option>
-                <option value="UAH">UAH — Ukrainian Hryvnia</option>
-                <option value="UGX">UGX — Ugandan Shilling</option>
-                <option value="UYU">UYU — Uruguayan Peso</option>
-                <option value="UZS">UZS — Uzbekistani Som</option>
-                <option value="VES">VES — Venezuelan Bolívar</option>
-                <option value="VND">VND — Vietnamese Dong</option>
-                <option value="VUV">VUV — Vanuatu Vatu</option>
-                <option value="WST">WST — Samoan Tala</option>
-                <option value="XAF">XAF — Central African CFA Franc</option>
-                <option value="XCD">XCD — East Caribbean Dollar</option>
-                <option value="XOF">XOF — West African CFA Franc</option>
-                <option value="XPF">XPF — CFP Franc</option>
-                <option value="YER">YER — Yemeni Rial</option>
-                <option value="ZAR">ZAR — South African Rand</option>
-                <option value="ZMW">ZMW — Zambian Kwacha</option>
-                <option value="ZWL">ZWL — Zimbabwean Dollar</option>
-              </optgroup>
-            </select>
-          <div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:4px;margin-top:4px;">Manual amount (overrides estimator)</div>
-          <input type="number" id="dv-manual" min="0" step="1000" placeholder="e.g. 150000"
-            oninput="recalcDealValue()"
-            style="width:100%;box-sizing:border-box;padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:var(--fs-base);font-family:inherit;background:var(--bg);color:var(--text);margin-bottom:8px;" />
-          <button class="btn-secondary" style="width:100%;justify-content:center;font-size:var(--fs-sm);" onclick="_saveDealToDB()">
-            <span data-en="Save deal value to prospect" data-fr="Sauvegarder la valeur du deal">Save deal value to prospect</span>
-          </button>
-        </div>
-      </div>
-    </div>
-    <div class="dtab-panel" id="dpanel-ai">
-      <div class="drawer-section-title" style="margin-bottom:10px">Next action</div>
-      <button class="btn-accent" style="width:100%;justify-content:center;margin-bottom:12px"
-        onclick="_drawerAI()" id="drawer-next-btn">${_hasCachedAction ? '🔄 Regenerate' : '▶ Next recommended action'}</button>
-      <button class="btn-secondary" style="width:100%;justify-content:center;margin-bottom:12px" onclick="_escalateProspect()" id="drawer-escalate-btn">Escalation Handler</button>
-  <button class="btn-secondary" style="width:100%;justify-content:center;margin-bottom:12px" onclick="_sendDiscoveryBrief()" id="drawer-discovery-btn">Prepare discovery call</button>
-      <div class="ai-box">
-        <div class="ai-box-header">
-          <span class="ai-box-label">Call prep brief</span>
-        </div>
-        <div class="ai-box-body" id="pd-brief-card">No brief prepared yet — generate one above.</div>
-      </div>
-      <button class="btn-secondary" style="width:100%;justify-content:center;margin-bottom:12px" onclick="_pdCopyBrief()" id="pd-brief-copy-btn" disabled>Copy brief</button>
-      <div class="ai-box" id="escalate-box" style="display:none">
-        <div class="ai-box-header">
-          <span class="ai-box-label" style="color:#ef4444">Escalation Brief</span>
-          <div class="ai-spinner" id="escalate-spinner"></div>
-        </div>
-        <div class="ai-box-body" id="escalate-output"></div>
-      </div>
-      <div class="ai-box">
-        <div class="ai-box-header">
-          <span class="ai-box-label">Recommended Action</span>
-          <div class="ai-spinner" id="drawer-spinner"></div>
-        </div>
-        <div class="ai-box-body${_cachedRendered ? ' loaded' : ''}" id="drawer-output">${_cachedRendered || 'Click to generate the next step...'}</div>
-      </div>
-      <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--border)">
-        <div class="drawer-section-title" style="margin-bottom:14px">Call prep and debrief</div>
-        <div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">Post-call message</div>
-        <input id="postcall-note" type="text" class="dp-inp"
-          placeholder="One key point from the call, e.g. your expansion into the Nordics"
-          style="margin-bottom:8px" />
-        <button class="btn-secondary" onclick="_generatePostCallMsg()"
-          style="width:100%;justify-content:center;margin-bottom:10px">
-          Generate post-call message
-        </button>
-        <div id="postcall-box" style="display:none">
-          <div class="ai-box">
-            <div class="ai-box-header">
-              <span class="ai-box-label">Post-call</span>
-            </div>
-            <div class="ai-box-body" id="postcall-output" contenteditable="true" spellcheck="false"
-              style="min-height:80px;outline:none;cursor:text;white-space:pre-wrap"></div>
-          </div>
-          <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-            <button class="btn-secondary" onclick="_copyPostCall()">Copy</button>
-            <button class="btn-secondary" onclick="_sendPostCallLinkedIn()">Send via LinkedIn</button>
-            <button class="btn-secondary" onclick="_markPostCallSent()">Mark as sent</button>
-          </div>
-        </div>
-        <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
-          <div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">Post-call debrief</div>
-          <button class="btn-secondary" id="btn-postcall-debrief" onclick="_openPostCallDebrief()"
+        <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--border)">
+          <div class="drawer-section-title" style="margin-bottom:14px">Call prep and debrief</div>
+          <div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">Post-call message</div>
+          <input id="postcall-note" type="text" class="dp-inp"
+            placeholder="One key point from the call, e.g. your expansion into the Nordics"
+            style="margin-bottom:8px" />
+          <button class="btn-secondary" onclick="_generatePostCallMsg()"
             style="width:100%;justify-content:center;margin-bottom:10px">
-            🎙 Generate post-call debrief
+            Generate post-call message
           </button>
-          <div id="meeting-notes-select" style="display:none;margin-bottom:10px"></div>
-          <div id="post-call-output" style="display:none"></div>
-          <div style="text-align:center;margin-top:6px">
-            <a href="#" style="font-size:var(--fs-xs);color:var(--muted);text-decoration:underline;text-underline-offset:2px"
-              onclick="event.preventDefault();_toggleManualDebrief()">Or paste call notes manually</a>
+          <div id="postcall-box" style="display:none">
+            <div class="ai-box">
+              <div class="ai-box-header">
+                <span class="ai-box-label">Post-call</span>
+              </div>
+              <div class="ai-box-body" id="postcall-output" contenteditable="true" spellcheck="false"
+                style="min-height:80px;outline:none;cursor:text;white-space:pre-wrap"></div>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+              <button class="btn-secondary" onclick="_copyPostCall()">Copy</button>
+              <button class="btn-secondary" onclick="_sendPostCallLinkedIn()">Send via LinkedIn</button>
+              <button class="btn-secondary" onclick="_markPostCallSent()">Mark as sent</button>
+            </div>
           </div>
-          <div id="manual-debrief-panel" style="display:none;margin-top:10px">
-            <textarea id="manual-debrief-notes" rows="6"
-              placeholder="Paste your call notes, transcript, or summary here..."
-              style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:var(--fs-sm);font-family:inherit;resize:vertical;background:var(--bg);color:var(--text);line-height:1.5"></textarea>
-            <button class="btn-secondary" onclick="_generateFromManualNotes()"
-              style="width:100%;justify-content:center;margin-top:8px">Generate from notes</button>
+          <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
+            <div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">Post-call debrief</div>
+            <button class="btn-secondary" id="btn-postcall-debrief" onclick="_openPostCallDebrief()"
+              style="width:100%;justify-content:center;margin-bottom:10px">
+              🎙 Generate post-call debrief
+            </button>
+            <div id="meeting-notes-select" style="display:none;margin-bottom:10px"></div>
+            <div id="post-call-output" style="display:none"></div>
+            <div style="text-align:center;margin-top:6px">
+              <a href="#" style="font-size:var(--fs-xs);color:var(--muted);text-decoration:underline;text-underline-offset:2px"
+                onclick="event.preventDefault();_toggleManualDebrief()">Or paste call notes manually</a>
+            </div>
+            <div id="manual-debrief-panel" style="display:none;margin-top:10px">
+              <textarea id="manual-debrief-notes" rows="6"
+                placeholder="Paste your call notes, transcript, or summary here..."
+                style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:var(--fs-sm);font-family:inherit;resize:vertical;background:var(--bg);color:var(--text);line-height:1.5"></textarea>
+              <button class="btn-secondary" onclick="_generateFromManualNotes()"
+                style="width:100%;justify-content:center;margin-top:8px">Generate from notes</button>
+            </div>
           </div>
         </div>
-      </div>
+      </div>` : ''}
+      <!-- 7. EDIT DETAILS (repliee par defaut -- Contact/Classification/Signal-Context/Notes
+           depuis l'ancien onglet Profile, calculateur Deal Value deplace depuis l'ancien onglet
+           Deal) -->
+      <details id="pd-editdetails" style="padding:16px 20px;border-top:1px solid var(--border)">
+        <summary class="drawer-section-title" style="cursor:pointer;display:list-item">Edit details</summary>
+        <div style="margin-top:12px">
+          ${_drawerProfileHTML(prospectId, _prospectsById[prospectId] || {}, stage, { name, company, sector })}
+          <div style="border-top:1px solid var(--border);padding-top:16px;margin-top:16px;">
+            <div class="drawer-section-title" style="margin-bottom:12px" data-en="Deal Value" data-fr="Valeur du deal">Deal Value</div>
+            <div class="dv-row" style="margin-bottom:12px;">
+              <select id="dv-deal-type" onchange="_dvShowFields();recalcDealValue()" style="font-family:inherit;color:var(--text);background:var(--bg);">
+                <option value="">— Select deal type —</option>
+                <option value="retainer_only">Retainer only</option>
+                <option value="retainer_success">Retainer + Success</option>
+                <option value="prep_success">Preparation fee + Success</option>
+                <option value="success_only">Success only</option>
+                <option value="fixed">Fixed amount</option>
+                <option value="shared">Shared mandate</option>
+                <option value="referral">Referral commission</option>
+              </select>
+            </div>
+            <div class="dv-field-group" id="dvg-retainer" style="display:none;">
+              <div class="dv-field-row">
+                <label>Monthly retainer</label>
+                <input type="number" id="dv-retainer-monthly" min="0" step="100" placeholder="e.g. 5000" oninput="recalcDealValue()">
+              </div>
+              <div class="dv-field-row">
+                <label>Number of months</label>
+                <input type="number" id="dv-retainer-months" min="1" step="1" placeholder="e.g. 6" oninput="recalcDealValue()">
+              </div>
+            </div>
+            <div class="dv-field-group" id="dvg-prep" style="display:none;">
+              <div class="dv-field-row">
+                <label>Preparation fee</label>
+                <input type="number" id="dv-prep-fee" min="0" step="500" placeholder="e.g. 15000" oninput="recalcDealValue()">
+              </div>
+            </div>
+            <div class="dv-field-group" id="dvg-success" style="display:none;">
+              <div class="dv-field-row">
+                <label>Success rate</label>
+                <input type="number" id="dv-success-rate" min="0" max="100" step="0.5" placeholder="e.g. 7" oninput="recalcDealValue()">
+                <span class="dv-pct">%</span>
+              </div>
+              <div class="dv-field-row">
+                <label>Applied to</label>
+                <select id="dv-base-type" onchange="_dvShowFields();recalcDealValue()" style="font-family:inherit;color:var(--text);background:var(--bg);">
+                  <option value="transaction_value">% of transaction value</option>
+                  <option value="third_party_fee">% of a third party's fee</option>
+                </select>
+              </div>
+              <div class="dv-field-row">
+                <label id="dv-base-amount-lbl">Transaction value</label>
+                <input type="number" id="dv-base-amount" min="0" step="10000" placeholder="e.g. 2000000" oninput="recalcDealValue()">
+              </div>
+            </div>
+            <div class="dv-field-group" id="dvg-fixed" style="display:none;">
+              <div class="dv-field-row">
+                <label>Amount</label>
+                <input type="number" id="dv-fixed-amount" min="0" step="1000" placeholder="e.g. 50000" oninput="recalcDealValue()">
+              </div>
+            </div>
+            <div class="dv-field-group" id="dvg-shared" style="display:none;">
+              <div class="dv-field-row">
+                <label>Stéphane's share</label>
+                <input type="number" id="dv-share-pct" min="0" max="100" step="5" placeholder="e.g. 50" oninput="recalcDealValue()">
+                <span class="dv-pct">%</span>
+              </div>
+              <div class="dv-field-row">
+                <label>Sub-type</label>
+                <select id="dv-sub-type" onchange="_dvShowFields();recalcDealValue()" style="font-family:inherit;color:var(--text);background:var(--bg);">
+                  <option value="retainer_only">Retainer only</option>
+                  <option value="retainer_success">Retainer + Success</option>
+                  <option value="prep_success">Preparation fee + Success</option>
+                  <option value="success_only">Success only</option>
+                  <option value="fixed">Fixed amount</option>
+                </select>
+              </div>
+              <div class="dv-field-row" id="dvg-gross-row" style="display:none;">
+                <label style="color:var(--muted)">Gross fee</label>
+                <span id="dv-gross-fee" style="font-size:var(--fs-sm);color:var(--muted);">—</span>
+              </div>
+            </div>
+            <div class="dv-field-group" id="dvg-referral" style="display:none;">
+              <div class="dv-field-row">
+                <label>Monthly base</label>
+                <input type="number" id="dv-referral-base" min="0" step="100" placeholder="e.g. 1500" oninput="recalcDealValue()">
+              </div>
+              <div class="dv-field-row">
+                <label>First month rate</label>
+                <input type="number" id="dv-referral-first" min="0" max="100" step="0.5" placeholder="e.g. 15" oninput="recalcDealValue()">
+                <span class="dv-pct">%</span>
+              </div>
+              <div class="dv-field-row">
+                <label>Subsequent rate</label>
+                <input type="number" id="dv-referral-sub" min="0" max="100" step="0.5" placeholder="e.g. 10" oninput="recalcDealValue()">
+                <span class="dv-pct">%</span>
+              </div>
+              <div class="dv-field-row">
+                <label>Duration (months)</label>
+                <input type="number" id="dv-referral-dur" min="1" step="1" placeholder="e.g. 12" oninput="recalcDealValue()">
+              </div>
+            </div>
+            <div class="dv-conf">
+              <label><span data-en="Confidence" data-fr="Confiance">Confidence</span> <span id="dv-conf-val">50%</span></label>
+              <input type="range" id="dv-conf" min="0" max="100" value="50" oninput="recalcDealValue()">
+            </div>
+            <div class="dv-results-box">
+              <div class="dv-results-row">
+                <span class="dv-results-lbl" data-en="Fee if closed" data-fr="Honoraires si deal conclu">Fee if closed</span>
+                <span id="dv-fee-if-closed" class="dv-results-val">—</span>
+              </div>
+              <div class="dv-results-row">
+                <span class="dv-results-lbl" data-en="Weighted expectation" data-fr="Espérance pondérée">Weighted expectation</span>
+                <span id="dv-weighted" class="dv-results-val dv-weighted">—</span>
+              </div>
+            </div>
+            <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">
+              <div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px;" data-en="Currency &amp; Manual override" data-fr="Devise &amp; Saisie manuelle">Currency &amp; Manual override</div>
+              <div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:4px;">Currency (applies to estimator &amp; manual)</div>
+              <select id="dv-currency" onchange="recalcDealValue()"
+                style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:var(--fs-sm);font-family:inherit;background:var(--bg);color:var(--text);margin-bottom:8px;">
+                  <option value="">— —</option>
+                  <optgroup label="Common">
+                    <option value="EUR">EUR — Euro</option>
+                    <option value="USD">USD — US Dollar</option>
+                    <option value="GBP">GBP — British Pound</option>
+                    <option value="CHF">CHF — Swiss Franc</option>
+                    <option value="JPY">JPY — Japanese Yen</option>
+                    <option value="CAD">CAD — Canadian Dollar</option>
+                    <option value="AUD">AUD — Australian Dollar</option>
+                    <option value="SGD">SGD — Singapore Dollar</option>
+                    <option value="HKD">HKD — Hong Kong Dollar</option>
+                    <option value="AED">AED — UAE Dirham</option>
+                    <option value="SAR">SAR — Saudi Riyal</option>
+                    <option value="QAR">QAR — Qatari Riyal</option>
+                    <option value="NOK">NOK — Norwegian Krone</option>
+                    <option value="SEK">SEK — Swedish Krona</option>
+                    <option value="DKK">DKK — Danish Krone</option>
+                    <option value="MAD">MAD — Moroccan Dirham</option>
+                  </optgroup>
+                  <optgroup label="All currencies">
+                    <option value="AFN">AFN — Afghan Afghani</option>
+                    <option value="ALL">ALL — Albanian Lek</option>
+                    <option value="AMD">AMD — Armenian Dram</option>
+                    <option value="ANG">ANG — Netherlands Antillean Guilder</option>
+                    <option value="AOA">AOA — Angolan Kwanza</option>
+                    <option value="ARS">ARS — Argentine Peso</option>
+                    <option value="AWG">AWG — Aruban Florin</option>
+                    <option value="AZN">AZN — Azerbaijani Manat</option>
+                    <option value="BAM">BAM — Bosnia-Herzegovina Convertible Mark</option>
+                    <option value="BBD">BBD — Barbadian Dollar</option>
+                    <option value="BDT">BDT — Bangladeshi Taka</option>
+                    <option value="BGN">BGN — Bulgarian Lev</option>
+                    <option value="BHD">BHD — Bahraini Dinar</option>
+                    <option value="BIF">BIF — Burundian Franc</option>
+                    <option value="BMD">BMD — Bermudian Dollar</option>
+                    <option value="BND">BND — Brunei Dollar</option>
+                    <option value="BOB">BOB — Bolivian Boliviano</option>
+                    <option value="BRL">BRL — Brazilian Real</option>
+                    <option value="BSD">BSD — Bahamian Dollar</option>
+                    <option value="BTN">BTN — Bhutanese Ngultrum</option>
+                    <option value="BWP">BWP — Botswanan Pula</option>
+                    <option value="BYN">BYN — Belarusian Ruble</option>
+                    <option value="BZD">BZD — Belize Dollar</option>
+                    <option value="CDF">CDF — Congolese Franc</option>
+                    <option value="CLP">CLP — Chilean Peso</option>
+                    <option value="CNY">CNY — Chinese Yuan</option>
+                    <option value="COP">COP — Colombian Peso</option>
+                    <option value="CRC">CRC — Costa Rican Colón</option>
+                    <option value="CUP">CUP — Cuban Peso</option>
+                    <option value="CVE">CVE — Cape Verdean Escudo</option>
+                    <option value="CZK">CZK — Czech Koruna</option>
+                    <option value="DJF">DJF — Djiboutian Franc</option>
+                    <option value="DOP">DOP — Dominican Peso</option>
+                    <option value="DZD">DZD — Algerian Dinar</option>
+                    <option value="EGP">EGP — Egyptian Pound</option>
+                    <option value="ERN">ERN — Eritrean Nakfa</option>
+                    <option value="ETB">ETB — Ethiopian Birr</option>
+                    <option value="FJD">FJD — Fijian Dollar</option>
+                    <option value="FKP">FKP — Falkland Islands Pound</option>
+                    <option value="GEL">GEL — Georgian Lari</option>
+                    <option value="GHS">GHS — Ghanaian Cedi</option>
+                    <option value="GIP">GIP — Gibraltar Pound</option>
+                    <option value="GMD">GMD — Gambian Dalasi</option>
+                    <option value="GNF">GNF — Guinean Franc</option>
+                    <option value="GTQ">GTQ — Guatemalan Quetzal</option>
+                    <option value="GYD">GYD — Guyanese Dollar</option>
+                    <option value="HNL">HNL — Honduran Lempira</option>
+                    <option value="HRK">HRK — Croatian Kuna</option>
+                    <option value="HTG">HTG — Haitian Gourde</option>
+                    <option value="HUF">HUF — Hungarian Forint</option>
+                    <option value="IDR">IDR — Indonesian Rupiah</option>
+                    <option value="ILS">ILS — Israeli New Shekel</option>
+                    <option value="INR">INR — Indian Rupee</option>
+                    <option value="IQD">IQD — Iraqi Dinar</option>
+                    <option value="IRR">IRR — Iranian Rial</option>
+                    <option value="ISK">ISK — Icelandic Króna</option>
+                    <option value="JMD">JMD — Jamaican Dollar</option>
+                    <option value="JOD">JOD — Jordanian Dinar</option>
+                    <option value="KES">KES — Kenyan Shilling</option>
+                    <option value="KGS">KGS — Kyrgystani Som</option>
+                    <option value="KHR">KHR — Cambodian Riel</option>
+                    <option value="KMF">KMF — Comorian Franc</option>
+                    <option value="KPW">KPW — North Korean Won</option>
+                    <option value="KRW">KRW — South Korean Won</option>
+                    <option value="KWD">KWD — Kuwaiti Dinar</option>
+                    <option value="KYD">KYD — Cayman Islands Dollar</option>
+                    <option value="KZT">KZT — Kazakhstani Tenge</option>
+                    <option value="LAK">LAK — Laotian Kip</option>
+                    <option value="LBP">LBP — Lebanese Pound</option>
+                    <option value="LKR">LKR — Sri Lankan Rupee</option>
+                    <option value="LRD">LRD — Liberian Dollar</option>
+                    <option value="LSL">LSL — Lesotho Loti</option>
+                    <option value="LYD">LYD — Libyan Dinar</option>
+                    <option value="MDL">MDL — Moldovan Leu</option>
+                    <option value="MGA">MGA — Malagasy Ariary</option>
+                    <option value="MKD">MKD — Macedonian Denar</option>
+                    <option value="MMK">MMK — Myanmar Kyat</option>
+                    <option value="MNT">MNT — Mongolian Tögrög</option>
+                    <option value="MOP">MOP — Macanese Pataca</option>
+                    <option value="MRU">MRU — Mauritanian Ouguiya</option>
+                    <option value="MUR">MUR — Mauritian Rupee</option>
+                    <option value="MVR">MVR — Maldivian Rufiyaa</option>
+                    <option value="MWK">MWK — Malawian Kwacha</option>
+                    <option value="MXN">MXN — Mexican Peso</option>
+                    <option value="MYR">MYR — Malaysian Ringgit</option>
+                    <option value="MZN">MZN — Mozambican Metical</option>
+                    <option value="NAD">NAD — Namibian Dollar</option>
+                    <option value="NGN">NGN — Nigerian Naira</option>
+                    <option value="NIO">NIO — Nicaraguan Córdoba</option>
+                    <option value="NPR">NPR — Nepalese Rupee</option>
+                    <option value="NZD">NZD — New Zealand Dollar</option>
+                    <option value="OMR">OMR — Omani Rial</option>
+                    <option value="PAB">PAB — Panamanian Balboa</option>
+                    <option value="PEN">PEN — Peruvian Sol</option>
+                    <option value="PGK">PGK — Papua New Guinean Kina</option>
+                    <option value="PHP">PHP — Philippine Peso</option>
+                    <option value="PKR">PKR — Pakistani Rupee</option>
+                    <option value="PLN">PLN — Polish Złoty</option>
+                    <option value="PYG">PYG — Paraguayan Guaraní</option>
+                    <option value="RON">RON — Romanian Leu</option>
+                    <option value="RSD">RSD — Serbian Dinar</option>
+                    <option value="RUB">RUB — Russian Ruble</option>
+                    <option value="RWF">RWF — Rwandan Franc</option>
+                    <option value="SBD">SBD — Solomon Islands Dollar</option>
+                    <option value="SCR">SCR — Seychellois Rupee</option>
+                    <option value="SDG">SDG — Sudanese Pound</option>
+                    <option value="SHP">SHP — Saint Helena Pound</option>
+                    <option value="SLL">SLL — Sierra Leonean Leone</option>
+                    <option value="SOS">SOS — Somali Shilling</option>
+                    <option value="SRD">SRD — Surinamese Dollar</option>
+                    <option value="SSP">SSP — South Sudanese Pound</option>
+                    <option value="STN">STN — São Tomé &amp; Príncipe Dobra</option>
+                    <option value="SVC">SVC — Salvadoran Colón</option>
+                    <option value="SYP">SYP — Syrian Pound</option>
+                    <option value="SZL">SZL — Swazi Lilangeni</option>
+                    <option value="THB">THB — Thai Baht</option>
+                    <option value="TJS">TJS — Tajikistani Somoni</option>
+                    <option value="TMT">TMT — Turkmenistani Manat</option>
+                    <option value="TND">TND — Tunisian Dinar</option>
+                    <option value="TOP">TOP — Tongan Paʻanga</option>
+                    <option value="TRY">TRY — Turkish Lira</option>
+                    <option value="TTD">TTD — Trinidad &amp; Tobago Dollar</option>
+                    <option value="TWD">TWD — New Taiwan Dollar</option>
+                    <option value="TZS">TZS — Tanzanian Shilling</option>
+                    <option value="UAH">UAH — Ukrainian Hryvnia</option>
+                    <option value="UGX">UGX — Ugandan Shilling</option>
+                    <option value="UYU">UYU — Uruguayan Peso</option>
+                    <option value="UZS">UZS — Uzbekistani Som</option>
+                    <option value="VES">VES — Venezuelan Bolívar</option>
+                    <option value="VND">VND — Vietnamese Dong</option>
+                    <option value="VUV">VUV — Vanuatu Vatu</option>
+                    <option value="WST">WST — Samoan Tala</option>
+                    <option value="XAF">XAF — Central African CFA Franc</option>
+                    <option value="XCD">XCD — East Caribbean Dollar</option>
+                    <option value="XOF">XOF — West African CFA Franc</option>
+                    <option value="XPF">XPF — CFP Franc</option>
+                    <option value="YER">YER — Yemeni Rial</option>
+                    <option value="ZAR">ZAR — South African Rand</option>
+                    <option value="ZMW">ZMW — Zambian Kwacha</option>
+                    <option value="ZWL">ZWL — Zimbabwean Dollar</option>
+                  </optgroup>
+                </select>
+              <div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:4px;margin-top:4px;">Manual amount (overrides estimator)</div>
+              <input type="number" id="dv-manual" min="0" step="1000" placeholder="e.g. 150000"
+                oninput="recalcDealValue()"
+                style="width:100%;box-sizing:border-box;padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:var(--fs-base);font-family:inherit;background:var(--bg);color:var(--text);margin-bottom:8px;" />
+              <button class="btn-secondary" style="width:100%;justify-content:center;font-size:var(--fs-sm);" onclick="_saveDealToDB()">
+                <span data-en="Save deal value to prospect" data-fr="Sauvegarder la valeur du deal">Save deal value to prospect</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </details>
+      <!-- 8. SEND PANEL (depuis Send -- masque par defaut, revele par le pied de tiroir) -->
+      <div id="dpanel-send" style="display:none;padding:16px 20px;border-top:1px solid var(--border)"></div>
     </div>
-    <div class="dtab-panel" id="dpanel-send" style="padding:16px 20px"></div>`;
+    <div class="pd-footer" style="display:flex;gap:8px;padding:14px 20px;border-top:1px solid var(--border);flex-shrink:0;">
+      <button class="btn-primary" style="flex:1;justify-content:center" onclick="_pdToggleCompose(true)">Generate message</button>
+      <button class="btn-secondary" onclick="_pdOpenEditDetails('ed-stage')">Move stage</button>
+      <button class="btn-secondary" onclick="archiveProspect('${prospectId}')">Archive</button>
+    </div>`;
 
   const _dEl = document.getElementById('drawer');
   _dEl.dataset.pid = prospectId || '';
@@ -8446,9 +8504,8 @@ async function openDrawer(card, initialTab = 'activity') {
   _dEl.classList.add('open');
   document.getElementById('drawer-overlay').classList.add('open');
   document.body.classList.add('drawer-open');
-  if (initialTab && initialTab !== 'activity') {
-    _switchDTab(initialTab, document.querySelector(`.drawer-tabs .dtab[onclick*="'${initialTab}'"]`));
-  }
+  if (initialTab === 'send') _pdToggleCompose(true);
+  else if (initialTab === 'profile') _pdOpenEditDetails();
   if (document.getElementById('dv-deal-type')) _restoreDealValue();
   _renderSignalLink((_prospectsById[prospectId] || {}).signal, (_prospectsById[prospectId] || {}).signal_url);
   if (prospectId) _loadBuyingCommittee(prospectId, _p).catch(e => console.warn('[buying-committee]', e));
@@ -8478,6 +8535,24 @@ async function openDrawer(card, initialTab = 'activity') {
   if (briefBtn) briefBtn.disabled = !discoveryBrief;
 
   if (typeof applyLang === 'function') applyLang();
+}
+
+// Refonte tiroir (2026-09-17) : petits helpers d'affichage/reveal, meme role que sur
+// demo-private.html (_pdToggleCompose/_pdOpenEditDetails) -- pas de nouvelle logique metier,
+// tout reutilise les ids/fonctions existants.
+function _pdToggleCompose(forceOpen) {
+  const el = document.getElementById('dpanel-send');
+  if (!el) return;
+  const show = forceOpen === true || el.style.display === 'none';
+  el.style.display = show ? 'block' : 'none';
+  if (show) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+function _pdOpenEditDetails(focusId) {
+  const det = document.getElementById('pd-editdetails');
+  if (!det) return;
+  det.open = true;
+  det.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  if (focusId) setTimeout(() => document.getElementById(focusId)?.focus(), 250);
 }
 
 function closeDrawer() {
@@ -10973,20 +11048,6 @@ function _drawerProfileHTML(id, p, colStage, fb){
   const rt = p.region ? _regionTag(p.region) : '';
   const lbl = t => `<div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);letter-spacing:0.02em">${t}</div>`;
   const card = c => `<div style="border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:14px 16px;display:flex;flex-direction:column;gap:8px">${c}</div>`;
-  const _ac = Array.isArray(p.additional_contacts) ? p.additional_contacts : [];
-  const _acSection = _ac.length > 0 ? card(
-    lbl((currentLang==='fr' ? 'Autres décideurs chez ' : 'Other decision-makers at ') + (p.company ? _esc(p.company) : (currentLang==='fr' ? 'cette société' : 'this company'))) +
-    _ac.map((c, i) => `
-      <div onclick="_showContactAction('${v(id)}',${i})" style="padding:8px 0;border-bottom:0.5px solid var(--border);cursor:pointer;user-select:none">
-        <div style="font-size:var(--fs-sm);font-weight:600;color:var(--text)">${c.name ? _esc(c.name) : ''}</div>
-        <div style="font-size:var(--fs-xs);color:var(--muted)">${c.title ? _esc(c.title) : ''}</div>
-        ${c.linkedin ? `<a href="${_esc(c.linkedin)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" style="font-size:var(--fs-xs);color:var(--blue-brand)">${_esc(c.linkedin.replace(/^https?:\/\/(www\.)?linkedin\.com\//,'linkedin.com/'))}</a>` : ''}
-        <div id="ac-action-${v(id)}-${i}" style="display:none;margin-top:6px;padding:8px 10px;background:var(--navy-light);border-radius:var(--radius-sm);border:1px solid var(--border)">
-          <button onclick="event.stopPropagation();_promoteContact('${v(id)}',${i})" style="font-size:var(--fs-sm);padding:6px 12px;background:var(--navy);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer;width:100%">${currentLang==='fr' ? 'Promouvoir en prospect &amp; préparer l\'invitation' : 'Promote to prospect &amp; prepare invite'}</button>
-        </div>
-      </div>
-    `).join('')
-  ) : '';
   return `<div class="dp-edit">
     ${card(
       lbl('Contact') +
@@ -11054,16 +11115,40 @@ function _drawerProfileHTML(id, p, colStage, fb){
       (p.hard_criteria_met ? `<div style="background:var(--navy-light);border:1px solid var(--blue);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--navy);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:10px;opacity:0.65;display:block;margin-bottom:3px">✦ ${currentLang==='fr'?'Critères remplis':'Criteria met'}</span><ul style="margin:0;padding-left:16px">${p.hard_criteria_met.split(';').map(c => c.trim()).filter(Boolean).map(c => `<li>${v(stripHtml(c))}</li>`).join('')}</ul></div>` : '')
     )}
     <textarea id="ed-notes" class="dp-inp" placeholder="Notes" style="min-height:60px;resize:vertical">${v(p.notes)}</textarea>
-    ${card(
-      lbl('Buying committee') +
-      `<div id="bc-section-${v(id)}" style="font-size:var(--fs-xs);color:var(--muted);font-style:italic">Loading...</div>`
-    )}
-    ${_acSection}
     <button class="btn-primary" style="width:100%;justify-content:center" onclick="saveProspectEdit('${v(id)}')"><span data-en="Save changes" data-fr="Enregistrer les modifications">Save changes</span></button>
     <div style="display:flex;gap:8px;margin-top:4px">
       <button class="btn-secondary" style="flex:1;justify-content:center" onclick="archiveProspect('${v(id)}')"><span data-en="Archive" data-fr="Archiver">Archive</span></button>
       <button class="btn-secondary" style="flex:1;justify-content:center;color:var(--red);border-color:var(--red-light)" onclick="deleteProspect('${v(id)}')"><span data-en="Delete" data-fr="Supprimer">Delete</span></button>
     </div>
+  </div>`;
+}
+// Refonte tiroir (2026-09-17) : Buying committee + Autres decideurs extraits de
+// _drawerProfileHTML en section top-level propre (parite structurelle demo-private.html) --
+// aucun etat/variable partage avec les cartes restantes de _drawerProfileHTML (Contact/
+// Classification/Signal-Context/Notes), verifie avant extraction : bc-section-${id} est un
+// simple point de montage lu par _loadBuyingCommittee/_renderBuyingCommittee (inchangees),
+// _acSection ne depend que de p.additional_contacts. Rien de partage, rien de casse.
+function _drawerBuyingCommitteeHTML(id, p) {
+  const v = s => _esc(s == null ? '' : String(s));
+  const lbl = t => `<div class="drawer-section-title">${t}</div>`;
+  const _ac = Array.isArray(p.additional_contacts) ? p.additional_contacts : [];
+  const _acSection = _ac.length > 0 ? `<div style="border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:14px 16px;display:flex;flex-direction:column;gap:8px;margin-top:12px">` +
+    lbl((currentLang==='fr' ? 'Autres décideurs chez ' : 'Other decision-makers at ') + (p.company ? _esc(p.company) : (currentLang==='fr' ? 'cette société' : 'this company'))) +
+    _ac.map((c, i) => `
+      <div onclick="_showContactAction('${v(id)}',${i})" style="padding:8px 0;border-bottom:0.5px solid var(--border);cursor:pointer;user-select:none">
+        <div style="font-size:var(--fs-sm);font-weight:600;color:var(--text)">${c.name ? _esc(c.name) : ''}</div>
+        <div style="font-size:var(--fs-xs);color:var(--muted)">${c.title ? _esc(c.title) : ''}</div>
+        ${c.linkedin ? `<a href="${_esc(c.linkedin)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" style="font-size:var(--fs-xs);color:var(--blue-brand)">${_esc(c.linkedin.replace(/^https?:\/\/(www\.)?linkedin\.com\//,'linkedin.com/'))}</a>` : ''}
+        <div id="ac-action-${v(id)}-${i}" style="display:none;margin-top:6px;padding:8px 10px;background:var(--navy-light);border-radius:var(--radius-sm);border:1px solid var(--border)">
+          <button onclick="event.stopPropagation();_promoteContact('${v(id)}',${i})" style="font-size:var(--fs-sm);padding:6px 12px;background:var(--navy);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer;width:100%">${currentLang==='fr' ? 'Promouvoir en prospect &amp; préparer l\'invitation' : 'Promote to prospect &amp; prepare invite'}</button>
+        </div>
+      </div>
+    `).join('') +
+    `</div>` : '';
+  return `<div style="padding:16px 20px;border-top:1px solid var(--border)">
+    ${lbl('Buying committee')}
+    <div id="bc-section-${v(id)}" style="font-size:var(--fs-xs);color:var(--muted);font-style:italic">Loading...</div>
+    ${_acSection}
   </div>`;
 }
 function _showContactAction(pid, cIdx) {
@@ -13148,7 +13233,7 @@ async function loadKanban(force){
     while (true) {
       let _kQuery = sbClient
         .from('prospects')
-        .select('id, name, company, title, sector, region, country, stage, linkedin, email, phone, deal_value, deal_currency, deal_structure, deal_weighted, notes, last_contact, reminder_date, icp_score, icp_reason, archived, client_id, linkedin_tag, origin, signal, signal_type, signal_interpretation, signal_date, created_at, draft_invite_note, company_size, next_action, next_action_date, score_signal_strength, score_growth, signal_url, mandate_id, website_url, funding_stage, last_funding_date, total_funding, additional_contacts, import_source, next_action_cache, next_action_generated_at, company_verified, identity_confidence')
+        .select('id, name, company, title, sector, region, country, stage, linkedin, email, phone, deal_value, deal_currency, deal_structure, deal_weighted, notes, last_contact, reminder_date, icp_score, icp_reason, archived, client_id, linkedin_tag, origin, signal, signal_type, signal_interpretation, signal_date, created_at, draft_invite_note, company_size, next_action, next_action_date, score_signal_strength, score_growth, signal_url, mandate_id, website_url, funding_stage, last_funding_date, total_funding, additional_contacts, import_source, next_action_cache, next_action_generated_at, company_verified, identity_confidence, identity_verdict_checked_at, company_checked_at')
         .eq('client_id', CLIENT_ID);
       _kQuery = _applyMandateFilter(_kQuery);
       const { data: chunk, error } = await _kQuery
