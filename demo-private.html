@@ -8639,7 +8639,6 @@ async function openDrawer(card, initialTab = 'activity') {
 
   await _loadSignalTaxonomy();
   const lcStr = lastContact ? _relDate(lastContact) : null;
-  const _hasCachedAction = !!(_p.next_action_cache);
   const _cachedRendered = _p.next_action_cache
     ? _renderNextActionHTML(_p.next_action_cache, 'var(--ink)')
     : null;
@@ -8668,10 +8667,12 @@ async function openDrawer(card, initialTab = 'activity') {
   // prospect, pas un historique -- une seule ligne reelle au maximum, jamais complete a 3 par
   // invention (meme principe que l'etape SIGNAL vide de la spine, Phase 1).
   const _sigText = _p.signal ? _sanitizeSignal(_p.signal) : '';
+  // F03 : "date not specified" explicite plutot que rien quand le signal existe sans signal_date --
+  // jamais de repli sur created_at/updated_at (date d'import, pas la date reelle de l'evenement).
   const signalTimelineHTML = _sigText ? `
     <div class="pd-row">
       <span class="pd-row-mono">${_p.signal_type ? _sigBadge(_p.signal_type) : 'SIGNAL'}</span>
-      <span class="pd-row-mono" style="margin-left:auto">${_p.signal_date ? _esc(_relDate(_p.signal_date) || '') : ''}</span>
+      <span class="pd-row-mono" style="margin-left:auto">${_esc(_p.signal_date ? (_relDate(_p.signal_date) || '') : 'date not specified')}</span>
     </div>
     <div class="pd-row-main" style="margin:4px 0">${_sigText}</div>
   ` : `<div class="pd-empty">No signal recorded yet.</div>`;
@@ -8748,8 +8749,9 @@ async function openDrawer(card, initialTab = 'activity') {
           </div>
         </div>
         <button class="btn-accent btn-lg" style="width:100%;justify-content:center;margin-top:10px"
-          onclick="_drawerAI()" id="drawer-next-btn">${_hasCachedAction ? '🔄 Regenerate' : '▶ Next recommended action'}</button>
+          onclick="_drawerAI()" id="drawer-next-btn">${_actionButtonLabel(_p, '🔄 Regenerate', '▶ Next recommended action')}</button>
         <div class="ai-spinner" id="drawer-spinner" style="margin:6px auto 0;"></div>
+        ${_qualificationNote(_p) ? `<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:6px;text-align:center;">${_esc(_qualificationNote(_p))}</div>` : ''}
         ${_stalled ? `
         <button class="btn-secondary btn-md" style="width:100%;justify-content:center;margin-top:8px;border-color:var(--danger-border);color:var(--danger);" onclick="_escalateProspect()" id="drawer-escalate-btn">⚠ Prospect stalled — Escalation Handler</button>
         <div class="ai-box" id="escalate-box" style="display:none;margin-top:8px">
@@ -9640,7 +9642,10 @@ async function loadDailyPriorities() {
       if (mdata?.daily_priority_count) N = mdata.daily_priority_count;
     }
 
-    const COLS = 'id,name,company,sector,icp_score,icp_confidence,score_signal_strength,score_role,score_size,score_recency,score_mandate_fit,score_completeness,signal,signal_type,signal_interpretation,signal_date,mandate_id,stage,next_action_cache,next_action_generated_at,priority_batch_number,last_priority_shown_at,last_surfaced_in_scan_at,email,reminder_date,last_contact,linkedin,company_verified,identity_confidence,website_url';
+    // identity_verdict/hard_criteria_met ajoutes (F01, 2026-09-17) -- necessaires a
+    // _scoreReliabilityBadge/_qualificationNote, absents jusqu'ici de cette liste malgre
+    // company_verified/identity_confidence/score_completeness deja presents.
+    const COLS = 'id,name,company,sector,icp_score,icp_confidence,score_signal_strength,score_role,score_size,score_recency,score_mandate_fit,score_completeness,signal,signal_type,signal_interpretation,signal_date,mandate_id,stage,next_action_cache,next_action_generated_at,priority_batch_number,last_priority_shown_at,last_surfaced_in_scan_at,email,reminder_date,last_contact,linkedin,company_verified,identity_confidence,identity_verdict,hard_criteria_met,website_url';
 
     // Priorite Morning Scan (arbitrage Thomas, meme fix que kaizenology.html) : si le scan du jour
     // a deja produit des decisions explicites (today_action/opportunistic_connection), elles
@@ -9785,7 +9790,10 @@ function _renderPriorityCards(prospects) {
     // "Surfaced by scan" seulement si last_surfaced_in_scan_at est renseigne (pas invente si la
     // donnee manque, meme principe que le reste du fichier) -- toujours accroche a une date reelle
     // (signal_date), jamais affiche seul.
-    const _relSignalDate = p.signal_date ? _relDate(p.signal_date) : null;
+    // F03 (audit 2026-09-17) : un signal existe mais sans signal_date -> "date not specified"
+    // explicite plutot que rien -- jamais de repli sur created_at/updated_at (date d'import,
+    // pas la date reelle de l'evenement). Pas de signal du tout -> toujours null, comme avant.
+    const _relSignalDate = p.signal_date ? _relDate(p.signal_date) : (p.signal ? 'date not specified' : null);
     // Affichee seulement en repli arithmetique (pas de _morningScanCategory) : quand la carte
     // vient d'une decision du scan, provenanceHtml ci-dessous porte deja le meme temps relatif --
     // metaHtml serait redondante juste en dessous.
@@ -9807,6 +9815,9 @@ function _renderPriorityCards(prospects) {
     const cachedRendered = p.next_action_cache
       ? _renderNextActionHTML(p.next_action_cache, 'var(--navy)')
       : null;
+    // F01 : libelle du bouton reflete un probleme de qualification reel (_actionButtonLabel),
+    // pas juste l'etat cache/frais. Le clic reste le meme gestionnaire (_priorityGenerate) --
+    // aucun blocage, seul le texte change.
     const actionHtml = cachedRendered
       ? `<div class="pri-action loaded" id="pri-action-${p.id}"
            style="margin-top:12px;font-size:var(--fs-sm);line-height:1.65;color:var(--navy);">${cachedRendered}</div>`
@@ -9814,7 +9825,7 @@ function _renderPriorityCards(prospects) {
            <button id="pri-gen-${p.id}" onclick="_priorityGenerate('${p.id}')"
              style="width:100%;padding:11px 14px;font-size:var(--fs-sm);border-radius:var(--radius-sm);
                     background:var(--navy);color:#fff;border:none;cursor:pointer;font-weight:700;">
-             Generate
+             ${_actionButtonLabel(p, 'Regenerate', 'Generate')}
            </button>
          </div>`;
 
@@ -9832,6 +9843,10 @@ function _renderPriorityCards(prospects) {
     // verticale (padding 16px), pas de largeur/hauteur fixe -- une ligne compacte de plus ne casse
     // rien ici, contrairement au kanban.
     const _relB = _scoreReliabilityBadge(p);
+    // F01 : note neutre "pas encore controle" -- jamais colore/alarmant, distincte de _relB
+    // (probleme reel detecte). Sous le score, pas dans la colonne 74px (trop etroite pour du
+    // texte) : sur sa propre ligne discrete a cote du nom, cf. plus bas dans ce template.
+    const _qNote = _qualificationNote(p);
     const scoreColHtml = `<div style="width:74px;flex-shrink:0;border-right:1px solid var(--border);padding:16px 8px;text-align:center;${_bd ? 'position:relative;' : ''}" class="${_bd ? 'pri-score-wrap' : ''}">
         <div style="font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;color:var(--navy);">${scoreVal}</div>
         <div style="font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:0.16em;text-transform:uppercase;color:var(--muted);margin-top:2px;">ICP</div>
@@ -9864,6 +9879,7 @@ function _renderPriorityCards(prospects) {
           ${signalHtml}
           ${linksHtml}
           ${metaHtml}
+          ${_qNote ? `<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:4px;">${_esc(_qNote)}</div>` : ''}
         </div>
         ${actionHtml}
       </div>
@@ -11962,7 +11978,9 @@ function _drawerProfileHTML(id, p, colStage, fb){
       lbl('Signal / Context') +
       `<textarea id="drawer-signal" class="dp-inp" rows="3" placeholder="e.g. New CRO hired from PE-backed SaaS, scaled $4M to $28M ARR" style="font-size:var(--fs-base);min-height:60px;resize:vertical">${v(stripHtml(p.signal))}</textarea>` +
       `<div id="signal-link-wrap" style="font-size:var(--fs-xs)">${(() => { const _u = p.signal_url || _extractSigUrl(p.signal); return _u ? `<a href="${_esc(_u)}" target="_blank" rel="noopener noreferrer" style="color:var(--ink);text-decoration:underline;font-weight:600;">${(typeof currentLang!=='undefined'&&currentLang==='fr')?'Voir le post →':'View post →'}</a>` : ''; })()}</div>` +
-      (p.signal_date && _relDate(p.signal_date) ? `<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:2px">Signal: ${_esc(_relDate(p.signal_date))}</div>` : '') +
+      // F03 : signal sans signal_date -> "date not specified" explicite, jamais de repli sur
+      // created_at/updated_at. Rien si aucun signal du tout (comportement inchange).
+      ((p.signal || p.signal_date) ? `<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:2px">Signal: ${_esc(p.signal_date && _relDate(p.signal_date) ? _relDate(p.signal_date) : 'date not specified')}</div>` : '') +
       `<select id="drawer-signal-type" style="font-size:var(--fs-sm);padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);color:var(--text)">` +
         `<option value="">-- Signal type --</option>` +
         `${(_signalTaxonomy && Object.keys(_signalTaxonomy).length ? Object.values(_signalTaxonomy) : [{code:'S1',label:'S1'},{code:'S2',label:'S2'},{code:'S3',label:'S3'},{code:'S4',label:'S4'},{code:'activity',label:currentLang==='fr'?'Engagement passif (réaction/commentaire)':'Passive engagement (reaction/comment)',icon:'👁'}]).map(t => `<option value="${_esc(t.code)}"${(p.signal_type||'').toUpperCase()===(t.code||'').toUpperCase()?' selected':''}>${_esc(t.icon||'')} ${_esc(t.code)} — ${_esc(t.label||t.code)}</option>`).join('')}` +
@@ -12729,7 +12747,11 @@ function buildCard(p){
     +   (_ac.length > 0 ? `<span class="k-badge">+${_ac.length} contacts</span>` : '')
     +   (p.mandate_id && typeof _mandatesById !== 'undefined' && _mandatesById[p.mandate_id]?.name ? `<span class="k-badge">${_esc(_mandatesById[p.mandate_id].name)}</span>` : '')
     +   (p.company_verified === false ? `<span class="k-badge" style="color:#b45309;background:#fef3c7;border-color:#fde68a;" title="Company not confirmed">⚠ Company</span>` : '')
-    +   (p.identity_confidence === 'low' ? `<span class="k-badge" style="color:#6b7280;" title="Identity to verify">? Identity</span>` : '')
+    // F01 : identity_verdict CONTRADICTED/UNVERIFIABLE ajoutes, meme declencheurs que
+    // _scoreReliabilityBadge (dont depend deja _relDot ci-dessus) -- pas d'appel a la fonction
+    // ici car elle ne distingue pas "company seul" de "identity seul" (icon unique), alors que ces
+    // 2 badges texte independants peuvent s'afficher ensemble (comportement existant preserve).
+    +   ((p.identity_confidence === 'low' || p.identity_verdict === 'CONTRADICTED' || p.identity_verdict === 'UNVERIFIABLE') ? `<span class="k-badge" style="color:#6b7280;" title="${p.identity_verdict === 'CONTRADICTED' ? 'Identity contradicted' : p.identity_verdict === 'UNVERIFIABLE' ? 'Identity unverifiable' : 'Identity to verify'}">? Identity</span>` : '')
     + `</div>`
     + (p.linkedin_tag === 'connection-accepted' && p.stage === 'Engaged' && parseFloat(p.icp_score) >= 8 && p.last_contact
         ? `<div class="k-j5-badge" onclick="_j5BadgeClick(event,'${_esc(id)}')">J+5</div>`
@@ -12895,9 +12917,12 @@ function renderStats(){
     const pct = tot ? Math.round(c/tot*100) : 0;
     return `<div class="dist-row"><div class="dist-meta"><span class="dist-name">${_esc(name)}</span><span class="dist-pct">${pct}%</span></div><div class="dist-track"><div class="dist-fill" style="width:${pct}%"></div></div></div>`;
   }).join('');
-  // Distribution pays — colonne country (top 8 + Other ; null → '—')
+  // Distribution pays — colonne country (top 8 + Other ; null → '—'). _deriveCountry (F12,
+  // deja utilisee a 4 autres endroits -- filtres kanban, CRM) plutot que p.country.trim() brut :
+  // normalise "London, UK" -> "United Kingdom" au lieu de garder la chaine brute comme cle
+  // separee, evitant que plusieurs variantes UK/US ne se comptent comme des pays distincts.
   const cty = {};
-  active.forEach(p => { const c = (p.country && p.country.trim()) || '—'; cty[c] = (cty[c] || 0) + 1; });
+  active.forEach(p => { const c = _deriveCountry(p.country) || '—'; cty[c] = (cty[c] || 0) + 1; });
   const ctySorted = Object.entries(cty).sort((a,b) => b[1]-a[1]);
   const topCty = ctySorted.slice(0,8);
   const otherCount = ctySorted.slice(8).reduce((s,[,n]) => s+n, 0);
@@ -13574,16 +13599,54 @@ async function _startEmailSeq(id, requireDraft = true) {
 // memes flags/couleurs que les pastilles textuelles deja existantes (kanban/priority/tiroir),
 // jamais une deuxieme logique de calcul : juste un format compact (icone + tooltip) pour les
 // endroits ou le score n'a pas la place pour une pastille texte complete a cote de lui.
+// F01 (audit 2026-09-17) : identity_verdict CONTRADICTED/UNVERIFIABLE ajoutes aux memes
+// declencheurs que company_verified===false/identity_confidence==='low' -- un vrai probleme
+// detecte, pas juste une absence de controle. null sur l'un ou l'autre champ NE declenche PAS
+// ce badge (cf. _qualificationNote ci-dessous) : verifie en base le 17/09, identity_verdict
+// n'est renseigne que sur 40/3518 prospects actifs (1%, pipeline de verification lancee ce jour
+// et tournant uniquement sur les nouveaux signaux, jamais retroactivement sur la base existante)
+// et company_verified est null sur 54% -- traiter null comme une alerte flaguerait la quasi-
+// totalite du dashboard, l'inverse de l'effet recherche. Arbitrage explicite de Thomas.
 function _scoreReliabilityBadge(p) {
   const companyUnconfirmed = p.company_verified === false;
-  const identityUnconfirmed = p.identity_confidence === 'low';
+  const identityUnconfirmed = p.identity_confidence === 'low'
+    || p.identity_verdict === 'CONTRADICTED' || p.identity_verdict === 'UNVERIFIABLE';
   if (!companyUnconfirmed && !identityUnconfirmed) return null;
+  const identityTitle = p.identity_verdict === 'CONTRADICTED' ? 'Identity contradicted'
+    : p.identity_verdict === 'UNVERIFIABLE' ? 'Identity unverifiable'
+    : 'Identity to verify';
   return {
     icon: companyUnconfirmed ? '⚠' : '?',
     both: companyUnconfirmed && identityUnconfirmed,
     color: companyUnconfirmed ? '#b45309' : '#6b7280',
-    title: companyUnconfirmed && identityUnconfirmed ? 'Company & identity unconfirmed' : companyUnconfirmed ? 'Company not confirmed' : 'Identity to verify',
+    title: companyUnconfirmed && identityUnconfirmed ? 'Company & identity unconfirmed' : companyUnconfirmed ? 'Company not confirmed' : identityTitle,
   };
+}
+// Signal neutre "pas encore controle" (F01) -- distinct du badge d'alerte ci-dessus : jamais
+// colore/alarmant, jamais de changement de libelle de bouton. Couvre les cas ou l'information
+// manque simplement (verification jamais lancee sur cette fiche) plutot qu'un probleme reel
+// detecte -- cf. commentaire ci-dessus sur la prevalence de null. Retourne null si le badge
+// d'alerte s'applique deja (jamais les deux a la fois, pas de doublon visuel) ou si tout est
+// renseigne. hard_criteria_met vide et score_completeness < 10 sont de vraies lacunes de preuve
+// (pas un "pas encore lance" -- ces deux champs sont peuples par le meme scoring que icp_score
+// lui-meme), traitees ici aussi en neutre plutot qu'en alerte : une completude partielle n'est
+// pas une contradiction, juste moins de matiere.
+function _qualificationNote(p) {
+  if (_scoreReliabilityBadge(p)) return null;
+  const notes = [];
+  if (p.identity_verdict == null) notes.push('Identity not checked');
+  if (p.company_verified == null) notes.push('Company not checked');
+  if (!p.hard_criteria_met) notes.push('No hard criteria confirmed');
+  if (p.score_completeness != null && Number(p.score_completeness) < 10) notes.push('Completeness ' + p.score_completeness + '/10');
+  return notes.length ? notes.join(' · ') : null;
+}
+// Libelle du bouton d'action principal (F01) : reflete l'etat reel (_scoreReliabilityBadge,
+// tier alerte uniquement -- jamais _qualificationNote) plutot que d'impliquer une confiance
+// totale par defaut. Ne bloque jamais le clic, meme gestionnaire derriere (_priorityGenerate/
+// _drawerAI inchanges) -- seul le texte change.
+function _actionButtonLabel(p, cachedLabel, freshLabel) {
+  if (_scoreReliabilityBadge(p)) return '⚠ Verify source first';
+  return p.next_action_cache ? cachedLabel : freshLabel;
 }
 
 // targetId undefined -> ecrit dans le panneau global du Scanner ('breakdown-panel', comportement
@@ -14270,7 +14333,9 @@ async function loadKanban(force){
     while (true) {
       let _kQuery = sbClient
         .from('prospects')
-        .select('id, name, company, title, sector, region, country, stage, linkedin, email, phone, deal_value, deal_currency, deal_structure, deal_weighted, notes, last_contact, reminder_date, icp_score, icp_reason, archived, client_id, linkedin_tag, origin, signal, signal_type, signal_interpretation, signal_date, created_at, draft_invite_note, company_size, next_action, next_action_date, score_signal_strength, score_growth, score_role, score_size, score_recency, score_mandate_fit, score_completeness, signal_url, website_url, funding_stage, last_funding_date, total_funding, additional_contacts, import_source, next_action_cache, next_action_generated_at, company_verified, identity_confidence')
+        // identity_verdict/hard_criteria_met ajoutes (F01, 2026-09-17), meme raison que
+        // loadDailyPriorities ci-dessus.
+        .select('id, name, company, title, sector, region, country, stage, linkedin, email, phone, deal_value, deal_currency, deal_structure, deal_weighted, notes, last_contact, reminder_date, icp_score, icp_reason, archived, client_id, linkedin_tag, origin, signal, signal_type, signal_interpretation, signal_date, created_at, draft_invite_note, company_size, next_action, next_action_date, score_signal_strength, score_growth, score_role, score_size, score_recency, score_mandate_fit, score_completeness, signal_url, website_url, funding_stage, last_funding_date, total_funding, additional_contacts, import_source, next_action_cache, next_action_generated_at, company_verified, identity_confidence, identity_verdict, hard_criteria_met')
         .eq('client_id', CLIENT_ID);
       _kQuery = _applyMandateFilter(_kQuery);
       const { data: chunk, error } = await _kQuery
