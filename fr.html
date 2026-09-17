@@ -432,6 +432,12 @@ footer { border-top: 1px solid var(--border); padding: 32px 48px; max-width: 120
 .wyo-list li:last-child {
   border-bottom: none;
 }
+.wyo-license-label {
+  color: rgba(255,255,255,0.5);
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  margin: 24px 0 16px;
+}
 /* News feed */
 .news-feed-header { display:flex; align-items:center; gap:8px; margin-bottom:14px; }
 .news-live-dot { width:8px; height:8px; border-radius:50%; background:#00c9a7; flex-shrink:0; animation:pulse-dot 2s ease-in-out infinite; }
@@ -807,7 +813,7 @@ footer { border-top: 1px solid var(--border); padding: 32px 48px; max-width: 120
           <td>3–6 mois</td>
         </tr>
         <tr>
-          <td>Système que vous possédez</td>
+          <td>Système installé et géré pour vous</td>
           <td class="highlight check">✓</td>
           <td class="cross">✗</td>
           <td class="cross">✗</td>
@@ -842,16 +848,18 @@ footer { border-top: 1px solid var(--border); padding: 32px 48px; max-width: 120
 <!-- CE QUE VOUS POSSEDEZ -->
 <section class="what-you-own">
   <div class="wyo-inner">
-    <p class="section-label">CE QUE VOUS POSS&Eacute;DEZ</p>
-    <h2>Le syst&egrave;me vous appartient.<br>D&egrave;s le premier jour.</h2>
+    <p class="section-label">CE QUI VOUS APPARTIENT</p>
+    <h2>Vos donn&eacute;es restent les v&ocirc;tres.<br>Le syst&egrave;me fonctionne sous licence.</h2>
     <ul class="wyo-list">
-      <li>&#10003; Votre base de prospects et de signaux</li>
-      <li>&#10003; Votre mod&egrave;le ICP et vos r&egrave;gles de scoring</li>
-      <li>&#10003; Vos s&eacute;quences d&apos;outreach et votre logique de campagne</li>
-      <li>&#10003; Votre base de connaissance marque et messaging</li>
-      <li>&#10003; Votre historique pipeline et journal d&apos;activit&eacute;</li>
-      <li>&#10003; Vos 15 agents IA, configur&eacute;s pour votre marque</li>
-      <li>&#10003; Vos workflows, qui tournent sans vous</li>
+      <li>&#10003; Votre base de prospects et de signaux, exportable sur demande, &agrave; tout moment</li>
+      <li>&#10003; Votre historique pipeline et journal d&apos;activit&eacute;, exportable sur demande, &agrave; tout moment</li>
+      <li>&#10003; Votre mod&egrave;le ICP et vos donn&eacute;es de messaging</li>
+    </ul>
+    <p class="wyo-license-label">Sous licence pendant la dur&eacute;e de votre contrat :</p>
+    <ul class="wyo-list">
+      <li>Vos s&eacute;quences d&apos;outreach et votre logique de campagne</li>
+      <li>Vos 15 agents IA, configur&eacute;s pour votre marque</li>
+      <li>Les workflows qui font tourner votre pipeline</li>
     </ul>
   </div>
 </section>

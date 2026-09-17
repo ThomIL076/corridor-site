@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ICP & Signal Setup | Corridor</title>
+<meta name="robots" content="noindex, nofollow">
+<style>
+  :root {
+    --navy: #1a2b5e;
+    --navy-mid: #243875;
+    --navy-light: #eef1fa;
+    --blue: #93A8D4;
+    --bg: #f8f9fb;
+    --white: #ffffff;
+    --border: #e2e8f0;
+    --border-mid: #c8d0e0;
+    --text: #1e2a45;
+    --muted: #576185;
+    --dim: #8b95b3;
+    --accent: #2568B5;
+    --green: #15803d;
+    --green-bg: #f0fdf4;
+    --green-border: #86efac;
+    --red: #b91c1c;
+    --red-bg: #fef2f2;
+    --red-border: #fca5a5;
+    --radius: 10px;
+    --radius-sm: 7px;
+    --radius-pill: 999px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .shell { max-width: 640px; margin: 0 auto; padding: 40px 20px 100px; }
+  .top { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 28px; }
+  .mark { font-weight: 700; font-size: 15px; letter-spacing: -0.01em; color: var(--navy); }
+  .subject { font-size: 13px; color: var(--muted); }
+  .lang-switch { font-size: 12.5px; }
+  .lang-switch a { color: var(--muted); text-decoration: none; }
+  .lang-switch a:hover { color: var(--accent); }
+
+  .progress { display: flex; gap: 6px; margin-bottom: 36px; }
+  .progress .seg { flex: 1; height: 3px; border-radius: 2px; background: var(--border); transition: background 0.25s ease; }
+  .progress .seg.done { background: var(--accent); }
+  .progress .seg.current { background: var(--navy); }
+
+  .card { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); padding: 32px 30px; }
+  .step { display: none; }
+  .step.active { display: block; animation: rise 0.28s ease; }
+  @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+  .step-eyebrow { font-size: 12.5px; color: var(--accent); font-weight: 600; margin-bottom: 6px; }
+  h2 { font-size: 22px; margin: 0 0 8px; color: var(--navy); letter-spacing: -0.01em; }
+  .step-intro { color: var(--muted); font-size: 14px; line-height: 1.55; margin: 0 0 28px; max-width: 52ch; }
+
+  .field { margin-bottom: 26px; }
+  .field:last-child { margin-bottom: 0; }
+  .q { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+  .q-hint { font-size: 12.5px; color: var(--dim); margin-bottom: 10px; line-height: 1.5; }
+
+  .pills { display: flex; flex-wrap: wrap; gap: 8px; }
+  .pill { border: 1px solid var(--border-mid); background: var(--white); color: var(--muted); padding: 7px 14px; border-radius: var(--radius-pill); font-size: 13px; cursor: pointer; user-select: none; transition: all 0.15s ease; }
+  .pill:hover { border-color: var(--accent); color: var(--navy); }
+  .pill.on { background: var(--navy-light); border-color: var(--accent); color: var(--navy); font-weight: 600; }
+
+  textarea, input[type="text"], select {
+    width: 100%; border: 1px solid var(--border-mid); border-radius: var(--radius-sm);
+    padding: 10px 12px; font-size: 14px; font-family: inherit; color: var(--text); background: var(--white); resize: vertical;
+  }
+  textarea:focus, input[type="text"]:focus, select:focus {
+    outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37,104,181,0.12);
+  }
+  textarea { min-height: 64px; line-height: 1.5; }
+  .other-input { margin-top: 10px; }
+
+  .rank-row { display: flex; flex-direction: column; gap: 10px; }
+  .rank-item { display: flex; align-items: center; gap: 12px; }
+  .rank-label { width: 110px; font-size: 12.5px; color: var(--muted); font-weight: 600; flex-shrink: 0; }
+  .rank-item input { flex: 1; }
+
+  .yesno { display: flex; gap: 8px; }
+  .yesno .pill { min-width: 64px; text-align: center; }
+
+  .nav { display: flex; justify-content: space-between; align-items: center; margin-top: 28px; }
+  button {
+    font-family: inherit; font-size: 14px; font-weight: 600; border-radius: var(--radius-sm);
+    padding: 11px 20px; cursor: pointer; border: none; transition: opacity 0.15s ease;
+  }
+  button:hover { opacity: 0.88; }
+  button:disabled { opacity: 0.6; cursor: default; }
+  .btn-primary { background: var(--navy); color: var(--white); }
+  .btn-ghost { background: transparent; color: var(--muted); padding: 11px 6px; }
+  .btn-ghost:hover { color: var(--navy); opacity: 1; }
+  .step-count { font-size: 12.5px; color: var(--dim); }
+
+  .review-block { margin-bottom: 22px; }
+  .review-block:last-child { margin-bottom: 0; }
+  .review-h { font-size: 12.5px; font-weight: 700; color: var(--accent); margin-bottom: 8px; }
+  .review-line { font-size: 13.5px; line-height: 1.6; color: var(--text); margin-bottom: 3px; }
+  .review-line b { color: var(--navy); }
+
+  .actions-final { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 28px; }
+  .btn-send { background: var(--accent); color: var(--white); }
+  .btn-copy { background: var(--white); color: var(--navy); border: 1px solid var(--border-mid); }
+
+  .status-flag { display: none; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; padding: 10px 14px; border-radius: var(--radius-sm); margin-top: 14px; }
+  .status-flag.show { display: flex; }
+  .status-flag.ok { background: var(--green-bg); border: 1px solid var(--green-border); color: var(--green); }
+  .status-flag.err { background: var(--red-bg); border: 1px solid var(--red-border); color: var(--red); }
+
+  .foot-note { text-align: center; font-size: 12.5px; color: var(--dim); margin-top: 22px; line-height: 1.6; }
+
+  @media (max-width: 480px) {
+    .card { padding: 24px 20px; }
+    .rank-item { flex-wrap: wrap; }
+    .rank-label { width: 100%; }
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="top">
+    <div class="mark">Corridor</div>
+    <div style="text-align:right;">
+      <div class="subject">ICP &amp; signal setup</div>
+      <div class="lang-switch"><a href="icp-setup-fr.html">Français</a></div>
+    </div>
+  </div>
+
+  <div class="progress" id="progress"></div>
+
+  <div class="card">
+
+    <div class="step" data-step="0">
+      <div class="step-eyebrow">Target companies</div>
+      <h2>Who converts best for you</h2>
+      <p class="step-intro">Short answers are fine everywhere here. Pick what applies, add detail only where it genuinely helps.</p>
+
+      <div class="field">
+        <div class="q">Beyond your general qualifying criteria, which industries convert best?</div>
+        <div class="q-hint">Select any that apply.</div>
+        <div class="pills" data-group="industries">
+          <div class="pill" data-value="AdTech">AdTech</div>
+          <div class="pill" data-value="Fintech/Payments">Fintech/Payments</div>
+          <div class="pill" data-value="B2B SaaS">B2B SaaS</div>
+          <div class="pill" data-value="Retail Tech">Retail Tech</div>
+          <div class="pill" data-value="Data/Ecommerce">Data/Ecommerce</div>
+          <div class="pill" data-value="Professional Services">Professional Services</div>
+          <div class="pill" data-value="Manufacturing">Manufacturing</div>
+          <div class="pill" data-value="Healthcare">Healthcare</div>
+          <div class="pill" data-value="Real Estate">Real Estate</div>
+        </div>
+        <input class="other-input" type="text" id="industries-other" placeholder="Other industries (optional)">
+      </div>
+
+      <div class="field">
+        <div class="q">Any hard exclusions we should never surface?</div>
+        <div class="q-hint">Industries, geographies, or company types, whatever is relevant.</div>
+        <textarea id="exclusions" placeholder="e.g. no hard exclusions, or avoid a specific region or company type"></textarea>
+      </div>
+
+      <div class="field">
+        <div class="q">What matters most for company size?</div>
+        <div class="yesno" data-group="size-priority">
+          <div class="pill" data-value="Employee count">Employee count</div>
+          <div class="pill" data-value="Turnover">Turnover</div>
+          <div class="pill" data-value="Both equally">Both equally</div>
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="q">Employee count range that matters most</div>
+        <div class="pills" data-group="emp-range">
+          <div class="pill" data-value="1-10">1-10</div>
+          <div class="pill" data-value="11-50">11-50</div>
+          <div class="pill" data-value="51-200">51-200</div>
+          <div class="pill" data-value="201-500">201-500</div>
+          <div class="pill" data-value="500+">500+</div>
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="q">Turnover range that matters most</div>
+        <div class="pills" data-group="turnover-range">
+          <div class="pill" data-value="&lt;$1M">&lt;$1M</div>
+          <div class="pill" data-value="$1-5M">$1-5M</div>
+          <div class="pill" data-value="$5-20M">$5-20M</div>
+          <div class="pill" data-value="$20-100M">$20-100M</div>
+          <div class="pill" data-value="$100M+">$100M+</div>
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="q">Any accounts we could use as lookalike references?</div>
+        <input type="text" id="golden-accounts" placeholder="e.g. Company A, Company B, Company C">
+      </div>
+    </div>
+
+    <div class="step" data-step="1">
+      <div class="step-eyebrow">Markets</div>
+      <h2>Build order across regions</h2>
+      <p class="step-intro">List your markets in priority order. Leave 2nd and 3rd blank if there is only one.</p>
+
+      <div class="field">
+        <div class="q">Priority order for ICP scoring</div>
+        <div class="rank-row">
+          <div class="rank-item"><div class="rank-label">1st priority</div><input type="text" id="rank-1" placeholder="e.g. UK &amp; Ireland"></div>
+          <div class="rank-item"><div class="rank-label">2nd priority</div><input type="text" id="rank-2" placeholder="Optional"></div>
+          <div class="rank-item"><div class="rank-label">3rd priority</div><input type="text" id="rank-3" placeholder="Optional"></div>
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="q">Should any regions get equal weight from day one?</div>
+        <textarea id="market-notes" placeholder="Leave blank if the order above is right"></textarea>
+      </div>
+    </div>
+
+    <div class="step" data-step="2">
+      <div class="step-eyebrow">Stakeholders</div>
+      <h2>The buying committee</h2>
+      <p class="step-intro">Who Corridor should be identifying and prioritising on each account.</p>
+
+      <div class="field">
+        <div class="q">Which titles or functions do you typically target first?</div>
+        <textarea id="titles" placeholder="e.g. VP Sales, Head of Growth, Founder"></textarea>
+      </div>
+
+      <div class="field">
+        <div class="q">Who tends to be the actual decision-maker vs. an influencer?</div>
+        <textarea id="decision-maker" placeholder="e.g. the influencer flags the pain, the decision-maker signs off"></textarea>
+      </div>
+
+      <div class="field">
+        <div class="q">Any roles you have learned to avoid?</div>
+        <textarea id="roles-avoid" placeholder="e.g. too junior to have budget authority"></textarea>
+      </div>
+    </div>
+
+    <div class="step" data-step="3">
+      <div class="step-eyebrow">Pain points</div>
+      <h2>What a switch looks like</h2>
+      <p class="step-intro">The signals that tell you someone is ready to change vendors.</p>
+
+      <div class="field">
+        <div class="q">Clearest signs a company is unhappy with its current vendor or overpaying?</div>
+        <textarea id="pain-signs" placeholder="e.g. still on a manual process, no dedicated tool, budget complaints"></textarea>
+      </div>
+
+      <div class="field">
+        <div class="q">Trigger events that tend to precede a switch</div>
+        <div class="pills" data-group="triggers">
+          <div class="pill" data-value="New leadership hire">New leadership hire</div>
+          <div class="pill" data-value="International expansion">International expansion</div>
+          <div class="pill" data-value="Funding round">Funding round</div>
+          <div class="pill" data-value="M&amp;A">M&amp;A</div>
+          <div class="pill" data-value="New office opening">New office opening</div>
+        </div>
+        <input class="other-input" type="text" id="triggers-other" placeholder="Other triggers (optional)">
+      </div>
+    </div>
+
+    <div class="step" data-step="4">
+      <div class="step-eyebrow">Live signals</div>
+      <h2>What predicts a company is ready</h2>
+      <p class="step-intro">Last section, then a short summary to send back.</p>
+
+      <div class="field">
+        <div class="q">Beyond general growth and hiring signals, what is predictive?</div>
+        <div class="pills" data-group="predictive">
+          <div class="pill" data-value="International expansion">International expansion</div>
+          <div class="pill" data-value="New partnerships">New partnerships</div>
+          <div class="pill" data-value="M&amp;A">M&amp;A</div>
+          <div class="pill" data-value="New office openings">New office openings</div>
+        </div>
+        <input class="other-input" type="text" id="predictive-other" placeholder="Other predictive events (optional)">
+      </div>
+
+      <div class="field">
+        <div class="q">Do you currently track any of these manually?</div>
+        <div class="yesno" data-group="tracks-manually">
+          <div class="pill" data-value="Yes">Yes</div>
+          <div class="pill" data-value="No">No</div>
+        </div>
+        <textarea id="tracks-how" placeholder="If yes, how?" style="margin-top:10px;"></textarea>
+      </div>
+
+      <div class="field">
+        <div class="q">Company name</div>
+        <div class="q-hint">So we know who this is from.</div>
+        <input type="text" id="prospect-company" placeholder="Your company name">
+      </div>
+    </div>
+
+    <div class="step" data-step="5">
+      <div class="step-eyebrow">Review</div>
+      <h2>Ready to send</h2>
+      <p class="step-intro">Quick check, then send it through or copy it for your own records.</p>
+      <div id="review-output"></div>
+
+      <div class="actions-final">
+        <button class="btn-send" id="send-btn" onclick="sendAnswers()">Send my answers</button>
+        <button class="btn-copy" onclick="copyAnswers()">Copy answers</button>
+      </div>
+      <div class="status-flag ok" id="status-ok">Sent. Thank you, we will be in touch shortly.</div>
+      <div class="status-flag err" id="status-err">That did not go through. Please use Copy answers and paste it into a reply instead.</div>
+    </div>
+
+    <div class="nav" id="nav-controls">
+      <button class="btn-ghost" id="back-btn" onclick="prevStep()">Back</button>
+      <div class="step-count" id="step-count"></div>
+      <button class="btn-primary" id="next-btn" onclick="nextStep()">Next</button>
+    </div>
+
+  </div>
+
+  <div class="foot-note">Prefer to talk it through? Just reply and we will grab 15 minutes instead.</div>
+
+</div>
+
+<script>
+const totalSteps = 6;
+let current = 0;
+const selections = {};
+const WEBHOOK_URL = 'https://thom076il.app.n8n.cloud/webhook/icp-intake-submit';
+
+function initPills() {
+  document.querySelectorAll('.pill').forEach(pill => {
+    pill.addEventListener('click', () => {
+      const group = pill.closest('[data-group]').dataset.group;
+      const isExclusive = pill.closest('.yesno') !== null || group === 'size-priority' || group === 'tracks-manually';
+      if (isExclusive) {
+        pill.parentElement.querySelectorAll('.pill').forEach(p => p.classList.remove('on'));
+        pill.classList.add('on');
+        selections[group] = [pill.dataset.value];
+      } else {
+        pill.classList.toggle('on');
+        const groupEl = pill.closest('[data-group]');
+        const on = [...groupEl.querySelectorAll('.pill.on')].map(p => p.dataset.value);
+        selections[group] = on;
+      }
+    });
+  });
+}
+
+function renderProgress() {
+  const bar = document.getElementById('progress');
+  bar.innerHTML = '';
+  for (let i = 0; i < totalSteps; i++) {
+    const seg = document.createElement('div');
+    seg.className = 'seg' + (i < current ? ' done' : i === current ? ' current' : '');
+    bar.appendChild(seg);
+  }
+}
+
+function renderStep() {
+  document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+  document.querySelector('.step[data-step="' + current + '"]').classList.add('active');
+  renderProgress();
+  document.getElementById('back-btn').style.visibility = current === 0 ? 'hidden' : 'visible';
+  const nextBtn = document.getElementById('next-btn');
+  const navControls = document.getElementById('nav-controls');
+  if (current === totalSteps - 1) {
+    navControls.style.display = 'none';
+    buildReview();
+  } else {
+    navControls.style.display = 'flex';
+    nextBtn.textContent = current === totalSteps - 2 ? 'Review' : 'Next';
+  }
+  document.getElementById('step-count').textContent = 'Step ' + (current + 1) + ' of ' + totalSteps;
+}
+
+function nextStep() { if (current < totalSteps - 1) { current++; renderStep(); window.scrollTo({top:0, behavior:'smooth'}); } }
+function prevStep() { if (current > 0) { current--; renderStep(); window.scrollTo({top:0, behavior:'smooth'}); } }
+
+function val(id) { const el = document.getElementById(id); return el ? el.value.trim() : ''; }
+function listOrDash(group) { return (selections[group] && selections[group].length) ? selections[group].join(', ') : 'None selected'; }
+
+function buildAnswers() {
+  const industries = listOrDash('industries') + (val('industries-other') ? ', ' + val('industries-other') : '');
+  const triggers = listOrDash('triggers') + (val('triggers-other') ? ', ' + val('triggers-other') : '');
+  const predictive = listOrDash('predictive') + (val('predictive-other') ? ', ' + val('predictive-other') : '');
+  const markets = [val('rank-1'), val('rank-2'), val('rank-3')].filter(Boolean).join(' then ') || 'Not specified';
+
+  return [
+    { h: 'Target companies (ICP)', lines: [
+      ['Industries that convert best', industries],
+      ['Hard exclusions', val('exclusions') || 'None specified'],
+      ['What matters most for size', listOrDash('size-priority')],
+      ['Employee count range', listOrDash('emp-range')],
+      ['Turnover range', listOrDash('turnover-range')],
+      ['Lookalike accounts', val('golden-accounts') || 'None specified'],
+    ]},
+    { h: 'Markets', lines: [
+      ['Priority order', markets],
+      ['Notes', val('market-notes') || 'None'],
+    ]},
+    { h: 'Stakeholders', lines: [
+      ['Titles targeted first', val('titles') || 'Not specified'],
+      ['Decision-maker vs. influencer', val('decision-maker') || 'Not specified'],
+      ['Roles to avoid', val('roles-avoid') || 'None specified'],
+    ]},
+    { h: 'Pain points', lines: [
+      ['Signs of dissatisfaction', val('pain-signs') || 'Not specified'],
+      ['Trigger events before a switch', triggers],
+    ]},
+    { h: 'Live signals', lines: [
+      ['Predictive events', predictive],
+      ['Tracked manually today', listOrDash('tracks-manually') + (val('tracks-how') ? ', ' + val('tracks-how') : '')],
+    ]},
+  ];
+}
+
+function buildReview() {
+  const sections = buildAnswers();
+  const out = document.getElementById('review-output');
+  out.innerHTML = sections.map(s => `
+    <div class="review-block">
+      <div class="review-h">${s.h}</div>
+      ${s.lines.map(([label, value]) => `<div class="review-line"><b>${label}:</b> ${value}</div>`).join('')}
+    </div>
+  `).join('');
+}
+
+function formatPlainText() {
+  const sections = buildAnswers();
+  let text = 'ICP & Signal Setup\n\n';
+  sections.forEach(s => {
+    text += s.h.toUpperCase() + '\n';
+    s.lines.forEach(([label, value]) => { text += '- ' + label + ': ' + value + '\n'; });
+    text += '\n';
+  });
+  return text.trim();
+}
+
+function copyAnswers() {
+  const text = formatPlainText();
+  navigator.clipboard.writeText(text).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  });
+}
+
+async function sendAnswers() {
+  const btn = document.getElementById('send-btn');
+  const okFlag = document.getElementById('status-ok');
+  const errFlag = document.getElementById('status-err');
+  okFlag.classList.remove('show');
+  errFlag.classList.remove('show');
+  btn.disabled = true;
+  btn.textContent = 'Sending...';
+
+  const payload = {
+    language: 'en',
+    prospectCompany: val('prospect-company'),
+    answers: { selections, freeText: buildAnswers() },
+    formattedText: formatPlainText()
+  };
+
+  try {
+    await fetch(WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    okFlag.classList.add('show');
+    btn.textContent = 'Sent';
+  } catch (e) {
+    errFlag.classList.add('show');
+    btn.disabled = false;
+    btn.textContent = 'Send my answers';
+  }
+}
+
+initPills();
+renderStep();
+</script>
+</body>
+</html>
