@@ -1287,6 +1287,11 @@ body.new-nav { padding-left: 220px; }
 .snav-item:hover { background-color: var(--sidebar-hover); }
 .snav-item.active { border-left-color: var(--sidebar-accent); background: var(--sidebar-hover); color: #fff; font-weight: 600; }
 .snav-sub { padding-left: 26px; }
+/* F15 : groupe "Configuration" visuellement en retrait (choix confirme vs. repliable -- reste
+   simple, aucun nouveau mecanisme JS) -- memes tokens de couleur, juste taille/opacite reduites. */
+.snav-section-muted .snav-section-label { opacity: 0.6; }
+.snav-section-muted .snav-item { font-size: 12px; opacity: 0.72; }
+.snav-section-muted .snav-item:hover, .snav-section-muted .snav-item.active { opacity: 1; }
 .snav-badge, .snav-meta {
   font-family: 'IBM Plex Mono', monospace; font-size: 9px; letter-spacing: 0.05em;
   color: var(--sidebar-label); flex-shrink: 0;
@@ -1520,13 +1525,32 @@ body.new-nav { padding-left: 220px; }
     <div class="snav-logo-mark"><span></span><span></span><span></span><span></span></div>
     <span class="snav-logo-text">CORRIDOR</span>
   </div>
+  <!-- F15 (audit 2026-09-17) : sidebar regroupee autour de 4 taches principales (mapping valide
+       par Thomas) au lieu de 13 entrees plates -- data-nav et _switchNewNav() inchanges pour
+       chaque destination, seul le regroupement visuel/les libelles de section changent. Scope
+       demo-private.html uniquement ce soir : le panneau mobile #tab-more (liste a plat) et
+       kaizenology.html/wominds.html restent en l'etat, chantiers separes en attente. -->
   <div class="snav-section">
+    <span class="snav-section-label" data-en="Today" data-fr="Aujourd'hui">Today</span>
     <button class="snav-item" data-nav="priorities" onclick="_switchNewNav('priorities')">
       <span data-en="Today" data-fr="Aujourd'hui">Today</span>
     </button>
+  </div>
+  <div class="snav-section">
+    <span class="snav-section-label" data-en="Prospects" data-fr="Prospects">Prospects</span>
     <button class="snav-item" data-nav="pipeline" onclick="_switchNewNav('pipeline')">
       <span>Pipeline</span>
     </button>
+    <button class="snav-item" data-nav="clients" onclick="_switchNewNav('clients')">
+      <span>Clients</span>
+    </button>
+    <button class="snav-item snav-sub" data-nav="system-signals" onclick="_switchNewNav('system','signals')">
+      <span data-en="Signals" data-fr="Signaux">Signals</span>
+      <span class="snav-badge" id="snav-badge-signals"></span>
+    </button>
+  </div>
+  <div class="snav-section">
+    <span class="snav-section-label" data-en="Conversations" data-fr="Conversations">Conversations</span>
     <button class="snav-item" data-nav="send" onclick="_switchNewNav('send')">
       <span data-en="Send" data-fr="Envoyer">Send</span>
       <span class="snav-badge" id="snav-badge-send"></span>
@@ -1535,20 +1559,24 @@ body.new-nav { padding-left: 220px; }
       <span data-en="Inbox" data-fr="Boîte de réception">Inbox</span>
       <span class="snav-badge" id="snav-badge-inbox"></span>
     </button>
-    <button class="snav-item" data-nav="proposals" onclick="_switchNewNav('proposals')">
-      <span data-en="Proposals" data-fr="Propositions">Proposals</span>
-      <span class="snav-badge" id="snav-badge-proposals"></span>
-    </button>
     <button class="snav-item" data-nav="pending-actions" onclick="_switchNewNav('pending-actions')">
       <span data-en="Approvals" data-fr="Actions en attente">Approvals</span>
       <span class="snav-badge" id="snav-badge-pending-actions"></span>
     </button>
+    <!-- F15 point 2 : renomme depuis "Proposals" -- collision de mot avec le stage pipeline
+         "Proposal", resolue par ce nouveau libelle. -->
+    <button class="snav-item" data-nav="proposals" onclick="_switchNewNav('proposals')">
+      <span data-en="Drafts &amp; approvals" data-fr="Brouillons et validations">Drafts &amp; approvals</span>
+      <span class="snav-badge" id="snav-badge-proposals"></span>
+    </button>
   </div>
   <div class="snav-section">
-    <span class="snav-section-label">Intelligence</span>
-    <button class="snav-item snav-sub" data-nav="system-signals" onclick="_switchNewNav('system','signals')">
-      <span data-en="Signals" data-fr="Signaux">Signals</span>
-      <span class="snav-badge" id="snav-badge-signals"></span>
+    <span class="snav-section-label" data-en="Results" data-fr="Résultats">Results</span>
+    <!-- "Stats" a desormais sa place dans la nouvelle IA (groupe Resultats) -- l'ancien ecart
+         signale ici ("pas de place dans la nouvelle IA, Phase 4 absorbera son contenu") est
+         resolu par ce regroupement, plus besoin de le documenter comme ecart temporaire. -->
+    <button class="snav-item" data-nav="stats" onclick="_switchNewNav('stats')">
+      <span>Stats</span>
     </button>
     <button class="snav-item snav-sub" data-nav="system-pipeintel" onclick="_switchNewNav('system','pipeintel')">
       <span data-en="Pipeline health" data-fr="Santé du pipeline">Pipeline health</span>
@@ -1558,26 +1586,24 @@ body.new-nav { padding-left: 220px; }
       <span data-en="Reports" data-fr="Rapports">Reports</span>
     </button>
   </div>
-  <div class="snav-section">
-    <span class="snav-section-label">Orchestration</span>
+  <!-- F15 : "Configuration" en retrait visuel (choix confirme vs. repliable, cf. CSS
+       .snav-section-muted plus haut) -- second niveau, moins mis en avant que les 4 taches
+       principales ci-dessus. Mandate & ICP deplace ici depuis la zone basse (Scanner/Ask
+       Corridor/System active/Sign out restent inchanges, ce sont des outils d'acces rapide,
+       pas des destinations de contenu -- cf. brief). -->
+  <div class="snav-section snav-section-muted">
+    <span class="snav-section-label" data-en="Configuration" data-fr="Configuration">Configuration</span>
     <button class="snav-item" data-nav="agents" onclick="_switchNewNav('agents')">
       <span data-en="Agents" data-fr="Agents">Agents</span>
       <!-- 15 = taille reelle du roster (11 agents de chat + 4 agents pipeline), verifiee lors
            de l'audit agent_activity_log -- pas "actuellement actifs", pas de suivi temps reel. -->
       <span class="snav-meta">15</span>
     </button>
-    <button class="snav-item" data-nav="clients" onclick="_switchNewNav('clients')">
-      <span>Clients</span>
-    </button>
     <button class="snav-item" data-nav="integrations" onclick="_switchNewNav('integrations')">
       <span>Integrations</span>
     </button>
-    <!-- "Stats" n'a pas de place dans la nouvelle IA (README) -- son contenu utile (funnel,
-         repartition par secteur/pays) sera absorbe par la refonte de Pipeline en Phase 4.
-         Garde ici en attendant pour ne pas retirer un acces qui fonctionne encore -- ecart
-         signale explicitement, pas applique en silence (voir echange sur ce chantier). -->
-    <button class="snav-item" data-nav="stats" onclick="_switchNewNav('stats')">
-      <span>Stats</span>
+    <button class="snav-item" data-nav="mandate" onclick="_switchNewNav('mandate')">
+      <span data-en="Mandate &amp; ICP" data-fr="Mandat &amp; ICP">Mandate &amp; ICP</span>
     </button>
   </div>
   <div class="snav-scanner-zone">
@@ -1587,9 +1613,6 @@ body.new-nav { padding-left: 220px; }
     <button class="snav-item" onclick="_openAskPanel(null)" aria-label="Ask Corridor">
       <span data-en="Ask Corridor" data-fr="Demander à Corridor">Ask Corridor</span>
       <span class="snav-live-dot" aria-hidden="true"></span>
-    </button>
-    <button class="snav-item" data-nav="mandate" onclick="_switchNewNav('mandate')">
-      <span data-en="Mandate &amp; ICP" data-fr="Mandat &amp; ICP">Mandate &amp; ICP</span>
     </button>
     <!-- F13 (audit 2026-09-17) : badge desormais reel (workflow_health), plus de dot vert fixe
          affiche meme si le Morning Scan du jour a totalement echoue -- cf. _loadSystemActiveStatus(). -->
@@ -2425,11 +2448,12 @@ body.new-nav { padding-left: 220px; }
     <div id="send-recently-sent"></div>
   </div>
 
-  <!-- ══ TAB: PROPOSALS ══ -->
+  <!-- ══ TAB: DRAFTS & APPROVALS (F15 point 2 : renomme depuis PROPOSALS -- collision de mot
+       avec le stage pipeline "Proposal") ══ -->
   <div class="tab-panel" id="tab-proposals">
     <div style="padding:24px 16px 0;max-width:800px;margin:0 auto;">
       <div class="module-header">
-        <div class="module-title">Proposals</div>
+        <div class="module-title" data-en="Drafts &amp; approvals" data-fr="Brouillons et validations">Drafts &amp; approvals</div>
         <div class="section-sub">Content drafted by agents, waiting for a variant to be approved or rejected.</div>
       </div>
       <div id="proposals-container"></div>
@@ -3061,9 +3085,12 @@ body.new-nav { padding-left: 220px; }
            donc pas de badge natif possible a cet endroit. Meme pattern .mtab-badge reutilise ici,
            a l'interieur du more-row (2 enfants flex space-between preserves : label+badge groupes
            dans un wrapper, chevron seul). -->
+      <!-- F15 point 2 : libelle aligne avec la sidebar desktop (meme destination, meme rename) --
+           la reorganisation visuelle en 4 taches (F15 point 1) reste desktop uniquement ce soir,
+           mais ce libelle n'est pas structurel, seulement du texte pour la meme entree. -->
       <button class="more-row" onclick="_switchNewNav('proposals')">
         <span style="display:flex;align-items:center;gap:8px;">
-          <span data-en="Proposals" data-fr="Propositions">Proposals</span>
+          <span data-en="Drafts &amp; approvals" data-fr="Brouillons et validations">Drafts &amp; approvals</span>
           <span class="mtab-badge" id="mtab-badge-proposals"></span>
         </span>
         <span class="more-chevron">›</span>
@@ -8888,6 +8915,19 @@ async function openDrawer(card, initialTab = 'activity') {
       </div>
 
       <!-- 5. CALL PREP BRIEF -->
+      <!-- F15 point 3 (audit 2026-09-17) : masquee entierement pour stage === 'Identified'
+           (jamais sollicite pour un appel/relance a ce stade) -- utilise _p.stage (vrai champ
+           prospects.stage) plutot que la variable locale "stage" ci-dessus : celle-ci est
+           derivee du DOM de la colonne kanban d'origine (card.closest('.kanban-col')) et retombe
+           TOUJOURS sur 'Identified' code en dur quand le tiroir est ouvert depuis Today/Send/
+           backlog de rappels (pas de colonne kanban ancetre dans ces cas) -- coder cette condition
+           dessus aurait masque la section pour quasiment tout prospect ouvert hors Pipeline, peu
+           importe son etape reelle. Bug preexistant plus large sur cette variable locale, hors
+           perimetre ici (affecte aussi l'affichage du nom d'etape lui-meme dans le tiroir --
+           signale a Thomas, pas corrige dans ce diff). Inclut "Start email sequence" (J+5, tout en
+           bas) : coherent, pas de relance J+5 sur quelqu'un jamais contacte -- confirme par
+           Thomas plutot que tranche seul. -->
+      ${_p.stage !== 'Identified' ? `
       <div class="pd-section">
         <div class="pd-section-label">Call prep brief</div>
         <div class="pd-brief-card" id="pd-brief-card">${discoveryBrief ? discoveryBrief.note : '<span style="opacity:.6">No brief prepared yet — generate one below.</span>'}</div>
@@ -8936,7 +8976,7 @@ async function openDrawer(card, initialTab = 'activity') {
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 6l-10 7L2 6"/></svg>
           Start email sequence
         </button>
-      </div>
+      </div>` : ''}
 
       <!-- EDIT DETAILS (pas une des 5 sections du README -- necessaire pour ne pas perdre les
            champs Contact/Classification/Signal (edition), Stage et le calculateur Deal Value,
@@ -10574,15 +10614,23 @@ async function loadProposalsView() {
   if (!container) return;
   container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">Loading...</div>';
   try {
-    // content_type='objection_response' exclu : ces propositions vivent desormais dans l'onglet
-    // Inbox (migration reply_drafts -> agent_proposals), pas ici -- sinon double affichage.
-    // .limit(200) : garde-fou explicite (audit du soir) -- auto-limitant en pratique (approuve/
-    // rejete sort de la vue pending), mais aucune borne explicite avant.
+    // F15 point 2 (audit 2026-09-17) : .in() explicite sur les 2 seuls types reellement geres
+    // par _renderProposalCard()/_proposalUseVariant() -- remplace l'ancien .neq('content_type',
+    // 'objection_response') qui laissait passer repurposed_content/content_idea en plus (7+1
+    // lignes verifiees en base ce soir). Ces deux types n'ont ni libelle dans
+    // _PROPOSAL_CONTENT_TYPE_LABELS ni branche dans _proposalUseVariant() -- "Use this" dessus
+    // marquait la proposition "approved" SANS AUCUN EFFET REEL (ni copie presse-papier, ni
+    // ecriture sequences), un bug silencieux preexistant, distinct de ce fix. Exclues ici comme
+    // objection_response (qui vit dans Inbox) plutot qu'affichees avec un bouton qui ment sur son
+    // effet -- rien n'est perdu, elles restent "pending" en base. A traiter separement : cabler
+    // une vraie action pour ces deux types, ou les retirer si plus aucun agent actif ne les
+    // produit (a verifier). .limit(200) : garde-fou explicite (audit du soir) -- auto-limitant en
+    // pratique (approuve/rejete sort de la vue pending), mais aucune borne explicite avant.
     const { data: proposals, error } = await sbClient.from('agent_proposals')
       .select('*')
       .eq('client_id', CLIENT_ID)
       .eq('status', 'pending')
-      .neq('content_type', 'objection_response')
+      .in('content_type', ['outreach_opener', 'linkedin_post'])
       .order('created_at', { ascending: false })
       .limit(200);
     if (error) throw error;
@@ -10603,7 +10651,18 @@ async function loadProposalsView() {
       if (pErr) console.error('[proposals] prospects batch-fetch error:', pErr);
       (pRows || []).forEach(p => { prospectsById[p.id] = p; });
     }
-    container.innerHTML = proposals.map(p => _renderProposalCard(p, prospectsById[p.prospect_id])).join('');
+    // F15 point 2 : separation visuelle Messages/Publications (deux sous-groupes distincts,
+    // pas juste le badge de coin de carte existant) -- meme carte (_renderProposalCard),
+    // simplement regroupees par content_type avec un en-tete de sous-section chacune.
+    const messages = proposals.filter(p => p.content_type === 'outreach_opener');
+    const posts = proposals.filter(p => p.content_type === 'linkedin_post');
+    const subSection = (label, items) => items.length
+      ? `<div style="margin-top:20px;">
+           <div class="pd-section-label" style="margin-bottom:10px;">${_esc(label)} (${items.length})</div>
+           ${items.map(p => _renderProposalCard(p, prospectsById[p.prospect_id])).join('')}
+         </div>`
+      : '';
+    container.innerHTML = subSection('Messages', messages) + subSection('Publications', posts);
     _setProposalsBadge(proposals.length);
   } catch(e) {
     console.error('[loadProposalsView]', e);
