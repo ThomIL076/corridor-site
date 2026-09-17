@@ -3690,9 +3690,17 @@ async function importCSV(e) {
   if (!file) return;
   showToast('Import en cours...');
   const reader = new FileReader();
+  // Gestion d'erreur (2026-09-17) : FileReader n'avait aucun onerror -- un fichier illisible
+  // (permissions, encodage, fichier corrompu) laissait le toast "Import en cours..." s'effacer
+  // silencieusement apres 3s sans aucun retour. e.target.value reinitialise pour permettre de
+  // reselectionner le meme fichier (onchange ne se redeclenche pas sinon sur un nom identique).
+  reader.onerror = () => {
+    showToast('Erreur de lecture du fichier');
+    e.target.value = '';
+  };
   reader.onload = async ev => {
     const lines = ev.target.result.replace(/^﻿/, '').split(/\r?\n/).filter(l => l.trim());
-    if (!lines.length) { showToast('Fichier vide'); return; }
+    if (!lines.length) { showToast('Fichier vide'); e.target.value = ''; return; }
     const sep = lines[0].includes(';') ? ';' : ',';
     const colMap = _csvHeaderColumnMap(_parseCsvLine(lines[0], sep));
     let start = 0;
@@ -3731,13 +3739,22 @@ async function importCSV(e) {
         stage: 'Identified', origin: 'csv_import', archived: false
       });
     }
-    if (!rows.length) { showToast('Aucune ligne valide'); return; }
-    let inserted = 0;
+    // Lignes de donnees presentes mais ignorees au parsing (pas de nom exploitable, cf. "if
+    // (!name) continue" ci-dessus) -- compte reel, pas suppose.
+    const skippedParse = (lines.length - start) - rows.length;
+    if (!rows.length) { showToast('Aucune ligne valide'); e.target.value = ''; return; }
+    // Compte reel (2026-09-17) : .select('id') ajoute -- upsert(..., {ignoreDuplicates:true})
+    // sans .select() ne renvoie aucune ligne, donc "inserted += chunk.length" supposait que tout
+    // le lot avait ete ecrit meme quand des doublons etaient silencieusement ignores par
+    // onConflict. Avec .select('id'), Postgres (INSERT ... ON CONFLICT DO NOTHING RETURNING)
+    // ne renvoie que les lignes reellement inserees -- data.length est le vrai compte, et
+    // chunk.length - data.length est le vrai nombre de doublons ignores dans ce lot.
+    let inserted = 0, skippedDup = 0, chunkErrors = 0;
     for (let i = 0; i < rows.length; i += 50) {
       const chunk = rows.slice(i, i + 50);
-      const { error } = await sbClient.from('prospects').upsert(chunk, { onConflict: 'client_id,external_id', ignoreDuplicates: true });
-      if (error) { showToast('Erreur import (lot ' + (i/50 + 1) + ') : ' + error.message); console.error('[importCSV]', error); }
-      else inserted += chunk.length;
+      const { data, error } = await sbClient.from('prospects').upsert(chunk, { onConflict: 'client_id,external_id', ignoreDuplicates: true }).select('id');
+      if (error) { chunkErrors++; showToast('Erreur import (lot ' + (i/50 + 1) + ') : ' + error.message); console.error('[importCSV]', error); }
+      else { const n = (data || []).length; inserted += n; skippedDup += chunk.length - n; }
     }
     // Fix 2026-09-15 (URGENT, meme trou que saveProspectForm() ci-dessus, tres probable sur un
     // import CSV vu qu'aucun scoring n'etait jamais declenche apres un insert manuel de prospect --
@@ -3760,7 +3777,17 @@ async function importCSV(e) {
         }
       } catch(e) { console.warn('[icp-score-batch] ID lookup failed:', e); }
     })();
-    showToast(inserted + ' prospects importés');
+    // Message final (2026-09-17) : compte reel d'inserted (ci-dessus), et repartition reelle
+    // des lignes ignorees -- doublons (skippedDup, confirmes par le retour Postgres) distingues
+    // des lignes invalides au parsing (skippedParse, ex. pas de nom) -- jamais fusionnes en un
+    // seul chiffre approximatif.
+    let msg = inserted + (inserted === 1 ? ' contact importé' : ' contacts importés');
+    const _parts = [];
+    if (skippedDup) _parts.push(skippedDup + (skippedDup === 1 ? ' doublon ignoré' : ' doublons ignorés'));
+    if (skippedParse) _parts.push(skippedParse + (skippedParse === 1 ? ' ligne invalide ignorée' : ' lignes invalides ignorées'));
+    if (chunkErrors) _parts.push(chunkErrors + (chunkErrors === 1 ? ' lot en erreur' : ' lots en erreur'));
+    if (_parts.length) msg += ' · ' + _parts.join(', ');
+    showToast(msg);
     e.target.value = '';
     await loadKanban(true);
   };
