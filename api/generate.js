@@ -1,9 +1,23 @@
-import Langfuse from 'langfuse';
+import { NodeSDK } from '@opentelemetry/sdk-node';
+import { LangfuseSpanProcessor } from '@langfuse/otel';
+import { startObservation } from '@langfuse/tracing';
 
-const langfuse = new Langfuse({
-  publicKey: process.env.LANGFUSE_PUBLIC_KEY,
-  secretKey: process.env.LANGFUSE_SECRET_KEY,
-});
+// exportMode: 'immediate' -- this is a short-lived serverless function, so spans
+// are flushed explicitly (forceFlush calls below) rather than relying on the
+// default batch interval, which may never fire before the instance freezes.
+const langfuseSpanProcessor = new LangfuseSpanProcessor({ exportMode: 'immediate' });
+new NodeSDK({ spanProcessors: [langfuseSpanProcessor] }).start();
+
+// Unlike the old SDK's flushAsync() (which swallows export failures internally),
+// forceFlush() rejects on failure (e.g. bad credentials, Langfuse outage) -- catch it
+// here so a tracing-side problem never turns a real response into an unrelated 500.
+async function safeFlushLangfuse() {
+  try {
+    await langfuseSpanProcessor.forceFlush();
+  } catch (e) {
+    console.error('[generate] Langfuse forceFlush failed:', e.message);
+  }
+}
 
 const MAX_TOOL_TURNS = 5;
 
@@ -47,8 +61,7 @@ export default async function handler(req, res) {
 
   // ── STREAMING PATH ────────────────────────────────────────────────────────────
   if (wantsStream) {
-    const trace = langfuse.trace({
-      name: 'generate-stream',
+    const trace = startObservation('generate-stream', {
       input: initialMessages,
       metadata: { model: restBody.model, max_tokens: restBody.max_tokens },
     });
@@ -67,8 +80,8 @@ export default async function handler(req, res) {
       if (!upstream.ok) {
         // Headers not yet sent — can still return a JSON error
         const errData = await upstream.json().catch(() => ({}));
-        trace.update({ output: { error: errData } });
-        await langfuse.flushAsync();
+        trace.update({ output: { error: errData } }).end();
+        await safeFlushLangfuse();
         return res.status(upstream.status).json({
           type: 'error',
           error: errData.error || { message: 'Anthropic API error' },
@@ -129,23 +142,22 @@ export default async function handler(req, res) {
       }
       res.end();
 
-      trace.update({ output: outputText, ...(!seenMessageStop && stopReason === null ? { statusMessage: 'truncated' } : stopReason === 'max_tokens' ? { statusMessage: 'max_tokens' } : {}) });
-      await langfuse.flushAsync();
+      trace.update({ output: outputText, ...(!seenMessageStop && stopReason === null ? { statusMessage: 'truncated' } : stopReason === 'max_tokens' ? { statusMessage: 'max_tokens' } : {}) }).end();
+      await safeFlushLangfuse();
     } catch (e) {
       if (!res.headersSent) {
         res.status(500).json({ type: 'error', error: { message: e.message } });
       } else {
         res.end();
       }
-      trace.update({ output: { error: e.message } });
-      await langfuse.flushAsync();
+      trace.update({ output: { error: e.message } }).end();
+      await safeFlushLangfuse();
     }
     return;
   }
 
   // ── NON-STREAMING PATH (tool use, outreach, ICP scoring, etc.) ───────────────
-  const trace = langfuse.trace({
-    name: 'generate',
+  const trace = startObservation('generate', {
     input: initialMessages,
     metadata: {
       model: restBody.model,
@@ -154,12 +166,11 @@ export default async function handler(req, res) {
     },
   });
 
-  const generation = trace.generation({
-    name: 'claude-completion',
+  const generation = trace.startObservation('claude-completion', {
     model: restBody.model,
     input: initialMessages,
     modelParameters: { max_tokens: restBody.max_tokens },
-  });
+  }, { asType: 'generation' });
 
   try {
     let messages = [...(initialMessages || [])];
@@ -215,26 +226,26 @@ export default async function handler(req, res) {
       // l'echec + logger le type/message reel cote serveur (console.error, meme convention que
       // les autres api/*.js -- ex. email-send.js/enrich.js sur un non-2xx).
       console.error('[generate] Anthropic in-band error:', data.error?.type || 'unknown_type', data.error?.message || data.error);
-      generation.end({ level: 'ERROR', statusMessage: data.error?.message || 'Anthropic API error', output: data.error });
-      trace.update({ output: { error: data.error } });
-      await langfuse.flushAsync();
+      generation.update({ level: 'ERROR', statusMessage: data.error?.message || 'Anthropic API error', output: data.error }).end();
+      trace.update({ output: { error: data.error } }).end();
+      await safeFlushLangfuse();
       return res.status(502).json({ error: data.error?.message || 'Anthropic API error', errorType: data.error?.type || null });
     }
 
-    generation.end({
+    generation.update({
       output: data.content,
-      usage: totalInputTokens || totalOutputTokens
-        ? { input: totalInputTokens, output: totalOutputTokens }
-        : undefined,
-    });
-    trace.update({ output: data.content });
-    await langfuse.flushAsync();
+      ...(totalInputTokens || totalOutputTokens
+        ? { usageDetails: { input: totalInputTokens, output: totalOutputTokens } }
+        : {}),
+    }).end();
+    trace.update({ output: data.content }).end();
+    await safeFlushLangfuse();
     res.status(200).json(data);
   } catch (e) {
     console.error('[generate] exception:', e.message);
-    generation.end({ level: 'ERROR', statusMessage: e.message });
-    trace.update({ output: { error: e.message } });
-    await langfuse.flushAsync();
+    generation.update({ level: 'ERROR', statusMessage: e.message }).end();
+    trace.update({ output: { error: e.message } }).end();
+    await safeFlushLangfuse();
     res.status(500).json({ error: e.message });
   }
 }
