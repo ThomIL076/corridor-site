@@ -8785,19 +8785,47 @@ async function openDrawer(card, initialTab = 'activity') {
   const _stalled = _isProspectStalled(_p);
   const messageHistoryHTML = _pdBuildMessageHistoryHTML();
 
-  // Signal timeline (section 2) : signal/signal_type/signal_date sont des champs uniques sur le
-  // prospect, pas un historique -- une seule ligne reelle au maximum, jamais complete a 3 par
-  // invention (meme principe que l'etape SIGNAL vide de la spine, Phase 1).
+  // "Pourquoi Corridor, maintenant" (F16, 2026-09-17, ex-section 2 "Signal timeline") :
+  // signal/signal_type/signal_date restent des champs uniques sur le prospect, pas un historique --
+  // une seule ligne reelle au maximum, jamais completee a 3 par invention (meme principe que
+  // l'etape SIGNAL vide de la spine, Phase 1).
   const _sigText = _p.signal ? _sanitizeSignal(_p.signal) : '';
+  // Lien Source : p.signal_url STRICTEMENT -- pas de fallback _extractSigUrl()/regex parenthese
+  // comme _renderSignalLink() (utilise ailleurs, dans Edit details, ou ce fallback reste inchange).
+  // Choix Thomas (confirme F16) : ce bloc distingue justement le fait verifie de l'hypothese,
+  // un lien devine y serait a contre-emploi -- mieux vaut l'absence que l'invention.
+  const _sigUrl = (_p.signal_url || '').trim();
+  // signal_interpretation : structure "Pourquoi maintenant"/"Angle suggere" deja generee par les
+  // workflows de veille signaux cote base, jamais affichee dans le tiroir jusqu'ici -- simple affichage,
+  // meme strip+escape que icp_reason/signal_interpretation dans Edit details (_drawerProfileHTML,
+  // L.12262) pour ne pas laisser passer de balises brutes.
+  const _stripHtmlPd = s => (s || '').replace(/<a\s[^>]*>([^<]*)<\/a>/gi, '$1').replace(/<[^>]*>/g, '').trim();
+  const _sigInterp = _p.signal_interpretation ? _esc(_stripHtmlPd(_p.signal_interpretation)) : '';
   // F03 : "date not specified" explicite plutot que rien quand le signal existe sans signal_date --
   // jamais de repli sur created_at/updated_at (date d'import, pas la date reelle de l'evenement).
-  const signalTimelineHTML = _sigText ? `
+  const whyNowHTML = _sigText ? `
     <div class="pd-row">
       <span class="pd-row-mono">${_p.signal_type ? _sigBadge(_p.signal_type) : 'SIGNAL'}</span>
       <span class="pd-row-mono" style="margin-left:auto">${_esc(_p.signal_date ? (_relDate(_p.signal_date) || '') : 'date not specified')}</span>
     </div>
     <div class="pd-row-main" style="margin:4px 0">${_sigText}</div>
+    ${_sigUrl ? `<a href="${_esc(_sigUrl)}" target="_blank" rel="noopener noreferrer" style="font-size:var(--fs-xs);color:var(--ink);text-decoration:underline;font-weight:600;">Source →</a>` : ''}
+    ${_sigInterp ? `<div style="margin-top:8px;background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--ink);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:10px;opacity:0.65;display:block;margin-bottom:3px">✦ ${currentLang==='fr'?'Analyse IA':'AI Insight'}</span>${_sigInterp}</div>` : ''}
   ` : `<div class="pd-empty">No signal recorded yet.</div>`;
+
+  // "Raison de la priorite" (F16, nouvelle section) : icp_reason existe en base, jamais rendu
+  // dans le tiroir jusqu'ici (seulement dans Edit details, L.12263). Le badge de fiabilite du
+  // header (_scoreReliabilityBadge, F01) n'est pas duplique ici.
+  const _icpReasonHTML = _p.icp_reason ? _esc(_stripHtmlPd(_p.icp_reason)) : '';
+  // Derniere verification : le plus recent de identity_verdict_checked_at/company_checked_at,
+  // meme convention _relDate() que le reste du fichier (anglais, pas de variante FR -- aucune des
+  // autres dates relatives du tiroir n'en a, cf. "Signal timeline" ci-dessus). Rien affiche si
+  // aucun des deux n'est renseigne (le badge de fiabilite du header couvre deja cet etat neutre).
+  const _lastCheckedAt = [_p.identity_verdict_checked_at, _p.company_checked_at].filter(Boolean).sort((a, b) => new Date(b) - new Date(a))[0] || null;
+  const priorityReasonHTML = `
+    ${_icpReasonHTML ? `<div style="background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--ink);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:10px;opacity:0.65;display:block;margin-bottom:3px">✦ ${currentLang==='fr'?'Justification du score':'Score rationale'}</span>${_icpReasonHTML}</div>` : `<div class="pd-empty">No score rationale recorded yet.</div>`}
+    ${_lastCheckedAt ? `<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:8px">Last verified: ${_esc(_relDate(_lastCheckedAt) || '')}</div>` : ''}
+  `;
 
   const stageAgeLbl = '—'; // pas de stage_changed_at en base -- pas invente, cf. echange cleanup
   const dealValLbl = _p.deal_value ? `${_p.deal_currency || 'EUR'} ${Math.round(parseInt(_p.deal_value) / 1000)}k` : '—';
@@ -8854,7 +8882,19 @@ async function openDrawer(card, initialTab = 'activity') {
 
     <div class="pd-body">
 
-      <!-- 1. NEXT ACTION -->
+      <!-- 1. WHY CORRIDOR, NOW (F16, ex-"2. SIGNAL TIMELINE", fusion signal+source+interpretation) -->
+      <div class="pd-section">
+        <div class="pd-section-label">Why Corridor, now</div>
+        ${whyNowHTML}
+      </div>
+
+      <!-- 2. PRIORITY REASON (F16, nouvelle section : icp_reason + derniere verification) -->
+      <div class="pd-section">
+        <div class="pd-section-label">Priority reason</div>
+        ${priorityReasonHTML}
+      </div>
+
+      <!-- 3. NEXT ACTION -->
       <div class="pd-section" id="pd-section-nextaction">
         ${_reminderBannerHTML(reminderDate)}
         <div class="pd-section-label" style="margin-top:14px">Next action</div>
@@ -8885,13 +8925,7 @@ async function openDrawer(card, initialTab = 'activity') {
         </div>` : `<div id="escalate-box" style="display:none"></div>`}
       </div>
 
-      <!-- 2. SIGNAL TIMELINE -->
-      <div class="pd-section">
-        <div class="pd-section-label">Signal timeline</div>
-        ${signalTimelineHTML}
-      </div>
-
-      <!-- 3. MESSAGE HISTORY -->
+      <!-- 4. MESSAGE HISTORY -->
       <div class="pd-section">
         <div class="pd-section-label">Message history</div>
         <div id="pd-msghistory-rows">${messageHistoryHTML}</div>
@@ -8907,14 +8941,14 @@ async function openDrawer(card, initialTab = 'activity') {
         <button class="pd-plus" style="margin-top:8px" onclick="_pdToggleLogInteraction()">+ Log interaction</button>
       </div>
 
-      <!-- 4. BUYING COMMITTEE -->
+      <!-- 5. BUYING COMMITTEE -->
       <div class="pd-section">
         <div class="pd-section-label">Buying committee</div>
         <div id="bc-section-${prospectId}" style="font-size:var(--fs-xs);color:var(--muted);font-style:italic">Loading...</div>
         ${_pdAdditionalContactsHTML(prospectId, _p)}
       </div>
 
-      <!-- 5. CALL PREP BRIEF -->
+      <!-- 6. CALL PREP BRIEF -->
       <!-- F15 point 3 (audit 2026-09-17) : masquee entierement pour stage === 'Identified'
            (jamais sollicite pour un appel/relance a ce stade) -- utilise _p.stage (vrai champ
            prospects.stage) plutot que la variable locale "stage" ci-dessus : celle-ci est
@@ -8978,9 +9012,9 @@ async function openDrawer(card, initialTab = 'activity') {
         </button>
       </div>` : ''}
 
-      <!-- EDIT DETAILS (pas une des 5 sections du README -- necessaire pour ne pas perdre les
+      <!-- EDIT DETAILS (pas une des 6 sections ci-dessus -- necessaire pour ne pas perdre les
            champs Contact/Classification/Signal (edition), Stage et le calculateur Deal Value,
-           dont aucun n'a de place dans les 5 sections en lecture seule. Repliee par defaut. -->
+           dont aucun n'a de place dans les sections en lecture seule. Repliee par defaut. -->
       <details class="pd-section" id="pd-editdetails">
         <summary class="pd-section-label" style="cursor:pointer">Edit details</summary>
         <div style="margin-top:12px">
@@ -9789,7 +9823,9 @@ async function loadDailyPriorities() {
     // identity_verdict/hard_criteria_met ajoutes (F01, 2026-09-17) -- necessaires a
     // _scoreReliabilityBadge/_qualificationNote, absents jusqu'ici de cette liste malgre
     // company_verified/identity_confidence/score_completeness deja presents.
-    const COLS = 'id,name,company,sector,icp_score,icp_confidence,score_signal_strength,score_role,score_size,score_recency,score_mandate_fit,score_completeness,signal,signal_type,signal_interpretation,signal_date,mandate_id,stage,next_action_cache,next_action_generated_at,priority_batch_number,last_priority_shown_at,last_surfaced_in_scan_at,email,reminder_date,last_contact,linkedin,company_verified,identity_confidence,identity_verdict,hard_criteria_met,website_url';
+    // icp_reason/signal_url/identity_verdict_checked_at/company_checked_at ajoutes (F16,
+    // 2026-09-17) : tiroir "Pourquoi Corridor, maintenant" / "Raison de la priorite" ci-dessous.
+    const COLS = 'id,name,company,sector,icp_score,icp_confidence,icp_reason,score_signal_strength,score_role,score_size,score_recency,score_mandate_fit,score_completeness,signal,signal_type,signal_interpretation,signal_date,signal_url,mandate_id,stage,next_action_cache,next_action_generated_at,priority_batch_number,last_priority_shown_at,last_surfaced_in_scan_at,email,reminder_date,last_contact,linkedin,company_verified,identity_confidence,identity_verdict,identity_verdict_checked_at,company_checked_at,hard_criteria_met,website_url';
 
     // Priorite Morning Scan (arbitrage Thomas, meme fix que kaizenology.html) : si le scan du jour
     // a deja produit des decisions explicites (today_action/opportunistic_connection), elles
@@ -14608,8 +14644,9 @@ async function loadKanban(force){
       let _kQuery = sbClient
         .from('prospects')
         // identity_verdict/hard_criteria_met ajoutes (F01, 2026-09-17), meme raison que
-        // loadDailyPriorities ci-dessus.
-        .select('id, name, company, title, sector, region, country, stage, linkedin, email, phone, deal_value, deal_currency, deal_structure, deal_weighted, notes, last_contact, reminder_date, icp_score, icp_reason, archived, client_id, linkedin_tag, origin, signal, signal_type, signal_interpretation, signal_date, created_at, draft_invite_note, company_size, next_action, next_action_date, score_signal_strength, score_growth, score_role, score_size, score_recency, score_mandate_fit, score_completeness, signal_url, website_url, funding_stage, last_funding_date, total_funding, additional_contacts, import_source, next_action_cache, next_action_generated_at, company_verified, identity_confidence, identity_verdict, hard_criteria_met')
+        // loadDailyPriorities ci-dessus. identity_verdict_checked_at/company_checked_at ajoutes
+        // (F16, meme soir) pour la ligne "Derniere verification" du tiroir.
+        .select('id, name, company, title, sector, region, country, stage, linkedin, email, phone, deal_value, deal_currency, deal_structure, deal_weighted, notes, last_contact, reminder_date, icp_score, icp_reason, archived, client_id, linkedin_tag, origin, signal, signal_type, signal_interpretation, signal_date, created_at, draft_invite_note, company_size, next_action, next_action_date, score_signal_strength, score_growth, score_role, score_size, score_recency, score_mandate_fit, score_completeness, signal_url, website_url, funding_stage, last_funding_date, total_funding, additional_contacts, import_source, next_action_cache, next_action_generated_at, company_verified, identity_confidence, identity_verdict, identity_verdict_checked_at, company_checked_at, hard_criteria_met')
         .eq('client_id', CLIENT_ID);
       _kQuery = _applyMandateFilter(_kQuery);
       const { data: chunk, error } = await _kQuery
