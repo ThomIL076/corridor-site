@@ -1168,6 +1168,11 @@ body.new-nav { padding-left: 220px; }
   display: block; font-size: var(--sidebar-label-size); font-weight: 500; letter-spacing: 0.03em;
   color: #B7BFD6; padding: 14px 8px 4px;
 }
+/* F15 (port wominds, 2026-09-17) : "Configuration" en retrait visuel, meme regle que
+   demo-private.html/kaizenology.html. */
+.snav-section-muted .snav-section-label { opacity: 0.6; }
+.snav-section-muted .snav-item { font-size: 12px; opacity: 0.72; }
+.snav-section-muted .snav-item:hover, .snav-section-muted .snav-item.active { opacity: 1; }
 .snav-item {
   display: flex; align-items: center; gap: 8px;
   width: 100%; text-align: left;
@@ -1401,13 +1406,35 @@ body.new-nav { padding-left: 220px; }
     <div class="snav-logo-mark"><span></span><span></span><span></span><span></span></div>
     <span class="snav-logo-text">CORRIDOR</span>
   </div>
+  <!-- F15 (port wominds, 2026-09-17) : regroupe en 4 taches principales + Configuration attenue,
+       meme structure que demo-private.html/kaizenology.html -- ids/onclick de wominds inchanges,
+       pas de data-en/data-fr (wominds est 100% francais, pas de bilingue ici contrairement aux 2
+       autres dashboards). "Propositions" renomme "Brouillons et validations" -- meme collision de
+       mot avec le stage pipeline "Proposal" que sur demo-private.html/kaizenology.html (confirme :
+       KANBAN_STAGES contient 'Proposal'). Aucun badge invente sur Propositions : contrairement a
+       kaizenology.html, aucun _setProposalsBadge n'existe cote wominds -- pas de compteur reel a
+       afficher. "SEO" (sans equivalent chez Corridor/Kaizenology) regroupe avec Signaux/Sante du
+       pipeline/Rapports sous Resultats, meme logique de reporting. -->
   <div class="snav-section">
+    <span class="snav-section-label">Aujourd'hui</span>
     <button class="snav-item" data-nav="today" onclick="switchTab('today')">
       <span>Aujourd'hui</span>
     </button>
+  </div>
+  <div class="snav-section">
+    <span class="snav-section-label">Prospects</span>
     <button class="snav-item" data-nav="pipeline" onclick="switchTab('pipeline')">
       <span>Pipeline</span>
     </button>
+    <button class="snav-item" data-nav="clients" onclick="switchTab('clients')">
+      <span>Clients</span>
+    </button>
+    <button class="snav-item snav-sub" data-nav="signals" onclick="switchTab('signals')">
+      <span>Signaux</span>
+    </button>
+  </div>
+  <div class="snav-section">
+    <span class="snav-section-label">Conversations</span>
     <button class="snav-item" data-nav="send" onclick="switchTab('send')">
       <span>Envoyer</span>
       <span class="send-badge-count" id="send-badge"><span id="send-count">0</span></span>
@@ -1419,17 +1446,16 @@ body.new-nav { padding-left: 220px; }
       <span>Actions en attente</span>
       <span class="send-badge-count" id="pending-actions-badge"><span id="pending-actions-count">0</span></span>
     </button>
+    <!-- F15 point 2 (port wominds) : renomme depuis "Propositions" -- collision de mot avec le
+         stage pipeline "Proposal", meme raison que demo-private.html/kaizenology.html. -->
     <button class="snav-item" data-nav="proposals" onclick="switchTab('proposals')">
-      <span>Propositions</span>
-    </button>
-    <button class="snav-item" data-nav="agents" onclick="switchTab('agents')">
-      <span>Agents</span>
+      <span>Brouillons et validations</span>
     </button>
   </div>
   <div class="snav-section">
-    <span class="snav-section-label">Intelligence</span>
-    <button class="snav-item snav-sub" data-nav="signals" onclick="switchTab('signals')">
-      <span>Signaux</span>
+    <span class="snav-section-label">Résultats</span>
+    <button class="snav-item" data-nav="stats" onclick="switchTab('stats')">
+      <span>Stats</span>
     </button>
     <button class="snav-item snav-sub" data-nav="pipeintel" onclick="switchTab('pipeintel')">
       <span>Santé du pipeline</span>
@@ -1441,16 +1467,16 @@ body.new-nav { padding-left: 220px; }
       <span>SEO</span>
     </button>
   </div>
-  <div class="snav-section">
-    <span class="snav-section-label">Orchestration</span>
-    <button class="snav-item" data-nav="clients" onclick="switchTab('clients')">
-      <span>Clients</span>
+  <div class="snav-section snav-section-muted">
+    <span class="snav-section-label">Configuration</span>
+    <button class="snav-item" data-nav="agents" onclick="switchTab('agents')">
+      <span>Agents</span>
     </button>
     <button class="snav-item" data-nav="integrations" onclick="switchTab('integrations')">
       <span>Intégrations</span>
     </button>
-    <button class="snav-item" data-nav="stats" onclick="switchTab('stats')">
-      <span>Stats</span>
+    <button class="snav-item" data-nav="mandate" onclick="switchTab('mandate')">
+      <span>Mandat &amp; ICP</span>
     </button>
   </div>
   <div class="snav-scanner-zone">
@@ -1460,9 +1486,6 @@ body.new-nav { padding-left: 220px; }
     <button class="snav-item" onclick="_openAskPanel()" aria-label="Demander à Corridor">
       <span>Demander à Corridor</span>
       <span class="snav-live-dot" aria-hidden="true"></span>
-    </button>
-    <button class="snav-item" data-nav="mandate" onclick="switchTab('mandate')">
-      <span>Mandat &amp; ICP</span>
     </button>
   </div>
   <div class="snav-footer">
@@ -1538,8 +1561,10 @@ body.new-nav { padding-left: 220px; }
   </button>
   <button class="spine-stage" data-spine="indeal" onclick="switchTab('pipeline')">
     <span class="spine-dot"></span>
+    <!-- F10 (port wominds, 2026-09-17) : "Engagé+" est deja le titre, la note "engagés+" est
+         retiree pour ne plus etre redondante avec lui -- meme fix que demo-private.html. -->
     <span class="spine-label">Engagé+</span>
-    <div class="spine-row"><span class="spine-count" id="spine-count-indeal">0</span><span class="spine-note">engagés+</span></div>
+    <div class="spine-row"><span class="spine-count" id="spine-count-indeal">0</span><span class="spine-note"></span></div>
     <span class="spine-rail"></span>
   </button>
   <button class="spine-stage" data-spine="client" onclick="switchTab('clients')">
@@ -1829,7 +1854,7 @@ body.new-nav { padding-left: 220px; }
   <div class="tab-panel" id="tab-proposals">
     <div style="padding:24px 16px 0;max-width:800px;margin:0 auto;">
       <div class="module-header" style="margin-bottom:20px;">
-        <div class="module-title">Propositions</div>
+        <div class="module-title">Brouillons et validations</div>
         <div class="section-sub">Contenu rédigé par un agent, en attente qu'une variante soit approuvée ou rejetée.</div>
       </div>
       <div id="proposals-container"></div>
@@ -3192,7 +3217,7 @@ async function loadKanban(force){
     let _kAll = [], _kFrom = 0;
     while (true) {
       const { data: chunk, error } = await sbClient.from('prospects')
-        .select('id, name, company, title, sector, region, country, country_code, stage, icp_score, icp_reason, signal, signal_url, signal_type, signal_interpretation, signal_date, notes, created_at, archived, email, phone, linkedin, website_url, company_size, funding_stage, last_funding_date, total_funding, hard_criteria_met, company_verified, identity_confidence, score_role, score_size, score_signal_strength, score_recency, score_mandate_fit, score_completeness, reminder_date, deal_value, deal_currency, deal_structure, deal_weighted, next_action, next_action_date, next_action_cache, next_action_generated_at, origin')
+        .select('id, name, company, title, sector, region, country, country_code, stage, icp_score, icp_reason, signal, signal_url, signal_type, signal_interpretation, signal_date, notes, created_at, archived, email, phone, linkedin, website_url, company_size, funding_stage, last_funding_date, total_funding, hard_criteria_met, company_verified, identity_confidence, identity_verdict, identity_verdict_checked_at, company_checked_at, score_role, score_size, score_signal_strength, score_recency, score_mandate_fit, score_completeness, reminder_date, deal_value, deal_currency, deal_structure, deal_weighted, next_action, next_action_date, next_action_cache, next_action_generated_at, origin')
         .eq('client_id', CLIENT_ID)
         .order('created_at', { ascending: false })
         .range(_kFrom, _kFrom + 999);
@@ -3779,6 +3804,27 @@ function _prospectCardHTML(p){
     <div class="k-card-badges">${icp}${regionTag}${sectorBadge}${warnVerif}${warnIdent}</div>
   </div>`;
 }
+// F01 (port wominds, 2026-09-17) : equivalent de _scoreReliabilityBadge (demo-private.html/
+// kaizenology.html), logique inchangee. warnVerif/warnIdent ci-dessus couvrent deja
+// company_verified/identity_confidence sur la carte -- cette fonction ajoute le signal
+// identity_verdict (CONTRADICTED/UNVERIFIABLE, peuple par le workflow n8n ICP Score Batch,
+// pas encore utilise cote wominds avant ce port) et sert au badge du tiroir (statsHTML,
+// openProspectDetail) qui n'a pas d'equivalent a warnVerif/warnIdent.
+function _scoreReliabilityBadge(p) {
+  const companyUnconfirmed = p.company_verified === false;
+  const identityUnconfirmed = p.identity_confidence === 'low'
+    || p.identity_verdict === 'CONTRADICTED' || p.identity_verdict === 'UNVERIFIABLE';
+  if (!companyUnconfirmed && !identityUnconfirmed) return null;
+  const identityTitle = p.identity_verdict === 'CONTRADICTED' ? 'Identité contredite'
+    : p.identity_verdict === 'UNVERIFIABLE' ? 'Identité non vérifiable'
+    : 'Identité à vérifier';
+  return {
+    icon: companyUnconfirmed ? '⚠' : '?',
+    both: companyUnconfirmed && identityUnconfirmed,
+    color: companyUnconfirmed ? '#b45309' : '#6b7280',
+    title: companyUnconfirmed && identityUnconfirmed ? 'Entreprise et identité non confirmées' : companyUnconfirmed ? 'Entreprise non confirmée' : identityTitle,
+  };
+}
 // Colonnes score_* (0-10 en base) -> objet breakdown attendu par _renderBreakdownPanel. Ne
 // renvoie que les sous-scores reellement renseignes (beaucoup de fiches n'ont pas encore ces
 // colonnes remplies par le scoring) -- jamais un "0" trompeur, null si aucune des 6 n'existe.
@@ -3823,13 +3869,39 @@ function _renderBreakdownPanel(scores, weights) {
 // des champs uniques sur le prospect, PAS un historique -- une seule ligne reelle au maximum,
 // jamais completee par invention. Remplace les anciennes lignes plates Signal/Type de signal/
 // Interpretation (retirees de la liste generique ci-dessus pour ne pas dupliquer). ──────────────
-function _pdSignalTimelineHTML(p) {
+// F16 (port wominds, 2026-09-17) : "Pourquoi Corridor, maintenant" remplace l'ancienne section
+// "Signal" -- fusionne signal+source+interpretation, meme logique que demo-private.html/
+// kaizenology.html. signal/signal_type/signal_date restent des champs uniques sur le prospect,
+// pas un historique -- une seule ligne reelle au maximum, jamais completee par invention. Lien
+// Source : p.signal_url STRICTEMENT, jamais de fallback devine.
+const _stripHtmlPd = s => (s || '').replace(/<a\s[^>]*>([^<]*)<\/a>/gi, '$1').replace(/<[^>]*>/g, '').trim();
+function _pdWhyCorridorNowHTML(p) {
   const sigText = p.signal ? _sanitizeSignal(p.signal) : '';
-  const inner = sigText
-    ? `<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px;">${p.signal_type ? _sigBadge(p.signal_type) : ''}<span style="font-size:var(--fs-xs);color:var(--muted);margin-left:auto;white-space:nowrap;">${p.signal_date ? _esc(_relDate(p.signal_date) || '') : ''}</span></div>
-      <div style="font-size:var(--fs-sm);color:var(--text);line-height:1.5;">${sigText}${p.signal_url ? '<br><a href="' + _esc(p.signal_url) + '" target="_blank" rel="noopener" style="font-size:var(--fs-xs);color:var(--fill-accent);text-decoration:none;font-weight:600;">🔗 Voir le post</a>' : ''}</div>`
-    : `<div class="pd-empty">Aucun signal enregistré pour l'instant.</div>`;
-  return `<div class="card" style="margin:16px 0;"><div class="card-header"><span class="card-title">Signal</span></div>${inner}</div>`;
+  if (!sigText) {
+    return `<div class="card" style="margin:16px 0;"><div class="card-header"><span class="card-title">Pourquoi Corridor, maintenant</span></div><div class="pd-empty">Aucun signal enregistré pour l'instant.</div></div>`;
+  }
+  const sigUrl = (p.signal_url || '').trim();
+  const sigInterp = p.signal_interpretation ? _esc(_stripHtmlPd(p.signal_interpretation)) : '';
+  return `<div class="card" style="margin:16px 0;">
+    <div class="card-header"><span class="card-title">Pourquoi Corridor, maintenant</span></div>
+    <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px;">${p.signal_type ? _sigBadge(p.signal_type) : ''}<span style="font-size:var(--fs-xs);color:var(--muted);margin-left:auto;white-space:nowrap;">${p.signal_date ? _esc(_relDate(p.signal_date) || '') : 'Date non renseignée'}</span></div>
+    <div style="font-size:var(--fs-sm);color:var(--text);line-height:1.5;">${sigText}</div>
+    ${sigUrl ? `<a href="${_esc(sigUrl)}" target="_blank" rel="noopener noreferrer" style="font-size:var(--fs-xs);color:var(--ink);text-decoration:underline;font-weight:600;">Source →</a>` : ''}
+    ${sigInterp ? `<div style="margin-top:8px;background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--ink);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:10px;opacity:0.65;display:block;margin-bottom:3px">✦ Analyse IA</span>${sigInterp}</div>` : ''}
+  </div>`;
+}
+// F16 (port wominds, 2026-09-17) : "Raison de la priorité" -- icp_reason jamais affiche dans le
+// tiroir jusqu'ici (seulement dans le formulaire d'edition), plus derniere verification
+// (identity_verdict_checked_at/company_checked_at, le plus recent des deux). Rien affiche si
+// aucun des deux n'est renseigne.
+function _pdPriorityReasonHTML(p) {
+  const icpReasonHTML = p.icp_reason ? _esc(_stripHtmlPd(p.icp_reason)) : '';
+  const lastCheckedAt = [p.identity_verdict_checked_at, p.company_checked_at].filter(Boolean).sort((a, b) => new Date(b) - new Date(a))[0] || null;
+  return `<div class="card" style="margin:16px 0;">
+    <div class="card-header"><span class="card-title">Raison de la priorité</span></div>
+    ${icpReasonHTML ? `<div style="background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--ink);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:10px;opacity:0.65;display:block;margin-bottom:3px">✦ Justification du score</span>${icpReasonHTML}</div>` : `<div class="pd-empty">Aucune justification de score enregistrée.</div>`}
+    ${lastCheckedAt ? `<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:8px">Dernière vérification : ${_esc(_relDate(lastCheckedAt) || '')}</div>` : ''}
+  </div>`;
 }
 // ── Message History (version reduite de demo-private.html:8875 -- pas de debrief d'appel/reponses
 // agent_proposals ici : Wominds n'a pas encore de workflow d'envoi/reponse actif, ces sources
@@ -4112,6 +4184,8 @@ function openProspectDetail(id){
       <div class="pd-stat" style="border-left:none;padding-left:0;">
         <div class="pd-stat-label">Score ICP</div>
         <div class="pd-stat-value">${p.icp_score != null ? _esc(p.icp_score) + '/10' : 'N/D'}</div>
+        <!-- F01 (port wominds, 2026-09-17) : meme badge que demo-private.html, sous le score. -->
+        ${(() => { const _relB = _scoreReliabilityBadge(p); return _relB ? `<div style="font-size:10px;font-weight:700;color:${_relB.color};margin-top:2px;" title="${_esc(_relB.title)}">${_relB.icon} ${_esc(_relB.title)}</div>` : ''; })()}
       </div>
       <div class="pd-stat">
         <div class="pd-stat-label">Étape</div>
@@ -4125,10 +4199,15 @@ function openProspectDetail(id){
   </div>`;
   const rowsHTML = rows.map(([label, val]) => `<div class="pd-row"><span class="pd-row-mono">${_esc(label).toUpperCase()}</span><span class="pd-row-main">${_esc(val)}</span></div>`).join('');
   const body = document.getElementById('prospect-detail-body');
+  // F16 (port wominds, 2026-09-17) : "Pourquoi Corridor, maintenant" et "Raison de la priorité"
+  // remontent en tete du corps (juste apres les stats), meme reordonnancement que
+  // demo-private.html -- remplacent _pdSignalTimelineHTML.
   body.innerHTML =
-    statsHTML + rowsHTML +
+    statsHTML +
+    _pdWhyCorridorNowHTML(p) +
+    _pdPriorityReasonHTML(p) +
+    rowsHTML +
     (breakdown ? _renderBreakdownPanel(breakdown, ICP_WEIGHTS) : '') +
-    _pdSignalTimelineHTML(p) +
     _pdAiInsightBoxesHTML(p) +
     _reminderBannerHTML(p.reminder_date) +
     _pdNextActionHTML(p) +
@@ -5303,7 +5382,7 @@ async function loadTodayRun() {
   container.innerHTML = '<div style="padding:32px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">Chargement…</div>';
   try {
     const { data, error } = await sbClient.from('prospects')
-      .select('id,name,company,title,sector,stage,icp_score,icp_reason,signal,signal_url,signal_type,signal_interpretation,signal_date,created_at,email,phone,linkedin,website_url,region,country,country_code,company_size,funding_stage,last_funding_date,total_funding,hard_criteria_met,company_verified,identity_confidence,score_role,score_size,score_signal_strength,score_recency,score_mandate_fit,score_completeness,reminder_date,deal_value,deal_currency,deal_structure,deal_weighted,next_action,next_action_date,next_action_cache,next_action_generated_at,origin')
+      .select('id,name,company,title,sector,stage,icp_score,icp_reason,signal,signal_url,signal_type,signal_interpretation,signal_date,created_at,email,phone,linkedin,website_url,region,country,country_code,company_size,funding_stage,last_funding_date,total_funding,hard_criteria_met,company_verified,identity_confidence,identity_verdict,identity_verdict_checked_at,company_checked_at,score_role,score_size,score_signal_strength,score_recency,score_mandate_fit,score_completeness,reminder_date,deal_value,deal_currency,deal_structure,deal_weighted,next_action,next_action_date,next_action_cache,next_action_generated_at,origin')
       .eq('client_id', CLIENT_ID).eq('archived', false)
       .neq('stage', 'Proposal').neq('stage', 'Negotiation').neq('stage', 'Closed')
       // Fix 2026-09-15 (URGENT, filet defensif -- backstop, pas le vrai fix) : exclusion EXPLICITE
@@ -5447,7 +5526,7 @@ async function loadSendView() {
     let _spAll = [], _spFrom = 0;
     while (true) {
       const { data: chunk, error: pErr } = await sbClient.from('prospects')
-        .select('id,name,company,title,sector,stage,linkedin,last_contact,linkedin_tag,icp_score,client_id,created_at,signal,signal_url,signal_type,signal_date,email,phone,website_url,region,country,country_code,icp_reason,signal_interpretation,company_size,funding_stage,last_funding_date,total_funding,hard_criteria_met,company_verified,identity_confidence,score_role,score_size,score_signal_strength,score_recency,score_mandate_fit,score_completeness,reminder_date,deal_value,deal_currency,deal_structure,deal_weighted,next_action,next_action_date,next_action_cache,next_action_generated_at,origin')
+        .select('id,name,company,title,sector,stage,linkedin,last_contact,linkedin_tag,icp_score,client_id,created_at,signal,signal_url,signal_type,signal_date,email,phone,website_url,region,country,country_code,icp_reason,signal_interpretation,company_size,funding_stage,last_funding_date,total_funding,hard_criteria_met,company_verified,identity_confidence,identity_verdict,identity_verdict_checked_at,company_checked_at,score_role,score_size,score_signal_strength,score_recency,score_mandate_fit,score_completeness,reminder_date,deal_value,deal_currency,deal_structure,deal_weighted,next_action,next_action_date,next_action_cache,next_action_generated_at,origin')
         .eq('client_id', CLIENT_ID).eq('archived', false)
         .order('created_at', { ascending: false })
         .range(_spFrom, _spFrom + 999);
@@ -5536,6 +5615,13 @@ function _sendCardHTML(p, touchType, elPrefix = '') {
           ${p.signal ? `<div style="margin-top:3px;">${_sigBadge(p.signal_type)}</div>` : ''}
         </div>
         <span class="send-touch ${TOUCH_LABELS[touchType]?.class||'touch-j0'}">${TOUCH_LABELS[touchType]?.label||touchType}</span>
+        <!-- F09 (port wominds, 2026-09-17) : meme badge que demo-private.html/kaizenology.html --
+             reutilise hasBody/isReady deja calcules ci-dessus, aucune nouvelle donnee. -->
+        ${isReady
+          ? `<span class="send-touch" style="background:var(--green-bg);color:var(--green);">✓ Prêt</span>`
+          : hasBody
+            ? `<span class="send-touch" style="background:var(--chip-bg);color:var(--indigo);">Brouillon enregistré</span>`
+            : `<span class="send-touch" style="background:#f3f4f6;color:#6b7280;">Aucun brouillon</span>`}
       </div>
       <div class="send-expand" id="${elPrefix}se-${p.id}" style="display:block">
         <div class="ai-box" style="margin-top:10px">
