@@ -1729,10 +1729,22 @@ footer {
     </div>
     <div class="problem-stats" id="news-section-en">
       <div class="news-feed-header">
-        <span class="news-live-dot"></span>
-        <span class="news-live-label">MARKET SIGNALS &middot; LIVE</span>
+        <span class="news-live-label">MARKET SIGNALS &middot; EXAMPLES</span>
       </div>
-      <div class="news-grid" id="news-grid-en"></div>
+      <div class="news-grid" id="news-grid-en">
+        <div class="news-card">
+          <div class="news-card-headline">SaaS company (40 employees) closes $12M Series A</div>
+          <div class="news-card-meta"><span>Funding signal</span><span>First meeting booked in 6 days</span></div>
+        </div>
+        <div class="news-card">
+          <div class="news-card-headline">Growth-stage fintech hires a new VP of Sales</div>
+          <div class="news-card-meta"><span>Leadership signal</span><span>Outreach triggered same day</span></div>
+        </div>
+        <div class="news-card">
+          <div class="news-card-headline">Company announces expansion into a new market</div>
+          <div class="news-card-meta"><span>Expansion signal</span><span>First contact sent within 24h</span></div>
+        </div>
+      </div>
     </div>
   </div>
 </section>
@@ -2155,24 +2167,6 @@ document.querySelectorAll('a[href^="#"]').forEach(a => {
   else{var b=document.getElementById('cookie-banner');if(b)b.style.display='flex';}
 })();
 </script>
-<script>
-(function(){
-  var GRID='news-grid-en',SECT='news-section-en',LANG='en',MS=900000;
-  function ago(d){var s=(Date.now()-new Date(d).getTime())/1e3;return s<3600?Math.floor(s/60)+'m ago':s<86400?Math.floor(s/3600)+'h ago':Math.floor(s/86400)+'d ago';}
-  function skel(g){g.innerHTML=Array(6).fill('<div class="news-card-skel"><div class="news-skel-line" style="height:12px;width:85%"></div><div class="news-skel-line" style="height:12px;width:65%"></div><div class="news-skel-line" style="height:10px;width:45%;margin-top:8px"></div></div>').join('');}
-  function render(g,arts){
-    if(!arts||!arts.length){var s=document.getElementById(SECT);if(s)s.style.display='none';return;}
-    g.innerHTML=arts.slice(0,6).map(function(a){
-      var h=a.title||'';h=h.length>80?h.slice(0,80)+'…':h;
-      var src=a.source&&a.source.name?a.source.name:'';
-      var t=a.publishedAt?ago(a.publishedAt):'';
-      return '<a class="news-card" href="'+(a.url||'#')+'" target="_blank" rel="noopener noreferrer"><div class="news-card-headline">'+h+'</div><div class="news-card-meta"><span>'+src+'</span><span>'+t+'</span></div></a>';
-    }).join('');
-  }
-  function load(g){fetch('/api/news?lang='+LANG).then(function(r){return r.json();}).then(function(d){render(g,d.articles);}).catch(function(){var s=document.getElementById(SECT);if(s)s.style.display='none';});}
-  var g=document.getElementById(GRID);
-  if(g){skel(g);load(g);setInterval(function(){load(g);},MS);}
-})();
-</script>
+<!-- Market Signals: exemples statiques, plus de fetch live vers /api/news (F18, 2026-09-17) -->
 </body>
 </html>

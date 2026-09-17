@@ -724,10 +724,22 @@ footer { border-top: 1px solid var(--border); padding: 32px 48px; max-width: 120
     </div>
     <div class="problem-stats" id="news-section-fr">
       <div class="news-feed-header">
-        <span class="news-live-dot"></span>
-        <span class="news-live-label">SIGNAUX MARCH&Eacute; &middot; LIVE</span>
+        <span class="news-live-label">SIGNAUX MARCH&Eacute; &middot; EXEMPLES</span>
       </div>
-      <div class="news-grid" id="news-grid-fr"></div>
+      <div class="news-grid" id="news-grid-fr">
+        <div class="news-card">
+          <div class="news-card-headline">Une SaaS de 40 salari&eacute;s boucle une S&eacute;rie A &agrave; 12M$</div>
+          <div class="news-card-meta"><span>Signal de financement</span><span>Premier rendez-vous en 6 jours</span></div>
+        </div>
+        <div class="news-card">
+          <div class="news-card-headline">Une fintech en croissance recrute un nouveau VP Sales</div>
+          <div class="news-card-meta"><span>Signal de direction</span><span>Approche d&eacute;clench&eacute;e le jour m&ecirc;me</span></div>
+        </div>
+        <div class="news-card">
+          <div class="news-card-headline">Une soci&eacute;t&eacute; annonce son expansion sur un nouveau march&eacute;</div>
+          <div class="news-card-meta"><span>Signal d'expansion</span><span>Premier contact sous 24h</span></div>
+        </div>
+      </div>
     </div>
   </div>
 </section>
@@ -1149,24 +1161,6 @@ document.querySelectorAll('a[href^="#"]').forEach(a => {
   else{var b=document.getElementById('cookie-banner');if(b)b.style.display='flex';}
 })();
 </script>
-<script>
-(function(){
-  var GRID='news-grid-fr',SECT='news-section-fr',LANG='fr',MS=900000;
-  function ago(d){var s=(Date.now()-new Date(d).getTime())/1e3;return s<3600?Math.floor(s/60)+'min':'il y a '+( s<86400?Math.floor(s/3600)+'h':Math.floor(s/86400)+'j');}
-  function skel(g){g.innerHTML=Array(6).fill('<div class="news-card-skel"><div class="news-skel-line" style="height:12px;width:85%"></div><div class="news-skel-line" style="height:12px;width:65%"></div><div class="news-skel-line" style="height:10px;width:45%;margin-top:8px"></div></div>').join('');}
-  function render(g,arts){
-    if(!arts||!arts.length){var s=document.getElementById(SECT);if(s)s.style.display='none';return;}
-    g.innerHTML=arts.slice(0,6).map(function(a){
-      var h=a.title||'';h=h.length>80?h.slice(0,80)+'…':h;
-      var src=a.source&&a.source.name?a.source.name:'';
-      var t=a.publishedAt?ago(a.publishedAt):'';
-      return '<a class="news-card" href="'+(a.url||'#')+'" target="_blank" rel="noopener noreferrer"><div class="news-card-headline">'+h+'</div><div class="news-card-meta"><span>'+src+'</span><span>'+t+'</span></div></a>';
-    }).join('');
-  }
-  function load(g){fetch('/api/news?lang='+LANG).then(function(r){return r.json();}).then(function(d){render(g,d.articles);}).catch(function(){var s=document.getElementById(SECT);if(s)s.style.display='none';});}
-  var g=document.getElementById(GRID);
-  if(g){skel(g);load(g);setInterval(function(){load(g);},MS);}
-})();
-</script>
+<!-- Market Signals : exemples statiques, plus de fetch live vers /api/news (F18, 2026-09-17) -->
 </body>
 </html>
