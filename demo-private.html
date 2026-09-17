@@ -7234,6 +7234,17 @@ function _sendCardHTML(p, touchType, expanded = false) {
           ${p.signal ? `<div style="margin-top:3px;">${_sigBadge(p.signal_type)}</div>` : ''}
         </div>
         <span class="send-touch ${TOUCH_LABELS[touchType]?.class||'touch-j0'}">${TOUCH_LABELS[touchType]?.label||touchType}</span>
+        <!-- F09 (audit 2026-09-17) : la carte repliee ne distinguait aucun/brouillon/pret que via
+             le libelle du bouton "Write message"/"Review & send" -- pas un vrai badge d'etat,
+             invisible sans deplier. Reutilise hasBody/isReady deja calcules ci-dessus, aucune
+             nouvelle donnee. Meme couleur que le bouton "Mark ready" actif (var(--green)) pour
+             l'etat pret ; gris neutre identique au badge "Identity to verify" existant pour
+             l'absence de brouillon (etat neutre, pas une alerte). -->
+        ${isReady
+          ? `<span class="send-touch" style="background:var(--green-bg);color:var(--green);">✓ Ready</span>`
+          : hasBody
+            ? `<span class="send-touch" style="background:var(--chip-bg);color:var(--indigo);">Draft saved</span>`
+            : `<span class="send-touch" style="background:#f3f4f6;color:#6b7280;">No draft</span>`}
       </div>
       <div class="send-expand" id="se-${p.id}" style="display:${expanded ? 'block' : 'none'}">
         <div class="ai-box" style="margin-top:10px">
