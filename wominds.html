@@ -5646,14 +5646,20 @@ function _sendCardHTML(p, touchType, elPrefix = '') {
           <div class="send-company">${_esc(p.company)}${p.sector ? ' · ' + _esc(p.sector) : ''}</div>
           ${p.signal ? `<div style="margin-top:3px;">${_sigBadge(p.signal_type)}</div>` : ''}
         </div>
-        <span class="send-touch ${TOUCH_LABELS[touchType]?.class||'touch-j0'}">${TOUCH_LABELS[touchType]?.label||touchType}</span>
-        <!-- F09 (port wominds, 2026-09-17) : meme badge que demo-private.html/kaizenology.html --
-             reutilise hasBody/isReady deja calcules ci-dessus, aucune nouvelle donnee. -->
+        <!-- Fix 2026-09-18 (cas reel Olivier Saumet/Doublet) : le badge touch et le badge Pret
+             affichaient "J+0"/"Pret" pour un prospect dont la connexion LinkedIn n'est pas encore
+             acceptee (linkedin_tag='invite-sent'), alors que le bouton Envoyer, lui, se desactive
+             correctement via sendBlocked -- deux verites divergentes pour le meme etat. sendBlocked
+             est deja calcule ci-dessus (source de verite du bouton) : on l'utilise desormais aussi
+             pour ces deux badges plutot que de laisser TOUCH_LABELS/isReady mentir. -->
+        ${sendBlocked
+          ? `<span class="send-touch" style="background:#f3f4f6;color:#6b7280;" title="Connexion pas encore acceptée">⏳ En attente de connexion</span>`
+          : `<span class="send-touch ${TOUCH_LABELS[touchType]?.class||'touch-j0'}">${TOUCH_LABELS[touchType]?.label||touchType}</span>
         ${isReady
           ? `<span class="send-touch" style="background:var(--green-bg);color:var(--green);">✓ Prêt</span>`
           : hasBody
             ? `<span class="send-touch" style="background:var(--chip-bg);color:var(--indigo);">Brouillon enregistré</span>`
-            : `<span class="send-touch" style="background:#f3f4f6;color:#6b7280;">Aucun brouillon</span>`}
+            : `<span class="send-touch" style="background:#f3f4f6;color:#6b7280;">Aucun brouillon</span>`}`}
       </div>
       <div class="send-expand" id="${elPrefix}se-${p.id}" style="display:block">
         <div class="ai-box" style="margin-top:10px">
@@ -5844,8 +5850,33 @@ async function _saveSequenceDraft(pid, touch, bodyOverride, elPrefix = '') {
 }
 
 async function _markReady(pid, elPrefix = '') {
-  const seqId = document.getElementById(elPrefix + 'sc-' + pid)?.dataset.seqId || '';
-  if (!seqId) { showToast('Enregistrez d\'abord le brouillon'); return; }
+  const card = document.getElementById(elPrefix + 'sc-' + pid);
+  let seqId = card?.dataset.seqId || '';
+  if (!seqId) {
+    // Fix 2026-09-18 (cas reel Lorraine Simon Schmitt/LG Electronics France) : dataset.seqId peut
+    // etre vide sur CETTE instance de carte alors qu'un brouillon reel existe deja (_sendSequences
+    // n'est peuple que par loadSendView(), jamais rafraichi si le tiroir est ouvert sans etre passe
+    // par l'onglet Envoyer avant -- la carte affiche alors un message reel, genere ou charge, sans
+    // seqId associe). Avant d'echouer, on verifie si la zone message contient reellement du texte :
+    // si la zone est vide, l'erreur reste legitime. Sinon, on verifie en base (pas seulement le
+    // cache local) si un brouillon existe deja pour ce prospect+touche -- pour le reconnaitre au
+    // lieu d'en creer un doublon -- puis on l'enregistre avant de continuer.
+    const touch = card?.dataset.touch || '';
+    const body = document.getElementById(elPrefix + 'so-' + pid)?.textContent?.trim() || '';
+    if (!body) { showToast('Enregistrez d\'abord le brouillon'); return; }
+    const { data: existing } = await sbClient.from('sequences')
+      .select('id').eq('client_id', CLIENT_ID).eq('prospect_id', pid).eq('touch', touch)
+      .order('created_at', { ascending: false }).limit(1).maybeSingle();
+    if (existing?.id) {
+      if (card) card.dataset.seqId = existing.id;
+      const { error: updErr } = await sbClient.from('sequences').update({ body, status: 'draft' }).eq('id', existing.id).eq('client_id', CLIENT_ID);
+      if (updErr) { console.error('[_markReady] update existing draft failed:', updErr); showToast('Erreur lors de l\'enregistrement'); return; }
+    } else {
+      await _saveSequenceDraft(pid, touch, body, elPrefix);
+    }
+    seqId = card?.dataset.seqId || '';
+    if (!seqId) { showToast('Enregistrez d\'abord le brouillon'); return; }
+  }
   const { error } = await sbClient.from('sequences').update({ status: 'ready' }).eq('id', seqId).eq('client_id', CLIENT_ID);
   if (error) { showToast('Erreur'); return; }
   const seqEntry = (_sendSequences[pid] || []).find(s => s.id === seqId);

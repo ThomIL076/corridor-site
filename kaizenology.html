@@ -6556,14 +6556,20 @@ function _renderSendSection(title, prospects, touchType) {
             <div class="send-company">${_esc(p.company)}${p.region ? ' · ' + _esc(p.region) : ''}</div>
             ${p.signal ? `<div style="margin-top:3px;">${_sigBadge(p.signal_type)}</div>` : ''}
           </div>
-          <span class="send-touch ${TOUCH_LABELS[touchType]?.class||'touch-j0'}">${TOUCH_LABELS[touchType]?.label||touchType}</span>
-          <!-- F09 (port kaizenology, 2026-09-17) : meme badge que demo-private.html -- reutilise
-               hasBody/isReady deja calcules ci-dessus, aucune nouvelle donnee. -->
+          <!-- Fix 2026-09-18 (meme bug reproduit et corrige ce soir sur wominds.html, cas reel
+               Olivier Saumet/Doublet) : le badge touch et le badge Ready affichaient "J+0"/"Ready"
+               pour un prospect dont la connexion LinkedIn n'est pas encore acceptee, alors que le
+               bouton Send se desactive correctement via sendBlocked (deja calcule ci-dessus) --
+               deux verites divergentes pour le meme etat. On l'utilise desormais aussi pour ces
+               deux badges plutot que de laisser TOUCH_LABELS/isReady mentir. -->
+          ${sendBlocked
+            ? `<span class="send-touch" style="background:#f3f4f6;color:#6b7280;" title="${sendTitle}">⏳ Awaiting connection</span>`
+            : `<span class="send-touch ${TOUCH_LABELS[touchType]?.class||'touch-j0'}">${TOUCH_LABELS[touchType]?.label||touchType}</span>
           ${isReady
             ? `<span class="send-touch" style="background:var(--green-bg);color:var(--green);">✓ Ready</span>`
             : hasBody
               ? `<span class="send-touch" style="background:var(--chip-bg);color:var(--indigo);">Draft saved</span>`
-              : `<span class="send-touch" style="background:#f3f4f6;color:#6b7280;">No draft</span>`}
+              : `<span class="send-touch" style="background:#f3f4f6;color:#6b7280;">No draft</span>`}`}
         </div>
         <div class="send-expand" id="se-${p.id}" style="display:none">
           <div class="ai-box" style="margin-top:10px">
@@ -7171,8 +7177,33 @@ async function _saveSequenceDraft(pid, touch, bodyOverride, elPrefix = '') {
 }
 
 async function _markReady(pid, elPrefix = '') {
-  const seqId = document.getElementById(elPrefix + 'sc-' + pid)?.dataset.seqId || '';
-  if (!seqId) { showToast('Save draft first'); return; }
+  const card = document.getElementById(elPrefix + 'sc-' + pid);
+  let seqId = card?.dataset.seqId || '';
+  if (!seqId) {
+    // Fix 2026-09-18 (meme bug reproduit et corrige ce soir sur wominds.html, cas reel Lorraine
+    // Simon Schmitt/LG Electronics France) : dataset.seqId peut etre vide sur CETTE instance de
+    // carte alors qu'un brouillon reel existe deja (_sendSequences n'est peuple qu'au chargement
+    // de l'onglet Send, jamais rafraichi si la carte est ouverte autrement -- elle affiche alors un
+    // message reel, genere ou charge, sans seqId associe). Avant d'echouer, on verifie si la zone
+    // message contient reellement du texte : si vide, l'erreur reste legitime. Sinon on verifie en
+    // base (pas seulement le cache local) si un brouillon existe deja pour ce prospect+touche --
+    // pour le reconnaitre au lieu d'en creer un doublon -- puis on l'enregistre avant de continuer.
+    const touch = card?.dataset.touch || '';
+    const body = document.getElementById(elPrefix + 'so-' + pid)?.textContent?.trim() || '';
+    if (!body) { showToast('Save draft first'); return; }
+    const { data: existing } = await sbClient.from('sequences')
+      .select('id').eq('client_id', CLIENT_ID).eq('prospect_id', pid).eq('touch', touch)
+      .order('created_at', { ascending: false }).limit(1).maybeSingle();
+    if (existing?.id) {
+      if (card) card.dataset.seqId = existing.id;
+      const { error: updErr } = await sbClient.from('sequences').update({ body, status: 'draft' }).eq('id', existing.id).eq('client_id', CLIENT_ID);
+      if (updErr) { console.error('[_markReady] update existing draft failed:', updErr); showToast('Error saving draft'); return; }
+    } else {
+      await _saveSequenceDraft(pid, touch, body, elPrefix);
+    }
+    seqId = card?.dataset.seqId || '';
+    if (!seqId) { showToast('Save draft first'); return; }
+  }
   const { error } = await sbClient.from('sequences').update({ status:'ready' }).eq('id', seqId).eq('client_id', CLIENT_ID);
   if (error) { showToast('Error'); return; }
   // Fix 2026-09-15 (URGENT, meme classe de bug corrigee ce soir sur wominds.html/demo-private.html) :
