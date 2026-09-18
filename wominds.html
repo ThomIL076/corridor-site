@@ -3934,15 +3934,6 @@ function _pdPriorityReasonHTML(p) {
 // agent_proposals ici : Wominds n'a pas encore de workflow d'envoi/reponse actif, ces sources
 // n'existent pas cote donnees. Recycle _drawerInteractions deja charge par _loadDrawerInteractions,
 // pas de requete supplementaire. ) ────────────────────────────────────────────────────────────
-// ── AI Insight + Score Rationale (parite demo-private.html:11880-11881, brief 2026-09-13
-// point 4) : deux boites distinctes, style inline identique a la reference (aucune classe CSS
-// dediee cote demo-private.html non plus) -- signal_interpretation et icp_reason sont deux
-// champs reels distincts, jamais fusionnes dans un seul texte. ─────────────────────────────────
-function _pdAiInsightBoxesHTML(p) {
-  const box = (label, text) => `<div style="background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--ink);line-height:1.5;margin-bottom:10px;"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:10px;opacity:0.65;display:block;margin-bottom:3px;">✦ ${_esc(label)}</span>${_esc(text)}</div>`;
-  return (p.signal_interpretation ? box('Analyse IA', p.signal_interpretation.replace(/<[^>]*>/g, '')) : '')
-    + (p.icp_reason ? box('Justification du score', p.icp_reason.replace(/<[^>]*>/g, '')) : '');
-}
 // Fix 2026-09-13 (diagnostic point 3, fusion decidee -- option (b)) : une seule liste .pd-row/
 // .pd-row-mono/.pd-row-main, meme structure que demo-private.html:8875-8905 (sans debrief d'appel/
 // reponses agent_proposals, infrastructure absente de wominds.html -- deja etabli, pas un oubli).
@@ -4235,7 +4226,6 @@ function openProspectDetail(id){
     _pdPriorityReasonHTML(p) +
     rowsHTML +
     (breakdown ? _renderBreakdownPanel(breakdown, ICP_WEIGHTS) : '') +
-    _pdAiInsightBoxesHTML(p) +
     _reminderBannerHTML(p.reminder_date) +
     _pdNextActionHTML(p) +
     _pdMessageHistorySectionHTML() +

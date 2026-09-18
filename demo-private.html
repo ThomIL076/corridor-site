@@ -8827,6 +8827,13 @@ async function openDrawer(card, initialTab = 'activity') {
     ${_lastCheckedAt ? `<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:8px">Last verified: ${_esc(_relDate(_lastCheckedAt) || '')}</div>` : ''}
   `;
 
+  // ICP SCORE BREAKDOWN (port wominds.html, 2026-09-18) : panneau des 6 sous-scores ponderes,
+  // retire d'"Edit details" (repliee, invisible par defaut) pour etre visible sans manipulation,
+  // meme position/logique que wominds.html -- juste apres Priority reason, rien affiche si aucune
+  // des 6 colonnes score_* n'est renseignee (comportement inchange de _icpBreakdownFromColumns).
+  const _icpBd = _icpBreakdownFromColumns(_p);
+  const _icpBreakdownHTML = _icpBd ? _renderBreakdownPanel(_icpBd, null, ICP_WEIGHTS) : '';
+
   const stageAgeLbl = '—'; // pas de stage_changed_at en base -- pas invente, cf. echange cleanup
   const dealValLbl = _p.deal_value ? `${_p.deal_currency || 'EUR'} ${Math.round(parseInt(_p.deal_value) / 1000)}k` : '—';
   const links = _buildProspectLinks(_p);
@@ -8894,7 +8901,14 @@ async function openDrawer(card, initialTab = 'activity') {
         ${priorityReasonHTML}
       </div>
 
-      <!-- 3. NEXT ACTION -->
+      <!-- 3. ICP SCORE BREAKDOWN (port wominds.html, 2026-09-18) -->
+      ${_icpBd ? `
+      <div class="pd-section">
+        <div class="pd-section-label">ICP score breakdown</div>
+        ${_icpBreakdownHTML}
+      </div>` : ''}
+
+      <!-- 4. NEXT ACTION -->
       <div class="pd-section" id="pd-section-nextaction">
         ${_reminderBannerHTML(reminderDate)}
         <div class="pd-section-label" style="margin-top:14px">Next action</div>
@@ -8925,7 +8939,7 @@ async function openDrawer(card, initialTab = 'activity') {
         </div>` : `<div id="escalate-box" style="display:none"></div>`}
       </div>
 
-      <!-- 4. MESSAGE HISTORY -->
+      <!-- 5. MESSAGE HISTORY -->
       <div class="pd-section">
         <div class="pd-section-label">Message history</div>
         <div id="pd-msghistory-rows">${messageHistoryHTML}</div>
@@ -8941,14 +8955,14 @@ async function openDrawer(card, initialTab = 'activity') {
         <button class="pd-plus" style="margin-top:8px" onclick="_pdToggleLogInteraction()">+ Log interaction</button>
       </div>
 
-      <!-- 5. BUYING COMMITTEE -->
+      <!-- 6. BUYING COMMITTEE -->
       <div class="pd-section">
         <div class="pd-section-label">Buying committee</div>
         <div id="bc-section-${prospectId}" style="font-size:var(--fs-xs);color:var(--muted);font-style:italic">Loading...</div>
         ${_pdAdditionalContactsHTML(prospectId, _p)}
       </div>
 
-      <!-- 6. CALL PREP BRIEF -->
+      <!-- 7. CALL PREP BRIEF -->
       <!-- F15 point 3 (audit 2026-09-17) : masquee entierement pour stage === 'Identified'
            (jamais sollicite pour un appel/relance a ce stade) -- utilise _p.stage (vrai champ
            prospects.stage) plutot que la variable locale "stage" ci-dessus : celle-ci est
@@ -12295,11 +12309,9 @@ function _drawerProfileHTML(id, p, colStage, fb){
         `<option value="">-- Signal type --</option>` +
         `${(_signalTaxonomy && Object.keys(_signalTaxonomy).length ? Object.values(_signalTaxonomy) : [{code:'S1',label:'S1'},{code:'S2',label:'S2'},{code:'S3',label:'S3'},{code:'S4',label:'S4'},{code:'activity',label:currentLang==='fr'?'Engagement passif (réaction/commentaire)':'Passive engagement (reaction/comment)',icon:'👁'}]).map(t => `<option value="${_esc(t.code)}"${(p.signal_type||'').toUpperCase()===(t.code||'').toUpperCase()?' selected':''}>${_esc(t.icon||'')} ${_esc(t.code)} — ${_esc(t.label||t.code)}</option>`).join('')}` +
       `</select>` +
-      (p.signal_interpretation ? `<div style="background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--ink);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:10px;opacity:0.65;display:block;margin-bottom:3px">✦ ${currentLang==='fr'?'Analyse IA':'AI Insight'}</span>${v(stripHtml(p.signal_interpretation))}</div>` : '') +
       (p.icp_reason ? `<div style="background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--ink);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:10px;opacity:0.65;display:block;margin-bottom:3px">✦ ${currentLang==='fr'?'Justification du score':'Score rationale'}</span>${v(stripHtml(p.icp_reason))}</div>` : '') +
       (p.hard_criteria_met ? `<div style="background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--ink);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:10px;opacity:0.65;display:block;margin-bottom:3px">✦ ${currentLang==='fr'?'Critères remplis':'Criteria met'}</span><ul style="margin:0;padding-left:16px">${p.hard_criteria_met.split(';').map(c => c.trim()).filter(Boolean).map(c => `<li>${v(stripHtml(c))}</li>`).join('')}</ul></div>` : '')
     )}
-    ${(() => { const _bd = _icpBreakdownFromColumns(p); return _bd ? _renderBreakdownPanel(_bd, null, ICP_WEIGHTS) : ''; })()}
     ${card(
       lbl('Deal Value') +
       `<div class="dv-field-row" style="margin-bottom:6px">
