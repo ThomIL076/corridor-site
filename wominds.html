@@ -2481,15 +2481,33 @@ async function _loadLastMorningScanEmail() {
     // script, contenu 100% statique) -- .srcdoc assigne en propriete DOM, jamais de concatenation
     // de chaine HTML : le texte reste strictement celui de l'email, aucun risque de casse sur un
     // contenu genere par IA.
+    // Fix 2026-09-18 (replie par defaut) : la hauteur fixe 420px poussait tout le panneau
+    // Signaux trop bas. Aperçu compact (140px, overflow:hidden) avec fondu -- couleur de fin
+    // var(--bg), le vrai fond de .ai-box ici (pas #fff en dur, qui ne correspondrait pas) --
+    // et bouton pour deplier/replier. Seul le conteneur change de hauteur, jamais l'iframe.
     el.innerHTML = `
       <div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:6px;">${_esc(data.subject || '')} · ${_esc(dateLabel)}</div>
       <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);opacity:.6;margin-bottom:6px;">Aperçu de l’email envoyé</div>
+      <div id="last-morning-scan-frame-wrap" style="max-height:140px;overflow:hidden;position:relative;transition:max-height .25s ease;border:1px solid var(--border);border-radius:var(--radius-sm);">
+        <div id="last-morning-scan-fade" style="position:absolute;bottom:0;left:0;right:0;height:40px;background:linear-gradient(transparent, var(--bg));pointer-events:none;"></div>
+      </div>
+      <button id="last-morning-scan-toggle" style="margin-top:6px;background:none;border:none;color:var(--ink);text-decoration:underline;font-weight:600;font-size:var(--fs-xs);cursor:pointer;padding:0;">Voir l’email complet</button>
     `;
+    const wrap = document.getElementById('last-morning-scan-frame-wrap');
+    const fade = document.getElementById('last-morning-scan-fade');
+    const toggleBtn = document.getElementById('last-morning-scan-toggle');
     const frame = document.createElement('iframe');
     frame.setAttribute('sandbox', '');
-    frame.style.cssText = 'width:100%;height:420px;border:1px solid var(--border);border-radius:var(--radius-sm);background:#fff;display:block;';
+    frame.style.cssText = 'width:100%;height:420px;border:none;background:#fff;display:block;';
     frame.srcdoc = data.email_html;
-    el.appendChild(frame);
+    wrap.insertBefore(frame, fade);
+    let expanded = false;
+    toggleBtn.addEventListener('click', () => {
+      expanded = !expanded;
+      wrap.style.maxHeight = expanded ? '420px' : '140px';
+      fade.style.display = expanded ? 'none' : 'block';
+      toggleBtn.textContent = expanded ? 'Réduire' : 'Voir l’email complet';
+    });
   } catch(e) {
     console.error('[_loadLastMorningScanEmail]', e);
     el.innerHTML = '<div style="color:var(--muted);font-size:var(--fs-sm);">Impossible de charger le dernier Morning Scan.</div>';
