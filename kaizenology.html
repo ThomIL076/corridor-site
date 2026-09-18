@@ -2199,6 +2199,16 @@ body.new-nav { padding-left: 220px; }
 
     <!-- ── Signals ── -->
     <div class="sys-panel" id="syspanel-signals">
+      <!-- Dernier Morning Scan reellement envoye par n8n (persiste dans morning_scan_email_cache,
+           2026-09-18) : charge au boot de la page (appel dans showDemo(), fire-and-forget), separe
+           visuellement des boutons de generation a la demande ci-dessous -- ce bloc montre ce qui a
+           reellement ete envoye, les boutons regenerent un nouveau contenu independant. -->
+      <div class="ai-box" id="last-morning-scan-box" style="margin-bottom:16px;">
+        <div class="ai-box-header">
+          <span class="ai-box-label" data-en="Last Morning Scan Sent" data-fr="Dernier Morning Scan envoyé">Last Morning Scan Sent</span>
+        </div>
+        <div class="ai-box-body" id="last-morning-scan-body">…</div>
+      </div>
       <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
         <button class="btn-primary system-btn" onclick="runMorningScan()" id="morning-btn" style="flex:1;min-width:160px;margin-bottom:0;">
           <span data-en="▶ Morning Scan" data-fr="▶ Briefing du matin">▶ Morning Scan</span>
@@ -3183,6 +3193,7 @@ async function showDemo(){
     _setSigFilter('signal');
   }
   _loadSignalTaxonomy(); // fire-and-forget, cache rempli avant le rendu des badges de signal (cartes Kanban/Today/Send)
+  _loadLastMorningScanEmail(); // dernier Morning Scan reellement envoye, meme principe fire-and-forget
   if (!_kanbanLoaded) loadKanban();
   _initHpFilters();
   // Init unique post-login : onglet Priorities par défaut + scroll en haut (PWA démarre proprement)
@@ -12166,6 +12177,45 @@ async function _loadSignalTaxonomy() {
     })
     .catch(() => { _signalTaxonomy = {}; return {}; });
   return _signalTaxonomyPromise;
+}
+// Dernier Morning Scan reellement envoye (morning_scan_email_cache, 2026-09-18) : simple lecture,
+// scopee au client courant via RLS (client_id = CLIENT_ID). Rien affiche en erreur brute -- etat
+// vide/echec traites tous les deux comme un message neutre, jamais un plantage visible.
+async function _loadLastMorningScanEmail() {
+  const el = document.getElementById('last-morning-scan-body');
+  if (!el) return;
+  try {
+    const { data, error } = await sbClient.from('morning_scan_email_cache')
+      .select('subject, email_html, scan_date, generated_at')
+      .eq('client_id', CLIENT_ID)
+      .order('scan_date', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) {
+      el.innerHTML = `<div style="color:var(--dim);font-size:var(--fs-sm);">${currentLang === 'fr' ? 'Aucun Morning Scan envoyé pour l’instant.' : 'No Morning Scan sent yet.'}</div>`;
+      return;
+    }
+    const dateLabel = (typeof _relDate === 'function' && _relDate(data.scan_date)) || data.scan_date;
+    // Email pense pour un client mail (styles inline, largeur fixe ~680px, header propre) --
+    // jamais injecte tel quel dans le DOM du dashboard : ce gabarit embarque un <style> avec des
+    // selecteurs globaux (h1/h2/p/table/th/td) qui polluerait toute la page. Isole dans un iframe
+    // sandboxe (aucun script, contenu 100% statique) -- .srcdoc assigne en propriete DOM, jamais
+    // de concatenation de chaine HTML : le texte reste strictement celui de l'email, aucun risque
+    // de casse sur un contenu genere par IA.
+    el.innerHTML = `
+      <div style="font-size:var(--fs-xs);color:var(--dim);margin-bottom:6px;">${_esc(data.subject || '')} · ${_esc(dateLabel)}</div>
+      <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);opacity:.6;margin-bottom:6px;">${currentLang === 'fr' ? 'Aperçu de l’email envoyé' : 'Email preview'}</div>
+    `;
+    const frame = document.createElement('iframe');
+    frame.setAttribute('sandbox', '');
+    frame.style.cssText = 'width:100%;height:420px;border:1px solid var(--border);border-radius:var(--radius-sm);background:#fff;display:block;';
+    frame.srcdoc = data.email_html;
+    el.appendChild(frame);
+  } catch(e) {
+    console.error('[_loadLastMorningScanEmail]', e);
+    el.innerHTML = `<div style="color:var(--dim);font-size:var(--fs-sm);">${currentLang === 'fr' ? 'Impossible de charger le dernier Morning Scan.' : 'Could not load the last Morning Scan.'}</div>`;
+  }
 }
 function _sigLabel(code) {
   const t = (code || '').toUpperCase();

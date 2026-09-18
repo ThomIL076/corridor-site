@@ -1893,6 +1893,16 @@ body.new-nav { padding-left: 220px; }
         <div class="module-title">Signaux</div>
         <div class="section-sub">Signaux d'achat détectés automatiquement. Sourcing continu.</div>
       </div>
+      <!-- Dernier Morning Scan reellement envoye par n8n (persiste dans morning_scan_email_cache,
+           2026-09-18) : charge au boot de la page (appel dans showDemo(), fire-and-forget), separe
+           visuellement des boutons de generation a la demande ci-dessous -- ce bloc montre ce qui a
+           reellement ete envoye, les boutons regenerent un nouveau contenu independant. -->
+      <div class="ai-box" id="last-morning-scan-box" style="margin-bottom:16px;">
+        <div class="ai-box-header">
+          <span class="ai-box-label">Dernier Morning Scan envoyé</span>
+        </div>
+        <div class="ai-box-body" id="last-morning-scan-body">…</div>
+      </div>
       <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
         <button class="btn-primary btn-lg system-btn" onclick="runMorningScan()" id="morning-btn" style="flex:1;min-width:160px;margin-bottom:0;">
           <span>▶ Briefing du matin</span>
@@ -2436,6 +2446,7 @@ async function showDemo(){
   const ab = document.getElementById('access-blocked'); if (ab) ab.style.display = 'none';
   hideProfileError();
   document.body.classList.add('new-nav');
+  _loadLastMorningScanEmail(); // dernier Morning Scan reellement envoye, fire-and-forget, au boot (pas derriere l'onglet Signaux)
   if (!_demoStarted) {
     _demoStarted = true;
     // "Aujourd'hui" redevient l'ecran par defaut (meme convention que demo-private.html/
@@ -2443,6 +2454,45 @@ async function showDemo(){
     // reellement cette vue, elle n'est plus un ecran vide au premier lancement.
     switchTab('today');
     window.scrollTo({ top: 0, behavior: 'instant' });
+  }
+}
+// Dernier Morning Scan reellement envoye (morning_scan_email_cache, 2026-09-18) : simple lecture,
+// scopee au client courant via RLS (client_id = CLIENT_ID). Rien affiche en erreur brute -- etat
+// vide/echec traites tous les deux comme un message neutre, jamais un plantage visible.
+async function _loadLastMorningScanEmail() {
+  const el = document.getElementById('last-morning-scan-body');
+  if (!el) return;
+  try {
+    const { data, error } = await sbClient.from('morning_scan_email_cache')
+      .select('subject, email_html, scan_date, generated_at')
+      .eq('client_id', CLIENT_ID)
+      .order('scan_date', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) {
+      el.innerHTML = '<div style="color:var(--muted);font-size:var(--fs-sm);">Aucun Morning Scan envoyé pour l’instant.</div>';
+      return;
+    }
+    const dateLabel = (typeof _relDate === 'function' && _relDate(data.scan_date)) || data.scan_date;
+    // Email pense pour un client mail (styles inline, largeur fixe ~640px, header propre) --
+    // jamais injecte tel quel dans le DOM du dashboard : ce gabarit peut embarquer un <style> avec
+    // des selecteurs globaux qui polluerait toute la page. Isole dans un iframe sandboxe (aucun
+    // script, contenu 100% statique) -- .srcdoc assigne en propriete DOM, jamais de concatenation
+    // de chaine HTML : le texte reste strictement celui de l'email, aucun risque de casse sur un
+    // contenu genere par IA.
+    el.innerHTML = `
+      <div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:6px;">${_esc(data.subject || '')} · ${_esc(dateLabel)}</div>
+      <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);opacity:.6;margin-bottom:6px;">Aperçu de l’email envoyé</div>
+    `;
+    const frame = document.createElement('iframe');
+    frame.setAttribute('sandbox', '');
+    frame.style.cssText = 'width:100%;height:420px;border:1px solid var(--border);border-radius:var(--radius-sm);background:#fff;display:block;';
+    frame.srcdoc = data.email_html;
+    el.appendChild(frame);
+  } catch(e) {
+    console.error('[_loadLastMorningScanEmail]', e);
+    el.innerHTML = '<div style="color:var(--muted);font-size:var(--fs-sm);">Impossible de charger le dernier Morning Scan.</div>';
   }
 }
 async function checkAccess(session){
