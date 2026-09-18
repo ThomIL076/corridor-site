@@ -2666,6 +2666,17 @@ function _sanitizeSignal(str) {
   const SAFE_A = /(<a\s+href=["']https?:\/\/[^"'<>]+["'](?:\s+(?:target|rel|style|class)=["'][^"'<>]*["'])*\s*>[^<]*<\/a>)/gi;
   return str.split(SAFE_A).map((chunk, i) => i % 2 === 0 ? _esc(chunk) : chunk).join('');
 }
+// Detection lien source d'un signal (demande Thomas, 2026-09-18, meme fix que demo-private.html/
+// kaizenology.html) : signal_url pointe soit vers un post LinkedIn, soit vers un article de
+// presse/communique -- "Publication LinkedIn"/"Voir la publication" partout induisait en erreur
+// pour le 2e cas. Point de verite unique pour les 2 emplacements qui rendent ce lien ici (wominds
+// n'a pas de _renderSignalLink/signal-link-wrap ni de contexte Ask Corridor textuel construit
+// cote client -- cf. echange du jour, pas de 3e/4e/5e emplacement a porter).
+function _isLinkedInSignalUrl(url) {
+  if (!url) return false;
+  const m = String(url).match(/^[a-z][a-z0-9+.-]*:\/\/([^\/]+)/i);
+  return (m ? m[1] : url).toLowerCase().includes('linkedin.com');
+}
 // ── Scanner les nouveaux prospects (parite demo-private.html:6712 runPipelineIntel, lecture
 // seule sur _allProspects deja charge -- pas d'appel IA/web, juste un filtre + tri client-side). ──
 async function runPipelineIntel() {
@@ -2697,7 +2708,11 @@ async function runPipelineIntel() {
     let sigText   = _sanitizeSignal(p.signal);
     if (sigText && p.signal_url) {
       const _pl = '<a href="' + _esc(p.signal_url) + '" target="_blank" rel="noopener" style="color:var(--fill-accent);text-decoration:underline;">Publication LinkedIn</a>';
-      sigText = sigText.includes('Publication LinkedIn') ? sigText.replace('Publication LinkedIn', _pl) : sigText + ' <a href="' + _esc(p.signal_url) + '" target="_blank" rel="noopener" style="color:var(--fill-accent);font-size:11px;" title="Voir la publication">↗</a>';
+      sigText = sigText.includes('Publication LinkedIn')
+        ? sigText.replace('Publication LinkedIn', _pl)
+        : sigText + (_isLinkedInSignalUrl(p.signal_url)
+            ? ' <a href="' + _esc(p.signal_url) + '" target="_blank" rel="noopener" style="color:var(--fill-accent);font-size:11px;" title="Voir la publication">↗</a>'
+            : ' <a href="' + _esc(p.signal_url) + '" target="_blank" rel="noopener" style="color:var(--fill-accent);font-size:11px;text-decoration:underline;">↗ Source</a>');
     }
     const sigLine = sigText ? '<br>Signal : ' + sig + sigText : '';
     const meta = [
@@ -2783,7 +2798,7 @@ function _renderSignalsFeed() {
     // fichier -- mise en forme minimale, pas de dependance a une fonction jamais portee).
     const bodyHtml = item.type === 'morning'
       ? `<div>${item.htmlContent || _esc(item.content || '').replace(/\n/g, '<br>')}${item.linkHtml || ''}</div>`
-      : `<div style="font-size:var(--fs-sm);line-height:1.6;color:var(--text);">${item.signal ? _sanitizeSignal(item.signal) + '<br>' : ''}${_esc(item.content)}${item.signalUrl ? '<br><a href="' + _esc(item.signalUrl) + '" target="_blank" rel="noopener" style="font-size:var(--fs-xs);color:var(--fill-accent);text-decoration:none;font-weight:600;">🔗 Voir le post</a>' : ''}<br><button data-ctx="${_esc(JSON.stringify({type:'signal',signal:item.signal||'',signalUrl:item.signalUrl||'',signalInterpretation:item.signalInterpretation||'',prospectName:item.prospectName||'',company:item.prospectCompany||''}))}" onclick="_openAskPanel(JSON.parse(this.dataset.ctx))" style="margin-top:8px;font-size:var(--fs-xs);font-weight:700;padding:3px 10px;border:1px solid var(--accent);border-radius:var(--radius-pill);background:transparent;color:var(--accent);cursor:pointer;">Demander à Corridor</button></div>`;
+      : `<div style="font-size:var(--fs-sm);line-height:1.6;color:var(--text);">${item.signal ? _sanitizeSignal(item.signal) + '<br>' : ''}${_esc(item.content)}${item.signalUrl ? '<br><a href="' + _esc(item.signalUrl) + '" target="_blank" rel="noopener" style="font-size:var(--fs-xs);color:var(--fill-accent);text-decoration:none;font-weight:600;">🔗 ' + (_isLinkedInSignalUrl(item.signalUrl) ? 'Voir le post' : 'Voir la source') + '</a>' : ''}<br><button data-ctx="${_esc(JSON.stringify({type:'signal',signal:item.signal||'',signalUrl:item.signalUrl||'',signalInterpretation:item.signalInterpretation||'',prospectName:item.prospectName||'',company:item.prospectCompany||''}))}" onclick="_openAskPanel(JSON.parse(this.dataset.ctx))" style="margin-top:8px;font-size:var(--fs-xs);font-weight:700;padding:3px 10px;border:1px solid var(--accent);border-radius:var(--radius-pill);background:transparent;color:var(--accent);cursor:pointer;">Demander à Corridor</button></div>`;
     const _sfKey = item.type + '|' + (item.prospectId || '') + '|' + (item.timestamp || idx);
     window._feedItemsById[idx] = item;
     const _sfVoted = window._feedVotes[_sfKey];

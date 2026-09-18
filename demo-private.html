@@ -3244,7 +3244,7 @@ function _renderSignalsFeed() {
     const header = `<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:10px;">${badge}${labelHtml}${linkedinLink}<span style="font-size:var(--fs-xs);color:var(--text-secondary);white-space:nowrap;margin-left:auto;">${tsStr}</span></div>`;
     const bodyHtml = item.type === 'morning'
       ? `<div>${item.htmlContent || renderMarkdown(item.content)}${item.linkHtml || ''}</div>`
-      : `<div style="font-size:var(--fs-base);line-height:1.6;color:var(--text-primary);">${item.signal ? _sanitizeSignal(item.signal) + '<br>' : ''}${_esc(item.content)}${item.signalUrl ? '<br><a href="' + _esc(item.signalUrl) + '" target="_blank" rel="noopener" style="font-size:var(--fs-xs);color:var(--fill-accent);text-decoration:none;font-weight:600;">🔗 ' + ((typeof currentLang!=='undefined'&&currentLang==='fr')?'Voir le post':'View post') + '</a>' : ''}<br><button data-ctx="${_esc(JSON.stringify({type:'signal',signal:item.signal||'',signalUrl:item.signalUrl||'',signalInterpretation:item.signalInterpretation||'',prospectName:item.prospectName||'',company:item.prospectCompany||''}))}" onclick="_openAskPanel(JSON.parse(this.dataset.ctx))" style="margin-top:8px;font-size:var(--fs-xs);font-weight:700;padding:3px 10px;border:1px solid var(--accent);border-radius:var(--radius-pill);background:transparent;color:var(--accent);cursor:pointer;">${(typeof currentLang!=='undefined'&&currentLang==='fr')?'Demander à Corridor':'Ask Corridor'}</button></div>`;
+      : `<div style="font-size:var(--fs-base);line-height:1.6;color:var(--text-primary);">${item.signal ? _sanitizeSignal(item.signal) + '<br>' : ''}${_esc(item.content)}${item.signalUrl ? '<br><a href="' + _esc(item.signalUrl) + '" target="_blank" rel="noopener" style="font-size:var(--fs-xs);color:var(--fill-accent);text-decoration:none;font-weight:600;">🔗 ' + _signalSourceLabel(item.signalUrl, (typeof currentLang!=='undefined'?currentLang:'en'), true) + '</a>' : ''}<br><button data-ctx="${_esc(JSON.stringify({type:'signal',signal:item.signal||'',signalUrl:item.signalUrl||'',signalInterpretation:item.signalInterpretation||'',prospectName:item.prospectName||'',company:item.prospectCompany||''}))}" onclick="_openAskPanel(JSON.parse(this.dataset.ctx))" style="margin-top:8px;font-size:var(--fs-xs);font-weight:700;padding:3px 10px;border:1px solid var(--accent);border-radius:var(--radius-pill);background:transparent;color:var(--accent);cursor:pointer;">${(typeof currentLang!=='undefined'&&currentLang==='fr')?'Demander à Corridor':'Ask Corridor'}</button></div>`;
     const _sfKey = item.type + '|' + (item.prospectId || '') + '|' + (item.timestamp || idx);
     window._feedItemsById[idx] = item;
     const _sfVoted = window._feedVotes[_sfKey];
@@ -5961,7 +5961,7 @@ async function _buildAskSystemPrompt(ctx, pipelineSnapshot, pipelineInsightsBloc
       const _sigBlind2 = /engaged with a linkedin post/i.test(ctx.signal || '') && !ctx.signalUrl;
       if (ctx.signal && !_sigBlind2)               parts.push('Signal: '                + ctx.signal);
       if (ctx.signalInterpretation && !_sigBlind2) parts.push('Signal interpretation: ' + ctx.signalInterpretation);
-      if (ctx.signalUrl) parts.push('Signal source (LinkedIn post): ' + ctx.signalUrl);
+      if (ctx.signalUrl) parts.push('Signal source (' + (_isLinkedInSignalUrl(ctx.signalUrl) ? 'LinkedIn post' : 'press article') + '): ' + ctx.signalUrl);
       if (ctx.scanIntelligence)     parts.push('Company intelligence (from Scan):\n' + ctx.scanIntelligence);
       ctxBlock = '\n\n' + parts.join('\n');
     }
@@ -6826,7 +6826,11 @@ async function runPipelineIntel() {
     let sigText   = _sanitizeSignal(p.signal);
     if (sigText && p.signal_url) {
       const _pl = '<a href="' + _esc(p.signal_url) + '" target="_blank" rel="noopener" style="color:var(--fill-accent);text-decoration:underline;">LinkedIn post</a>';
-      sigText = sigText.includes('LinkedIn post') ? sigText.replace('LinkedIn post', _pl) : sigText + ' <a href="' + _esc(p.signal_url) + '" target="_blank" rel="noopener" style="color:var(--fill-accent);font-size:11px;" title="View post">↗</a>';
+      sigText = sigText.includes('LinkedIn post')
+        ? sigText.replace('LinkedIn post', _pl)
+        : sigText + (_isLinkedInSignalUrl(p.signal_url)
+            ? ' <a href="' + _esc(p.signal_url) + '" target="_blank" rel="noopener" style="color:var(--fill-accent);font-size:11px;" title="View post">↗</a>'
+            : ' <a href="' + _esc(p.signal_url) + '" target="_blank" rel="noopener" style="color:var(--fill-accent);font-size:11px;text-decoration:underline;">↗ Source</a>');
     }
     const sigLine = sigText ? '<br>Signal: ' + sig + sigText : '';
     const meta = [
@@ -6937,6 +6941,21 @@ function _extractSigUrl(s) {
   if (!s) return null;
   const m = s.match(/<a\s+href=["']([^"']+)["']/i);
   return m ? m[1] : null;
+}
+// Libelle du lien source d'un signal (demande Thomas, 2026-09-18) : signal_url pointe soit vers un
+// post LinkedIn, soit vers un article de presse/communique -- "LinkedIn post"/"View post" partout
+// induisait en erreur pour le 2e cas et passait facilement inaperçu (repli en simple fleche ↗ dans
+// un cas). Detection par domaine, point de verite unique pour les 5 emplacements qui rendent ce
+// lien. L'anglais reste "Source" pour une source presse (jamais "View source", demande explicite) ;
+// le francais garde un verbe ("Voir la source") uniquement la ou l'emplacement en avait deja un.
+function _isLinkedInSignalUrl(url) {
+  if (!url) return false;
+  const m = String(url).match(/^[a-z][a-z0-9+.-]*:\/\/([^\/]+)/i);
+  return (m ? m[1] : url).toLowerCase().includes('linkedin.com');
+}
+function _signalSourceLabel(url, lang, verb) {
+  if (_isLinkedInSignalUrl(url)) return lang === 'fr' ? (verb ? 'Voir le post' : 'Post LinkedIn') : (verb ? 'View post' : 'LinkedIn post');
+  return lang === 'fr' ? (verb ? 'Voir la source' : 'Source') : 'Source';
 }
 
 // ── SEND QUEUE ──
@@ -12233,7 +12252,7 @@ function _renderSignalLink(signalText, signalUrl) {
   const parenMatch = (signalText || '').match(/\((https?:\/\/[^\s)]+)\)/);
   const url = signalUrl || _extractSigUrl(signalText) || (parenMatch ? parenMatch[1] : null);
   wrap.innerHTML = url
-    ? `<a href="${_esc(url)}" target="_blank" rel="noopener noreferrer" style="color:var(--ink);text-decoration:underline;font-weight:600;">${(typeof currentLang!=='undefined'&&currentLang==='fr')?'Voir le post →':'View post →'}</a>`
+    ? `<a href="${_esc(url)}" target="_blank" rel="noopener noreferrer" style="color:var(--ink);text-decoration:underline;font-weight:600;">${_signalSourceLabel(url, (typeof currentLang!=='undefined'?currentLang:'en'), true)} →</a>`
     : '';
 }
 function _drawerProfileHTML(id, p, colStage, fb){
@@ -12301,7 +12320,7 @@ function _drawerProfileHTML(id, p, colStage, fb){
     ${card(
       lbl('Signal / Context') +
       `<textarea id="drawer-signal" class="dp-inp" rows="3" placeholder="e.g. New CRO hired from PE-backed SaaS, scaled $4M to $28M ARR" style="font-size:var(--fs-base);min-height:60px;resize:vertical">${v(stripHtml(p.signal))}</textarea>` +
-      `<div id="signal-link-wrap" style="font-size:var(--fs-xs)">${(() => { const _u = p.signal_url || _extractSigUrl(p.signal); return _u ? `<a href="${_esc(_u)}" target="_blank" rel="noopener noreferrer" style="color:var(--ink);text-decoration:underline;font-weight:600;">${(typeof currentLang!=='undefined'&&currentLang==='fr')?'Voir le post →':'View post →'}</a>` : ''; })()}</div>` +
+      `<div id="signal-link-wrap" style="font-size:var(--fs-xs)">${(() => { const _u = p.signal_url || _extractSigUrl(p.signal); return _u ? `<a href="${_esc(_u)}" target="_blank" rel="noopener noreferrer" style="color:var(--ink);text-decoration:underline;font-weight:600;">${_signalSourceLabel(_u, (typeof currentLang!=='undefined'?currentLang:'en'), true)} →</a>` : ''; })()}</div>` +
       // F03 : signal sans signal_date -> "date not specified" explicite, jamais de repli sur
       // created_at/updated_at. Rien si aucun signal du tout (comportement inchange).
       ((p.signal || p.signal_date) ? `<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:2px">Signal: ${_esc(p.signal_date && _relDate(p.signal_date) ? _relDate(p.signal_date) : 'date not specified')}</div>` : '') +
