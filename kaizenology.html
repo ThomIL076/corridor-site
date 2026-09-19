@@ -12181,12 +12181,58 @@ async function _loadSignalTaxonomy() {
 // Dernier Morning Scan reellement envoye (morning_scan_email_cache, 2026-09-18) : simple lecture,
 // scopee au client courant via RLS (client_id = CLIENT_ID). Rien affiche en erreur brute -- etat
 // vide/echec traites tous les deux comme un message neutre, jamais un plantage visible.
+// Fix 2026-09-19 (cartes structurees, demande Thomas) : mappe confidence (valeur exacte deja
+// ecrite par le prompt n8n -- confirmed/probable/speculative pour Kaizenology) vers un badge
+// colore, en reutilisant les seules variables de couleur deja communes aux 3 dashboards
+// (--green*/--amber*/--chip-bg, confirmees presentes dans les 3 fichiers avant d'ecrire ce code).
+function _mscConfidenceBadge(confidence) {
+  const map = {
+    confirme: { bg: 'var(--green-bg)', border: 'var(--green-border)', color: 'var(--green)', fr: 'Confirmé', en: 'Confirmed' },
+    confirmed: { bg: 'var(--green-bg)', border: 'var(--green-border)', color: 'var(--green)', fr: 'Confirmé', en: 'Confirmed' },
+    probable: { bg: 'var(--amber-bg)', border: 'var(--amber-border)', color: 'var(--amber)', fr: 'Probable', en: 'Probable' },
+    speculatif: { bg: 'var(--chip-bg)', border: 'var(--border)', color: 'var(--dim)', fr: 'Spéculatif', en: 'Speculative' },
+    speculative: { bg: 'var(--chip-bg)', border: 'var(--border)', color: 'var(--dim)', fr: 'Spéculatif', en: 'Speculative' },
+  };
+  const c = map[(confidence || '').toLowerCase()] || map.speculatif;
+  const label = currentLang === 'fr' ? c.fr : c.en;
+  return `<span style="display:inline-block;font-size:10px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;padding:2px 8px;border-radius:999px;background:${c.bg};border:1px solid ${c.border};color:${c.color};white-space:nowrap;">${label}</span>`;
+}
+function _mscInitials(name) {
+  const parts = (name || '').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return '?';
+  return (parts[0][0] + (parts[1] ? parts[1][0] : '')).toUpperCase();
+}
+// Une carte par entree de decisions_json. Kaizenology n'a pas source_url/headcount (schema
+// id/mandate/category/name/company/title/linkedin/confidence/summary) -- tolere absent, jamais
+// suppose present.
+function _mscDecisionCardHTML(d) {
+  const name = _esc(d.name || (currentLang === 'fr' ? 'Personne inconnue' : 'Unknown person'));
+  const company = d.company ? _esc(d.company) : '';
+  const links = [];
+  if (d.linkedin) links.push(`<a href="${_esc(d.linkedin)}" target="_blank" rel="noopener" style="color:var(--fill-accent);text-decoration:none;font-weight:600;">LinkedIn</a>`);
+  if (d.source_url) links.push(`<a href="${_esc(d.source_url)}" target="_blank" rel="noopener" style="color:var(--fill-accent);text-decoration:none;font-weight:600;">${currentLang === 'fr' ? 'Source' : 'Source'}</a>`);
+  const linksHtml = links.length ? `<div style="margin-top:6px;display:flex;gap:12px;font-size:var(--fs-xs);">${links.join('')}</div>` : '';
+  const summary = d.summary ? `<div style="margin-top:4px;font-size:var(--fs-sm);color:var(--dim);line-height:1.4;">${_esc(d.summary)}</div>` : '';
+  return `
+    <div style="display:flex;gap:10px;padding:10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:#fff;">
+      <div style="flex-shrink:0;width:32px;height:32px;border-radius:50%;background:var(--chip-bg);color:var(--navy);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;">${_mscInitials(d.name)}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span style="font-weight:700;font-size:var(--fs-sm);color:var(--navy);">${name}</span>
+          ${company ? `<span style="font-size:var(--fs-xs);color:var(--dim);">${company}</span>` : ''}
+          ${_mscConfidenceBadge(d.confidence)}
+        </div>
+        ${summary}
+        ${linksHtml}
+      </div>
+    </div>`;
+}
 async function _loadLastMorningScanEmail() {
   const el = document.getElementById('last-morning-scan-body');
   if (!el) return;
   try {
     const { data, error } = await sbClient.from('morning_scan_email_cache')
-      .select('subject, email_html, scan_date, generated_at')
+      .select('subject, email_html, scan_date, generated_at, decisions_json')
       .eq('client_id', CLIENT_ID)
       .order('scan_date', { ascending: false })
       .limit(1)
@@ -12197,23 +12243,32 @@ async function _loadLastMorningScanEmail() {
       return;
     }
     const dateLabel = (typeof _relDate === 'function' && _relDate(data.scan_date)) || data.scan_date;
+    // Fix 2026-09-19 (cartes structurees, demande Thomas -- remplace l'apercu email brut par
+    // des cartes, l'email complet reste accessible en dessous, jamais supprime) : decisions_json
+    // absent ou vide (anciennes lignes avant ce chantier, ou un jour sans Actions/Connexions) ->
+    // comportement inchange (apercu iframe replie 140px + bouton). Present et non-vide -> cartes
+    // + bouton qui deplie la MEME iframe, partant cette fois de 0 (jamais visible par defaut).
     // Email pense pour un client mail (styles inline, largeur fixe ~680px, header propre) --
     // jamais injecte tel quel dans le DOM du dashboard : ce gabarit embarque un <style> avec des
     // selecteurs globaux (h1/h2/p/table/th/td) qui polluerait toute la page. Isole dans un iframe
     // sandboxe (aucun script, contenu 100% statique) -- .srcdoc assigne en propriete DOM, jamais
     // de concatenation de chaine HTML : le texte reste strictement celui de l'email, aucun risque
     // de casse sur un contenu genere par IA.
-    // Fix 2026-09-18 (replie par defaut) : la hauteur fixe 420px poussait tout le panneau
-    // Signals trop bas. Aperçu compact (140px, overflow:hidden) avec fondu -- couleur de fin
-    // var(--bg), le vrai fond de .ai-box ici (pas #fff en dur, qui ne correspondrait pas) --
-    // et bouton pour deplier/replier. Seul le conteneur change de hauteur, jamais l'iframe.
+    const decisions = Array.isArray(data.decisions_json) ? data.decisions_json : [];
+    const cardsHtml = decisions.length ? decisions.map(_mscDecisionCardHTML).join('') : '';
+    const collapsedHeight = cardsHtml ? '0' : '140px';
+    const fullScanLabel = currentLang === 'fr' ? 'Voir le scan complet' : 'Show full scan';
+    const fullEmailLabel = currentLang === 'fr' ? 'Voir l’email complet' : 'Show full email';
+    const toggleLabel = cardsHtml ? fullScanLabel : fullEmailLabel;
     el.innerHTML = `
       <div style="font-size:var(--fs-xs);color:var(--dim);margin-bottom:6px;">${_esc(data.subject || '')} · ${_esc(dateLabel)}</div>
-      <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);opacity:.6;margin-bottom:6px;">${currentLang === 'fr' ? 'Aperçu de l’email envoyé' : 'Email preview'}</div>
-      <div id="last-morning-scan-frame-wrap" style="max-height:140px;overflow:hidden;position:relative;transition:max-height .25s ease;border:1px solid var(--border);border-radius:var(--radius-sm);">
-        <div id="last-morning-scan-fade" style="position:absolute;bottom:0;left:0;right:0;height:40px;background:linear-gradient(transparent, var(--bg));pointer-events:none;"></div>
+      ${cardsHtml
+        ? `<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px;">${cardsHtml}</div>`
+        : `<div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);opacity:.6;margin-bottom:6px;">${currentLang === 'fr' ? 'Aperçu de l’email envoyé' : 'Email preview'}</div>`}
+      <div id="last-morning-scan-frame-wrap" style="max-height:${collapsedHeight};overflow:hidden;position:relative;transition:max-height .25s ease;border:1px solid var(--border);border-radius:var(--radius-sm);">
+        <div id="last-morning-scan-fade" style="position:absolute;bottom:0;left:0;right:0;height:40px;background:linear-gradient(transparent, var(--bg));pointer-events:none;${cardsHtml ? 'display:none;' : ''}"></div>
       </div>
-      <button id="last-morning-scan-toggle" style="margin-top:6px;background:none;border:none;color:var(--navy);text-decoration:underline;font-weight:600;font-size:var(--fs-xs);cursor:pointer;padding:0;">${currentLang === 'fr' ? 'Voir l’email complet' : 'Show full email'}</button>
+      <button id="last-morning-scan-toggle" style="margin-top:6px;background:none;border:none;color:var(--navy);text-decoration:underline;font-weight:600;font-size:var(--fs-xs);cursor:pointer;padding:0;">${toggleLabel}</button>
     `;
     const wrap = document.getElementById('last-morning-scan-frame-wrap');
     const fade = document.getElementById('last-morning-scan-fade');
@@ -12226,11 +12281,11 @@ async function _loadLastMorningScanEmail() {
     let expanded = false;
     toggleBtn.addEventListener('click', () => {
       expanded = !expanded;
-      wrap.style.maxHeight = expanded ? '420px' : '140px';
-      fade.style.display = expanded ? 'none' : 'block';
+      wrap.style.maxHeight = expanded ? '420px' : collapsedHeight;
+      fade.style.display = (expanded || cardsHtml) ? 'none' : 'block';
       toggleBtn.textContent = expanded
         ? (currentLang === 'fr' ? 'Réduire' : 'Collapse')
-        : (currentLang === 'fr' ? 'Voir l’email complet' : 'Show full email');
+        : toggleLabel;
     });
   } catch(e) {
     console.error('[_loadLastMorningScanEmail]', e);
