@@ -4191,6 +4191,57 @@ function _mscNarrativeBlockHTML(heading, paragraphs) {
   const body = paragraphs.map(p => `<div style="margin-bottom:4px;">${_esc(p)}</div>`).join('');
   return `${_mscSectionLabel(heading)}<div style="font-size:var(--fs-sm);color:var(--text-secondary);line-height:1.5;margin-bottom:4px;">${body}</div>`;
 }
+// Fix 2026-09-20 (chantier market_mention, demande Thomas, Corridor uniquement pour cette
+// premiere passe) : Stream 2 et suivants (titre dynamique, nombre variable par jour) et
+// STAKEHOLDERS sont les deux seules sections narratives eligibles a un remplacement par liste
+// compacte -- jamais "Ce qui a change depuis hier" ni "Ce que Corridor a pris en charge", qui
+// sont du statut operationnel, pas de l'analyse de signal marche sur des personnes nommees
+// (confirme avec Thomas avant d'ecrire ce code).
+function _mscIsMarketMentionSection(heading) {
+  const norm = _mscNorm(heading);
+  if (norm === _mscNorm('STAKEHOLDERS')) return true;
+  return /^stream\s*\d+/.test(norm);
+}
+// decisions_json n'a pas de champ "section d'origine" (le schema DECISIONS reste le meme pour
+// les 3 categories) -- l'attribution d'une entree market_mention a une section precise se fait
+// donc par correspondance textuelle : son nom doit apparaitre litteralement dans le texte deja
+// extrait de CETTE section. renderedKeys (partage entre tous les appels de la boucle) evite
+// qu'une meme personne citee dans plusieurs sections (ex. Stream 2 ET STAKEHOLDERS) ne soit
+// affichee deux fois sur le dashboard.
+function _mscMentionsForSection(paragraphs, marketMentions, renderedKeys) {
+  if (!marketMentions || !marketMentions.length) return [];
+  const haystack = paragraphs.join(' • ').toLowerCase();
+  const matched = [];
+  for (const d of marketMentions) {
+    if (!d || !d.name) continue;
+    const key = `${(d.name||'').toLowerCase().trim()}|${(d.company||'').toLowerCase().trim()}`;
+    if (renderedKeys.has(key)) continue;
+    if (!haystack.includes(d.name.toLowerCase())) continue;
+    renderedKeys.add(key);
+    matched.push(d);
+  }
+  return matched;
+}
+// Liste compacte (une a deux lignes par personne), volontairement plus legere que
+// _mscDecisionCardHTML -- un Stream peut citer bien plus de monde qu'Actions du jour/Connexions
+// opportunistes (9 personnes vues le 19/09 sur un seul Stream), la carte pleine serait trop
+// volumineuse ici. Champs demandes par Thomas uniquement : nom + societe en lien (LinkedIn/
+// source si disponibles), resume court, source si presente -- pas de badge de confiance, pas
+// de puce ICP, jamais cliquable vers la fiche (pas demande, ces mentions n'ont pas de fiche
+// prospect associee dans l'immense majorite des cas).
+function _mscMarketMentionLineHTML(d) {
+  const nameHtml = d.linkedin
+    ? `<a href="${_esc(d.linkedin)}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;font-weight:700;">${_esc(d.name || '')}</a>`
+    : `<span style="font-weight:700;color:var(--ink);">${_esc(d.name || '')}</span>`;
+  const company = d.company ? ` <span style="color:var(--text-secondary);">— ${_esc(d.company)}</span>` : '';
+  const source = d.source_url ? ` <a href="${_esc(d.source_url)}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;font-size:var(--fs-xs);">Source</a>` : '';
+  const summary = d.summary ? `<div style="color:var(--text-secondary);margin-top:1px;">${_esc(d.summary)}</div>` : '';
+  return `<div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:var(--fs-sm);">${nameHtml}${company}${source}${summary}</div>`;
+}
+function _mscMarketMentionListHTML(heading, entries) {
+  if (!entries.length) return '';
+  return `${_mscSectionLabel(heading)}<div style="display:flex;flex-direction:column;margin-bottom:4px;">${entries.map(_mscMarketMentionLineHTML).join('')}</div>`;
+}
 // Une carte par entree de decisions_json, enrichie en live (icp_score/signal/signal_interpretation/
 // next_action_cache, id present uniquement) quand la fiche prospect a pu etre chargee. Champs
 // optionnels absents (source_url/headcount hors Corridor, ou aucune fiche live trouvee) tolerees
@@ -4306,6 +4357,10 @@ async function _loadLastMorningScanEmail() {
       }
 
       const consumed = new Set();
+      // Cle name|company deja rendue en liste compacte market_mention -- partagee entre toutes
+      // les sections de la boucle pour qu'une meme personne (ex. citee a la fois dans un Stream
+      // et dans STAKEHOLDERS) ne s'affiche jamais deux fois sur le dashboard.
+      const renderedMarketMentionKeys = new Set();
       for (const s of sections) {
         const cat = _MSC_PRIORITY_HEADINGS[_mscNorm(s.heading)];
         if (cat) {
@@ -4314,6 +4369,12 @@ async function _loadLastMorningScanEmail() {
           if (bucket.length > 0) {
             sectionsHtml += _mscSectionLabel(s.heading)
               + `<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;">${bucket.map(d => _mscDecisionCardHTML(d, d.id ? liveById[d.id] : null)).join('')}</div>`;
+            continue;
+          }
+        } else if (_mscIsMarketMentionSection(s.heading)) {
+          const mentions = _mscMentionsForSection(s.paragraphs, groups.market_mention, renderedMarketMentionKeys);
+          if (mentions.length > 0) {
+            sectionsHtml += _mscMarketMentionListHTML(s.heading, mentions);
             continue;
           }
         }
