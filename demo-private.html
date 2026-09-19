@@ -4139,26 +4139,105 @@ function _mscInitials(name) {
   if (!parts.length) return '?';
   return (parts[0][0] + (parts[1] ? parts[1][0] : '')).toUpperCase();
 }
-// Une carte par entree de decisions_json. Champs optionnels (source_url/headcount n'existent
-// que sur Corridor) sont tolerees absentes -- jamais suppose presents.
-function _mscDecisionCardHTML(d) {
-  const name = _esc(d.name || (currentLang === 'fr' ? 'Personne inconnue' : 'Unknown person'));
-  const company = d.company ? _esc(d.company) : '';
+function _mscNorm(s) {
+  return (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+}
+// Titres reels des sections "priorite" du prompt Corridor (Build Claude Prompt, verifie ce soir) :
+// une entree decisions_json par personne citee dans l'une des deux. Normalisation accents/casse
+// (voir _mscNorm) : le modele reproduit ces titres tres fidelement mais on ne joue pas le rendu
+// sur une egalite de chaine strictement sensible aux accents.
+const _MSC_PRIORITY_HEADINGS = {
+  [_mscNorm('Actions du jour')]: 'today_action',
+  [_mscNorm('Connexions opportunistes')]: 'opportunistic_connection',
+};
+const _MSC_CANONICAL_HEADING = { today_action: 'Actions du jour', opportunistic_connection: 'Connexions opportunistes' };
+// Decoupe le HTML de l'email stocke par ses vrais titres <h2> (jamais un titre invente ou une
+// position fixe -- le nombre de streams marche varie par jour, "Ce que Corridor a pris en charge"
+// peut etre absent, etc.). Parse via DOMParser (document inerte : aucune ressource ne se charge,
+// aucun handler ne s'execute -- contrairement a une affectation innerHTML sur le document reel) :
+// seul le texte (.textContent) de chaque section est garde, jamais son HTML brut, pour qu'aucun
+// contenu genere par un modele nourri de signaux marche externes ne puisse jamais atteindre le DOM
+// vivant de la page. h1 ignore (toujours le seul titre du mail, jamais une vraie section, verifie
+// dans Formater Email HTML — Corridor ce soir).
+function _mscParseEmailSections(html) {
+  let doc;
+  try { doc = new DOMParser().parseFromString(html || '', 'text/html'); } catch (e) { return []; }
+  const nodes = Array.from(doc.body.querySelectorAll('h1, h2, p, li, table'));
+  const sections = [];
+  let current = null;
+  for (const el of nodes) {
+    const tag = el.tagName.toLowerCase();
+    if (tag === 'h1') { current = null; continue; }
+    if (tag === 'h2') { current = { heading: (el.textContent || '').trim(), paragraphs: [] }; sections.push(current); continue; }
+    if (!current) continue;
+    const text = (el.textContent || '').replace(/\s+/g, ' ').trim();
+    if (text) current.paragraphs.push(text);
+  }
+  return sections;
+}
+function _mscGroupDecisions(decisions) {
+  const groups = {};
+  for (const d of decisions) {
+    const cat = d.category || 'all';
+    (groups[cat] = groups[cat] || []).push(d);
+  }
+  return groups;
+}
+function _mscSectionLabel(heading) {
+  return `<div style="font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-secondary);opacity:.65;margin:14px 0 4px;">${_esc(heading)}</div>`;
+}
+function _mscNarrativeBlockHTML(heading, paragraphs) {
+  if (!paragraphs.length) return '';
+  const body = paragraphs.map(p => `<div style="margin-bottom:4px;">${_esc(p)}</div>`).join('');
+  return `${_mscSectionLabel(heading)}<div style="font-size:var(--fs-sm);color:var(--text-secondary);line-height:1.5;margin-bottom:4px;">${body}</div>`;
+}
+// Une carte par entree de decisions_json, enrichie en live (icp_score/signal/signal_interpretation/
+// next_action_cache, id present uniquement) quand la fiche prospect a pu etre chargee. Champs
+// optionnels absents (source_url/headcount hors Corridor, ou aucune fiche live trouvee) tolerees
+// absentes -- jamais suppose presents. Cliquable vers la fiche (meme route que Priorities,
+// _openDrawerFromPriority) uniquement quand id est present -- id null = personne pas encore en
+// base, carte volontairement non cliquable, champs decisions_json seuls.
+function _mscDecisionCardHTML(d, live) {
+  const name = _esc((live && live.name) || d.name || (currentLang === 'fr' ? 'Personne inconnue' : 'Unknown person'));
+  const company = (live && live.company) || d.company || '';
+  const icpScore = live && live.icp_score != null ? live.icp_score : null;
+  const signal = live && live.signal ? String(live.signal).replace(/<[^>]*>/g, '').trim() : '';
+  const signalInterp = live && live.signal_interpretation ? String(live.signal_interpretation).replace(/<[^>]*>/g, '').trim() : '';
+  const nextActionHtml = live && live.next_action_cache ? _renderNextActionHTML(live.next_action_cache, 'var(--text-secondary)') : null;
+
   const links = [];
   if (d.linkedin) links.push(`<a href="${_esc(d.linkedin)}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;font-weight:600;">LinkedIn</a>`);
-  if (d.source_url) links.push(`<a href="${_esc(d.source_url)}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;font-weight:600;">${currentLang === 'fr' ? 'Source' : 'Source'}</a>`);
+  if (d.source_url) links.push(`<a href="${_esc(d.source_url)}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;font-weight:600;">Source</a>`);
   const linksHtml = links.length ? `<div style="margin-top:6px;display:flex;gap:12px;font-size:var(--fs-xs);">${links.join('')}</div>` : '';
+
   const summary = d.summary ? `<div style="margin-top:4px;font-size:var(--fs-sm);color:var(--text-secondary);line-height:1.4;">${_esc(d.summary)}</div>` : '';
+  const icpChip = icpScore != null ? `<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:var(--radius-pill);background:var(--chip-bg);color:var(--indigo);">ICP ${_esc(String(icpScore))}</span>` : '';
+  const signalBlock = (signal || signalInterp)
+    ? `<div style="margin-top:6px;font-size:var(--fs-xs);color:var(--text-secondary);line-height:1.4;">${signal ? `<strong>Signal :</strong> ${_esc(signal)}` : ''}${signal && signalInterp ? '<br>' : ''}${signalInterp ? `<strong>Interprétation :</strong> ${_esc(signalInterp)}` : ''}</div>`
+    : '';
+  const actionLabel = currentLang === 'fr' ? 'Action recommandée' : 'Recommended action';
+  const actionBlock = nextActionHtml
+    ? `<div style="margin-top:6px;"><div style="font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-secondary);opacity:.6;margin-bottom:2px;">${actionLabel}</div>${nextActionHtml}</div>`
+    : '';
+
+  const cardStyleBase = 'display:flex;gap:10px;padding:10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:#fff;';
+  const cardAttrs = d.id
+    ? ` onclick="_openDrawerFromPriority('${d.id}')" style="${cardStyleBase}cursor:pointer;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'"`
+    : ` style="${cardStyleBase}"`;
+
   return `
-    <div style="display:flex;gap:10px;padding:10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:#fff;">
-      <div style="flex-shrink:0;width:32px;height:32px;border-radius:50%;background:var(--chip-bg);color:var(--ink);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;">${_mscInitials(d.name)}</div>
+    <div${cardAttrs}>
+      <div style="flex-shrink:0;width:32px;height:32px;border-radius:50%;background:var(--chip-bg);color:var(--ink);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;">${_mscInitials((live && live.name) || d.name)}</div>
       <div style="flex:1;min-width:0;">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
           <span style="font-weight:700;font-size:var(--fs-sm);color:var(--ink);">${name}</span>
-          ${company ? `<span style="font-size:var(--fs-xs);color:var(--text-secondary);">${company}</span>` : ''}
+          ${company ? `<span style="font-size:var(--fs-xs);color:var(--text-secondary);">${_esc(company)}</span>` : ''}
+          ${icpChip}
           ${_mscConfidenceBadge(d.confidence)}
         </div>
         ${summary}
+        ${signalBlock}
+        ${actionBlock}
         ${linksHtml}
       </div>
     </div>`;
@@ -4179,11 +4258,6 @@ async function _loadLastMorningScanEmail() {
       return;
     }
     const dateLabel = (typeof _relDate === 'function' && _relDate(data.scan_date)) || data.scan_date;
-    // Fix 2026-09-19 (cartes structurees, demande Thomas -- remplace l'apercu email brut par
-    // des cartes, l'email complet reste accessible en dessous, jamais supprime) : decisions_json
-    // absent ou vide (anciennes lignes avant ce chantier, ou un jour sans Actions/Connexions) ->
-    // comportement inchange (apercu iframe replie 140px + bouton). Present et non-vide -> cartes
-    // + bouton qui deplie la MEME iframe, partant cette fois de 0 (jamais visible par defaut).
     // Email pense pour un client mail (styles inline, largeur fixe ~680px, header propre) --
     // jamais injecte tel quel dans le DOM du dashboard : les gabarits Kaizenology/Wominds
     // embarquent un <style> avec des selecteurs globaux (h1/h2/p/table/th/td) qui polluerait
@@ -4191,18 +4265,80 @@ async function _loadLastMorningScanEmail() {
     // .srcdoc assigne en propriete DOM, jamais de concatenation de chaine HTML : le texte reste
     // strictement celui de l'email, aucun risque de casse sur un contenu genere par IA.
     const decisions = Array.isArray(data.decisions_json) ? data.decisions_json : [];
-    const cardsHtml = decisions.length ? decisions.map(_mscDecisionCardHTML).join('') : '';
-    const collapsedHeight = cardsHtml ? '0' : '140px';
     const fullScanLabel = currentLang === 'fr' ? 'Voir le scan complet' : 'Show full scan';
     const fullEmailLabel = currentLang === 'fr' ? 'Voir l’email complet' : 'Show full email';
-    const toggleLabel = cardsHtml ? fullScanLabel : fullEmailLabel;
+
+    let sectionsHtml = '';
+    let collapsedHeight = '140px';
+    let toggleLabel = fullEmailLabel;
+
+    // Fix 2026-09-20 (chantier "panneau natif complet", demande Thomas -- la version du 19/09 ne
+    // redessinait que la section priorite en cartes, gardant tout le reste en apercu iframe brut,
+    // jugee insuffisante). Quand decisions_json est present et non vide, l'email stocke est
+    // desormais integralement decoupe par ses vrais titres <h2> (_mscParseEmailSections) -- les
+    // sections narratives (synthese, contexte marche, coverage status, streams, stakeholders...)
+    // deviennent des blocs de texte simples (meme typographie que l'ancienne "Etat de couverture"),
+    // et les sections priorite (Actions du jour / Connexions opportunistes) sont entierement
+    // remplacees par des cartes decisions_json enrichies en live (une seule requete par lot sur
+    // prospects, jamais une requete par carte). Comportement de repli EXACTEMENT inchange (apercu
+    // iframe seul, 140px, bouton "Voir l'email complet") quand decisions_json est absent ou vide --
+    // anciennes lignes avant ce chantier, ou un jour sans Actions du jour ni Connexions opportunistes.
+    if (decisions.length > 0) {
+      const sections = _mscParseEmailSections(data.email_html);
+      const groups = _mscGroupDecisions(decisions);
+      const ids = [...new Set(decisions.filter(d => d && d.id).map(d => d.id))];
+      let liveById = {};
+      if (ids.length) {
+        try {
+          const { data: liveRows, error: liveErr } = await sbClient.from('prospects')
+            .select('id, name, company, stage, icp_score, signal, signal_interpretation, next_action_cache')
+            .eq('client_id', CLIENT_ID)
+            .in('id', ids);
+          if (liveErr) throw liveErr;
+          for (const row of (liveRows || [])) {
+            liveById[row.id] = row;
+            // Ne comble que les trous -- ne remplace jamais une fiche deja chargee (et donc plus
+            // complete) par le Pipeline. Approuve par Thomas -- resout le risque de sequencement
+            // (_prospectsById pas encore peuple si ce chargement termine avant celui du Pipeline).
+            if (!_prospectsById[row.id]) _prospectsById[row.id] = row;
+          }
+        } catch (e) { console.error('[_loadLastMorningScanEmail] enrichissement live', e); }
+      }
+
+      const consumed = new Set();
+      for (const s of sections) {
+        const cat = _MSC_PRIORITY_HEADINGS[_mscNorm(s.heading)];
+        if (cat) {
+          consumed.add(cat);
+          const bucket = groups[cat] || [];
+          if (bucket.length > 0) {
+            sectionsHtml += _mscSectionLabel(s.heading)
+              + `<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;">${bucket.map(d => _mscDecisionCardHTML(d, d.id ? liveById[d.id] : null)).join('')}</div>`;
+            continue;
+          }
+        }
+        sectionsHtml += _mscNarrativeBlockHTML(s.heading, s.paragraphs);
+      }
+      // Filet de securite : une categorie avec des decisions mais dont le titre n'a pas ete
+      // retrouve tel quel dans le HTML (ne devrait pas arriver) ne perd jamais silencieusement ses
+      // cartes -- rendu en fin de panneau avec son intitule canonique.
+      for (const [cat, bucket] of Object.entries(groups)) {
+        if (!consumed.has(cat) && bucket.length > 0 && _MSC_CANONICAL_HEADING[cat]) {
+          sectionsHtml += _mscSectionLabel(_MSC_CANONICAL_HEADING[cat])
+            + `<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;">${bucket.map(d => _mscDecisionCardHTML(d, d.id ? liveById[d.id] : null)).join('')}</div>`;
+        }
+      }
+      collapsedHeight = '0';
+      toggleLabel = fullScanLabel;
+    }
+
     el.innerHTML = `
-      <div style="font-size:var(--fs-xs);color:var(--text-secondary);margin-bottom:6px;">${_esc(data.subject || '')} · ${_esc(dateLabel)}</div>
-      ${cardsHtml
-        ? `<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px;">${cardsHtml}</div>`
+      <div style="font-size:var(--fs-xs);color:var(--text-secondary);margin-bottom:8px;">${_esc(data.subject || '')} · ${_esc(dateLabel)}</div>
+      ${decisions.length > 0
+        ? sectionsHtml
         : `<div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-secondary);opacity:.6;margin-bottom:6px;">${currentLang === 'fr' ? 'Aperçu de l’email envoyé' : 'Email preview'}</div>`}
       <div id="last-morning-scan-frame-wrap" style="max-height:${collapsedHeight};overflow:hidden;position:relative;transition:max-height .25s ease;border:1px solid var(--border);border-radius:var(--radius-sm);">
-        <div id="last-morning-scan-fade" style="position:absolute;bottom:0;left:0;right:0;height:40px;background:linear-gradient(transparent, var(--bg));pointer-events:none;${cardsHtml ? 'display:none;' : ''}"></div>
+        <div id="last-morning-scan-fade" style="position:absolute;bottom:0;left:0;right:0;height:40px;background:linear-gradient(transparent, var(--bg));pointer-events:none;${decisions.length > 0 ? 'display:none;' : ''}"></div>
       </div>
       <button id="last-morning-scan-toggle" style="margin-top:6px;background:none;border:none;color:var(--ink);text-decoration:underline;font-weight:600;font-size:var(--fs-xs);cursor:pointer;padding:0;">${toggleLabel}</button>
     `;
@@ -4218,7 +4354,7 @@ async function _loadLastMorningScanEmail() {
     toggleBtn.addEventListener('click', () => {
       expanded = !expanded;
       wrap.style.maxHeight = expanded ? '420px' : collapsedHeight;
-      fade.style.display = (expanded || cardsHtml) ? 'none' : 'block';
+      fade.style.display = (expanded || decisions.length > 0) ? 'none' : 'block';
       toggleBtn.textContent = expanded
         ? (currentLang === 'fr' ? 'Réduire' : 'Collapse')
         : toggleLabel;
