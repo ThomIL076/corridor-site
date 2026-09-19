@@ -5746,11 +5746,9 @@ Populate stakeholder_* fields ONLY when new_stakeholder is true; set to null oth
       const sigText = p.signal_interpretation
         ? p.signal_interpretation.slice(0, 140)
         : p.signal.replace(/<[^>]*>/g,'').trim().slice(0,90) + (p.signal.replace(/<[^>]*>/g,'').trim().length > 90 ? '…' : '');
-      const icpBadge =
-        '<span style="position:relative;display:inline-block;" onmouseover="this.querySelector(\'.icp-tt\').style.display=\'block\'" onmouseout="this.querySelector(\'.icp-tt\').style.display=\'none\'">' +
-          '<span style="font-size:var(--fs-xs);font-weight:700;background:var(--navy-light);color:var(--navy);border:1px solid var(--blue);border-radius:var(--radius-pill);padding:1px 8px;white-space:nowrap;cursor:default;">ICP ' + p.icp_score + '</span>' +
-          '<span class="icp-tt" style="display:none;position:absolute;bottom:100%;right:0;margin-bottom:6px;background:var(--navy);color:#fff;font-size:var(--fs-xs);font-weight:400;padding:6px 10px;border-radius:var(--radius-sm);white-space:normal;width:220px;line-height:1.4;z-index:20;box-shadow:0 2px 8px rgba(0,0,0,0.15);">' + (p.icp_reason ? 'ICP ' + p.icp_score + '/10 — ' + _esc(p.icp_reason) : 'ICP Score: ' + p.icp_score + '/10 — scored by Corridor pipeline: role seniority, sector fit, company size, signal activity, and mandate alignment') + '</span>' +
-        '</span>';
+      const icpBadge = _icpBadgeWithTooltipHTML(
+        '<span style="font-size:var(--fs-xs);font-weight:700;background:var(--navy-light);color:var(--navy);border:1px solid var(--blue);border-radius:var(--radius-pill);padding:1px 8px;white-space:nowrap;cursor:default;">ICP ' + p.icp_score + '</span>',
+        p.icp_score, p.icp_reason);
       const _reminderBadge = p.isReminder ? '<span style="font-size:var(--fs-xs);font-weight:700;color:#B45309;background:#FEF3C7;border:1px solid #FCD34D;border-radius:var(--radius-pill);padding:1px 7px;white-space:nowrap;">Rappel</span>' : '';
       const _waitingBadge = p.isWaiting ? '<span style="font-size:var(--fs-xs);font-weight:700;color:#6B7280;background:#F3F4F6;border:1px solid #D1D5DB;border-radius:var(--radius-pill);padding:1px 7px;white-space:nowrap;">Waiting for acceptance</span>' : '';
       const cardHtml =
@@ -12215,6 +12213,45 @@ const _MSC_PRIORITY_HEADINGS = {
   [_mscNorm('Opportunistic Connections')]: 'opportunistic_connection',
 };
 const _MSC_CANONICAL_HEADING = { today_action: "Today's Actions", opportunistic_connection: 'Opportunistic Connections' };
+// Fix 2026-09-19 (chantier market_mention, Kaizenology -- meme mecanisme que Corridor/Wominds, demande
+// Thomas). Seule "External market signals" est eligible. Le plafond MARKET INTELLIGENCE HARD CAP (3 items
+// maximum) reste intact : les items (une ligne par signal) gardent leur affichage texte, seules les lignes
+// NOMINATIVES (une personne par ligne, niveau de confiance entre parentheses) deviennent des cartes pleines,
+// les memes que Today's Actions. Le decompte agrege sans nom des personnes ecartees vit dans Coverage
+// status (jamais dans cette section) et reste affiche en texte par la boucle generique.
+function _mscIsMarketMentionSection(heading) {
+  return _mscNorm(heading) === _mscNorm('External market signals');
+}
+function _mscMentionKey(d) {
+  return `${(d.name || '').toLowerCase().trim()}|${(d.company || '').toLowerCase().trim()}`;
+}
+// decisions_json n'a pas de champ "section d'origine" -- attribution par correspondance textuelle
+// (le nom doit figurer litteralement dans le texte de CETTE section). renderedKeys evite qu'une
+// meme personne soit affichee deux fois.
+function _mscMentionsForSection(paragraphs, marketMentions, renderedKeys) {
+  if (!marketMentions || !marketMentions.length) return [];
+  const haystack = paragraphs.join(' • ').toLowerCase();
+  const matched = [];
+  for (const d of marketMentions) {
+    if (!d || !d.name) continue;
+    const key = _mscMentionKey(d);
+    if (renderedKeys.has(key)) continue;
+    if (!haystack.includes(d.name.toLowerCase())) continue;
+    renderedKeys.add(key);
+    matched.push(d);
+  }
+  return matched;
+}
+// Toute ligne qui cite le nom d'une mention rendue en carte est retiree du texte de la section
+// (jamais affichee deux fois) ; les items signal (une ligne par societe/evenement) restent.
+function _mscParagraphsWithoutMentions(paragraphs, mentions) {
+  const names = mentions.map(m => (m.name || '').toLowerCase()).filter(Boolean);
+  return paragraphs.filter(p => { const lc = p.toLowerCase(); return !names.some(n => lc.includes(n)); });
+}
+function _mscMentionCardsHTML(mentions) {
+  return _mscSectionLabel(currentLang === 'fr' ? 'Personnes vues sur le marché' : 'People seen in market signals')
+    + `<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;">${mentions.map(d => _mscDecisionCardHTML(d, null)).join('')}</div>`;
+}
 // Decoupe le HTML de l'email stocke par ses vrais titres <h2> (jamais un titre invente ou une
 // position fixe -- le nombre de sections Mandate varie par jour selon les mandats actifs de
 // Stephane, "What Corridor has taken care of" peut etre absent, etc.). Parse via DOMParser
@@ -12256,7 +12293,23 @@ function _mscNarrativeBlockHTML(heading, paragraphs) {
   const body = paragraphs.map(p => `<div style="margin-bottom:4px;">${_esc(p)}</div>`).join('');
   return `${_mscSectionLabel(heading)}<div style="font-size:var(--fs-sm);color:var(--dim);line-height:1.5;margin-bottom:4px;">${body}</div>`;
 }
-// Une carte par entree de decisions_json, enrichie en live (icp_score/signal/signal_interpretation/
+// Badge ICP avec infobulle au survol -- UNIQUE implementation, partagee par les badges du Pipeline
+// (_topProspectItems) et par les cartes du Morning Scan (_mscDecisionCardHTML) : meme mecanisme
+// (span .icp-tt affiche/masque par onmouseover/onmouseout, pas de title natif), meme source unique
+// (prospects.icp_reason, repli generique si absent). chipHtml = le badge lui-meme, propre a chaque
+// site ; align 'left' ancre l'infobulle sur le bord gauche du badge (badge aligne a gauche dans une
+// ligne de carte), 'right' (defaut) sur son bord droit (badge colle a droite, cas du Pipeline).
+function _icpBadgeWithTooltipHTML(chipHtml, score, reason, align) {
+  const s = _esc(String(score));
+  const tip = reason
+    ? 'ICP ' + s + '/10 — ' + _esc(reason)
+    : 'ICP Score: ' + s + '/10 — scored by Corridor pipeline: role seniority, sector fit, company size, signal activity, and mandate alignment';
+  return '<span style="position:relative;display:inline-block;" onmouseover="this.querySelector(\'.icp-tt\').style.display=\'block\'" onmouseout="this.querySelector(\'.icp-tt\').style.display=\'none\'">' +
+    chipHtml +
+    '<span class="icp-tt" style="display:none;position:absolute;bottom:100%;' + (align === 'left' ? 'left:0' : 'right:0') + ';margin-bottom:6px;background:var(--navy);color:#fff;font-size:var(--fs-xs);font-weight:400;padding:6px 10px;border-radius:var(--radius-sm);white-space:normal;width:220px;line-height:1.4;z-index:20;box-shadow:0 2px 8px rgba(0,0,0,0.15);">' + tip + '</span>' +
+    '</span>';
+}
+// Une carte par entree de decisions_json, enrichie en live (icp_score/icp_reason/signal/signal_interpretation/
 // next_action_cache, id present uniquement) quand la fiche prospect a pu etre chargee. Kaizenology
 // n'a pas source_url/headcount dans son schema DECISIONS -- tolere absent, jamais suppose present.
 // Cliquable vers la fiche (meme route que Priorities, _openDrawerFromPriority) uniquement quand id
@@ -12276,7 +12329,11 @@ function _mscDecisionCardHTML(d, live) {
   const linksHtml = links.length ? `<div style="margin-top:6px;display:flex;gap:12px;font-size:var(--fs-xs);">${links.join('')}</div>` : '';
 
   const summary = d.summary ? `<div style="margin-top:4px;font-size:var(--fs-sm);color:var(--dim);line-height:1.4;">${_esc(d.summary)}</div>` : '';
-  const icpChip = icpScore != null ? `<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:var(--radius-pill);background:var(--chip-bg);color:var(--indigo);">ICP ${_esc(String(icpScore))}</span>` : '';
+  // Infobulle uniquement quand une fiche live existe (icpScore != null n'est possible que dans ce
+  // cas) ; carte sans enrichissement (id null) = ni badge ni infobulle, rien a montrer.
+  const icpChip = icpScore != null
+    ? _icpBadgeWithTooltipHTML(`<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:var(--radius-pill);background:var(--chip-bg);color:var(--indigo);">ICP ${_esc(String(icpScore))}</span>`, icpScore, live.icp_reason, 'left')
+    : '';
   const signalLabel = currentLang === 'fr' ? 'Signal' : 'Signal';
   const interpLabel = currentLang === 'fr' ? 'Interprétation' : 'Interpretation';
   const signalBlock = (signal || signalInterp)
@@ -12359,7 +12416,7 @@ async function _loadLastMorningScanEmail() {
       if (ids.length) {
         try {
           const { data: liveRows, error: liveErr } = await sbClient.from('prospects')
-            .select('id, name, company, stage, icp_score, signal, signal_interpretation, next_action_cache')
+            .select('id, name, company, stage, icp_score, icp_reason, signal, signal_interpretation, next_action_cache')
             .eq('client_id', CLIENT_ID)
             .in('id', ids);
           if (liveErr) throw liveErr;
@@ -12374,6 +12431,9 @@ async function _loadLastMorningScanEmail() {
       }
 
       const consumed = new Set();
+      // Cle name|company deja rendue en carte market_mention -- partagee entre toutes les sections
+      // de la boucle pour qu'une meme personne ne s'affiche jamais deux fois.
+      const renderedMarketMentionKeys = new Set();
       for (const s of sections) {
         const cat = _MSC_PRIORITY_HEADINGS[_mscNorm(s.heading)];
         if (cat) {
@@ -12384,9 +12444,22 @@ async function _loadLastMorningScanEmail() {
               + `<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;">${bucket.map(d => _mscDecisionCardHTML(d, d.id ? liveById[d.id] : null)).join('')}</div>`;
             continue;
           }
+        } else if (_mscIsMarketMentionSection(s.heading)) {
+          const mentions = _mscMentionsForSection(s.paragraphs, groups.market_mention, renderedMarketMentionKeys);
+          if (mentions.length > 0) {
+            // Cartes pleines des la premiere version (demande Thomas). Les items signal de la section
+            // (max 3, plafond inchange) restent affiches en texte ; les cartes suivent.
+            sectionsHtml += (_mscNarrativeBlockHTML(s.heading, _mscParagraphsWithoutMentions(s.paragraphs, mentions)) || _mscSectionLabel(s.heading))
+              + _mscMentionCardsHTML(mentions);
+            continue;
+          }
         }
         sectionsHtml += _mscNarrativeBlockHTML(s.heading, s.paragraphs);
       }
+      // Filet de securite : une mention market_mention dont aucun titre/texte n'a ete retrouve dans
+      // l'email (ne devrait pas arriver) ne disparait jamais silencieusement -- rendue en fin de panneau.
+      const leftoverMentions = (groups.market_mention || []).filter(d => d && d.name && !renderedMarketMentionKeys.has(_mscMentionKey(d)));
+      if (leftoverMentions.length > 0) sectionsHtml += _mscMentionCardsHTML(leftoverMentions);
       // Filet de securite : une categorie avec des decisions mais dont le titre n'a pas ete
       // retrouve tel quel dans le HTML (ne devrait pas arriver) ne perd jamais silencieusement ses
       // cartes -- rendu en fin de panneau avec son intitule canonique.

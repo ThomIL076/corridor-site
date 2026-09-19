@@ -4222,7 +4222,23 @@ function _mscMentionsForSection(paragraphs, marketMentions, renderedKeys) {
   }
   return matched;
 }
-// Une carte par entree de decisions_json, enrichie en live (icp_score/signal/signal_interpretation/
+// Badge ICP avec infobulle au survol -- UNIQUE implementation, partagee par les badges du Pipeline
+// (_topProspectItems) et par les cartes du Morning Scan (_mscDecisionCardHTML) : meme mecanisme
+// (span .icp-tt affiche/masque par onmouseover/onmouseout, pas de title natif), meme source unique
+// (prospects.icp_reason, repli generique si absent). chipHtml = le badge lui-meme, propre a chaque
+// site ; align 'left' ancre l'infobulle sur le bord gauche du badge (badge aligne a gauche dans une
+// ligne de carte), 'right' (defaut) sur son bord droit (badge colle a droite, cas du Pipeline).
+function _icpBadgeWithTooltipHTML(chipHtml, score, reason, align) {
+  const s = _esc(String(score));
+  const tip = reason
+    ? 'ICP ' + s + '/10 — ' + _esc(reason)
+    : 'ICP Score: ' + s + '/10 — scored by Corridor pipeline: role seniority, sector fit, company size, signal activity, and mandate alignment';
+  return '<span style="position:relative;display:inline-block;" onmouseover="this.querySelector(\'.icp-tt\').style.display=\'block\'" onmouseout="this.querySelector(\'.icp-tt\').style.display=\'none\'">' +
+    chipHtml +
+    '<span class="icp-tt" style="display:none;position:absolute;bottom:100%;' + (align === 'left' ? 'left:0' : 'right:0') + ';margin-bottom:6px;background:var(--ink);color:#fff;font-size:var(--fs-xs);font-weight:400;padding:6px 10px;border-radius:var(--radius-sm);white-space:normal;width:220px;line-height:1.4;z-index:20;box-shadow:0 2px 8px rgba(0,0,0,0.15);">' + tip + '</span>' +
+    '</span>';
+}
+// Une carte par entree de decisions_json, enrichie en live (icp_score/icp_reason/signal/signal_interpretation/
 // next_action_cache, id present uniquement) quand la fiche prospect a pu etre chargee. Champs
 // optionnels absents (source_url/headcount hors Corridor, ou aucune fiche live trouvee) tolerees
 // absentes -- jamais suppose presents. Cliquable vers la fiche (meme route que Priorities,
@@ -4242,7 +4258,11 @@ function _mscDecisionCardHTML(d, live) {
   const linksHtml = links.length ? `<div style="margin-top:6px;display:flex;gap:12px;font-size:var(--fs-xs);">${links.join('')}</div>` : '';
 
   const summary = d.summary ? `<div style="margin-top:4px;font-size:var(--fs-sm);color:var(--text-secondary);line-height:1.4;">${_esc(d.summary)}</div>` : '';
-  const icpChip = icpScore != null ? `<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:var(--radius-pill);background:var(--chip-bg);color:var(--indigo);">ICP ${_esc(String(icpScore))}</span>` : '';
+  // Infobulle uniquement quand une fiche live existe (icpScore != null n'est possible que dans ce
+  // cas) ; carte sans enrichissement (id null) = ni badge ni infobulle, rien a montrer.
+  const icpChip = icpScore != null
+    ? _icpBadgeWithTooltipHTML(`<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:var(--radius-pill);background:var(--chip-bg);color:var(--indigo);">ICP ${_esc(String(icpScore))}</span>`, icpScore, live.icp_reason, 'left')
+    : '';
   const signalBlock = (signal || signalInterp)
     ? `<div style="margin-top:6px;font-size:var(--fs-xs);color:var(--text-secondary);line-height:1.4;">${signal ? `<strong>Signal :</strong> ${_esc(signal)}` : ''}${signal && signalInterp ? '<br>' : ''}${signalInterp ? `<strong>Interprétation :</strong> ${_esc(signalInterp)}` : ''}</div>`
     : '';
@@ -4322,7 +4342,7 @@ async function _loadLastMorningScanEmail() {
       if (ids.length) {
         try {
           const { data: liveRows, error: liveErr } = await sbClient.from('prospects')
-            .select('id, name, company, stage, icp_score, signal, signal_interpretation, next_action_cache')
+            .select('id, name, company, stage, icp_score, icp_reason, signal, signal_interpretation, next_action_cache')
             .eq('client_id', CLIENT_ID)
             .in('id', ids);
           if (liveErr) throw liveErr;
@@ -6939,11 +6959,9 @@ Populate stakeholder_* fields ONLY when new_stakeholder is true; set to null oth
       const sigText = p.signal_interpretation
         ? p.signal_interpretation.slice(0, 140)
         : p.signal.replace(/<[^>]*>/g,'').trim().slice(0,90) + (p.signal.replace(/<[^>]*>/g,'').trim().length > 90 ? '…' : '');
-      const icpBadge =
-        '<span style="position:relative;display:inline-block;" onmouseover="this.querySelector(\'.icp-tt\').style.display=\'block\'" onmouseout="this.querySelector(\'.icp-tt\').style.display=\'none\'">' +
-          '<span style="font-size:var(--fs-xs);font-weight:700;background:var(--accent-bg);color:var(--ink);border:1px solid var(--accent-border);border-radius:var(--radius-pill);padding:1px 8px;white-space:nowrap;cursor:default;">ICP ' + p.icp_score + '</span>' +
-          '<span class="icp-tt" style="display:none;position:absolute;bottom:100%;right:0;margin-bottom:6px;background:var(--ink);color:#fff;font-size:var(--fs-xs);font-weight:400;padding:6px 10px;border-radius:var(--radius-sm);white-space:normal;width:220px;line-height:1.4;z-index:20;box-shadow:0 2px 8px rgba(0,0,0,0.15);">' + (p.icp_reason ? 'ICP ' + p.icp_score + '/10 — ' + _esc(p.icp_reason) : 'ICP Score: ' + p.icp_score + '/10 — scored by Corridor pipeline: role seniority, sector fit, company size, signal activity, and mandate alignment') + '</span>' +
-        '</span>';
+      const icpBadge = _icpBadgeWithTooltipHTML(
+        '<span style="font-size:var(--fs-xs);font-weight:700;background:var(--accent-bg);color:var(--ink);border:1px solid var(--accent-border);border-radius:var(--radius-pill);padding:1px 8px;white-space:nowrap;cursor:default;">ICP ' + p.icp_score + '</span>',
+        p.icp_score, p.icp_reason);
       const _reminderBadge = p.isReminder ? '<span style="font-size:var(--fs-xs);font-weight:700;color:#B45309;background:#FEF3C7;border:1px solid #FCD34D;border-radius:var(--radius-pill);padding:1px 7px;white-space:nowrap;">Rappel</span>' : '';
       const cardHtml =
         '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">' +
