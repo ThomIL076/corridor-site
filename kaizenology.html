@@ -9283,17 +9283,24 @@ async function loadDailyPriorities() {
       _priorityShownProspects = (decisionProspects || [])
         .map(p => { p._morningScanCategory = _decisionByProspect[p.id] || null; return p; })
         .sort((a, b) => (_catRank[a._morningScanCategory] ?? 2) - (_catRank[b._morningScanCategory] ?? 2));
-      _priorityShownProspects.forEach(p => { if (!_prospectsById[p.id]) _prospectsById[p.id] = p; });
+      // Repli 2026-09-20 (meme defaut que demo-private.html, verifie ici separement : incident reel Corridor, decisions
+      // du scan du matin re-scorees sous le seuil puis auto-archivees -> prospects_scan_window, qui exclut les archives,
+      // ne renvoyait plus rien -> "Today" vide alors que le calcul arithmetique ci-dessous avait de vrais candidats).
+      // Liste de decisions resolue VIDE = on retombe sur le calcul arithmetique habituel. Liste partielle : affichee telle quelle.
+      if (_priorityShownProspects.length > 0) {
+        _priorityShownProspects.forEach(p => { if (!_prospectsById[p.id]) _prospectsById[p.id] = p; });
 
-      const _pqcEl = document.getElementById('priorities-queued-count');
-      if (_pqcEl) _pqcEl.textContent = _priorityShownProspects.length;
+        const _pqcEl = document.getElementById('priorities-queued-count');
+        if (_pqcEl) _pqcEl.textContent = _priorityShownProspects.length;
 
-      _renderPriorityCards(_priorityShownProspects);
-      // Rien a parcourir par lots sur une liste de decisions du scan -- pas de priority_batch_number
-      // a avancer ici, donc pas de _updatePrioritiesNextBtn() (sa logique allActionable est concue
-      // pour le calcul arithmetique). Pas de bouton Skip a traiter : n'existe pas dans ce fichier.
-      if (_nextBtn) { _nextBtn.disabled = true; _nextBtn.style.opacity = '0.4'; _nextBtn.style.display = 'none'; }
-      return;
+        _renderPriorityCards(_priorityShownProspects);
+        // Rien a parcourir par lots sur une liste de decisions du scan -- pas de priority_batch_number
+        // a avancer ici, donc pas de _updatePrioritiesNextBtn() (sa logique allActionable est concue
+        // pour le calcul arithmetique). Pas de bouton Skip a traiter : n'existe pas dans ce fichier.
+        if (_nextBtn) { _nextBtn.disabled = true; _nextBtn.style.opacity = '0.4'; _nextBtn.style.display = 'none'; }
+        return;
+      }
+      console.warn('[loadDailyPriorities] ' + decisionRows.length + ' decision(s) Morning Scan du jour, aucune fiche exploitable (archivees/introuvables) -- repli sur le calcul arithmetique.');
     }
 
     if (_nextBtn) _nextBtn.style.display = '';

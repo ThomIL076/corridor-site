@@ -10244,17 +10244,26 @@ async function loadDailyPriorities() {
       _priorityShownProspects = (decisionProspects || [])
         .map(p => { p._morningScanCategory = _decisionByProspect[p.id] || null; return p; })
         .sort((a, b) => (_catRank[a._morningScanCategory] ?? 2) - (_catRank[b._morningScanCategory] ?? 2));
-      _priorityShownProspects.forEach(p => { if (!_prospectsById[p.id]) _prospectsById[p.id] = p; });
+      // Repli 2026-09-20 (incident reel : les 4 decisions du scan du matin, re-scorees a ICP 5 par ICP Score
+      // Batch juste apres, ont ete auto-archivees -> prospects_scan_window (qui exclut les archives) ne
+      // renvoyait plus rien -> "Today" vide alors que le calcul arithmetique ci-dessous avait de vrais
+      // candidats). Meme cas possible des qu'une recommandation du matin est invalidee avant l'ouverture
+      // du dashboard (archive, introuvable). Liste de decisions resolue VIDE = on ne s'y arrete pas, on
+      // retombe sur le calcul arithmetique habituel. Une liste partiellement resolue reste affichee telle quelle.
+      if (_priorityShownProspects.length > 0) {
+        _priorityShownProspects.forEach(p => { if (!_prospectsById[p.id]) _prospectsById[p.id] = p; });
 
-      _updateQueuedCount();
+        _updateQueuedCount();
 
-      _renderPriorityCards(_priorityShownProspects);
-      // Rien a parcourir par lots sur une liste de decisions du scan -- pas de priority_batch_number
-      // a avancer ici, donc ni _updatePrioritiesNextBtn() (allActionable concu pour le calcul
-      // arithmetique) ni _prioritiesSkip() n'ont de sens : les deux boutons sont masques.
-      if (_nextBtn) { _nextBtn.disabled = true; _nextBtn.style.opacity = '0.4'; _nextBtn.style.display = 'none'; }
-      if (_skipBtn) { _skipBtn.disabled = true; _skipBtn.style.opacity = '0.4'; _skipBtn.style.display = 'none'; }
-      return;
+        _renderPriorityCards(_priorityShownProspects);
+        // Rien a parcourir par lots sur une liste de decisions du scan -- pas de priority_batch_number
+        // a avancer ici, donc ni _updatePrioritiesNextBtn() (allActionable concu pour le calcul
+        // arithmetique) ni _prioritiesSkip() n'ont de sens : les deux boutons sont masques.
+        if (_nextBtn) { _nextBtn.disabled = true; _nextBtn.style.opacity = '0.4'; _nextBtn.style.display = 'none'; }
+        if (_skipBtn) { _skipBtn.disabled = true; _skipBtn.style.opacity = '0.4'; _skipBtn.style.display = 'none'; }
+        return;
+      }
+      console.warn('[loadDailyPriorities] ' + decisionRows.length + ' decision(s) Morning Scan du jour, aucune fiche exploitable (archivees/introuvables) -- repli sur le calcul arithmetique.');
     }
 
     if (_nextBtn) _nextBtn.style.display = '';
