@@ -20,7 +20,7 @@ async function resolveClientId(req) {
   return data.client_id;
 }
 
-const FIELDS = 'id,name,company,sector,country,stage,last_contact,reminder_date,deal_value,deal_currency,linkedin_tag,created_at,score_signal_strength,signal';
+const FIELDS = 'id,name,company,sector,country,stage,last_contact,reminder_date,deal_value,deal_currency,linkedin_tag,created_at,score_signal_strength,signal_type,signal';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');

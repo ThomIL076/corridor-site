@@ -6316,6 +6316,43 @@ async function _buildAskSystemPrompt(ctx, pipelineSnapshot, pipelineInsightsBloc
   return { prompt };
 }
 
+// ── Force de signal EFFECTIVE (Y, 20/09) : preferences apprises appliquees aux classements du dashboard ─────────
+// Miroir NAVIGATEUR de la vue SQL prospects_effective (reservee a service_role, donc illisible ici ; les workflows n8n
+// la lisent directement). Meme regle, plafond 0 : effective = 0 si prospect.signal_type figure dans
+// learned_preferences.deprioritized_types (client, mandate_id NULL, agent 'signal_interpretation', ligne la plus
+// recente), sinon la force stockee (null reste null). UNE fonction pour tous les points de classement ci-dessous ;
+// toute evolution de la regle se fait d'abord dans la vue, puis ici (test de parite : force stockee vs vue).
+// Lecture impossible = repli sur la force stockee (ancien comportement), jamais un blocage de l'ecran.
+let _deprioTypes = null;      // Set des types deprioritises, null = pas charge
+let _deprioClientId = null;   // client pour lequel le Set a ete charge (CLIENT_ID est resolu dynamiquement)
+let _deprioPromise = null;
+function _loadDeprioritizedTypes() {
+  if (_deprioPromise && _deprioClientId === CLIENT_ID) return _deprioPromise;
+  const forClient = CLIENT_ID;
+  _deprioClientId = forClient;
+  _deprioPromise = (async () => {
+    try {
+      const { data, error } = await sbClient.from('learned_preferences').select('deprioritized_types')
+        .eq('client_id', forClient).is('mandate_id', null).eq('agent_name', 'signal_interpretation')
+        .order('generated_at', { ascending: false, nullsFirst: false }).limit(1);
+      if (error) throw error;
+      const arr = (data && data[0] && Array.isArray(data[0].deprioritized_types)) ? data[0].deprioritized_types : [];
+      _deprioTypes = new Set(arr);
+    } catch (e) {
+      console.warn('[_loadDeprioritizedTypes]', e);
+      _deprioTypes = null;
+      _deprioPromise = null; // nouvel essai au prochain appel
+    }
+    return _deprioTypes;
+  })();
+  return _deprioPromise;
+}
+// A appeler apres `await _loadDeprioritizedTypes()`. Prospect sans signal_type ou types non charges : force stockee.
+function _effectiveSignalStrength(p) {
+  if (p && p.signal_type && _deprioTypes && _deprioTypes.has(p.signal_type)) return 0;
+  return p ? p.score_signal_strength : null;
+}
+
 async function _buildPipelineSnapshot() {
   try {
     const todayStr = new Date().toISOString().split('T')[0];
@@ -6371,11 +6408,12 @@ async function _buildPipelineSnapshot() {
       .sort((a, b) => (_psDaysSince(b.last_contact) || 0) - (_psDaysSince(a.last_contact) || 0))
       .slice(0, 5)
       .map(p => '  - ' + p.name + ' (' + (p.company || '?') + ') | ' + p.stage + ' | last contact: ' + (_psDaysSince(p.last_contact) === null ? 'never' : _psDaysSince(p.last_contact) + 'd ago'));
+    await _loadDeprioritizedTypes();
     const topSignals = _psAll
-      .filter(p => p.score_signal_strength && ['Identified', '1st Contact'].includes(p.stage))
-      .sort((a, b) => (b.score_signal_strength || 0) - (a.score_signal_strength || 0))
+      .filter(p => _effectiveSignalStrength(p) && ['Identified', '1st Contact'].includes(p.stage))
+      .sort((a, b) => (_effectiveSignalStrength(b) || 0) - (_effectiveSignalStrength(a) || 0))
       .slice(0, 5)
-      .map(p => '  - ' + p.name + ' (' + (p.company || '?') + ') | strength: ' + p.score_signal_strength + ' | ' + (p.signal || '?'));
+      .map(p => '  - ' + p.name + ' (' + (p.company || '?') + ') | strength: ' + _effectiveSignalStrength(p) + ' | ' + (p.signal || '?'));
     const lines = [
       'PIPELINE SNAPSHOT (live data):',
       'Total active prospects: ' + active.length,
@@ -6774,13 +6812,15 @@ async function runMorningScan() {
 
   try {
     await loadKanban(true);
+    await _loadDeprioritizedTypes();
 
     // 1. Score pipeline: ICP fit + timing signal bonus, top 20
     const _eligible = (_allProspects || [])
       .filter(p => !p.archived && p.icp_score != null && !!(p.signal && p.signal.replace(/<[^>]*>/g,'').trim().length > 0))
       .map(p => {
         const icp = Number(p.icp_score) || 0;
-        const signalNorm = (p.score_signal_strength >= 4) ? (p.score_signal_strength - 4) / 6 : 0;
+        const _effSS = _effectiveSignalStrength(p);
+        const signalNorm = (_effSS >= 4) ? (_effSS - 4) / 6 : 0;
         const growthNorm = (p.score_growth != null) ? p.score_growth / 10 : 0;
         const combinedScore = icp + (10 - icp) * (0.7 * signalNorm + 0.3 * growthNorm);
         return { ...p, combinedScore, hasSignal: true };
@@ -10312,10 +10352,11 @@ async function loadDailyPriorities() {
       if (days <= 30) return 0.2;
       return 0.05;
     }
+    await _loadDeprioritizedTypes();
     merged.forEach(p => {
       const _idPenalty = p.identity_confidence === 'low' ? 0.85 : 1.0;
       p._combinedScore = ((p.icp_score || 0) * 0.7
-        + ((p.score_signal_strength || 0) * _priDecay(p.signal_date)) * 0.3) * _idPenalty;
+        + ((_effectiveSignalStrength(p) || 0) * _priDecay(p.signal_date)) * 0.3) * _idPenalty;
     });
     merged.sort((a, b) => b._combinedScore - a._combinedScore);
 
