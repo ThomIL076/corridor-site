@@ -2388,7 +2388,7 @@ body.new-nav { padding-left: 220px; }
   <div class="tab-panel" id="tab-send">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap">
       <span style="font-size:14px;font-weight:700;color:var(--navy)" data-en="Today's send queue" data-fr="File d'envoi du jour">Today's send queue</span>
-      <span class="send-badge-count" id="send-badge"><span id="send-count">7</span></span>
+      <span class="send-badge-count" id="send-badge"><span id="send-count">–</span></span>
       <span style="font-size:var(--fs-sm);color:var(--muted)" data-en="messages due today" data-fr="messages à envoyer aujourd'hui">messages due today</span>
     </div>
     <!-- TODAY'S CAPACITY (README) : meme composant partage que Today, _renderCapacityBars(),
@@ -3918,6 +3918,8 @@ async function showDemo(){
   // meme principe que loadKanban() ci-dessus. Fire-and-forget, ne bloque jamais l'ecran Today.
   loadSendView();
   loadInboxDrafts('pending');
+  loadPendingActionsView(); // badge Approvals : meme principe (etait lu seulement a l'ouverture de la page)
+  loadProposalsView(); // badge Drafts & approvals : idem
   loadClientsKanban(); // idem, alimente aussi le compte CLIENT de la spine (Phase 1)
   _loadSystemActiveStatus(); // F13, meme principe fire-and-forget
   _loadLastMorningScanEmail(); // dernier Morning Scan reellement envoye, meme principe fire-and-forget

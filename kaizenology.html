@@ -1247,13 +1247,13 @@ body.new-nav { padding-left: 220px; }
     </button>
     <button class="snav-item" data-nav="pending-actions" onclick="_switchNewNav('pending-actions')">
       <span class="snav-icon">✅</span><span data-en="Approvals" data-fr="Actions en attente">Approvals</span>
-      <span class="send-badge-count" id="pending-actions-badge"><span id="pending-actions-count">0</span></span>
+      <span class="send-badge-count" id="pending-actions-badge"><span id="pending-actions-count">–</span></span>
     </button>
     <!-- F15 point 2 (port kaizenology) : renomme depuis "Proposals" -- collision de mot avec le
          stage pipeline "Proposal", meme raison que demo-private.html. -->
     <button class="snav-item" data-nav="proposals" onclick="_switchNewNav('proposals')">
       <span class="snav-icon">📝</span><span data-en="Drafts &amp; approvals" data-fr="Brouillons et validations">Drafts &amp; approvals</span>
-      <span class="send-badge-count" id="proposals-badge"><span id="proposals-count">0</span></span>
+      <span class="send-badge-count" id="proposals-badge"><span id="proposals-count">–</span></span>
     </button>
   </div>
   <div class="snav-section">
@@ -1956,7 +1956,7 @@ body.new-nav { padding-left: 220px; }
   <div class="tab-panel" id="tab-send">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap">
       <span style="font-size:14px;font-weight:700;color:var(--navy)" data-en="Today's send queue" data-fr="File d'envoi du jour">Today's send queue</span>
-      <span class="send-badge-count" id="send-badge"><span id="send-count">7</span></span>
+      <span class="send-badge-count" id="send-badge"><span id="send-count">–</span></span>
       <span style="font-size:var(--fs-sm);color:var(--muted)" data-en="messages due today" data-fr="messages à envoyer aujourd'hui">messages due today</span>
     </div>
     <div id="send-capacity-bars" style="max-width:280px;margin-bottom:18px;"></div>
@@ -3195,6 +3195,12 @@ async function showDemo(){
   _loadSignalTaxonomy(); // fire-and-forget, cache rempli avant le rendu des badges de signal (cartes Kanban/Today/Send)
   _loadLastMorningScanEmail(); // dernier Morning Scan reellement envoye, meme principe fire-and-forget
   if (!_kanbanLoaded) loadKanban();
+  // Badges de navigation (sidebar Actions en attente / Brouillons et validations, tab bar mobile Send / Inbox) : ecrits uniquement par les
+  // loaders des pages elles-memes, donc a leur valeur HTML initiale (0) tant que la page n'avait pas ete ouverte. On appelle ces memes loaders
+  // une fois au boot (meme principe que demo-private.html, aucune logique de comptage dupliquee). Fire-and-forget, un echec n'en bloque aucun autre.
+  [loadSendView, () => loadInboxDrafts('pending'), loadPendingActionsView, loadProposalsView].forEach(fn => {
+    try { Promise.resolve(fn()).catch(e => console.error('[preloadNavBadges]', e)); } catch (e) { console.error('[preloadNavBadges]', e); }
+  });
   _initHpFilters();
   // Init unique post-login : onglet Priorities par défaut + scroll en haut (PWA démarre proprement)
   if (!_demoStarted) {

@@ -1437,14 +1437,14 @@ body.new-nav { padding-left: 220px; }
     <span class="snav-section-label">Conversations</span>
     <button class="snav-item" data-nav="send" onclick="switchTab('send')">
       <span>Envoyer</span>
-      <span class="send-badge-count" id="send-badge"><span id="send-count">0</span></span>
+      <span class="send-badge-count" id="send-badge"><span id="send-count">–</span></span>
     </button>
     <button class="snav-item" data-nav="inbox" onclick="switchTab('inbox')">
       <span>Boîte de réception</span>
     </button>
     <button class="snav-item" data-nav="pending-actions" onclick="switchTab('pending-actions')">
       <span>Actions en attente</span>
-      <span class="send-badge-count" id="pending-actions-badge"><span id="pending-actions-count">0</span></span>
+      <span class="send-badge-count" id="pending-actions-badge"><span id="pending-actions-count">–</span></span>
     </button>
     <!-- F15 point 2 (port wominds) : renomme depuis "Propositions" -- collision de mot avec le
          stage pipeline "Proposal", meme raison que demo-private.html/kaizenology.html. -->
@@ -1544,19 +1544,19 @@ body.new-nav { padding-left: 220px; }
   <button class="spine-stage" data-spine="qualify" onclick="switchTab('pipeline')">
     <span class="spine-dot"></span>
     <span class="spine-label">Qualifier</span>
-    <div class="spine-row"><span class="spine-count" id="spine-count-qualify">0</span><span class="spine-note">à qualifier</span></div>
+    <div class="spine-row"><span class="spine-count" id="spine-count-qualify">–</span><span class="spine-note">à qualifier</span></div>
     <span class="spine-rail"></span>
   </button>
   <button class="spine-stage" data-spine="send" onclick="switchTab('send')">
     <span class="spine-dot"></span>
     <span class="spine-label">Envoyer</span>
-    <div class="spine-row"><span class="spine-count" id="spine-count-send">0</span><span class="spine-note">dus aujourd'hui</span></div>
+    <div class="spine-row"><span class="spine-count" id="spine-count-send">–</span><span class="spine-note">dus aujourd'hui</span></div>
     <span class="spine-rail"></span>
   </button>
   <button class="spine-stage" data-spine="reply" onclick="switchTab('inbox')">
     <span class="spine-dot"></span>
     <span class="spine-label">Répondre</span>
-    <div class="spine-row"><span class="spine-count" id="spine-count-reply">0</span><span class="spine-note">à trier</span></div>
+    <div class="spine-row"><span class="spine-count" id="spine-count-reply">–</span><span class="spine-note">à trier</span></div>
     <span class="spine-rail"></span>
   </button>
   <button class="spine-stage" data-spine="indeal" onclick="switchTab('pipeline')">
@@ -1564,13 +1564,13 @@ body.new-nav { padding-left: 220px; }
     <!-- F10 (port wominds, 2026-09-17) : "Engagé+" est deja le titre, la note "engagés+" est
          retiree pour ne plus etre redondante avec lui -- meme fix que demo-private.html. -->
     <span class="spine-label">Engagé+</span>
-    <div class="spine-row"><span class="spine-count" id="spine-count-indeal">0</span><span class="spine-note"></span></div>
+    <div class="spine-row"><span class="spine-count" id="spine-count-indeal">–</span><span class="spine-note"></span></div>
     <span class="spine-rail"></span>
   </button>
   <button class="spine-stage" data-spine="client" onclick="switchTab('clients')">
     <span class="spine-dot"></span>
     <span class="spine-label">Client</span>
-    <div class="spine-row"><span class="spine-count" id="spine-count-client">0</span><span class="spine-note">sous gestion</span></div>
+    <div class="spine-row"><span class="spine-count" id="spine-count-client">–</span><span class="spine-note">sous gestion</span></div>
     <span class="spine-rail"></span>
   </button>
 </div>
@@ -1753,7 +1753,7 @@ body.new-nav { padding-left: 220px; }
     <div style="padding:24px 16px 0;max-width:800px;margin:0 auto;">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap">
         <span style="font-size:14px;font-weight:700;color:var(--navy)">File d'envoi du jour</span>
-        <span class="send-badge-count" id="send-badge-2"><span id="send-count-2">0</span></span>
+        <span class="send-badge-count" id="send-badge-2"><span id="send-count-2">–</span></span>
       </div>
       <div class="card" style="margin-bottom:16px;max-width:460px;">
         <div class="card-header" style="margin-bottom:10px;padding-bottom:10px;"><span class="card-title">Capacité du jour</span></div>
@@ -2454,7 +2454,19 @@ async function showDemo(){
     // reellement cette vue, elle n'est plus un ecran vide au premier lancement.
     switchTab('today');
     window.scrollTo({ top: 0, behavior: 'instant' });
+    _preloadNavBadges();
   }
+}
+// Badges de navigation (spine Qualifier/Envoyer/Repondre/Engage+/Client, sidebar Envoyer et Actions en attente) : ils ne sont ecrits
+// que par les loaders des pages elles-memes (renderKanban, _setSendBadge, loadInboxDrafts, loadClientsView, _setPendingActionsBadge),
+// donc restaient a leur valeur HTML initiale tant que la page n'avait pas ete ouverte une fois -- un faux zero (ex. 128 actions en attente).
+// On appelle donc UNE fois ces memes loaders au boot, en avance sur la navigation (meme principe que demo-private.html, aucune logique
+// de comptage dupliquee : le badge reste par construction ce que compte la page). Fire-and-forget, un echec n'en bloque aucun autre ;
+// un badge non charge reste a '–' (jamais un zero trompeur).
+function _preloadNavBadges() {
+  [loadKanban, loadSendView, () => loadInboxDrafts('pending'), loadClientsView, loadPendingActionsView].forEach(fn => {
+    try { Promise.resolve(fn()).catch(e => console.error('[preloadNavBadges]', e)); } catch (e) { console.error('[preloadNavBadges]', e); }
+  });
 }
 // Dernier Morning Scan reellement envoye (morning_scan_email_cache, 2026-09-18) : simple lecture,
 // scopee au client courant via RLS (client_id = CLIENT_ID). Rien affiche en erreur brute -- etat
