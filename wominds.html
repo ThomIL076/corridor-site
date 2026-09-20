@@ -1863,14 +1863,14 @@ body.new-nav { padding-left: 220px; }
 
   <!-- ══ ONGLET : AGENTS (brief 2026-09-14, Élodie) : contenu de marque desormais disponible
        via clients.messaging_playbook (jsonb) -- ecran debloque, 4 agents reels definis par
-       Elodie (copie structuree depuis son document, pas une reformulation libre). Statut reel
-       pour tous : pas encore actif (aucun workflow d'envoi Wominds construit -- meme convention
-       que les bannieres Send/Inbox), donc pas de "running" ni de compteur d'actions ici -- juste
-       la definition de chaque agent et, au clic, son detail complet tire du playbook (mission,
-       cibles/regles de ton, un exemple de message). Volontairement plus simple que le "Agent Map"
+       Elodie (copie structuree depuis son document, pas une reformulation libre). Statut par
+       agent (20/09) : lu en base (derniere proposition dans agent_proposals, voir
+       _loadAgentLastProposals), plus de libelle "pas encore actif" en dur -- les workflows
+       tournent (Copywriter Wominds : 3 personas dans UN workflow ; Ghostwriter : son propre
+       workflow). Au clic : detail complet tire du playbook (mission, cibles/regles de ton, un
+       exemple de message). Volontairement plus simple que le "Agent Map"
        demo-private.html/kaizenology.html (memes classes CSS .agent-map/.agent-card/.agent-panel,
-       reutilisees telles quelles) : pas de hub CMO, pas de groupes, pas de chat -- ces agents
-       n'existent pas encore en tant que workflows actifs, seulement en tant que playbooks. ══ -->
+       reutilisees telles quelles) : pas de hub CMO, pas de groupes, pas de chat. ══ -->
   <div class="tab-panel" id="tab-agents">
     <div style="padding:24px 16px 0;max-width:900px;margin:0 auto;">
       <div class="module-header" style="margin-bottom:10px;">
@@ -6748,24 +6748,58 @@ const _AGENTS_WOMINDS = [
   { key: 'ghostwriter_elodie', icon: '✍️', color: '#3B5BDB', name: 'Agent Ghostwriter Élodie Dratler',
     mission: "Rédige les posts LinkedIn et newsletters au nom d'Élodie, voix personnelle, pas la voix produit des 3 agents ci-dessus." },
 ];
-function renderAgentsScreen() {
+// Statut reel par agent = derniere proposition ecrite en base (agent_proposals.agent_name = key de l'agent).
+// Jamais un libelle en dur : un "Pas encore actif" ecrit en dur est reste affiche apres la mise en service des
+// workflows. Le Copywriter (3 personas sdr_general / barometre_it_tech / transparence_salaires, UN seul workflow) et
+// le Ghostwriter (son propre workflow) ecrivent tous deux dans agent_proposals avec agent_name = key.
+// Une requete d'UNE ligne par agent : une requete groupee limitee serait dominee par l'agent le plus prolifique et
+// afficherait a tort "aucune proposition" pour un agent rare.
+const _AGENT_ACTIVE_WINDOW_DAYS = 8; // Ghostwriter hebdomadaire : une semaine + 1 jour de marge
+let _agentLastProposalAt = null; // { key: iso | null } ; null = lecture impossible -> aucun statut affiche (jamais un statut invente)
+async function _loadAgentLastProposals() {
+  try {
+    const last = {};
+    await Promise.all(_AGENTS_WOMINDS.map(async a => {
+      const { data, error } = await sbClient.from('agent_proposals').select('created_at')
+        .eq('client_id', CLIENT_ID).eq('agent_name', a.key).order('created_at', { ascending: false }).limit(1);
+      if (error) throw error;
+      last[a.key] = (data && data[0]) ? data[0].created_at : null;
+    }));
+    _agentLastProposalAt = last;
+  } catch (e) {
+    console.warn('[_loadAgentLastProposals]', e);
+    _agentLastProposalAt = null;
+  }
+}
+function _agentStatus(key) {
+  if (!_agentLastProposalAt) return null;
+  const iso = _agentLastProposalAt[key];
+  if (!iso) return { text: 'Aucune proposition pour l’instant', active: false };
+  const days = (Date.now() - new Date(iso).getTime()) / 86400000;
+  return { text: 'Dernière proposition : ' + (_relDate(iso) || 'récemment'), active: days <= _AGENT_ACTIVE_WINDOW_DAYS };
+}
+async function renderAgentsScreen() {
   const grid = document.getElementById('agents-grid');
   if (!grid) return;
   const detail = document.getElementById('agents-detail');
   if (detail) { detail.classList.remove('active'); detail.innerHTML = ''; }
   const map = document.getElementById('agents-map');
   if (map) map.style.display = '';
-  grid.innerHTML = _AGENTS_WOMINDS.map(a => `
+  await _loadAgentLastProposals();
+  grid.innerHTML = _AGENTS_WOMINDS.map(a => {
+    const st = _agentStatus(a.key);
+    return `
     <button class="agent-card" style="--accent-color:${a.color}" onclick="_openAgentDetail('${a.key}')">
-      <span class="agent-status-dot"></span>
+      <span class="agent-status-dot${st && st.active ? ' is-active' : ''}"></span>
       <span class="ac-icon">${a.icon}</span>
       <span class="ac-name">${_esc(a.name)}</span>
       <span class="ac-desc">${_esc(a.mission)}</span>
       <div class="agent-card-footer">
-        <span class="agent-card-footer-status" style="color:var(--amber-text);">Pas encore actif</span>
+        <span class="agent-card-footer-status">${st ? _esc(st.text) : ''}</span>
         <span class="agent-card-footer-action">Détail</span>
       </div>
-    </button>`).join('');
+    </button>`;
+  }).join('');
 }
 // Lignes label/valeur et listes reutilisees entre les 4 agents -- rien n'est affiche si le champ
 // playbook correspondant est vide (jamais de section "vide" visible).
@@ -6846,7 +6880,7 @@ function _openAgentDetail(key) {
     </div>
     <div class="agent-panel-header" style="border-left:4px solid ${meta.color};background:linear-gradient(90deg,${meta.color}18 0%,transparent 65%);">
       <span class="aph-icon">${meta.icon}</span>
-      <div><div class="aph-label">${_esc(meta.name)}</div><div class="aph-group">Pas encore actif</div></div>
+      <div><div class="aph-label">${_esc(meta.name)}</div><div class="aph-group">${(() => { const st = _agentStatus(key); return st ? _esc(st.text) : ''; })()}</div></div>
     </div>
     <div class="card" style="padding:18px 20px;max-width:900px;margin:0 auto;">${_agentDetailBodyHTML(key, pb)}</div>
   `;
