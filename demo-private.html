@@ -7939,7 +7939,7 @@ async function loadSendView() {
     }
     _j5seqs.forEach(s => { if (!_sendJ5Sent[s.prospect_id]) _sendJ5Sent[s.prospect_id] = { prospect_id: s.prospect_id, created_at: s.sent_at || s.created_at }; });
 
-    _sendProspects.forEach(p => { if (!_prospectsById[p.id]) _prospectsById[p.id] = p; });
+    _sendProspects.forEach(p => _cacheProspectRow(p));
 
     _fetchTodaySendCounts().catch(err => console.error('_fetchTodaySendCounts:', err));
     _applySendFilters();
@@ -10795,7 +10795,7 @@ async function loadDailyPriorities() {
       // du dashboard (archive, introuvable). Liste de decisions resolue VIDE = on ne s'y arrete pas, on
       // retombe sur le calcul arithmetique habituel. Une liste partiellement resolue reste affichee telle quelle.
       if (_priorityShownProspects.length > 0) {
-        _priorityShownProspects.forEach(p => { if (!_prospectsById[p.id]) _prospectsById[p.id] = p; });
+        _priorityShownProspects.forEach(p => _cacheProspectRow(p));
 
         _updateQueuedCount();
 
@@ -10866,7 +10866,7 @@ async function loadDailyPriorities() {
 
     const eligible = merged.filter(p => (p.priority_batch_number || 0) === 0);
     _priorityShownProspects = eligible.slice(0, N);
-    _priorityShownProspects.forEach(p => { if (!_prospectsById[p.id]) _prospectsById[p.id] = p; p._morningScanCategory = null; });
+    _priorityShownProspects.forEach(p => { _cacheProspectRow(p); p._morningScanCategory = null; });
 
     _updateQueuedCount();
 
@@ -11058,7 +11058,7 @@ async function _loadFollowUpsDue() {
     if (backlogRes.error) throw backlogRes.error;
 
     const rows = _reminderShownProspects = dueRes.data || [];
-    rows.forEach(p => { if (!_prospectsById[p.id]) _prospectsById[p.id] = p; });
+    rows.forEach(p => _cacheProspectRow(p));
     await _hydrateJ5EligibilityFor(rows.map(p => p.id));
     const fiveDaysAgo = new Date(Date.now() - 5 * 86400000).toISOString();
     rows.forEach(p => { p._j5Eligible = _isJ5Eligible(p, fiveDaysAgo); });
@@ -11067,7 +11067,7 @@ async function _loadFollowUpsDue() {
     _renderFollowUpRows(rows);
 
     const backlogRows = _reminderBacklogProspects = backlogRes.data || [];
-    backlogRows.forEach(p => { if (!_prospectsById[p.id]) _prospectsById[p.id] = p; });
+    backlogRows.forEach(p => _cacheProspectRow(p));
     _reminderBacklogTotal = backlogRes.count != null ? backlogRes.count : backlogRows.length;
     if (backlogDivider) backlogDivider.hidden = _reminderBacklogTotal === 0;
     if (backlogCountEl) backlogCountEl.textContent = _reminderBacklogTotal ? _reminderBacklogTotal + ' overdue' : '';
@@ -11340,7 +11340,7 @@ async function loadInboxDrafts(view = 'pending') {
       if (pErr) console.error('[inbox] prospects batch-fetch error:', pErr);
       (pRows || []).forEach(p => {
         _inboxProspectsById[p.id] = p;
-        if (!_prospectsById[p.id]) _prospectsById[p.id] = p;
+        _cacheProspectRow(p);
       });
     }
     drafts.forEach(d => {
@@ -12814,17 +12814,22 @@ applyDealBadges();
 // en base et le libellé kanban sont alignés depuis le renommage Discovery Call→Engaged.
 let _kanbanLoaded = false;
 let _prospectsById = {}; // index id(uuid) -> ligne Supabase complète, pour l'édition dans le drawer
-// Ne comble que les trous du cache, et une ligne PARTIELLE (ex. enrichissement live du Morning Scan,
-// ~14 colonnes) ne bloque jamais une ligne complete arrivee ensuite si le chargeur complet passe par cette
-// fonction (helper commun avec wominds.html et kaizenology.html, 21/09). Une ligne complete deja en cache
-// n'est jamais ecrasee par une partielle. WeakSet : aucun champ ajoute aux lignes elles-memes.
+// Ne comble que les trous du cache et ne perd JAMAIS une colonne deja connue (course de cache entre les chargeurs Signals / Aujourd'hui /
+// Envoyer / Inbox / Rappels, 21/09) : une ligne PARTIELLE ne bloque ni n'ecrase une ligne complete arrivee avant ou apres elle ; une ligne
+// complete remplace une partielle en gardant les colonnes que seule celle-ci portait ; toute autre ligne ne fait que combler les colonnes
+// ABSENTES de la fiche en cache (helper commun aux 3 dashboards). WeakSet : aucun champ ajoute aux lignes elles-memes.
 const _partialProspectRows = new WeakSet();
 function _cacheProspectRow(row, partial) {
   if (!row || row.id == null) return;
   const cur = _prospectsById[row.id];
-  if (cur && !(_partialProspectRows.has(cur) && !partial)) return;
-  if (partial) _partialProspectRows.add(row);
-  _prospectsById[row.id] = row;
+  if (!cur) { if (partial) _partialProspectRows.add(row); _prospectsById[row.id] = row; return; }
+  if (cur === row) return;
+  if (_partialProspectRows.has(cur) && !partial) {
+    for (const k of Object.keys(cur)) if (!(k in row)) row[k] = cur[k];
+    _prospectsById[row.id] = row;
+    return;
+  }
+  for (const k of Object.keys(row)) if (!(k in cur)) cur[k] = row[k];
 }
 let _allProspects = []; // dernier fetch loadKanban complet, pour renderStats()
 const KANBAN_STAGES = ['Identified','1st Contact','Engaged','Replied','Proposal','Negotiation','Closed'];

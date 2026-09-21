@@ -3212,17 +3212,22 @@ let _allProspects = [];
 // manquante trouvee et corrigee ici : plusieurs fonctions y ecrivaient/lisaient deja sans
 // jamais l'initialiser, ce qui aurait plante au premier clic hors Pipeline.
 let _prospectsById = {};
-// Ne comble que les trous du cache, et une ligne PARTIELLE (ex. enrichissement live du Morning Scan,
-// ~14 colonnes) ne bloque jamais une ligne complete arrivee ensuite (Aujourd'hui, Envoyer) : sans
-// cela openProspectDetail ouvrirait un tiroir appauvri. Une ligne complete deja en cache n'est
-// jamais ecrasee par une partielle. WeakSet : aucun champ ajoute aux lignes elles-memes.
+// Ne comble que les trous du cache et ne perd JAMAIS une colonne deja connue (course de cache entre les chargeurs Signals / Aujourd'hui /
+// Envoyer / Inbox / Rappels, 21/09) : une ligne PARTIELLE ne bloque ni n'ecrase une ligne complete arrivee avant ou apres elle ; une ligne
+// complete remplace une partielle en gardant les colonnes que seule celle-ci portait ; toute autre ligne ne fait que combler les colonnes
+// ABSENTES de la fiche en cache (helper commun aux 3 dashboards). WeakSet : aucun champ ajoute aux lignes elles-memes.
 const _partialProspectRows = new WeakSet();
 function _cacheProspectRow(row, partial) {
   if (!row || row.id == null) return;
   const cur = _prospectsById[row.id];
-  if (cur && !(_partialProspectRows.has(cur) && !partial)) return;
-  if (partial) _partialProspectRows.add(row);
-  _prospectsById[row.id] = row;
+  if (!cur) { if (partial) _partialProspectRows.add(row); _prospectsById[row.id] = row; return; }
+  if (cur === row) return;
+  if (_partialProspectRows.has(cur) && !partial) {
+    for (const k of Object.keys(cur)) if (!(k in row)) row[k] = cur[k];
+    _prospectsById[row.id] = row;
+    return;
+  }
+  for (const k of Object.keys(row)) if (!(k in cur)) cur[k] = row[k];
 }
 let _signalTaxonomy = null;
 async function _loadSignalTaxonomy() {
