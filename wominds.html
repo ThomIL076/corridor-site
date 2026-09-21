@@ -3084,6 +3084,20 @@ async function _getAuthHeaders() {
   } catch(e) { return {}; }
 }
 
+// ── APPELS /api/generate ET /api/enrich : ces routes exigent le jeton de session Supabase (meme en-tete
+// que /api/memory, /api/client-profile via _getAuthHeaders). Sans session, la route repond 401. ──
+async function _authFetch(url, opts) {
+  opts = opts || {};
+  return fetch(url, { ...opts, headers: { ...(opts.headers || {}), ...(await _getAuthHeaders()) } });
+}
+// Enrichissement : statut terminal en erreur renvoye par /api/enrich (le sondage s'arrete, message clair).
+function _enrichErrorMsg(reason) {
+  if (reason === 'credits_insufficient') return "Crédits d'enrichissement épuisés";
+  if (reason === 'rate_limit') return "Limite d'enrichissement atteinte, réessayez plus tard";
+  if (reason === 'canceled') return 'Enrichissement annulé';
+  return "Erreur d'enrichissement, réessayez plus tard";
+}
+
 // ── PROFIL ──────────────────────────────────────────────────────────────
 let _clientProfile = null;
 let _pendingAvatarUrl = null;
@@ -3596,7 +3610,7 @@ FORMAT DE SORTIE (STRICT) : renvoyez UNIQUEMENT un tableau JSON, sans texte avan
 
 Renseignez les champs stakeholder_* UNIQUEMENT si new_stakeholder est true, sinon null. Maximum 5 signaux, uniquement ceux explicitement présents dans SIGNAUX MARCHÉ. N'inventez jamais un signal, une date ou une source. Si rien n'est pertinent pour ce mandat, renvoyez [].`;
 
-    const res = await fetch('/api/generate', {
+    const res = await _authFetch('/api/generate', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ messages: [{ role: 'user', content: systemAndUser }], max_tokens: 4000 })
     });
@@ -3647,7 +3661,7 @@ Renseignez les champs stakeholder_* UNIQUEMENT si new_stakeholder est true, sino
           const prompt = hadPrefilledName
             ? `"${s.stakeholder_name || 'Inconnu'}"${s.stakeholder_title ? ', ' + s.stakeholder_title : ''} est-il confirmé comme personne réelle et actuelle associée à ${co} en tant que décideur (fondateur, PDG, ou contact GTM/BD senior), en te basant UNIQUEMENT sur le contexte web ci-dessous ?\n\nCONTEXTE WEB :\n${ctxTxt}\n\nRenvoie un seul objet JSON, sans texte, sans balise markdown :\n{"name": "Prénom Nom" ou null, "title": "Titre" ou null, "linkedin_url": URL uniquement si explicitement présente dans le contexte, sinon null, "confidence": "high" ou "low" ou "not_found"}\n\nSi le contexte confirme cette personne exacte à cette entreprise, mets confidence à "high". Sinon, mets confidence à "not_found" et name à null. N'invente jamais un nom, ne construis jamais une URL.`
             : `En te basant UNIQUEMENT sur le contexte web ci-dessous, identifie le principal décideur (fondateur, PDG, ou contact GTM/BD le plus senior) chez ${co}.\n\nCONTEXTE WEB :\n${ctxTxt}\n\nRenvoie un seul objet JSON, sans texte, sans balise markdown :\n{"name": "Prénom Nom" ou null, "title": "Titre" ou null, "linkedin_url": URL uniquement si explicitement présente dans le contexte, sinon null, "confidence": "high" ou "low" ou "not_found"}\n\nSi aucune personne n'est nommée dans le contexte, mets confidence à "not_found" et name à null. N'invente jamais un nom, ne construis jamais une URL.`;
-          const dmRes = await fetch('/api/generate', {
+          const dmRes = await _authFetch('/api/generate', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ messages: [{ role: 'user', content: prompt }], max_tokens: 300 })
           });
@@ -4620,7 +4634,7 @@ Répondez avec un unique objet JSON, sans texte, sans balise de code, exactement
 
 Pour chaque rôle, si le contexte ne confirme pas clairement une personne nommée précise, indiquez confidence "not_found" et name null. N'inventez jamais un nom ni ne construisez une URL à partir d'un nom. Les champs texte doivent être rédigés en français. Pas de tiret cadratin (—) dans votre réponse.`;
   try {
-    const res = await fetch('/api/generate', {
+    const res = await _authFetch('/api/generate', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ messages: [{ role: 'user', content: prompt }], max_tokens: 700 })
     });
@@ -5152,7 +5166,7 @@ Pour chacun des quatre champs why_now/why_this_person/why_this_action/what_not_t
 Pas de tiret cadratin dans votre réponse.
 Répondez en français, même si le contexte web trouvé ci-dessus est en anglais.`;
 
-  const res = await fetch('/api/generate', {
+  const res = await _authFetch('/api/generate', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ max_tokens: 1500, system: systemPrompt, messages: [{ role: 'user', content: userMsg }] })
   });
@@ -5573,7 +5587,7 @@ async function _findEmailDrawer(pid) {
 
   let enrichment_id;
   try {
-    const r = await fetch('/api/enrich', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(fePayload) });
+    const r = await _authFetch('/api/enrich', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(fePayload) });
     const d = await r.json();
     enrichment_id = d.enrichment_id;
   } catch(e) {
@@ -5596,8 +5610,14 @@ async function _findEmailDrawer(pid) {
       return;
     }
     try {
-      const pr = await fetch('/api/enrich?enrichment_id=' + encodeURIComponent(enrichment_id));
+      const pr = await _authFetch('/api/enrich?enrichment_id=' + encodeURIComponent(enrichment_id));
       const pd = await pr.json();
+      if (pd.status === 'error') {
+        clearInterval(_drawerPollInterval); _drawerPollInterval = null;
+        if (status) status.textContent = _enrichErrorMsg(pd.reason);
+        reenable();
+        return;
+      }
       if (pd.status === 'done') {
         if (done) return;
         done = true;
@@ -5636,7 +5656,7 @@ async function _findPhoneDrawer(pid) {
 
   let enrichment_id;
   try {
-    const r = await fetch('/api/enrich', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(fePayload) });
+    const r = await _authFetch('/api/enrich', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(fePayload) });
     const d = await r.json();
     enrichment_id = d.enrichment_id;
   } catch(e) {
@@ -5659,8 +5679,14 @@ async function _findPhoneDrawer(pid) {
       return;
     }
     try {
-      const pr = await fetch('/api/enrich?enrichment_id=' + encodeURIComponent(enrichment_id));
+      const pr = await _authFetch('/api/enrich?enrichment_id=' + encodeURIComponent(enrichment_id));
       const pd = await pr.json();
+      if (pd.status === 'error') {
+        clearInterval(_drawerPollInterval); _drawerPollInterval = null;
+        if (status) status.textContent = _enrichErrorMsg(pd.reason);
+        reenable();
+        return;
+      }
       if (pd.status === 'done') {
         if (done) return;
         done = true;
@@ -5698,7 +5724,7 @@ async function _enrichCompanyDrawer(id) {
     const qp = new URLSearchParams();
     if (siteDomOk) qp.set('domain', domain);
     if (emailDomOk) qp.set('emailDomain', emailDomain);
-    const r = await fetch('/api/company-enrich?' + qp.toString());
+    const r = await _authFetch('/api/company-enrich?' + qp.toString());
     const d = await r.json();
     if (!d.employees && !d.funding_stage && !d.funding_date && !d.total_funding) {
       if (status) status.textContent = 'Introuvable';
@@ -6502,7 +6528,7 @@ Règles impératives : n'inventez aucun fait sur le prospect, son entreprise, ou
     // Aligne sur runScanner() (meme fichier, meme classe de bug deja corrigee, 3000) : verifie sur
     // 8 appels reels supplementaires a 3000 (meme prompt), 8/8 en stop_reason="end_turn", pic de
     // thinking observe 1180 -- marge confortable. 3000 reste suffisant.
-    const res = await fetch('/api/generate', {
+    const res = await _authFetch('/api/generate', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         messages: [{ role: 'user', content: prompt }],
@@ -6658,7 +6684,7 @@ async function _sendViaLinkedIn(pid, touch, elPrefix = '') {
   const btn = document.getElementById(elPrefix + 'sli-' + pid);
   if (btn) btn.disabled = true;
   try {
-    const res = await fetch('/api/linkedin-send', {
+    const res = await _authFetch('/api/linkedin-send', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ linkedinUrl: p.linkedin, message: body, prospectName: p.name, client_id: CLIENT_ID, touch, linkedinTag: p.linkedin_tag })
     });
@@ -7777,7 +7803,7 @@ async function _slkNotify(eventKey, eventName, prospect) {
   if (!_clientProfile || !_clientProfile.slack_enabled || !_clientProfile.slack_webhook_url) return;
   if (events[eventKey] === false) return;
   try {
-    await fetch('/api/team-notify', {
+    await _authFetch('/api/team-notify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -8176,7 +8202,7 @@ Règles : n'utilisez jamais de tiret cadratin (—) ni de ligne horizontale (---
     // douleur", jamais atteint Declencheurs/Profil) -- pas suppose, observe. 3000 verifie sans
     // troncature sur le meme cas reel (thinking_tokens:1674, stop_reason "end_turn", 5 sections
     // completes, Declencheurs+Profil extraits, tags detectes correctement).
-    const briefRes = await fetch('/api/generate', {
+    const briefRes = await _authFetch('/api/generate', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ messages: [{ role: 'user', content: liveCtx + noCtxNote + briefPrompt }], max_tokens: 3000 })
     });
@@ -8279,7 +8305,7 @@ Répondez UNIQUEMENT en JSON valide, rien d'autre :
     // 6 champs (4 sous-scores + confidence + rationale) -- 600 suffisait au JSON a 3 champs du
     // fix P0 du matin, mais pas a celui-ci, plus complexe. Reprise directe de la valeur reelle de
     // la reference, pas une supposition.
-    const res = await fetch('/api/generate', {
+    const res = await _authFetch('/api/generate', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ messages: [{ role: 'user', content: scorePrompt }], max_tokens: 1000 })
     });
@@ -8382,7 +8408,7 @@ URL du profil LinkedIn si trouvable. Publications ou déclarations publiques ré
 Soyez direct. Utilisez les titres ## exactement comme indiqué. Si une information n'est pas disponible, dites-le plutôt que d'inventer.
 
 Règles : n'utilisez jamais de tiret cadratin (—) dans votre réponse. N'inventez aucun fait au-delà de ce qui est fourni ci-dessus. Répondez en français, même si le contexte web trouvé ci-dessus est en anglais.`;
-    const res = await fetch('/api/generate', {
+    const res = await _authFetch('/api/generate', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ messages: [{ role: 'user', content: contactPrompt }], max_tokens: 700 })
     });
@@ -8442,7 +8468,7 @@ async function _scannerMapCommittee() {
       : `\nDÉSAMBIGUÏSATION : l'entreprise recherchée est exactement "${company}", secteur ${sector}, pas une entreprise au nom proche mais distincte. N'utilisez que des informations explicitement liées à "${company}".\n`;
     const stakeholderPrompt = liveBlock + disambigBlock +
       `\nVous êtes un stratège commercial B2B.\nCartographiez le comité d'achat typique de ${company}${siteUrl ? ' (' + siteUrl + ')' : ''} (${sector}).\n\nPRIORITÉ : si le CONTEXTE WEB nomme de vrais dirigeants, utilisez leurs vrais noms et n'incluez leur URL LinkedIn que si elle apparaît explicitement dans le CONTEXTE WEB. N'inventez jamais une URL LinkedIn.\n\nIdentifiez 3 à 5 parties prenantes impliquées dans une décision commerciale.\n\nCITATIONS (numérotées, pour attribution LinkedIn) :\n${citations.length ? citations.map((c, i) => '[' + (i + 1) + '] ' + c).join('\n') : '(aucune)'}\n\nPour chaque partie prenante, si une des citations ci-dessus est son profil LinkedIn, indiquez son numéro dans "linkedin_citation_index". Sinon null. Ne devinez pas. Les champs texte ("concern", "approach") doivent être rédigés en français, même si le CONTEXTE WEB ci-dessus est en anglais.\n\nRépondez UNIQUEMENT avec un tableau JSON valide, sans markdown, sans balise de code, sans texte avant/après. Chaque objet doit avoir exactement ces champs :\n[{"name":"Prénom Nom","title":"Intitulé du poste","concern":"préoccupation principale dans cette décision","role":"Influence|Approve|Sign","approach":"une phrase sur comment l'aborder","linkedin_url":"https://linkedin.com/in/... ou null","linkedin_citation_index":<numéro ou null>}]\n\nrole doit être exactement Influence, Approve ou Sign. linkedin_url doit être null si non trouvé dans le CONTEXTE WEB.`;
-    const res = await fetch('/api/generate', {
+    const res = await _authFetch('/api/generate', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ messages: [{ role: 'user', content: stakeholderPrompt }], max_tokens: 4000 })
     });
@@ -8649,7 +8675,7 @@ async function _marketIntelSearch(query, maxTokens = 500, domain = '', _out = nu
   try {
     const _pbody = { max_tokens: maxTokens, messages: [{ role: 'user', content: query }] };
     if (domain) _pbody.search_domain_filter = [domain];
-    const r = await fetch('/api/web-search', {
+    const r = await _authFetch('/api/web-search', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctrl.signal, body: JSON.stringify(_pbody)
     });
     if (!r.ok) return '';
@@ -8735,7 +8761,7 @@ N'affirmez jamais un fait sur un prospect, une entreprise ou un mandat qui n'est
     // de sa boucle des que stop_reason n'est plus 'tool_use' (voir son propre commentaire a ce
     // sujet), donc aucun changement serveur necessaire ici. max_uses borne le cout/latence (une
     // question Ask Corridor typique n'a besoin que d'une ou deux recherches, jamais plus).
-    const res = await fetch('/api/generate', {
+    const res = await _authFetch('/api/generate', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         messages: [...( _askHistory.slice(-8))],

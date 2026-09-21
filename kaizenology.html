@@ -3697,7 +3697,7 @@ async function callAI(prompt, outputEl, spinnerId, maxTokens = 1000, renderAsTex
       max_tokens: maxTokens,
       messages: [{ role: 'user', content: prompt }]
     };
-    const res = await fetch(API_URL, {
+    const res = await _authFetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -3734,6 +3734,21 @@ async function _getAuthHeaders() {
   } catch(e) { return {}; }
 }
 
+// ── APPELS /api/generate ET /api/enrich : ces routes exigent le jeton de session Supabase (meme en-tete
+// que /api/memory, /api/client-profile via _getAuthHeaders). Sans session, la route repond 401. ──
+async function _authFetch(url, opts) {
+  opts = opts || {};
+  return fetch(url, { ...opts, headers: { ...(opts.headers || {}), ...(await _getAuthHeaders()) } });
+}
+// Enrichissement : statut terminal en erreur renvoye par /api/enrich (le sondage s'arrete, message clair).
+function _enrichErrorMsg(reason) {
+  const fr = typeof currentLang !== 'undefined' && currentLang === 'fr';
+  if (reason === 'credits_insufficient') return (fr ? "Crédits d'enrichissement épuisés" : 'Enrichment credits exhausted');
+  if (reason === 'rate_limit') return (fr ? "Limite d'enrichissement atteinte, réessayez plus tard" : 'Enrichment rate limit reached, try again later');
+  if (reason === 'canceled') return (fr ? 'Enrichissement annulé' : 'Enrichment canceled');
+  return (fr ? "Erreur d'enrichissement, réessayez plus tard" : 'Enrichment error, try again later');
+}
+
 // ── WEB SEARCH HELPER ──
 async function _marketIntelSearch(query, maxTokens = 500, domain = '', _out = null) {
   const ctrl = new AbortController();
@@ -3741,7 +3756,7 @@ async function _marketIntelSearch(query, maxTokens = 500, domain = '', _out = nu
   try {
     const _pbody = { max_tokens: maxTokens, messages: [{ role: 'user', content: query }] };
     if (domain) _pbody.search_domain_filter = [domain];
-    const r = await fetch('/api/web-search', {
+    const r = await _authFetch('/api/web-search', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       signal: ctrl.signal,
@@ -4027,7 +4042,7 @@ Language instruction: Write your entire response in ${currentLang === 'fr' ? 'Fr
     const _scorePromptText = 'You are an ICP scoring engine for Kaizenology, an M&A and strategic transactions advisory firm. Evaluate this prospect and return 4 sub-scores.\n\nCompany: ' + company + '\nSector: ' + sector + '\nStage: ' + stage + '\n' + fundingStr + urlStr + contextStr + _mandateCriteria + _sigsLine + _contactIntelLine + '\n\nSCORING RULES:\nrole_score (0-10): how well the title matches CEO/Founder/Co-Founder (high), other C-level/VP Sales-Growth-Revenue (moderate), other senior title (low), unclear seniority (very low)\n' + _sizeScoreRule + '\nsignal_strength_score (0-10): 0 if no buying signal detected. Fundraise/market expansion=9, new CXO/VP hire=7, role posted=5, other=3\nmandate_fit_score (0-10): ' + (_mandateCriteria ? 'score fit against mandate criteria above (sector, geography, decision-makers)' : 'return 5 — no mandate active, score is neutral') + '\n\nReturn ONLY valid JSON, no other text:\n{"role_score":<0-10>,"size_score":<-1 or 0-10>,"signal_strength_score":<0-10>,"mandate_fit_score":<0-10>,"confidence":"<low|medium|high>","rationale":"<one sentence>"}';
 
     try {
-      const _scoreResp = await fetch(API_URL, {
+      const _scoreResp = await _authFetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 1000, messages: [{ role: 'user', content: _scorePromptText }] })
@@ -4878,7 +4893,7 @@ async function sendAgent(agentName) {
       const liveCtx = await _marketIntelSearch(msg, 500);
       if (liveCtx) liveContextBlock = '\n\nLIVE CONTEXT (from web search, use this as ground truth for facts, do not invent beyond this):\n' + liveCtx;
     }
-    const res = await fetch(API_URL, {
+    const res = await _authFetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -5282,7 +5297,7 @@ async function _sendAskMessage() {
     try { _askInsightsBlock = _formatPipelineInsights(await _fetchPipelineInsights()); } catch(e) { console.warn('[pipeline-insights] error:', e); }
   }
   try {
-    const res = await fetch(API_URL, {
+    const res = await _authFetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -5507,7 +5522,7 @@ async function _runPipelineReview() {
     let summary = '';
     try {
       const prompt = `Pipeline review for Corridor GTM system.\nActive prospects: ${active.length}\nRED (action required): ${red.length}\nAMBER (watch): ${amber.length}\nGREEN (healthy): ${green.length}\n\nTop RED:\n${red.slice(0,5).map(p => '- ' + p.name + ' (' + (p.company||'?') + ') | ' + p.stage + ' | ' + p.action).join('\n') || 'None'}\n\nTop AMBER:\n${amber.slice(0,5).map(p => '- ' + p.name + ' (' + (p.company||'?') + ') | ' + p.stage + ' | ' + p.action).join('\n') || 'None'}\n\nWrite a 2-3 sentence pipeline health summary. Direct and factual. End with the single most important action this week. ${_langLine()} ${_noDash}`;
-      const r = await fetch('/api/generate', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ messages:[{role:'user', content:prompt}], max_tokens: 250 }) });
+      const r = await _authFetch('/api/generate', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ messages:[{role:'user', content:prompt}], max_tokens: 250 }) });
       const rj = await r.json();
       summary = (Array.isArray(rj.content) ? rj.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim() : '') || '';
       summary = summary.replace(/--+/g, ',').trim();
@@ -5641,7 +5656,7 @@ async function runMorningScan() {
     // 2. Market signals via web search (single broad call, last 24-48h)
     let marketSignals = 'No market signals retrieved.';
     try {
-      const mktRes = await fetch('/api/market-intel', {
+      const mktRes = await _authFetch('/api/market-intel', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -5719,7 +5734,7 @@ OUTPUT FORMAT (STRICT): Return ONLY a JSON array, no prose before or after, no m
 Populate stakeholder_* fields ONLY when new_stakeholder is true; set to null otherwise. Max 5 signals, only those explicitly present in MARKET SIGNALS. Never invent a signal, date, or source. If nothing is relevant to this mandate, return [].`;
 
     // 4. Call Claude — market data already web-sourced (streaming)
-    const res = await fetch(API_URL, {
+    const res = await _authFetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -5815,7 +5830,7 @@ Populate stakeholder_* fields ONLY when new_stakeholder is true; set to null oth
           const prompt = hadPrefilledName
             ? `Is "${s.stakeholder_name || 'Unknown'}"${s.stakeholder_title ? ', ' + s.stakeholder_title : ''} confirmed as a real, current person associated with ${co} as a decision-maker (founder, CEO, or senior GTM/BD contact), based ONLY on the web context below?\n\nWEB CONTEXT:\n${ctxTxt}\n\nReturn a single JSON object, no prose, no markdown fences:\n{"name": "Full Name" or null, "title": "Title" or null, "linkedin_url": URL only if explicitly stated in the context above else null, "confidence": "high" or "low" or "not_found"}\n\nIf the context confirms this exact person at this company, set confidence to "high" and return their name/title as stated in the context. If the context does not confirm this person, or does not mention them at all, set confidence to "not_found" and name to null. Never invent a name or construct a URL from a name.`
             : `Based ONLY on the web context below, identify the main decision-maker (founder, CEO, or most senior GTM/BD contact) at ${co}.\n\nWEB CONTEXT:\n${ctxTxt}\n\nReturn a single JSON object, no prose, no markdown fences:\n{"name": "Full Name" or null, "title": "Title" or null, "linkedin_url": URL only if explicitly stated in the context above else null, "confidence": "high" or "low" or "not_found"}\n\nIf no individual is named in the context, set confidence to "not_found" and name to null. Never invent a name or construct a URL from a name.`;
-          const dmRes = await fetch(API_URL, {
+          const dmRes = await _authFetch(API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 300, messages: [{ role: 'user', content: prompt }] })
@@ -7160,7 +7175,7 @@ ${_activeMandate ? 'ACTIVE MANDATE CONTEXT (defines the purpose of every message
 ${liveBlock}${personBlock}${prevMsgBlock}${inviteBlock}${originBlock}${memoryBlock}${touch === 'invite' ? `CRITICAL INVITE RULE (non-negotiable): LinkedIn connection request. STRUCTURE: sentence 1 — one factual observation or context about this prospect (max 15 words, based on signal or their situation). Sentence 2 — one genuine, affirmative reason this connection makes sense (max 15 words), anchored on this prospect's specific signal, sector, or situation${_isPartnerBDMandate ? ` — you MAY name ${_prospectMandateName} explicitly as the basis for the connection` : ' — do NOT name Kaizenology or any product. STRICTLY FORBIDDEN even without naming Kaizenology: any formulation suggesting what Stéphane could offer or bring ("c\'est là où un accompagnement fait la différence", "c\'est le moment où X compte", or any equivalent). The second sentence must be a peer observation on why this prospect\'s current signal or situation is noteworthy — not why Stéphane can help. Correct framing: "Les recrutements DAF à ce stade précèdent souvent une vraie décision sur la suite" (observation on the prospect\'s trajectory, no service implied)'}. Sign off "${_senderName()}" on its own line. TOTAL under 200 characters. NO question. NO greeting. NO URL. NO closing line. NO "Sent via". Output ONLY the 2-sentence message + ${_senderName()}, nothing else.` : ''}\n${_recommendedApproachBlock}\nRules: NEVER use em-dashes (—) in any message, replace with a period or comma. No bullet points. No product pitch and no mention of the advisory firm by name in the message body (sentences 1 and 2 only -- the mandatory closing line appended below is the only exception and must be reproduced exactly as given). ${langRule} Replace every vague claim with something specific and provable. Never write 'I help companies grow' or 'I drive results'. Write what you actually observed about this company and why it is relevant right now.${(touch === 'invite' || touch === 'j0') ? ' Strip all marketing language. No buzzwords, no value propositions, no product claims. Rewrite as a text a peer would send to another peer -- direct, human, zero corporate tone.' : ''} NEVER claim or imply that the prospect asked a question, made a specific statement, or expressed a specific interest unless that exact information is explicitly given in the prompt -- if no such detail is provided, do not invent one. NEVER state or imply a specific niche focus for the sender (e.g. a named industry, a named type of deal) that is not listed in their background above. NEVER use generic AI-sounding filler phrases (e.g. "passionate about", "excited to connect", "love what you're building") -- ground every claim in a real fact from the sender's background above or the prospect's own title/company/signal. NEVER open with false familiarity — "I've been following your work", "I've been following your journey", "I came across your profile", "I noticed your work", and all variants are prohibited: they imply sustained prior attention that did not exist and collapse under any verification question from the prospect. Output the message only, no preamble.${touch === 'j5' ? '\n\nFOLLOW-UP TONE RULES (mandatory):\n- NEVER use: "follow up", "following up", "checking in", "touching base", "circling back", "just wanted to", "I wanted to reach out", "hope this finds you well"\n- Do NOT open with a reference to the previous message (e.g. "I sent you a note last week")\n- Write as if continuing a conversation, not tracking an unanswered message\n- Introduce a NEW angle, observation, or question — never repeat the idea from the previous message\n- Conversational tone: peer to peer, not vendor to prospect\n- j5: one specific observation or question that opens a thread — no CTA harder than "thoughts?" or "does this resonate?"\n- The closing question must be different from the J+0 question. Never use "Curious what the growth focus looks like" or any variation of it.\n- Previous message sent: "' + (intCtx || 'not available') + '" — do not repeat its angle, observation, or closing question.' : ''}${j0LinkedInNote}${j0CtaNote}${j0NoContextNote}${stealthBlock}${signalBlock}${hcpBlock}`);
   console.log('[gen] calling Anthropic. touch:', touch, 'prompt chars:', prompt.length);
   try {
-    const res = await fetch(API_URL, {
+    const res = await _authFetch(API_URL, {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ model:'claude-sonnet-5', max_tokens:1500, messages:[{role:'user',content:prompt}] })
     });
@@ -7308,7 +7323,7 @@ async function _sendViaLinkedIn(pid, touch, elPrefix = '') {
   const btn = document.getElementById(elPrefix + 'sli-' + pid);
   if (btn) btn.disabled = true;
   try {
-    const res = await fetch('/api/linkedin-send', {
+    const res = await _authFetch('/api/linkedin-send', {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ linkedinUrl: p.linkedin, message: body, prospectName: p.name, client_id: _drawerClientId(), touch, linkedinTag: p.linkedin_tag })
     });
@@ -7435,7 +7450,7 @@ async function _markSent(pid, touch, auto = false, msgText = '', elPrefix = '') 
     if (eLinkedinTag) console.error('_markSent linkedin_tag:', eLinkedinTag);
   }
   if ((touch === 'j0' || touch === 'invite') && p && p.linkedin) {
-    fetch('/api/linkedin-remove', {
+    _authFetch('/api/linkedin-remove', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ linkedinUrl: p.linkedin, client_id: _drawerClientId() })
@@ -7899,7 +7914,7 @@ async function _discoverBuyingCommittee(prospect) {
     + '{"decision_maker":{"name":"Full Name" or null,"title":"Title" or null,"linkedin":URL only if explicitly stated in the context above else null,"confidence":"high" or "low" or "not_found"},"advisor":{...same structure...},"board_family_influencer":{...same structure...}}\n\n'
     + 'For each role, if the context does not clearly confirm a specific named individual in that role at this company, set confidence to "not_found" and name to null. Never invent a name or construct a URL from a name.';
   try {
-    const res = await fetch(API_URL, {
+    const res = await _authFetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 700, messages: [{ role: 'user', content: prompt }] })
@@ -8706,7 +8721,7 @@ async function _aiScoreProspect(company, title, mandate) {
     : 'size_score: how well the company size fits 11-200 employees. If genuinely unknown, respond with exactly -1 — do NOT guess from sector or name. If known: 11-200=9, 201-500=6, 1-10=4, 500+=3';
   const scorePrompt = 'You are an ICP scoring engine for Kaizenology, an M&A and strategic transactions advisory firm. Evaluate this prospect and return 4 sub-scores.\n\nCompany: ' + company + '\nTitle/role known: ' + (title || 'unknown') + '\n' + mandateCriteria + '\n\nSCORING RULES:\nrole_score (0-10): how well the title matches CEO/Founder/Co-Founder (high), other C-level/VP Sales-Growth-Revenue (moderate), other senior title (low), unclear seniority (very low)\n' + _sizeScoreRule + '\nsignal_strength_score (0-10): 0 if no buying signal detected. Fundraise/market expansion=9, new CXO/VP hire=7, role posted=5, other=3\nmandate_fit_score (0-10): ' + (mandateCriteria ? 'score fit against mandate criteria above (sector, geography, decision-makers)' : 'return 5 — no mandate active, score is neutral') + '\n\nReturn ONLY valid JSON, no other text:\n{"role_score":<0-10>,"size_score":<-1 or 0-10>,"signal_strength_score":<0-10>,"mandate_fit_score":<0-10>,"confidence":"<low|medium|high>","rationale":"<one sentence>"}';
   try {
-    const resp = await fetch(API_URL, {
+    const resp = await _authFetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 400, messages: [{ role: 'user', content: scorePrompt }] })
@@ -8728,7 +8743,7 @@ async function _generateSignalInterpretation(signalText, company, title) {
   if (!signalText || !signalText.trim()) return { interpretation: null, date: null };
   const prompt = `Given this raw signal text about a prospect, write ONE factual sentence explaining why this signal is timely or relevant right now — not a generic description of the prospect's fit. If the signal text doesn't contain enough information to justify timeliness (no date, no clear trigger event), respond with exactly: "insufficient_context" — do not invent urgency or a plausible-sounding reason.\n\nAlso extract a date if one is explicitly present in the text (format YYYY-MM-DD), else null.\n\nSignal text: ${signalText}\nCompany: ${company || ''}\nTitle: ${title || ''}\n\nRespond as JSON only: {"interpretation": "..." | "insufficient_context", "date": "YYYY-MM-DD" | null}`;
   try {
-    const resp = await fetch(API_URL, {
+    const resp = await _authFetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 300, messages: [{ role: 'user', content: prompt }] })
@@ -8768,7 +8783,7 @@ Return a single JSON object, no prose, no markdown fences:
 {"name": "Full Name" or null, "title": "Title" or null, "linkedin_url": URL only if explicitly stated in the context above else null, "confidence": "high" or "low" or "not_found"}
 
 If no individual is named in the context, set confidence to "not_found" and name to null. Never invent a name or construct a URL from a name.`;
-    const res = await fetch(API_URL, {
+    const res = await _authFetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 300, messages: [{ role: 'user', content: prompt }] })
@@ -8984,7 +8999,7 @@ async function _resolveLinkedInUrls(stakeholders, company) {
     if (s.linkedin_url) return;
     const q = (s.name || '') + ' ' + company + ' linkedin profile';
     try {
-      const r = await fetch('/api/web-search', {
+      const r = await _authFetch('/api/web-search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ max_tokens: 200, messages: [{ role: 'user', content: q }] })
@@ -9193,7 +9208,7 @@ For each of the four why_now/why_this_person/why_this_action/what_not_to_say fie
 No em-dashes.
 ${typeof _langLine === 'function' ? _langLine() : ''}`;
 
-  const res = await fetch(API_URL, {
+  const res = await _authFetch(API_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -9773,7 +9788,7 @@ async function _inboxSend(draftId, prospectId) {
   if (sendBtn) sendBtn.disabled = true;
   if (dismissBtn) dismissBtn.disabled = true;
   try {
-    const res = await fetch('/api/inbox-send', {
+    const res = await _authFetch('/api/inbox-send', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ conversationId, message: body, client_id: CLIENT_ID })
     });
@@ -9961,7 +9976,7 @@ Generate a discovery call brief with exactly these four sections:
 4. Questions to ask (4-5 specific questions as a bulleted list)
 
 Output the HTML content only. No preamble, no doctype, no wrapper div.`;
-    const res = await fetch(API_URL, {
+    const res = await _authFetch(API_URL, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 900, system: systemPrompt, messages: [{ role: 'user', content: userMsg }] })
     });
@@ -10034,7 +10049,7 @@ Rules: no em-dashes, no markdown headers, factual only, base everything on the n
 
   let responseText = '';
   try {
-    const res = await fetch(API_URL, {
+    const res = await _authFetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -10328,7 +10343,7 @@ async function _resolveViaEnrichment(name, company) {
     if (parts.length < 2) return null;
     const first_name = parts[0];
     const last_name = parts.slice(1).join(' ');
-    const r = await fetch('/api/enrich-contact', {
+    const r = await _authFetch('/api/enrich-contact', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ first_name, last_name, organization_name: company, reveal_personal_emails: false })
@@ -10398,7 +10413,7 @@ async function _scannerMapCommittee() {
     '\n\nFor each stakeholder, if one of the citations above is their LinkedIn profile, set "linkedin_citation_index" to that number. If none matches, set it to null. Do not guess — only use an index if you are confident it is that specific person\'s profile.\n\nReturn ONLY valid JSON array, no other text:\n[{"name":"...","title":"...","concern":"...","role":"Influence|Approve|Sign","approach":"...","linkedin_url":"...or null","linkedin_citation_index":<number or null>}]';
 
   try {
-    const res = await fetch(API_URL, {
+    const res = await _authFetch(API_URL, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 4000, messages: [{ role: 'user', content: stakeholderPrompt }] })
     });
@@ -10512,7 +10527,7 @@ async function _mapStakeholders() {
     '\n\nrole must be exactly one of: Influence, Approve, Sign. linkedin_url must be null if not found in LIVE CONTEXT. Be specific to ' + (p.sector||'B2B') + ' and ' + p.company + ' size. No generic corporate language.';
 
   try {
-    const res = await fetch(API_URL, {
+    const res = await _authFetch(API_URL, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 4000, messages: [{ role: 'user', content: stakeholderPrompt }] })
     });
@@ -10860,7 +10875,7 @@ async function _findEmailDrawer(pid) {
 
   let enrichment_id;
   try {
-    const r = await fetch('/api/enrich', {
+    const r = await _authFetch('/api/enrich', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(fePayload)
     });
@@ -10895,8 +10910,14 @@ async function _findEmailDrawer(pid) {
       return;
     }
     try {
-      const pr = await fetch('/api/enrich?enrichment_id=' + encodeURIComponent(enrichment_id));
+      const pr = await _authFetch('/api/enrich?enrichment_id=' + encodeURIComponent(enrichment_id));
       const pd = await pr.json();
+      if (pd.status === 'error') {
+        clearInterval(_drawerPollInterval); _drawerPollInterval = null;
+        if (status) status.textContent = _enrichErrorMsg(pd.reason);
+        reenable();
+        return;
+      }
       if (pd.status === 'done') {
         if (done) return;
         done = true;
@@ -10939,7 +10960,7 @@ async function _findPhoneDrawer(pid) {
 
   let enrichment_id;
   try {
-    const r = await fetch('/api/enrich', {
+    const r = await _authFetch('/api/enrich', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(fePayload)
     });
@@ -10974,8 +10995,14 @@ async function _findPhoneDrawer(pid) {
       return;
     }
     try {
-      const pr = await fetch('/api/enrich?enrichment_id=' + encodeURIComponent(enrichment_id));
+      const pr = await _authFetch('/api/enrich?enrichment_id=' + encodeURIComponent(enrichment_id));
       const pd = await pr.json();
+      if (pd.status === 'error') {
+        clearInterval(_drawerPollInterval); _drawerPollInterval = null;
+        if (status) status.textContent = _enrichErrorMsg(pd.reason);
+        reenable();
+        return;
+      }
       if (pd.status === 'done') {
         if (done) return;
         done = true;
@@ -11020,7 +11047,7 @@ async function _enrichCompanyDrawer(id) {
     const _qp = new URLSearchParams();
     if (_siteDomOk) _qp.set('domain', domain);
     if (_emailDomOk) _qp.set('emailDomain', emailDomain);
-    const r = await fetch('/api/company-enrich?' + _qp.toString());
+    const r = await _authFetch('/api/company-enrich?' + _qp.toString());
     const d = await r.json();
 
     if (!d.employees && !d.funding_stage && !d.funding_date && !d.total_funding) {
@@ -11872,7 +11899,7 @@ async function _bulkStartEmailSeq() {
     if (countEl) countEl.textContent = `Sending ${i + 1}/${toSend.length}...`;
     try {
       const nameParts = (p.name || '').trim().split(/\s+/);
-      const r = await fetch('/api/email-send', {
+      const r = await _authFetch('/api/email-send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -11995,7 +12022,7 @@ async function _replyIntel(id) {
   if (resultEl) resultEl.style.display = 'none';
   const prompt = `You are a B2B reply triage specialist. Triage this reply from ${p.name || 'the prospect'} at ${p.company || 'their company'}.\n\nReply received:\n"${replyText}"\n\nContext: outbound LinkedIn sequence (J+0/J+5), Kaizenology M&A and strategic advisory outreach (Dubai). Prospects are founders, investors, and corporate development leaders in sell-side, buy-side, fundraising, or strategic advisory contexts.\n\nProduce:\n1) CATEGORY — one of: positive signal / timing objection / polite decline / bounce / OOO / unclear\n2) INTEREST LIKELIHOOD — % with one-sentence rationale\n3) RECOMMENDED NEXT ACTION — specific, not generic (what to do in the next 2 hours)\n4) DRAFT RESPONSE — under 100 words, direct, human, specific to their reply. No "following up", no "checking in", no em-dashes. End with a question if positive signal or unclear. Do not write a response if category is bounce or polite decline.\n\nFormat output clearly with each section labeled. Be direct.`;
   try {
-    const res = await fetch('/api/generate', {
+    const res = await _authFetch('/api/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ messages: [{ role: 'user', content: prompt }], max_tokens: 800 })
@@ -13423,7 +13450,7 @@ async function _startEmailSeq(id) {
   if (statusEl) statusEl.textContent = '';
   try {
     const nameParts = (p.name || '').trim().split(/\s+/);
-    const r = await fetch('/api/email-send', {
+    const r = await _authFetch('/api/email-send', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         email: p.email,
@@ -13647,7 +13674,7 @@ async function _autoGenerateCsSteps(row) {
   const systemPrompt = `You are a customer success specialist. Generate 3-5 tailored onboarding roadmap steps for a new B2B client's first 90 days. Output ONLY a valid JSON array — no markdown, no preamble. Each element: {"label":"string up to 60 chars","note":"optional context up to 120 chars"}. If context is too sparse, return [].`;
   const userMsg = `New client: ${name}${company ? ' at ' + company : ''}\nSector: ${sector || '-'} | Deal: ${dealVal > 0 ? '€' + dealVal : '-'} | Signal: ${signal || '-'}\nNotes: ${notes || 'None'}\nGenerate 3-5 specific, actionable CS roadmap steps for the first 90 days.`;
   try {
-    const res = await fetch(API_URL, {
+    const res = await _authFetch(API_URL, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       // Fix 2026-09-17 (trace Langfuse reelle, execution ac58a53fa53df0e55d9cdca9550bdd5b) :
       // 500 tokens ne laissaient pas assez de marge apres le raisonnement interne du modele --
@@ -14287,7 +14314,7 @@ Produce:
 Be direct. No corporate language.`;
 
   try {
-    const res = await fetch('/api/generate', {
+    const res = await _authFetch('/api/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ messages: [{ role: 'user', content: prompt }], max_tokens: 700 })
