@@ -81,15 +81,15 @@
   --btn-h-sm: 28px; --btn-h-md: 36px; --btn-h-lg: 44px;
 
   /* Groupe F -- typography scale */
-  --fs-micro: 10px;
-  --fs-xs: 11px;
-  --fs-sm: 12px;
-  --fs-base: 13px;
-  --fs-input: 14px;
-  --fs-md: 16px;
-  --fs-lg: 18px;
-  --fs-xl: 22px;
-  --fs-display: 28px;
+  --fs-micro: 11px;
+  --fs-xs: 12px;
+  --fs-sm: 13px;
+  --fs-base: 14px;
+  --fs-input: 15px;
+  --fs-md: 17px;
+  --fs-lg: 19px;
+  --fs-xl: 23px;
+  --fs-display: 29px;
 }
 
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -128,7 +128,7 @@ nav {
 .logo-mark span:nth-child(1),.logo-mark span:nth-child(4) { background:var(--navy); }
 .logo-mark span:nth-child(2),.logo-mark span:nth-child(3) { background:var(--blue); }
 .logo-name { font-size:var(--fs-base); font-weight:800; letter-spacing:2.5px; color:var(--navy); }
-.logo-tagline { font-size:8px; color:var(--dim); letter-spacing:1px; margin-top:1px; }
+.logo-tagline { font-size:9px; color:var(--dim); letter-spacing:1px; margin-top:1px; }
 .logo-text { display:flex; flex-direction:column; }
 .nav-badge {
   position:absolute; left:50%; transform:translateX(-50%);
@@ -152,6 +152,10 @@ nav {
   font-weight: 700;
   letter-spacing: 0.5px;
   color: var(--muted);
+}
+@media (max-width:480px) {
+  .mandate-bar { flex-wrap: wrap; }
+  #mandate-select { min-width: 0; max-width: 100%; flex: 1 1 140px; }
 }
 #mandate-select {
   background: white;
@@ -342,14 +346,14 @@ button, [role="button"], select, input { min-height: var(--btn-h-sm); }
 .agent-status-dot { position:absolute; top:12px; right:12px; width:7px; height:7px; border-radius:50%; background:#cdd5e0; }
 .agent-status-dot.is-active { background:var(--green); }
 .agent-card-footer {
-  display:flex; align-items:center; justify-content:space-between; gap:6px;
+  display:flex; align-items:center; justify-content:space-between; gap:6px; flex-wrap:wrap;
   margin-top:6px; padding-top:8px; border-top:1px solid var(--border);
-  font-family:'IBM Plex Mono',monospace; font-size:9.5px; letter-spacing:0.04em;
+  font-family:'IBM Plex Mono',monospace; font-size:10.5px; letter-spacing:0.04em;
 }
-.agent-card-footer-status { color:var(--muted); text-transform:uppercase; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.agent-card-footer-status { color:var(--muted); text-transform:uppercase; overflow-wrap:anywhere; }
 .agent-card-footer-action { color:var(--fill-accent); font-weight:700; text-transform:uppercase; flex-shrink:0; }
 .badge-new {
-  font-size:10px; font-weight:700; letter-spacing:0.2px;
+  font-size:11px; font-weight:700; letter-spacing:0.2px;
   background:#fef3c7; color:#b45309; border:1px solid #fde68a;
   border-radius:var(--radius-pill); padding:1px 6px;
   vertical-align:middle; margin-left:4px;
@@ -418,14 +422,15 @@ button, [role="button"], select, input { min-height: var(--btn-h-sm); }
 .pipe-stat:not(:first-child) { border-left:1px solid var(--border); }
 .pipe-stat-val { font-family:'IBM Plex Mono',monospace; font-size:24px; font-weight:600; letter-spacing:-.02em; color:var(--navy); display:block; }
 .pipe-stat-val.warn { color:var(--amber); }
-.pipe-stat-label { font-family:'IBM Plex Mono',monospace; font-size:9.5px; font-weight:400; color:var(--dim); letter-spacing:.16em; text-transform:uppercase; margin-top:4px; display:block; }
+.pipe-stat-label { font-family:'IBM Plex Mono',monospace; font-size:10.5px; font-weight:400; color:var(--dim); letter-spacing:.16em; text-transform:uppercase; margin-top:4px; display:block; }
+@media (max-width:480px) { .pipe-stat { padding:0 12px; } }
 .pipe-funnel-bar { display:flex; gap:2px; height:9px; margin-top:18px; }
 .pipe-funnel-seg { border-radius:5px; }
 .pipe-funnel-legend { display:flex; gap:2px; margin-top:8px; }
-.pipe-funnel-leg-item { font-family:'IBM Plex Mono',monospace; font-size:9.5px; color:var(--muted); text-align:center; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; min-width:100px; }
+.pipe-funnel-leg-item { font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--muted); text-align:center; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; min-width:100px; }
 @media (max-width: 480px) {
   .pipe-funnel-legend { flex-wrap: wrap; row-gap: 3px; }
-  .pipe-funnel-leg-item { flex: 0 1 auto !important; width: auto !important; overflow: visible; text-overflow: clip; font-size: 8.5px; padding: 0 3px; }
+  .pipe-funnel-leg-item { flex: 0 1 auto !important; width: auto !important; overflow: visible; text-overflow: clip; font-size: 9.5px; padding: 0 3px; }
 }
 
 /* ── KANBAN ── */
@@ -437,6 +442,7 @@ button, [role="button"], select, input { min-height: var(--btn-h-sm); }
   .kanban-col { width:252px; min-width:252px; max-height:calc(100vh - 370px); overflow-y:auto; overflow-x:hidden; scrollbar-width:thin; scrollbar-color:var(--border) transparent; }
   .k-card { padding:10px 12px; }
   .k-card-name { white-space:normal; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; font-size:var(--fs-base); font-weight:700; }
+  .kanban .k-card-name { font-size:calc(var(--fs-base) - 1px); }
   .k-card-company { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:var(--fs-xs); }
   }
 .kanban-empty { font-size:var(--fs-xs); color:var(--dim); padding:14px 8px; text-align:center; line-height:1.5; cursor:pointer; opacity:0.75; }
@@ -472,6 +478,7 @@ button, [role="button"], select, input { min-height: var(--btn-h-sm); }
 .k-card-company { font-size:var(--fs-xs); color:var(--muted); margin-top:2px; }
 .k-card-badges  { display:flex; flex-wrap:wrap; gap:7px; margin-top:7px; }
 .k-badge { display:inline-flex; align-items:center; padding:2px 7px; border-radius:var(--radius-badge); font-size:var(--fs-micro); font-weight:600; background:var(--navy-light); color:var(--muted); white-space:nowrap; }
+.k-card-badges .k-badge { max-width:100%; white-space:normal; overflow-wrap:anywhere; }
 .k-badge-deal { background:var(--green-bg); color:var(--green); }
 /* ── Édition prospect (drawer) + modale Ajout ── */
 .dp-edit { display:flex; flex-direction:column; gap:8px; margin-bottom:22px; }
@@ -597,8 +604,8 @@ footer a { color:var(--navy); text-decoration:none; font-weight:600; }
 .rpt-subtab { font-size:var(--fs-xs); font-weight:700; letter-spacing:0.4px; padding:6px 14px; border-radius:var(--radius-sm); border:1.5px solid var(--border); background:var(--white); color:var(--muted); cursor:pointer; transition:all 0.15s; }
 .rpt-subtab:hover { color:var(--navy); border-color:var(--navy); }
 .rpt-subtab.active { background:var(--navy); border-color:var(--navy); color:#fff; }
-.ask-provenance { font-family:'IBM Plex Mono',monospace; font-size:8.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--muted); margin-top:8px; padding-top:6px; border-top:1px solid var(--border); }
-.rpt-metric-badge { font-size:10px; font-weight:700; border-radius:var(--radius-pill); padding:2px 9px; white-space:nowrap; border:1px solid transparent; }
+.ask-provenance { font-family:'IBM Plex Mono',monospace; font-size:9.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--muted); margin-top:8px; padding-top:6px; border-top:1px solid var(--border); }
+.rpt-metric-badge { font-size:11px; font-weight:700; border-radius:var(--radius-pill); padding:2px 9px; white-space:nowrap; border:1px solid transparent; }
 .rpt-vote-btn { font-size:15px; line-height:1; padding:4px 8px; border-radius:var(--radius-sm); border:1.5px solid var(--border); background:var(--white); cursor:pointer; transition:background 0.12s,border-color 0.12s; }
 .rpt-vote-btn.active-like { background:#d1fae5; border-color:#6ee7b7; }
 .rpt-vote-btn.active-unlike { background:#fee2e2; border-color:#fca5a5; }
@@ -671,7 +678,7 @@ footer a { color:var(--navy); text-decoration:none; font-weight:600; }
 .pr-group-label-green { color:var(--green); }
 .pr-summary { background:var(--navy-light); border:1px solid var(--blue-light); border-radius:var(--radius-md); padding:12px 14px; margin-bottom:14px; font-size:var(--fs-base); line-height:1.65; color:var(--text); }
 .pr-more { font-size:var(--fs-xs); color:var(--muted); text-align:center; padding:8px 0; font-style:italic; }
-.signal-badge { display:inline-block; vertical-align:middle; font-size:var(--fs-micro); font-weight:700; text-transform:uppercase; letter-spacing:.06em; padding:2px 7px; border-radius:var(--radius-pill); border:1px solid; white-space:nowrap; max-width:180px; overflow:hidden; text-overflow:ellipsis; }
+.signal-badge { display:inline-block; vertical-align:middle; font-size:var(--fs-micro); font-weight:700; text-transform:uppercase; letter-spacing:.06em; padding:2px 7px; border-radius:var(--radius-pill); border:1px solid; white-space:nowrap; max-width:210px; overflow:hidden; text-overflow:ellipsis; }
 .signal-s1 { background:#FEF3C7; color:var(--amber-text); border-color:var(--amber-border); }
 .signal-s2 { background:var(--green-bg); color:var(--green); border-color:var(--green-border); }
 .signal-s3 { background:var(--navy-light); color:var(--navy); border-color:var(--blue); }
@@ -679,9 +686,14 @@ footer a { color:var(--navy); text-decoration:none; font-weight:600; }
 .signal-generic { background:#F1F5F9; color:#475569; border-color:#CBD5E1; }
 .signal-activity { background:#F1F5F9; color:#475569; border-color:#CBD5E1; }
 .k-card-signal { margin-top:4px; margin-right:8px; }
+.k-card-signal .signal-badge { max-width:180px; }
+@media (max-width:480px) { .k-card-signal .signal-badge { max-width:200px; } }
 .sig-attr-row { padding:10px 0; border-bottom:1px solid var(--border); }
 .sig-attr-row:last-child { border-bottom:none; }
 .sig-attr-head { display:flex; align-items:center; gap:10px; margin-bottom:6px; }
+@media (max-width:480px) {
+  .sig-attr-head { flex-wrap:wrap; row-gap:4px; }
+}
 .sig-attr-meta { font-size:var(--fs-xs); color:var(--muted); }
 .sig-attr-rev-row { display:flex; align-items:center; gap:10px; }
 .sig-attr-track { flex:1; height:6px; background:var(--border); border-radius:3px; overflow:hidden; }
@@ -702,6 +714,10 @@ footer a { color:var(--navy); text-decoration:none; font-weight:600; }
 .dist-track { height:8px; background:var(--border); border-radius:var(--radius-badge); overflow:hidden; }
 .dist-fill { height:100%; border-radius:var(--radius-badge); background:var(--navy); }
 .rev-kpi-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:20px; }
+@media (max-width:480px) {
+  .rev-kpi-grid { grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+  .rev-kpi { padding:12px 10px; }
+}
 .rev-kpi { border:1px solid var(--border); border-radius:var(--radius-panel); padding:14px 16px; }
 .rev-kpi-val { font-size:var(--fs-xl); font-weight:800; color:var(--navy); display:block; }
 .rev-kpi-label { font-size:var(--fs-xs); font-weight:600; color:var(--muted); margin-top:3px; display:block; }
@@ -719,7 +735,7 @@ footer a { color:var(--navy); text-decoration:none; font-weight:600; }
 /* ── SEND QUEUE (Module) ── */
 .today-step-divider { display: flex; align-items: center; gap: 10px; margin: 22px 0 14px; }
 .today-step-divider:first-child { margin-top: 0; }
-.today-step-label { font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+.today-step-label { font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
 .today-step-rule { flex: 1; height: 1px; background: var(--border); }
 .send-card { display:flex; flex-direction:column; gap:10px; }
 .send-row { display:flex; align-items:center; gap:12px; }
@@ -728,6 +744,10 @@ footer a { color:var(--navy); text-decoration:none; font-weight:600; }
 .send-name { font-size:14px; font-weight:800; color:var(--navy); }
 .send-company { font-size:var(--fs-sm); color:var(--muted); }
 .send-touch { font-size:var(--fs-micro); font-weight:600; padding:4px 10px; border-radius:var(--radius-pill); white-space:nowrap; }
+@media (max-width:480px) {
+  .send-row { flex-wrap:wrap; }
+  .send-id { flex:1 1 calc(100% - 50px); }
+}
 .touch-j0 { background:var(--green-bg); color:var(--green); }
 .touch-j5 { background:var(--navy-light); color:var(--navy); }
 .touch-invite { background:var(--navy-light); color:var(--navy); }
@@ -763,12 +783,12 @@ body.scanner-open { overflow:hidden; }
 body.ask-open { overflow:hidden; }
 .ask-panel-head { padding:18px 22px 16px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-shrink:0; }
 .ask-panel-title { font-size:15px; font-weight:800; color:var(--navy); font-family:'Plus Jakarta Sans',sans-serif; }
-.ask-ctx-pill { font-size:10px; font-weight:700; background:var(--navy-light); color:var(--navy); border:1px solid var(--blue); border-radius:var(--radius-pill); padding:2px 8px; letter-spacing:0.02em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:220px; margin-top:3px; }
+.ask-ctx-pill { font-size:11px; font-weight:700; background:var(--navy-light); color:var(--navy); border:1px solid var(--blue); border-radius:var(--radius-pill); padding:2px 8px; letter-spacing:0.02em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:220px; margin-top:3px; }
 #ask-messages { flex:1; overflow-y:auto; padding:16px 22px; display:flex; flex-direction:column; gap:10px; }
 /* Suggested pills (port demo-private.html) -- --fill-accent au lieu de --accent (n'existe pas ici),
    meme token deja utilise pour Ask Corridor dans ce fichier (ex. avatar assistant #ask-panel). */
 .ask-suggested { padding:0 22px 12px; flex-shrink:0; }
-.ask-suggested-label { font-family:'IBM Plex Mono',monospace; font-size:8.5px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); margin-bottom:8px; }
+.ask-suggested-label { font-family:'IBM Plex Mono',monospace; font-size:9.5px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); margin-bottom:8px; }
 .ask-pills { display:flex; flex-wrap:wrap; gap:6px; }
 .ask-pill { font-family:'Plus Jakarta Sans',sans-serif; font-size:12px; padding:6px 12px; border-radius:20px; border:1px solid var(--border); background:#fff; color:var(--text); cursor:pointer; transition:border-color .15s,color .15s; }
 .ask-pill:hover { border-color:var(--fill-accent); color:var(--fill-accent); }
@@ -1002,7 +1022,7 @@ h1, h2, .k-card-name, .k-card-company { overflow-wrap:break-word; word-break:bre
   flex-direction: column;
   overflow-y: auto;
   font-family: 'Plus Jakarta Sans', sans-serif;
-  --sidebar-label-size: 13px;
+  --sidebar-label-size: 14px;
 }
 body.new-nav .new-sidebar { display: flex; }
 body.new-nav { padding-left: 220px; }
@@ -1034,7 +1054,7 @@ body.new-nav { padding-left: 220px; }
 .snav-section-muted .snav-item { font-size: 12px; opacity: 0.72; }
 .snav-section-muted .snav-item:hover, .snav-section-muted .snav-item.active { opacity: 1; }
 .snav-item {
-  display: flex; align-items: center; gap: 8px;
+  display: flex; align-items: center; gap: 6px;
   width: 100%; text-align: left;
   padding: 8px 10px; border-radius: var(--radius-md); border: none;
   background: transparent; cursor: pointer;
@@ -1114,7 +1134,7 @@ body.new-nav { padding-left: 220px; }
   color: rgba(255,255,255,.72);
 }
 .mtab-item.active { color: #fff; font-weight: 600; }
-.mtab-badge { font-family: 'IBM Plex Mono', monospace; font-size: 9px; color: var(--sidebar-accent); }
+.mtab-badge { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--sidebar-accent); }
 .mtab-badge:empty { display: none; }
 .more-list { display: flex; flex-direction: column; }
 .more-row {
@@ -2113,7 +2133,7 @@ body.new-nav { padding-left: 220px; }
            reply/indeal/client = 6 etapes, Client est bien la 6e). -->
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
         <svg width="16" height="16" viewBox="0 0 16 16" style="flex-shrink:0;"><rect x="0" y="0" width="7" height="7" rx="1.5" fill="var(--border)"/><rect x="9" y="0" width="7" height="7" rx="1.5" fill="var(--border)"/><rect x="0" y="9" width="7" height="7" rx="1.5" fill="var(--border)"/><rect x="9" y="9" width="7" height="7" rx="1.5" fill="var(--border)"/></svg>
-        <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);">Stage 6 of 6 &middot; Not reached yet</span>
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);">Stage 6 of 6 &middot; Not reached yet</span>
       </div>
 
       <!-- Mouvement 2 : nommer le mecanisme, pas l'absence. -->
@@ -2127,7 +2147,7 @@ body.new-nav { padding-left: 220px; }
 
       <!-- Mouvement 4 : montrer la forme a venir. -->
       <div style="background:var(--surface-1);border-radius:var(--radius-lg);padding:16px 18px;">
-        <div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;">What a client record will look like</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;">What a client record will look like</div>
         <div style="display:flex;flex-direction:column;gap:10px;">
           <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px dashed var(--border-input);border-radius:var(--radius-md);">
             <div style="width:26px;height:26px;border-radius:6px;background:var(--border);flex-shrink:0;"></div>
@@ -2445,8 +2465,8 @@ function _signalTypeBanner(st) {
   };
   const key = (st || '').toLowerCase().replace(/_/g, '-');
   const def = MAP[key];
-  if (def) return { html: `<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding:4px 10px;background:${def.bg};border-radius:var(--radius-sm);border:1px solid ${def.border};"><span style="font-size:10px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:${def.color};">${def.label}</span></div>`, cardBorder: def.border };
-  if (st) { const raw = st.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()); return { html: `<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding:4px 10px;background:var(--chip-bg,#f3f4f6);border-radius:var(--radius-sm);border:1px solid var(--border);"><span style="font-size:10px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted);">${raw}</span></div>`, cardBorder: null }; }
+  if (def) return { html: `<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding:4px 10px;background:${def.bg};border-radius:var(--radius-sm);border:1px solid ${def.border};"><span style="font-size:11px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:${def.color};">${def.label}</span></div>`, cardBorder: def.border };
+  if (st) { const raw = st.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()); return { html: `<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding:4px 10px;background:var(--chip-bg,#f3f4f6);border-radius:var(--radius-sm);border:1px solid var(--border);"><span style="font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted);">${raw}</span></div>`, cardBorder: null }; }
   return { html: '', cardBorder: null };
 }
 // Bruit Live Signals (demande Thomas) : motifs generiques/gabarits sans substance reelle --
@@ -8083,7 +8103,7 @@ async function openDrawer(card, initialTab = 'activity') {
     <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px;">${_p.signal_type ? _sigBadge(_p.signal_type) : ''}<span style="font-size:var(--fs-xs);color:var(--muted);margin-left:auto;white-space:nowrap;">${_esc(_p.signal_date ? (_relDate(_p.signal_date) || '') : 'date not specified')}</span></div>
     <div style="font-size:var(--fs-sm);color:var(--text);line-height:1.5;">${_sigText}</div>
     ${_sigUrl ? `<a href="${_esc(_sigUrl)}" target="_blank" rel="noopener noreferrer" style="font-size:var(--fs-xs);color:var(--blue-brand);text-decoration:underline;font-weight:600;">Source →</a>` : ''}
-    ${_sigInterp ? `<div style="margin-top:8px;background:var(--navy-light);border:1px solid var(--blue);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--navy);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:10px;opacity:0.65;display:block;margin-bottom:3px">✦ ${currentLang==='fr'?'Analyse IA':'AI Insight'}</span>${_sigInterp}</div>` : ''}
+    ${_sigInterp ? `<div style="margin-top:8px;background:var(--navy-light);border:1px solid var(--blue);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--navy);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:11px;opacity:0.65;display:block;margin-bottom:3px">✦ ${currentLang==='fr'?'Analyse IA':'AI Insight'}</span>${_sigInterp}</div>` : ''}
   ` : `<div style="font-size:var(--fs-sm);color:var(--dim);font-style:italic">No signal recorded yet.</div>`;
   // F16 : "Priority reason" -- icp_reason jamais affiche dans le tiroir jusqu'ici (seulement
   // dans Edit details), plus derniere verification (identity_verdict_checked_at/
@@ -8091,7 +8111,7 @@ async function openDrawer(card, initialTab = 'activity') {
   const _icpReasonHTML = _p.icp_reason ? _esc(_stripHtmlPd(_p.icp_reason)) : '';
   const _lastCheckedAt = [_p.identity_verdict_checked_at, _p.company_checked_at].filter(Boolean).sort((a, b) => new Date(b) - new Date(a))[0] || null;
   const _priorityReasonHTML = `
-    ${_icpReasonHTML ? `<div style="background:var(--navy-light);border:1px solid var(--blue);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--navy);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:10px;opacity:0.65;display:block;margin-bottom:3px">✦ ${currentLang==='fr'?'Justification du score':'Score rationale'}</span>${_icpReasonHTML}</div>` : `<div style="font-size:var(--fs-sm);color:var(--dim);font-style:italic">No score rationale recorded yet.</div>`}
+    ${_icpReasonHTML ? `<div style="background:var(--navy-light);border:1px solid var(--blue);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--navy);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:11px;opacity:0.65;display:block;margin-bottom:3px">✦ ${currentLang==='fr'?'Justification du score':'Score rationale'}</span>${_icpReasonHTML}</div>` : `<div style="font-size:var(--fs-sm);color:var(--dim);font-style:italic">No score rationale recorded yet.</div>`}
     ${_lastCheckedAt ? `<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:8px">Last verified: ${_esc(_relDate(_lastCheckedAt) || '')}</div>` : ''}
   `;
   // ICP SCORE BREAKDOWN (port wominds.html, 2026-09-18) : panneau des 6 sous-scores ponderes,
@@ -8111,8 +8131,8 @@ async function openDrawer(card, initialTab = 'activity') {
       <div style="flex:1;min-width:0">
         <div class="drawer-name">${_esc(name)}</div>
         <div class="drawer-company">${_esc(company)}</div>
-        ${_p.company_verified === false ? `<div style="margin-top:3px;"><span style="font-size:10px;font-weight:700;color:#b45309;background:#fef3c7;border:1px solid #fde68a;border-radius:20px;padding:1px 6px;">⚠ Company not confirmed</span></div>` : ''}
-        ${_p.identity_confidence === 'low' ? `<div style="margin-top:3px;"><span style="font-size:10px;font-weight:700;color:#6b7280;background:#f3f4f6;border:1px solid #d1d5db;border-radius:20px;padding:1px 6px;">? Identity to verify</span></div>` : ''}
+        ${_p.company_verified === false ? `<div style="margin-top:3px;"><span style="font-size:11px;font-weight:700;color:#b45309;background:#fef3c7;border:1px solid #fde68a;border-radius:20px;padding:1px 6px;">⚠ Company not confirmed</span></div>` : ''}
+        ${_p.identity_confidence === 'low' ? `<div style="margin-top:3px;"><span style="font-size:11px;font-weight:700;color:#6b7280;background:#f3f4f6;border:1px solid #d1d5db;border-radius:20px;padding:1px 6px;">? Identity to verify</span></div>` : ''}
         <div class="drawer-last-contact">${lcStr ? 'Last contact: '+_esc(lcStr) : 'No contact logged yet'}</div>
         ${drawerLinksHtml}
       </div>
@@ -8931,8 +8951,8 @@ function _renderCommitteeCards(stakeholders, out, company, sector, icpScore) {
   stakeholders.forEach((s, i) => {
     const _contradicted = s.identity_verdict === 'CONTRADICTED';
     const _roleBadgeHtml = _contradicted
-      ? `<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 8px;border-radius:var(--radius-pill);white-space:nowrap;background:#f1f5f9;color:#64748b">Role not confirmed</span>`
-      : `<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 8px;border-radius:var(--radius-pill);white-space:nowrap;${_roleBg(s.role)}">${_esc(s.role||'Influence')}</span>`;
+      ? `<span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 8px;border-radius:var(--radius-pill);white-space:nowrap;background:#f1f5f9;color:#64748b">Role not confirmed</span>`
+      : `<span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 8px;border-radius:var(--radius-pill);white-space:nowrap;${_roleBg(s.role)}">${_esc(s.role||'Influence')}</span>`;
     const _contradictedNoteHtml = _contradicted
       ? `<div style="font-size:var(--fs-xs);color:#b45309;font-style:italic;">Role not confirmed — last known info may be outdated.</div>`
       : '';
@@ -8946,8 +8966,8 @@ function _renderCommitteeCards(stakeholders, out, company, sector, icpScore) {
         ${_roleBadgeHtml}
       </div>
       ${_contradictedNoteHtml}
-      ${s.concern ? `<div style="font-size:var(--fs-xs);color:var(--text-secondary)"><span style="font-weight:600;text-transform:uppercase;font-size:9px;letter-spacing:0.05em;color:var(--muted);margin-right:4px">Concern</span>${_esc(s.concern)}</div>` : ''}
-      ${s.approach ? `<div style="font-size:var(--fs-xs);color:var(--text-secondary)"><span style="font-weight:600;text-transform:uppercase;font-size:9px;letter-spacing:0.05em;color:var(--muted);margin-right:4px">Approach</span>${_esc(s.approach)}</div>` : ''}
+      ${s.concern ? `<div style="font-size:var(--fs-xs);color:var(--text-secondary)"><span style="font-weight:600;text-transform:uppercase;font-size:10px;letter-spacing:0.05em;color:var(--muted);margin-right:4px">Concern</span>${_esc(s.concern)}</div>` : ''}
+      ${s.approach ? `<div style="font-size:var(--fs-xs);color:var(--text-secondary)"><span style="font-weight:600;text-transform:uppercase;font-size:10px;letter-spacing:0.05em;color:var(--muted);margin-right:4px">Approach</span>${_esc(s.approach)}</div>` : ''}
       ${_addBtnHtml}
     </div>`;
   });
@@ -9121,9 +9141,9 @@ function _renderNextActionHTML(raw, linkColor) {
       ['What not to say', parsed.what_not_to_say],
     ].filter(([, v]) => v);
     return '<div style="display:flex;flex-direction:column;gap:6px;">'
-      + (parsed.channel ? '<div style="display:flex;align-items:center;gap:8px;"><span style="font-family:\'IBM Plex Mono\',monospace;font-size:9.5px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);">Channel</span><span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:var(--radius-pill);background:var(--chip-bg);color:var(--indigo);">' + _esc(parsed.channel) + '</span></div>' : '')
+      + (parsed.channel ? '<div style="display:flex;align-items:center;gap:8px;"><span style="font-family:\'IBM Plex Mono\',monospace;font-size:10.5px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);">Channel</span><span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:var(--radius-pill);background:var(--chip-bg);color:var(--indigo);">' + _esc(parsed.channel) + '</span></div>' : '')
       + fields.map(([label, v]) =>
-          '<div><span style="font-family:\'IBM Plex Mono\',monospace;font-size:9px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted);">' + label + '</span>'
+          '<div><span style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted);">' + label + '</span>'
           + '<div style="font-size:var(--fs-xs);line-height:1.5;color:' + linkColor + ';">' + linkify(_esc(v)) + '</div></div>'
         ).join('')
       + '</div>';
@@ -9407,7 +9427,7 @@ function _renderPriorityCards(prospects) {
     // n'affichait jusqu'ici aucune indication de temps relatif.
     const _relSignalDate = p.signal_date ? _relDate(p.signal_date) : null;
     const provenanceHtml = p._morningScanCategory
-      ? `<div style="font-size:8.5px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-top:4px;">${[
+      ? `<div style="font-size:9.5px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-top:4px;">${[
           'Morning scan',
           _relSignalDate ? _esc(_relSignalDate) : null,
           p.icp_confidence ? 'Confidence ' + _esc(p.icp_confidence) : null,
@@ -9443,10 +9463,10 @@ function _renderPriorityCards(prospects) {
             ${p.sector ? `<span style="font-size:var(--fs-xs);font-weight:600;padding:2px 8px;
               background:var(--chip-bg);border-radius:var(--radius-pill);color:var(--indigo);">
               ${_esc(p.sector)}</span>` : ''}
-            ${p.company_verified === false ? `<span style="font-size:10px;font-weight:700;color:#b45309;background:#fef3c7;border:1px solid #fde68a;border-radius:20px;padding:1px 6px;white-space:nowrap;" title="Company not confirmed by the data source">⚠ Company not confirmed</span>` : ''}
-            ${p.identity_confidence === 'low' ? `<span style="font-size:10px;font-weight:700;color:#6b7280;background:#f3f4f6;border:1px solid #d1d5db;border-radius:20px;padding:1px 6px;white-space:nowrap;" title="Identity not confirmed">? Identity to verify</span>` : ''}
-            ${p._morningScanCategory === 'today_action' ? `<span style="font-size:10px;font-weight:700;color:var(--red);background:var(--red-bg);border:1px solid var(--red-light);border-radius:20px;padding:1px 6px;white-space:nowrap;" title="Flagged for action by this morning's scan">⚡ Today</span>` : ''}
-            ${p._morningScanCategory === 'opportunistic_connection' ? `<span style="font-size:10px;font-weight:700;color:#6b7280;background:#f3f4f6;border:1px solid #d1d5db;border-radius:20px;padding:1px 6px;white-space:nowrap;" title="Opportunistic connection flagged by this morning's scan">🔗 Opportunistic</span>` : ''}
+            ${p.company_verified === false ? `<span style="font-size:11px;font-weight:700;color:#b45309;background:#fef3c7;border:1px solid #fde68a;border-radius:20px;padding:1px 6px;white-space:nowrap;" title="Company not confirmed by the data source">⚠ Company not confirmed</span>` : ''}
+            ${p.identity_confidence === 'low' ? `<span style="font-size:11px;font-weight:700;color:#6b7280;background:#f3f4f6;border:1px solid #d1d5db;border-radius:20px;padding:1px 6px;white-space:nowrap;" title="Identity not confirmed">? Identity to verify</span>` : ''}
+            ${p._morningScanCategory === 'today_action' ? `<span style="font-size:11px;font-weight:700;color:var(--red);background:var(--red-bg);border:1px solid var(--red-light);border-radius:20px;padding:1px 6px;white-space:nowrap;" title="Flagged for action by this morning's scan">⚡ Today</span>` : ''}
+            ${p._morningScanCategory === 'opportunistic_connection' ? `<span style="font-size:11px;font-weight:700;color:#6b7280;background:#f3f4f6;border:1px solid #d1d5db;border-radius:20px;padding:1px 6px;white-space:nowrap;" title="Opportunistic connection flagged by this morning's scan">🔗 Opportunistic</span>` : ''}
           </div>
           ${provenanceHtml}
           ${signalHtml}
@@ -11206,8 +11226,8 @@ function _drawerProfileHTML(id, p, colStage, fb){
         `<option value="">-- Signal type --</option>` +
         `${(_signalTaxonomy && Object.keys(_signalTaxonomy).length ? Object.values(_signalTaxonomy) : [{code:'S1',label:'S1'},{code:'S2',label:'S2'},{code:'S3',label:'S3'},{code:'S4',label:'S4'},{code:'activity',label:currentLang==='fr'?'Engagement passif (réaction/commentaire)':'Passive engagement (reaction/comment)',icon:'👁'}]).map(t => `<option value="${_esc(t.code)}"${(p.signal_type||'').toUpperCase()===(t.code||'').toUpperCase()?' selected':''}>${_esc(t.icon||'')} ${_esc(t.code)} — ${_esc(t.label||t.code)}</option>`).join('')}` +
       `</select>` +
-      (p.icp_reason ? `<div style="background:var(--navy-light);border:1px solid var(--blue);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--navy);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:10px;opacity:0.65;display:block;margin-bottom:3px">✦ ${currentLang==='fr'?'Justification du score':'Score rationale'}</span>${v(stripHtml(p.icp_reason))}</div>` : '') +
-      (p.hard_criteria_met ? `<div style="background:var(--navy-light);border:1px solid var(--blue);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--navy);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:10px;opacity:0.65;display:block;margin-bottom:3px">✦ ${currentLang==='fr'?'Critères remplis':'Criteria met'}</span><ul style="margin:0;padding-left:16px">${p.hard_criteria_met.split(';').map(c => c.trim()).filter(Boolean).map(c => `<li>${v(stripHtml(c))}</li>`).join('')}</ul></div>` : '')
+      (p.icp_reason ? `<div style="background:var(--navy-light);border:1px solid var(--blue);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--navy);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:11px;opacity:0.65;display:block;margin-bottom:3px">✦ ${currentLang==='fr'?'Justification du score':'Score rationale'}</span>${v(stripHtml(p.icp_reason))}</div>` : '') +
+      (p.hard_criteria_met ? `<div style="background:var(--navy-light);border:1px solid var(--blue);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--navy);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:11px;opacity:0.65;display:block;margin-bottom:3px">✦ ${currentLang==='fr'?'Critères remplis':'Criteria met'}</span><ul style="margin:0;padding-left:16px">${p.hard_criteria_met.split(';').map(c => c.trim()).filter(Boolean).map(c => `<li>${v(stripHtml(c))}</li>`).join('')}</ul></div>` : '')
     )}
     <textarea id="ed-notes" class="dp-inp" placeholder="Notes" style="min-height:60px;resize:vertical">${v(p.notes)}</textarea>
     <button class="btn-primary" style="width:100%;justify-content:center" onclick="saveProspectEdit('${v(id)}')"><span data-en="Save changes" data-fr="Enregistrer les modifications">Save changes</span></button>
@@ -11910,7 +11930,7 @@ function buildCard(p){
   const _circ = 75.4;
   const _off = (_hs ? _circ * (1 - Math.min(1, Math.max(0, _sv / 10))) : _circ).toFixed(1);
   const _lbl = _hs ? (_isEst ? '~' : '') + (_sv % 1 === 0 ? String(Math.round(_sv)) : _sv.toFixed(1)) : '—';
-  const _dial = `<svg width="36" height="36" viewBox="0 0 36 36" style="position:absolute;top:7px;right:7px;${_isEst ? 'opacity:0.72;' : ''}" aria-hidden="true"${_isEst ? ' title="Estimated score"' : ''}><circle cx="18" cy="18" r="13" fill="none" stroke="#e8eaf0" stroke-width="4"/><circle cx="18" cy="18" r="13" fill="none" stroke="${_dc}" stroke-width="4" stroke-dasharray="${_circ}" stroke-dashoffset="${_off}" stroke-linecap="round" transform="rotate(-90 18 18)"/><text x="18" y="22" text-anchor="middle" font-size="9" font-weight="700" fill="${_dc}" font-family="Plus Jakarta Sans,sans-serif">${_lbl}</text></svg>`;
+  const _dial = `<svg width="36" height="36" viewBox="0 0 36 36" style="position:absolute;top:7px;right:7px;${_isEst ? 'opacity:0.72;' : ''}" aria-hidden="true"${_isEst ? ' title="Estimated score"' : ''}><circle cx="18" cy="18" r="13" fill="none" stroke="#e8eaf0" stroke-width="4"/><circle cx="18" cy="18" r="13" fill="none" stroke="${_dc}" stroke-width="4" stroke-dasharray="${_circ}" stroke-dashoffset="${_off}" stroke-linecap="round" transform="rotate(-90 18 18)"/><text x="18" y="22" text-anchor="middle" font-size="10" font-weight="700" fill="${_dc}" font-family="Plus Jakarta Sans,sans-serif">${_lbl}</text></svg>`;
   // Pastille fiabilite (audit Stephane point 5) : coin bas-droit de l'anneau -- position:absolute,
   // meme coordonnee que l'anneau, aucun risque de reflow. Duplique .k-card-badges plus bas (pas
   // retiree de la). Placement le plus incertain des 3 ecrans sans rendu reel -- a verifier visuellement.
@@ -12218,7 +12238,7 @@ function _mscConfidenceBadge(confidence) {
   };
   const c = map[(confidence || '').toLowerCase()] || map.speculatif;
   const label = currentLang === 'fr' ? c.fr : c.en;
-  return `<span style="display:inline-block;font-size:10px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;padding:2px 8px;border-radius:999px;background:${c.bg};border:1px solid ${c.border};color:${c.color};white-space:nowrap;">${label}</span>`;
+  return `<span style="display:inline-block;font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;padding:2px 8px;border-radius:999px;background:${c.bg};border:1px solid ${c.border};color:${c.color};white-space:nowrap;">${label}</span>`;
 }
 function _mscInitials(name) {
   const parts = (name || '').trim().split(/\s+/).filter(Boolean);
@@ -12319,8 +12339,8 @@ function _mscParseEmailSections(html, opts) {
       const addItem = (text, links, header, tbl) => {
         if (!text) return;
         current.paragraphs.push(text);
-        if (links.length && !current.linksByText.has(text)) current.linksByText.set(text, links);
-        current.items.push({ text, header, tbl });
+        _mscRegisterLinks(current, text, links);
+        current.items.push({ text, header, tbl, links });
       };
       if (tag === 'table') {
         const tbl = tableCount++;
@@ -12337,8 +12357,7 @@ function _mscParseEmailSections(html, opts) {
     const text = (el.textContent || '').replace(/\s+/g, ' ').trim();
     if (text) {
       current.paragraphs.push(text);
-      const links = _mscExtractLinks(el);
-      if (links.length && !current.linksByText.has(text)) current.linksByText.set(text, links);
+      _mscRegisterLinks(current, text, _mscExtractLinks(el));
     }
   }
   return sections;
@@ -12353,6 +12372,18 @@ function _mscExtractLinks(el) {
     if (href && t) out.push({ t, href });
   }
   return out;
+}
+// Liens d'un paragraphe de l'email, indexes par TEXTE de paragraphe (section.linksByText, lu par _mscParagraphHTML).
+// Un meme texte qui revient dans la section avec une liste de liens DIFFERENTE (ex. plusieurs « Profile » / « Site » /
+// « LinkedIn » pointant vers des personnes differentes) est AMBIGU : liste vide = texte sans lien, jamais le lien du
+// 1er paragraphe pour tous (mieux vaut aucun lien qu'un lien faux). Meme texte + memes liens : inchange. Appelee apres
+// section.paragraphs.push(text). (Helper commun aux 3 dashboards.)
+function _mscRegisterLinks(section, text, links) {
+  const map = section.linksByText;
+  if (section.paragraphs.indexOf(text) === section.paragraphs.length - 1) { if (links.length) map.set(text, links); return; }
+  const prev = map.get(text) || [];
+  const same = prev.length === links.length && prev.every((p, i) => p.t === links[i].t && p.href === links[i].href);
+  if (!same) map.set(text, []);
 }
 // Paragraphe narratif -> HTML : tout le texte passe par _esc ; seuls les liens http(s) valides dont
 // le texte figure litteralement dans le paragraphe deviennent des <a>. Sans liens = _esc(text) seul.
@@ -12381,7 +12412,7 @@ function _mscGroupDecisions(decisions) {
   return groups;
 }
 function _mscSectionLabel(heading) {
-  return `<div style="font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--dim);opacity:.65;margin:14px 0 4px;">${_esc(heading)}</div>`;
+  return `<div style="font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--dim);opacity:.65;margin:14px 0 4px;">${_esc(heading)}</div>`;
 }
 // linksByText (optionnel, scan_entries v1 uniquement) : Map texte du paragraphe -> liens http(s) de ce paragraphe
 // (voir _mscParseEmailSections) ; absent (chemin de repli) = _esc(p) seul, exactement comme avant.
@@ -12439,14 +12470,14 @@ function _mscDecisionCardHTML(d, live) {
   // _mscResolveSource. Jamais un lien deja present retire ou remplace ; toujours _mscSafeUrl (http/https).
   const linkedinUrl = _mscSafeUrl(d.linkedin) || _mscSafeUrl(live && live.linkedin);
   const source = _mscResolveSource(d, live);
-  if (linkedinUrl) links.push(`<a href="${_esc(linkedinUrl)}" target="_blank" rel="noopener" style="color:var(--fill-accent);text-decoration:none;font-weight:600;">LinkedIn</a>`);
-  if (source) links.push(`<a href="${_esc(source.url)}" target="_blank" rel="noopener" style="color:var(--fill-accent);text-decoration:none;font-weight:600;">${_esc(source.label)}</a>`);
-  const linksHtml = links.length ? `<div style="margin-top:6px;display:flex;gap:12px;font-size:var(--fs-xs);">${links.join('')}</div>` : '';
+  if (linkedinUrl) links.push(`<a href="${_esc(linkedinUrl)}" target="_blank" rel="noopener" style="color:var(--fill-accent);text-decoration:none;font-weight:600;white-space:nowrap;">LinkedIn</a>`);
+  if (source) links.push(`<a href="${_esc(source.url)}" target="_blank" rel="noopener" style="color:var(--fill-accent);text-decoration:none;font-weight:600;min-width:0;word-break:normal;overflow-wrap:break-word;">${_esc(source.label)}</a>`);
+  const linksHtml = links.length ? `<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px 12px;font-size:var(--fs-xs);">${links.join('')}</div>` : '';
 
   const structured = isEntry && (d.facts || d.action);
   const summary = d.summary && !structured ? `<div style="margin-top:4px;font-size:var(--fs-sm);color:var(--dim);line-height:1.4;">${_esc(d.summary)}</div>` : '';
   const factsBlock = isEntry && d.facts
-    ? `<div style="margin-top:4px;font-size:var(--fs-sm);color:var(--dim);line-height:1.4;"><span style="font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;opacity:.6;">${fr ? 'Faits' : 'Facts'}</span><div>${_esc(cleanText(d.facts))}</div></div>`
+    ? `<div style="margin-top:4px;font-size:var(--fs-sm);color:var(--dim);line-height:1.4;"><span style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;opacity:.6;">${fr ? 'Faits' : 'Facts'}</span><div>${_esc(cleanText(d.facts))}</div></div>`
     : '';
   const mandateHtml = isEntry && d.mandate ? `<span style="font-size:var(--fs-xs);color:var(--dim);">${fr ? 'Mandat' : 'Mandate'} : ${_esc(d.mandate)}</span>` : '';
   const sigType = isEntry ? ((d.signal && d.signal.type) || (live && live.signal_type) || '') : '';
@@ -12469,7 +12500,7 @@ function _mscDecisionCardHTML(d, live) {
     ? `<div style="font-size:var(--fs-xs);line-height:1.5;color:var(--dim);">${_esc(scanAction)}</div>`
     : nextActionHtml;
   const actionBlock = actionBody
-    ? `<div style="margin-top:6px;"><div style="font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);opacity:.6;margin-bottom:2px;">${actionLabel}</div>${actionBody}</div>`
+    ? `<div style="margin-top:6px;"><div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);opacity:.6;margin-bottom:2px;">${actionLabel}</div>${actionBody}</div>`
     : '';
 
   const cardStyleBase = 'display:flex;gap:10px;padding:10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:#fff;';
@@ -12632,7 +12663,7 @@ function _mscIcpStateChipHTML(state) {
     ? 'background:var(--chip-bg);border:1px solid var(--border);color:var(--muted);'
     : 'background:var(--amber-bg);border:1px solid var(--amber-border);color:var(--amber);';
   const tip = (typeof currentLang === 'undefined' || currentLang === 'fr') ? _MSC_ICP_STATE_TIP : _MSC_ICP_STATE_TIP_EN;
-  return `<span title="${_esc(tip)}" style="display:inline-block;font-size:10px;font-weight:600;padding:2px 8px;border-radius:999px;${tone}white-space:nowrap;">${_esc(state.label)}</span>`;
+  return `<span title="${_esc(tip)}" style="display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;${tone}white-space:normal;max-width:100%;box-sizing:border-box;">${_esc(state.label)}</span>`;
 }
 // Enrichissement live (une seule requete par lot sur la TABLE prospects, sous RLS -- jamais la vue
 // prospects_scan_window -- et jamais une requete par carte) -- partage par le rendu scan_entries v1 et par la
@@ -12843,12 +12874,13 @@ async function _loadLastMorningScanEmail() {
           if (mentions.length > 0) {
             // Cartes pleines des la premiere version (demande Thomas). Les items signal de la section
             // (max 3, plafond inchange) restent affiches en texte ; les cartes suivent.
-            sectionsHtml += (_mscNarrativeBlockHTML(s.heading, _mscParagraphsWithoutMentions(s.paragraphs, mentions)) || _mscSectionLabel(s.heading))
+            sectionsHtml += (_mscNarrativeBlockHTML(s.heading, _mscParagraphsWithoutMentions(s.paragraphs, mentions), s.linksByText) || _mscSectionLabel(s.heading))
               + _mscMentionCardsHTML(mentions);
             continue;
           }
         }
-        sectionsHtml += _mscNarrativeBlockHTML(s.heading, s.paragraphs);
+        // 21/09 : le repli garde lui aussi les liens http(s) du mail (linksByText), comme le rendu scan_entries v1.
+        sectionsHtml += _mscNarrativeBlockHTML(s.heading, s.paragraphs, s.linksByText);
       }
       // Filet de securite : une mention market_mention dont aucun titre/texte n'a ete retrouve dans
       // l'email (ne devrait pas arriver) ne disparait jamais silencieusement -- rendue en fin de panneau.
@@ -12871,7 +12903,7 @@ async function _loadLastMorningScanEmail() {
       <div style="font-size:var(--fs-xs);color:var(--dim);margin-bottom:8px;">${_esc(data.subject || '')} · ${_esc(dateLabel)}</div>
       ${nativePanel
         ? sectionsHtml
-        : `<div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);opacity:.6;margin-bottom:6px;">${currentLang === 'fr' ? 'Aperçu de l’email envoyé' : 'Email preview'}</div>`}
+        : `<div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);opacity:.6;margin-bottom:6px;">${currentLang === 'fr' ? 'Aperçu de l’email envoyé' : 'Email preview'}</div>`}
       <div id="last-morning-scan-frame-wrap" style="max-height:${collapsedHeight};overflow:hidden;position:relative;transition:max-height .25s ease;border:1px solid var(--border);border-radius:var(--radius-sm);">
         <div id="last-morning-scan-fade" style="position:absolute;bottom:0;left:0;right:0;height:40px;background:linear-gradient(transparent, var(--bg));pointer-events:none;${nativePanel ? 'display:none;' : ''}"></div>
       </div>

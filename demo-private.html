@@ -93,15 +93,15 @@
   --btn-h-lg: 44px;
 
   /* Groupe F -- typography scale */
-  --fs-micro: 10px;
-  --fs-xs: 11px;
-  --fs-sm: 12px;
-  --fs-base: 13px;
-  --fs-input: 14px;
-  --fs-md: 16px;
-  --fs-lg: 18px;
-  --fs-xl: 22px;
-  --fs-display: 28px;
+  --fs-micro: 11px;
+  --fs-xs: 12px;
+  --fs-sm: 13px;
+  --fs-base: 14px;
+  --fs-input: 15px;
+  --fs-md: 17px;
+  --fs-lg: 19px;
+  --fs-xl: 23px;
+  --fs-display: 29px;
 
   /* Groupe G -- tokens de la refonte (Phase 0 : bancs d'essai sur les ecrans auth) */
   --ink: #0e1a2e;
@@ -226,10 +226,15 @@ nav {
 }
 .mandate-bar-label {
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 9.5px;
+  font-size: 10.5px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--muted);
+}
+@media (max-width:480px) {
+  .mandate-bar { min-width: 0; flex: 1 1 0; }
+  .mandate-bar-label { display: none; }
+  #mandate-select { min-width: 0; max-width: 100%; flex: 1 1 0; }
 }
 #mandate-select {
   background: white;
@@ -268,7 +273,7 @@ nav {
 }
 .spine-stage + .spine-stage { border-left: 1px solid var(--border); padding-left: 16px; margin-left: 16px; }
 .spine-dot { width: 7px; height: 7px; border-radius: 50%; background: #c6d1e2; display: inline-block; margin-bottom: 6px; }
-.spine-label { display: block; font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+.spine-label { display: block; font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
 .spine-row { display: flex; align-items: baseline; gap: 8px; white-space: nowrap; }
 .spine-count { font-family: 'IBM Plex Mono', monospace; font-size: 21px; font-weight: 600; color: var(--ink); }
 .spine-note { font-size: 13px; color: var(--muted); }
@@ -294,12 +299,12 @@ nav {
 .today-main { flex: 1; min-width: 0; }
 .today-rail { width: 296px; flex-shrink: 0; border-left: 1px solid var(--border); padding-left: 20px; }
 @media (max-width: 1180px) {
-  .today-layout { flex-direction: column; }
+  .today-layout { flex-direction: column; align-items: stretch; }
   .today-rail { width: 100%; border-left: none; border-top: 1px solid var(--border); padding-left: 0; padding-top: 20px; margin-top: 4px; }
 }
 .today-step-divider { display: flex; align-items: center; gap: 10px; margin: 22px 0 14px; }
 .today-step-divider:first-child { margin-top: 0; }
-.today-step-label { font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+.today-step-label { font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
 .today-step-rule { flex: 1; height: 1px; background: var(--border); }
 .today-step-count { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--dim); white-space: nowrap; }
 
@@ -310,15 +315,15 @@ nav {
 .pd-head-top { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
 .pd-name-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
 .pd-name { font-size:18px; font-weight:600; color:var(--ink); }
-.pd-stage-chip { font-family:'IBM Plex Mono',monospace; font-size:9px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; padding:2px 8px; border-radius:var(--radius-pill); background:var(--navy-light); color:var(--ink); }
+.pd-stage-chip { font-family:'IBM Plex Mono',monospace; font-size:10px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; padding:2px 8px; border-radius:var(--radius-pill); background:var(--navy-light); color:var(--ink); }
 .pd-role { font-size:13px; color:var(--muted); margin-top:2px; }
-.pd-firmo { font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:0.04em; color:var(--dim); margin-top:5px; }
+.pd-firmo { font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:0.04em; color:var(--dim); margin-top:5px; }
 .pd-close { flex-shrink:0; width:28px; height:28px; border-radius:var(--radius-sm); border:1px solid var(--border); background:#fff; color:var(--muted); cursor:pointer; font-size:14px; display:flex; align-items:center; justify-content:center; }
 .pd-close:hover { color:var(--ink); border-color:var(--ink); }
 .pd-stats { display:flex; margin-top:14px; }
 .pd-stat { flex:1; padding:0 12px; border-left:1px solid var(--border); min-width:0; }
 .pd-stat:first-child { border-left:none; padding-left:0; }
-.pd-stat-label { font-family:'IBM Plex Mono',monospace; font-size:8.5px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); margin-bottom:3px; }
+.pd-stat-label { font-family:'IBM Plex Mono',monospace; font-size:9.5px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); margin-bottom:3px; }
 .pd-stat-value { font-family:'IBM Plex Mono',monospace; font-size:14px; font-weight:600; color:var(--ink); display:flex; align-items:center; gap:5px; white-space:nowrap; }
 .pd-stat-edit { cursor:pointer; color:var(--muted); background:none; border:none; padding:0; font-size:11px; line-height:1; flex-shrink:0; }
 .pd-stat-edit:hover { color:var(--accent); }
@@ -327,13 +332,13 @@ nav {
 .pd-link:hover { text-decoration:underline; }
 .pd-body { flex:1; min-height:0; overflow-y:auto; padding:0 22px; }
 .pd-section { padding:18px 0; border-bottom:1px solid var(--border); }
-.pd-section-label { font-family:'IBM Plex Mono',monospace; font-size:9.5px; font-weight:600; letter-spacing:0.14em; text-transform:uppercase; color:var(--muted); margin-bottom:10px; }
+.pd-section-label { font-family:'IBM Plex Mono',monospace; font-size:10.5px; font-weight:600; letter-spacing:0.14em; text-transform:uppercase; color:var(--muted); margin-bottom:10px; }
 .pd-next-action { background:var(--success-bg); border:1px solid var(--success-border); border-radius:var(--radius-md); padding:14px 16px; }
-.pd-next-action-label { font-family:'IBM Plex Mono',monospace; font-size:9px; font-weight:700; letter-spacing:0.12em; color:var(--success); margin-bottom:6px; }
+.pd-next-action-label { font-family:'IBM Plex Mono',monospace; font-size:10px; font-weight:700; letter-spacing:0.12em; color:var(--success); margin-bottom:6px; }
 .pd-next-action-text { font-size:14px; font-weight:600; color:var(--ink); line-height:1.5; }
 .pd-row { display:flex; align-items:baseline; gap:10px; padding:9px 0; border-bottom:1px solid var(--border); }
 .pd-row:last-child { border-bottom:none; }
-.pd-row-mono { font-family:'IBM Plex Mono',monospace; font-size:9.5px; letter-spacing:0.06em; color:var(--muted); flex-shrink:0; white-space:nowrap; }
+.pd-row-mono { font-family:'IBM Plex Mono',monospace; font-size:10.5px; letter-spacing:0.06em; color:var(--muted); flex-shrink:0; white-space:nowrap; }
 .pd-row-main { font-size:13px; color:var(--text); line-height:1.5; min-width:0; }
 .pd-row-name { font-size:13.5px; font-weight:600; color:var(--ink); }
 .pd-empty { font-size:12.5px; color:var(--dim); font-style:italic; }
@@ -455,7 +460,7 @@ button, [role="button"], select, input { min-height: 28px; }
 /* Classification badge (section 06) : radius 4px mono uppercase, paires semantiques section 01 --
    remplace l'ancien traitement pastille (radius-pill, Plus Jakarta Sans). */
 .card-badge {
-  font-family:'IBM Plex Mono',monospace; font-size:9.5px; font-weight:400;
+  font-family:'IBM Plex Mono',monospace; font-size:10.5px; font-weight:400;
   letter-spacing:.12em; text-transform:uppercase;
   padding:3px 9px; border-radius:4px; border:1px solid transparent;
 }
@@ -482,7 +487,7 @@ button, [role="button"], select, input { min-height: 28px; }
    STATUS"...), pas de la prose -- meme cible que les overrides #drawer/#syspanel-pipeintel deja
    en place plus bas, generalisee ici a la base pour ne plus la repeter panel par panel. */
 .ai-box-label {
-  font-family:'IBM Plex Mono',monospace; font-size:9.5px; font-weight:400; letter-spacing:.16em; text-transform:uppercase; color:var(--ink);
+  font-family:'IBM Plex Mono',monospace; font-size:10.5px; font-weight:400; letter-spacing:.16em; text-transform:uppercase; color:var(--ink);
 }
 .ai-spinner {
   width:14px; height:14px; border:2px solid var(--border-mid);
@@ -511,7 +516,7 @@ button, [role="button"], select, input { min-height: 28px; }
 }
 .score-kpi-val.green { color:var(--positive); }
 .score-kpi-val.amber { color:var(--objection); }
-.score-kpi-label { font-family:'IBM Plex Mono',monospace; font-size:9.5px; font-weight:400; color:var(--dim); letter-spacing:.16em; text-transform:uppercase; margin-top:4px; display:block; }
+.score-kpi-label { font-family:'IBM Plex Mono',monospace; font-size:10.5px; font-weight:400; color:var(--dim); letter-spacing:.16em; text-transform:uppercase; margin-top:4px; display:block; }
 
 .scanner-mode-toggle { display:flex; gap:6px; margin-bottom:14px; }
 
@@ -523,7 +528,7 @@ button, [role="button"], select, input { min-height: 28px; }
 .signal-list { display:flex; flex-wrap:wrap; gap:6px; margin-top:12px; }
 .signal-tag {
   display:inline-flex; align-items:center; gap:5px;
-  font-family:'IBM Plex Mono',monospace; font-size:8.5px; font-weight:400;
+  font-family:'IBM Plex Mono',monospace; font-size:9.5px; font-weight:400;
   letter-spacing:.12em; text-transform:uppercase;
   padding:2px 7px; border-radius:4px; border:1px solid transparent; white-space:nowrap;
 }
@@ -557,7 +562,7 @@ button, [role="button"], select, input { min-height: 28px; }
 .agent-hero-stats { display:flex; gap:22px; }
 .agent-hero-stat { text-align:center; }
 .agent-hero-stat span { display:block; font-family:'IBM Plex Mono',monospace; font-size:19px; font-weight:700; line-height:1; }
-.agent-hero-stat label { display:block; font-size:9px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:rgba(255,255,255,.55); margin-top:4px; }
+.agent-hero-stat label { display:block; font-size:10px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:rgba(255,255,255,.55); margin-top:4px; }
 /* ACCENT (section 05) : "Open session" est litteralement l'exemple donne par la spec pour cette
    variante -- reserve a l'orchestrateur, jamais deux fois dans une meme vue. */
 .agent-hero-btn { font-family:'Instrument Sans',sans-serif; font-size:13px; font-weight:600; padding:10px 18px; border-radius:7px; border:none; background:var(--accent); color:#fff; cursor:pointer; white-space:nowrap; }
@@ -594,14 +599,14 @@ button, [role="button"], select, input { min-height: 28px; }
 .agent-status-dot { position:absolute; top:12px; right:12px; width:7px; height:7px; border-radius:50%; background:#cdd5e0; }
 .agent-status-dot.is-active { background:var(--success); }
 .agent-card-footer {
-  display:flex; align-items:center; justify-content:space-between; gap:6px;
+  display:flex; align-items:center; justify-content:space-between; gap:6px; flex-wrap:wrap;
   margin-top:6px; padding-top:8px; border-top:1px solid var(--border);
-  font-family:'IBM Plex Mono',monospace; font-size:9.5px; letter-spacing:0.04em;
+  font-family:'IBM Plex Mono',monospace; font-size:10.5px; letter-spacing:0.04em;
 }
-.agent-card-footer-status { color:var(--muted); text-transform:uppercase; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.agent-card-footer-status { color:var(--muted); text-transform:uppercase; overflow-wrap:anywhere; }
 .agent-card-footer-action { color:var(--accent); font-weight:700; text-transform:uppercase; flex-shrink:0; }
 .badge-new {
-  font-family:'IBM Plex Mono',monospace; font-size:8.5px; font-weight:400; letter-spacing:.12em; text-transform:uppercase;
+  font-family:'IBM Plex Mono',monospace; font-size:9.5px; font-weight:400; letter-spacing:.12em; text-transform:uppercase;
   background:var(--neutral-chip-bg); color:var(--neutral-chip); border:1px solid transparent;
   border-radius:4px; padding:2px 6px;
   vertical-align:middle; margin-left:4px;
@@ -672,6 +677,7 @@ button, [role="button"], select, input { min-height: 28px; }
   .kanban-col { width:252px; min-width:252px; max-height:calc(100vh - 370px); overflow-y:auto; overflow-x:hidden; scrollbar-width:thin; scrollbar-color:var(--border) transparent; }
   .k-card { padding:10px 12px; }
   .k-card-name { white-space:normal; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; font-size:var(--fs-base); font-weight:700; }
+  .kanban .k-card-name { font-size:calc(var(--fs-base) - 1px); }
   .k-card-company { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:var(--fs-xs); }
 }
 .kanban-empty { font-size:var(--fs-xs); color:var(--dim); padding:14px 8px; text-align:center; line-height:1.5; cursor:pointer; opacity:0.75; }
@@ -691,7 +697,7 @@ button, [role="button"], select, input { min-height: 28px; }
 }
 .kanban-count {
   min-width:24px; height:24px; padding:0 6px; border-radius:12px;
-  font-family:'IBM Plex Mono',monospace; font-size:10px; font-weight:600; color:var(--ink);
+  font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:600; color:var(--ink);
   background:var(--neutral-chip-bg);
   display:inline-flex; align-items:center; justify-content:center; white-space:nowrap;
 }
@@ -709,7 +715,8 @@ button, [role="button"], select, input { min-height: 28px; }
 .k-card-name    { font-size:var(--fs-base); font-weight:800; color:var(--ink); line-height:1.3; }
 .k-card-company { font-size:var(--fs-xs); color:var(--muted); margin-top:2px; }
 .k-card-badges  { display:flex; flex-wrap:wrap; gap:7px; margin-top:7px; }
-.k-badge { display:inline-flex; align-items:center; padding:2px 7px; border-radius:4px; font-family:'IBM Plex Mono',monospace; font-size:8.5px; font-weight:400; letter-spacing:.12em; text-transform:uppercase; background:var(--neutral-chip-bg); color:var(--neutral-chip); white-space:nowrap; }
+.k-badge { display:inline-flex; align-items:center; padding:2px 7px; border-radius:4px; font-family:'IBM Plex Mono',monospace; font-size:9.5px; font-weight:400; letter-spacing:.12em; text-transform:uppercase; background:var(--neutral-chip-bg); color:var(--neutral-chip); white-space:nowrap; }
+.k-card-badges .k-badge { max-width:100%; white-space:normal; overflow-wrap:anywhere; }
 .k-badge-deal { background:var(--positive-bg); color:var(--positive); }
 /* ── Édition prospect (drawer) + modale Ajout ── */
 .dp-edit { display:flex; flex-direction:column; gap:8px; margin-bottom:22px; }
@@ -802,11 +809,12 @@ button, [role="button"], select, input { min-height: 28px; }
 .pipe-stat:not(:first-child) { border-left:1px solid var(--border); }
 .pipe-stat-val { font-family:'IBM Plex Mono',monospace; font-size:24px; font-weight:600; letter-spacing:-.02em; color:var(--ink); display:block; }
 .pipe-stat-val.warn { color:var(--amber); }
-.pipe-stat-label { font-family:'IBM Plex Mono',monospace; font-size:9.5px; font-weight:400; color:var(--dim); letter-spacing:.16em; text-transform:uppercase; margin-top:4px; display:block; }
+.pipe-stat-label { font-family:'IBM Plex Mono',monospace; font-size:10.5px; font-weight:400; color:var(--dim); letter-spacing:.16em; text-transform:uppercase; margin-top:4px; display:block; }
+@media (max-width:480px) { .pipe-stat { padding:0 12px; } }
 .pipe-funnel-bar { display:flex; gap:2px; height:9px; margin-top:18px; }
 .pipe-funnel-seg { border-radius:5px; }
 .pipe-funnel-legend { display:flex; gap:2px; margin-top:8px; }
-.pipe-funnel-leg-item { font-family:'IBM Plex Mono',monospace; font-size:9.5px; color:var(--muted); text-align:center; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; min-width:100px; }
+.pipe-funnel-leg-item { font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--muted); text-align:center; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; min-width:100px; }
 /* Meme cause partout : chaque label herite du meme flex proportionnel au comptage que son
    segment de barre (pose en inline par _renderPipelineStatsCard, pour l'alignement colonne/
    segment) -- une etape a faible effectif recoit alors une fraction de pixel de large, illisible
@@ -826,7 +834,7 @@ button, [role="button"], select, input { min-height: 28px; }
      compromis accepte puisqu'il etait deja illisible pour les petites etapes de toute facon. */
 @media (max-width: 480px) {
   .pipe-funnel-legend { flex-wrap: wrap; row-gap: 3px; }
-  .pipe-funnel-leg-item { flex: 0 1 auto !important; width: auto !important; overflow: visible; text-overflow: clip; font-size: 8.5px; padding: 0 3px; }
+  .pipe-funnel-leg-item { flex: 0 1 auto !important; width: auto !important; overflow: visible; text-overflow: clip; font-size: 9.5px; padding: 0 3px; }
 }
 .k-col-dot { width:7px; height:7px; border-radius:2px; display:inline-block; margin-right:6px; flex-shrink:0; vertical-align:middle; }
 
@@ -867,7 +875,7 @@ footer a { color:var(--navy); text-decoration:none; font-weight:600; }
 }
 .toggle-pill:hover:not(.active) { border-color:var(--border-hover); }
 .toggle-pill.active { background:var(--ink); border-color:var(--ink); color:#fff; font-weight:600; }
-.rpt-metric-badge { font-size:10px; font-weight:700; border-radius:var(--radius-pill); padding:2px 9px; white-space:nowrap; border:1px solid transparent; }
+.rpt-metric-badge { font-size:11px; font-weight:700; border-radius:var(--radius-pill); padding:2px 9px; white-space:nowrap; border:1px solid transparent; }
 .rpt-vote-btn { font-size:15px; line-height:1; padding:4px 8px; border-radius:var(--radius-sm); border:1.5px solid var(--border); background:var(--white); cursor:pointer; transition:background 0.12s,border-color 0.12s; }
 .rpt-vote-btn.active-like { background:#d1fae5; border-color:#6ee7b7; }
 .rpt-vote-btn.active-unlike { background:#fee2e2; border-color:#fca5a5; }
@@ -947,7 +955,7 @@ footer a { color:var(--navy); text-decoration:none; font-weight:600; }
    generic/activity (etaient slate) = NEUTRAL ("generic activity, unweighted metadata"). */
 .signal-badge {
   display:inline-block; vertical-align:middle;
-  font-family:'IBM Plex Mono',monospace; font-size:9.5px; font-weight:400;
+  font-family:'IBM Plex Mono',monospace; font-size:10.5px; font-weight:400;
   letter-spacing:.12em; text-transform:uppercase;
   padding:3px 9px; border-radius:4px; border:1px solid transparent;
   white-space:nowrap; max-width:180px; overflow:hidden; text-overflow:ellipsis;
@@ -957,9 +965,13 @@ footer a { color:var(--navy); text-decoration:none; font-weight:600; }
 .signal-s3, .signal-s4 { background:var(--fundraising-bg); color:var(--fundraising); }
 .signal-generic, .signal-activity { background:var(--neutral-chip-bg); color:var(--neutral-chip); }
 .k-card-signal { margin-top:4px; margin-right:8px; }
+@media (max-width:480px) { .k-card-signal .signal-badge { max-width:200px; } }
 .sig-attr-row { padding:10px 0; border-bottom:1px solid var(--border); }
 .sig-attr-row:last-child { border-bottom:none; }
 .sig-attr-head { display:flex; align-items:center; gap:10px; margin-bottom:6px; }
+@media (max-width:480px) {
+  .sig-attr-head { flex-wrap:wrap; row-gap:4px; }
+}
 .sig-attr-meta { font-size:var(--fs-xs); color:var(--muted); }
 .sig-attr-rev-row { display:flex; align-items:center; gap:10px; }
 .sig-attr-track { flex:1; height:6px; background:var(--border); border-radius:3px; overflow:hidden; }
@@ -978,6 +990,10 @@ footer a { color:var(--navy); text-decoration:none; font-weight:600; }
 .dist-track { height:8px; background:var(--border); border-radius:var(--radius-badge); overflow:hidden; }
 .dist-fill { height:100%; border-radius:var(--radius-badge); background:var(--navy); }
 .rev-kpi-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:20px; }
+@media (max-width:480px) {
+  .rev-kpi-grid { grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+  .rev-kpi { padding:12px 10px; }
+}
 .rev-kpi { border:1px solid var(--border); border-radius:var(--radius-panel); padding:14px 16px; }
 .rev-kpi-val { font-size:var(--fs-xl); font-weight:800; color:var(--navy); display:block; }
 .rev-kpi-label { font-size:var(--fs-xs); font-weight:600; color:var(--muted); margin-top:3px; display:block; }
@@ -1000,6 +1016,10 @@ footer a { color:var(--navy); text-decoration:none; font-weight:600; }
 .send-name { font-size:14px; font-weight:800; color:var(--navy); }
 .send-company { font-size:var(--fs-sm); color:var(--muted); }
 .send-touch { font-size:var(--fs-micro); font-weight:600; padding:4px 10px; border-radius:var(--radius-pill); white-space:nowrap; min-height:28px; display:inline-flex; align-items:center; }
+@media (max-width:480px) {
+  .send-row { flex-wrap:wrap; }
+  .send-id { flex:1 1 calc(100% - 50px); }
+}
 .touch-j0 { background:var(--green-bg); color:var(--green); }
 .touch-j5 { background:var(--navy-light); color:var(--navy); }
 .touch-invite { background:var(--navy-light); color:var(--navy); }
@@ -1041,17 +1061,17 @@ body.ask-open { overflow:hidden; }
 .ask-panel-head { padding:16px 22px 14px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; gap:12px; flex-shrink:0; }
 .ask-panel-title-row { display:flex; align-items:center; gap:7px; }
 .ask-panel-title { font-size:14.5px; font-weight:600; color:var(--ink); }
-.ask-panel-sub { font-family:'IBM Plex Mono',monospace; font-size:9px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); margin-top:3px; }
-.ask-ctx-pill { font-size:10px; font-weight:600; background:var(--navy-light); color:var(--navy); border:1px solid var(--blue); border-radius:var(--radius-pill); padding:2px 8px; letter-spacing:0.02em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:220px; margin-top:5px; }
+.ask-panel-sub { font-family:'IBM Plex Mono',monospace; font-size:10px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); margin-top:3px; }
+.ask-ctx-pill { font-size:11px; font-weight:600; background:var(--navy-light); color:var(--navy); border:1px solid var(--blue); border-radius:var(--radius-pill); padding:2px 8px; letter-spacing:0.02em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:220px; margin-top:5px; }
 #ask-messages { flex:1; overflow-y:auto; padding:16px 22px; display:flex; flex-direction:column; gap:10px; }
 #ask-panel .chat-avatar { background:var(--ink); }
 #ask-panel .chat-msg.user .chat-avatar { background:var(--accent); }
 #ask-panel .chat-bubble { font-size:13.5px; line-height:1.55; }
 #ask-panel .chat-msg.user .chat-bubble { background:var(--ink); color:#fff; border:none; border-radius:9px 9px 3px 9px; max-width:88%; }
 #ask-panel .chat-msg.assistant .chat-bubble { background:var(--bg); border:1px solid var(--border); color:var(--text); border-radius:9px 9px 9px 3px; max-width:94%; white-space:pre-line; }
-.ask-provenance { font-family:'IBM Plex Mono',monospace; font-size:8.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--muted); margin-top:8px; padding-top:6px; border-top:1px solid var(--border); }
+.ask-provenance { font-family:'IBM Plex Mono',monospace; font-size:9.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--muted); margin-top:8px; padding-top:6px; border-top:1px solid var(--border); }
 .ask-suggested { padding:0 22px 12px; flex-shrink:0; }
-.ask-suggested-label { font-family:'IBM Plex Mono',monospace; font-size:8.5px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); margin-bottom:8px; }
+.ask-suggested-label { font-family:'IBM Plex Mono',monospace; font-size:9.5px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); margin-bottom:8px; }
 .ask-pills { display:flex; flex-wrap:wrap; gap:6px; }
 .ask-pill { font-family:'Instrument Sans',sans-serif; font-size:12px; padding:6px 12px; border-radius:20px; border:1px solid var(--border); background:#fff; color:var(--text); cursor:pointer; transition:border-color .15s,color .15s; }
 .ask-pill:hover { border-color:var(--accent); color:var(--accent); }
@@ -1272,7 +1292,7 @@ body.new-nav { padding-left: 220px; }
 .snav-section { padding: 6px 10px 2px; flex-shrink: 0; }
 .snav-section + .snav-section { margin-top: 14px; }
 .snav-section-label {
-  display: block; font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; letter-spacing: 0.18em;
+  display: block; font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; letter-spacing: 0.18em;
   text-transform: uppercase; color: var(--sidebar-label); padding: 26px 24px 8px;
 }
 .snav-item {
@@ -1293,7 +1313,7 @@ body.new-nav { padding-left: 220px; }
 .snav-section-muted .snav-item { font-size: 12px; opacity: 0.72; }
 .snav-section-muted .snav-item:hover, .snav-section-muted .snav-item.active { opacity: 1; }
 .snav-badge, .snav-meta {
-  font-family: 'IBM Plex Mono', monospace; font-size: 9px; letter-spacing: 0.05em;
+  font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.05em;
   color: var(--sidebar-label); flex-shrink: 0;
 }
 .snav-badge:empty, .snav-meta:empty { display: none; }
@@ -1310,7 +1330,7 @@ body.new-nav { padding-left: 220px; }
 .snav-system-active {
   display: flex; align-items: center; gap: 6px;
   margin-top: 10px; padding: 10px 2px 0; border-top: 1px solid rgba(255,255,255,.1);
-  font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; letter-spacing: 0.12em;
+  font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; letter-spacing: 0.12em;
   color: var(--sidebar-label);
 }
 /* Sign Out relocalise depuis <nav> (cleanup) : meme #signout-btn, meme onclick="signOut()",
@@ -1319,7 +1339,7 @@ body.new-nav { padding-left: 220px; }
   display: none; align-items: center; gap: 6px; width: 100%;
   margin-top: 10px; padding: 8px 2px 0; border: none; border-top: 1px solid rgba(255,255,255,.1);
   background: none; text-align: left; cursor: pointer;
-  font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; letter-spacing: 0.12em;
+  font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; letter-spacing: 0.12em;
   color: var(--sidebar-label);
 }
 .snav-signout:hover { color: #fff; }
@@ -1385,7 +1405,7 @@ body.new-nav { padding-left: 220px; }
   color: rgba(255,255,255,.72);
 }
 .mtab-item.active { color: #fff; font-weight: 600; }
-.mtab-badge { font-family: 'IBM Plex Mono', monospace; font-size: 9px; color: var(--accent); }
+.mtab-badge { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--accent); }
 .mtab-badge:empty { display: none; }
 .more-list { display: flex; flex-direction: column; }
 .more-row {
@@ -1446,11 +1466,11 @@ body.new-nav { padding-left: 220px; }
       </div>
       <span style="font-family:'Instrument Sans',sans-serif;font-weight:600;font-size:22px;letter-spacing:0.18em;line-height:1;color:#fff;">CORRIDOR</span>
     </div>
-    <p style="text-align:center;color:rgba(255,255,255,.5);font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:0.22em;margin:0 0 28px;">CORRIDOR GTM SYSTEM · THOMAS</p>
+    <p style="text-align:center;color:rgba(255,255,255,.5);font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:0.22em;margin:0 0 28px;">CORRIDOR GTM SYSTEM · THOMAS</p>
     <form onsubmit="doLogin(event)">
-      <label for="login-email" style="display:block;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:0.18em;color:rgba(255,255,255,.5);margin-bottom:5px;">EMAIL</label>
+      <label for="login-email" style="display:block;font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:0.18em;color:rgba(255,255,255,.5);margin-bottom:5px;">EMAIL</label>
       <input id="login-email" type="email" autocomplete="email" required style="width:100%;box-sizing:border-box;padding:13px 14px;margin-bottom:14px;border:1px solid rgba(255,255,255,.14);border-radius:var(--radius-sm);background:rgba(255,255,255,.07);color:#fff;font-size:15px;font-family:'Instrument Sans',sans-serif;outline:none;transition:border-color .15s;">
-      <label for="login-password" style="display:block;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:0.18em;color:rgba(255,255,255,.5);margin-bottom:5px;">PASSWORD</label>
+      <label for="login-password" style="display:block;font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:0.18em;color:rgba(255,255,255,.5);margin-bottom:5px;">PASSWORD</label>
       <input id="login-password" type="password" autocomplete="current-password" required style="width:100%;box-sizing:border-box;padding:13px 14px;margin-bottom:18px;border:1px solid rgba(255,255,255,.14);border-radius:var(--radius-sm);background:rgba(255,255,255,.07);color:#fff;font-size:15px;font-family:'Instrument Sans',sans-serif;outline:none;transition:border-color .15s;">
       <button id="login-btn" type="submit" style="width:100%;padding:13px;border:none;border-radius:var(--radius-sm);background:#fff;color:var(--ink);font-weight:700;font-size:15px;cursor:pointer;font-family:'Instrument Sans',sans-serif;">Sign in</button>
       <p id="login-error" style="display:none;color:var(--red-light);font-size:var(--fs-base);text-align:center;margin:14px 0 0;"></p>
@@ -1458,9 +1478,9 @@ body.new-nav { padding-left: 220px; }
     <div style="margin-top:24px;padding-top:16px;border-top:1px solid rgba(255,255,255,.1);text-align:center;">
       <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:10px;">
         <span style="width:6px;height:6px;border-radius:50%;background:var(--success);display:inline-block;animation:pulseDot 2.4s ease-in-out infinite;"></span>
-        <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:0.12em;color:rgba(255,255,255,.5);">SYSTEM ACTIVE · 15 AGENTS RUNNING</span>
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:0.12em;color:rgba(255,255,255,.5);">SYSTEM ACTIVE · 15 AGENTS RUNNING</span>
       </div>
-      <div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:0.12em;">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:0.12em;">
         <a href="mailto:thomas@corridor.systems" style="color:rgba(255,255,255,.5);text-decoration:none;">CONTACT</a>
         <span style="color:rgba(255,255,255,.3);margin:0 6px;">·</span>
         <a href="https://corridor.systems" target="_blank" rel="noopener" style="color:rgba(255,255,255,.5);text-decoration:none;">CORRIDOR.SYSTEMS ↗</a>
@@ -1506,12 +1526,12 @@ body.new-nav { padding-left: 220px; }
     </div>
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
       <span style="width:6px;height:6px;border-radius:50%;background:var(--danger);display:inline-block;"></span>
-      <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:0.12em;color:var(--danger);">PROFILE UNAVAILABLE</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:0.12em;color:var(--danger);">PROFILE UNAVAILABLE</span>
     </div>
     <h2 style="color:#fff;font-family:'Instrument Sans',sans-serif;font-weight:600;font-size:21px;margin:0 0 12px;">We could not load your profile.</h2>
     <p style="color:rgba(255,255,255,.65);font-size:13.5px;line-height:1.6;margin:0 0 20px;">Your session is valid, so nothing has been lost. This is a read failure on our side. Try again, and if it persists the detail below is what to send us.</p>
     <div style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:var(--radius-md);padding:14px 16px;margin-bottom:20px;">
-      <div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:0.18em;color:rgba(255,255,255,.5);margin-bottom:10px;">DIAGNOSTIC</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:0.18em;color:rgba(255,255,255,.5);margin-bottom:10px;">DIAGNOSTIC</div>
       <div id="pe-diag-rows"></div>
     </div>
     <button onclick="_retryProfileLoad()" style="width:100%;padding:13px;border:none;border-radius:var(--radius-sm);background:#fff;color:var(--ink);font-weight:700;font-size:15px;cursor:pointer;font-family:'Instrument Sans',sans-serif;margin-bottom:10px;">Try again</button>
@@ -2573,7 +2593,7 @@ body.new-nav { padding-left: 220px; }
            reply/indeal/client = 6 etapes, Client est bien la 6e). -->
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
         <svg width="16" height="16" viewBox="0 0 16 16" style="flex-shrink:0;"><rect x="0" y="0" width="7" height="7" rx="1.5" fill="var(--border)"/><rect x="9" y="0" width="7" height="7" rx="1.5" fill="var(--border)"/><rect x="0" y="9" width="7" height="7" rx="1.5" fill="var(--border)"/><rect x="9" y="9" width="7" height="7" rx="1.5" fill="var(--border)"/></svg>
-        <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);">Stage 6 of 6 &middot; Not reached yet</span>
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);">Stage 6 of 6 &middot; Not reached yet</span>
       </div>
 
       <!-- Mouvement 2 : nommer le mecanisme, pas l'absence. -->
@@ -2587,7 +2607,7 @@ body.new-nav { padding-left: 220px; }
 
       <!-- Mouvement 4 : montrer la forme a venir. -->
       <div style="background:var(--surface-1);border-radius:var(--radius-lg);padding:16px 18px;">
-        <div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;">What a client record will look like</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;">What a client record will look like</div>
         <div style="display:flex;flex-direction:column;gap:10px;">
           <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px dashed var(--border-input);border-radius:var(--radius-md);">
             <div style="width:26px;height:26px;border-radius:6px;background:var(--border);flex-shrink:0;"></div>
@@ -3199,8 +3219,8 @@ function _signalTypeBanner(st) {
   };
   const key = (st || '').toLowerCase().replace(/_/g, '-');
   const def = MAP[key];
-  if (def) return { html: `<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding:4px 10px;background:${def.bg};border-radius:var(--radius-sm);border:1px solid ${def.border};"><span style="font-size:10px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:${def.color};">${def.label}</span></div>`, cardBorder: def.border };
-  if (st) { const raw = st.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()); return { html: `<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding:4px 10px;background:var(--chip-bg,#f3f4f6);border-radius:var(--radius-sm);border:1px solid var(--border);"><span style="font-size:10px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted);">${raw}</span></div>`, cardBorder: null }; }
+  if (def) return { html: `<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding:4px 10px;background:${def.bg};border-radius:var(--radius-sm);border:1px solid ${def.border};"><span style="font-size:11px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:${def.color};">${def.label}</span></div>`, cardBorder: def.border };
+  if (st) { const raw = st.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()); return { html: `<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding:4px 10px;background:var(--chip-bg,#f3f4f6);border-radius:var(--radius-sm);border:1px solid var(--border);"><span style="font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted);">${raw}</span></div>`, cardBorder: null }; }
   return { html: '', cardBorder: null };
 }
 // Bruit Live Signals (demande Thomas) : motifs generiques/gabarits sans substance reelle --
@@ -3969,8 +3989,8 @@ let _lastProfileErrorInfo = null; // { at: Date, status: string } | null
 let _lastProfileLoadAttempts = 0;
 function _diagRow(color, label, value) {
   return '<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;">'
-    + '<span style="display:flex;align-items:center;gap:6px;font-family:\'IBM Plex Mono\',monospace;font-size:9.5px;letter-spacing:0.1em;color:rgba(255,255,255,.5);"><span style="width:6px;height:6px;border-radius:50%;background:' + color + ';display:inline-block;flex-shrink:0;"></span>' + label + '</span>'
-    + '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:9.5px;letter-spacing:0.1em;color:#fff;">' + value + '</span>'
+    + '<span style="display:flex;align-items:center;gap:6px;font-family:\'IBM Plex Mono\',monospace;font-size:10.5px;letter-spacing:0.1em;color:rgba(255,255,255,.5);"><span style="width:6px;height:6px;border-radius:50%;background:' + color + ';display:inline-block;flex-shrink:0;"></span>' + label + '</span>'
+    + '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:10.5px;letter-spacing:0.1em;color:#fff;">' + value + '</span>'
     + '</div>';
 }
 function showProfileError(retryFn) {
@@ -4134,7 +4154,7 @@ function _mscConfidenceBadge(confidence) {
   };
   const c = map[(confidence || '').toLowerCase()] || map.speculatif;
   const label = currentLang === 'fr' ? c.fr : c.en;
-  return `<span style="display:inline-block;font-size:10px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;padding:2px 8px;border-radius:999px;background:${c.bg};border:1px solid ${c.border};color:${c.color};white-space:nowrap;">${label}</span>`;
+  return `<span style="display:inline-block;font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;padding:2px 8px;border-radius:999px;background:${c.bg};border:1px solid ${c.border};color:${c.color};white-space:nowrap;">${label}</span>`;
 }
 function _mscInitials(name) {
   const parts = (name || '').trim().split(/\s+/).filter(Boolean);
@@ -4188,8 +4208,8 @@ function _mscParseEmailSections(html, opts) {
       const addItem = (text, links, header, tbl) => {
         if (!text) return;
         current.paragraphs.push(text);
-        if (links.length && !current.linksByText.has(text)) current.linksByText.set(text, links);
-        current.items.push({ text, header, tbl });
+        _mscRegisterLinks(current, text, links);
+        current.items.push({ text, header, tbl, links });
       };
       if (tag === 'table') {
         const tbl = tableCount++;
@@ -4206,8 +4226,7 @@ function _mscParseEmailSections(html, opts) {
     const text = (el.textContent || '').replace(/\s+/g, ' ').trim();
     if (text) {
       current.paragraphs.push(text);
-      const links = _mscExtractLinks(el);
-      if (links.length && !current.linksByText.has(text)) current.linksByText.set(text, links);
+      _mscRegisterLinks(current, text, _mscExtractLinks(el));
     }
   }
   return sections;
@@ -4223,6 +4242,18 @@ function _mscExtractLinks(el) {
     if (href && t) out.push({ t, href });
   }
   return out;
+}
+// Liens d'un paragraphe de l'email, indexes par TEXTE de paragraphe (section.linksByText, lu par _mscParagraphHTML).
+// Un meme texte qui revient dans la section avec une liste de liens DIFFERENTE (ex. plusieurs « Profile » / « Site » /
+// « LinkedIn » pointant vers des personnes differentes) est AMBIGU : liste vide = texte sans lien, jamais le lien du
+// 1er paragraphe pour tous (mieux vaut aucun lien qu'un lien faux). Meme texte + memes liens : inchange. Appelee apres
+// section.paragraphs.push(text). (Helper commun aux 3 dashboards.)
+function _mscRegisterLinks(section, text, links) {
+  const map = section.linksByText;
+  if (section.paragraphs.indexOf(text) === section.paragraphs.length - 1) { if (links.length) map.set(text, links); return; }
+  const prev = map.get(text) || [];
+  const same = prev.length === links.length && prev.every((p, i) => p.t === links[i].t && p.href === links[i].href);
+  if (!same) map.set(text, []);
 }
 // Paragraphe narratif -> HTML : tout le texte passe par _esc ; seuls les liens http(s) valides dont
 // le texte figure litteralement dans le paragraphe deviennent des <a>. Sans liens = _esc(text) seul.
@@ -4265,7 +4296,7 @@ function _mscGroupDecisions(decisions) {
   return groups;
 }
 function _mscSectionLabel(heading) {
-  return `<div style="font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-secondary);opacity:.65;margin:14px 0 4px;">${_esc(heading)}</div>`;
+  return `<div style="font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-secondary);opacity:.65;margin:14px 0 4px;">${_esc(heading)}</div>`;
 }
 // linksByText (optionnel, scan_entries v1, aligne sur wominds.html) : Map texte -> liens http(s) ;
 // absent = _esc(p) seul, comportement de la chaine de repli inchange.
@@ -4371,7 +4402,7 @@ function _mscIcpStateChipHTML(state) {
     ? 'background:var(--chip-bg);border:1px solid var(--border);color:var(--muted);'
     : 'background:var(--amber-bg);border:1px solid var(--amber-border);color:var(--amber);';
   const tip = (typeof currentLang === 'undefined' || currentLang === 'fr') ? _MSC_ICP_STATE_TIP : _MSC_ICP_STATE_TIP_EN;
-  return `<span title="${_esc(tip)}" style="display:inline-block;font-size:10px;font-weight:600;padding:2px 8px;border-radius:999px;${tone}white-space:nowrap;">${_esc(state.label)}</span>`;
+  return `<span title="${_esc(tip)}" style="display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;${tone}white-space:normal;max-width:100%;box-sizing:border-box;">${_esc(state.label)}</span>`;
 }
 // Une carte par entree de decisions_json (ou de scan_entries v1, d._scanEntry -- voir
 // _mscEntryToDecision), enrichie en live (icp_score/icp_reason/signal/signal_interpretation/
@@ -4406,14 +4437,14 @@ function _mscDecisionCardHTML(d, live) {
   // _mscResolveSource. Jamais un lien deja present retire ou remplace ; toujours _mscSafeUrl (http/https).
   const linkedinUrl = _mscSafeUrl(d.linkedin) || _mscSafeUrl(live && live.linkedin);
   const source = _mscResolveSource(d, live);
-  if (linkedinUrl) links.push(`<a href="${_esc(linkedinUrl)}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;font-weight:600;">LinkedIn</a>`);
-  if (source) links.push(`<a href="${_esc(source.url)}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;font-weight:600;">${_esc(source.label)}</a>`);
-  const linksHtml = links.length ? `<div style="margin-top:6px;display:flex;gap:12px;font-size:var(--fs-xs);">${links.join('')}</div>` : '';
+  if (linkedinUrl) links.push(`<a href="${_esc(linkedinUrl)}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;font-weight:600;white-space:nowrap;">LinkedIn</a>`);
+  if (source) links.push(`<a href="${_esc(source.url)}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;font-weight:600;min-width:0;word-break:normal;overflow-wrap:break-word;">${_esc(source.label)}</a>`);
+  const linksHtml = links.length ? `<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px 12px;font-size:var(--fs-xs);">${links.join('')}</div>` : '';
 
   const structured = isEntry && (d.facts || d.action);
   const summary = d.summary && !structured ? `<div style="margin-top:4px;font-size:var(--fs-sm);color:var(--text-secondary);line-height:1.4;">${_esc(d.summary)}</div>` : '';
   const factsBlock = isEntry && d.facts
-    ? `<div style="margin-top:4px;font-size:var(--fs-sm);color:var(--text-secondary);line-height:1.4;"><span style="font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;opacity:.6;">${fr ? 'Faits' : 'Facts'}</span><div>${_esc(cleanText(d.facts))}</div></div>`
+    ? `<div style="margin-top:4px;font-size:var(--fs-sm);color:var(--text-secondary);line-height:1.4;"><span style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;opacity:.6;">${fr ? 'Faits' : 'Facts'}</span><div>${_esc(cleanText(d.facts))}</div></div>`
     : '';
   const mandateHtml = isEntry && d.mandate ? `<span style="font-size:var(--fs-xs);color:var(--text-secondary);">${fr ? 'Mandat' : 'Mandate'} : ${_esc(d.mandate)}</span>` : '';
   const sigType = isEntry ? ((d.signal && d.signal.type) || (live && live.signal_type) || '') : '';
@@ -4443,7 +4474,7 @@ function _mscDecisionCardHTML(d, live) {
     ? `<div style="font-size:var(--fs-xs);line-height:1.5;color:var(--text-secondary);">${_esc(scanAction)}</div>`
     : nextActionHtml;
   const actionBlock = actionBody
-    ? `<div style="margin-top:6px;"><div style="font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-secondary);opacity:.6;margin-bottom:2px;">${actionLabel}</div>${actionBody}</div>`
+    ? `<div style="margin-top:6px;"><div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-secondary);opacity:.6;margin-bottom:2px;">${actionLabel}</div>${actionBody}</div>`
     : '';
 
   const cardStyleBase = 'display:flex;gap:10px;padding:10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:#fff;';
@@ -4601,13 +4632,116 @@ async function _mscFetchLiveProspects(ids) {
   } catch (e) { console.error('[_loadLastMorningScanEmail] enrichissement live', e); }
   return liveById;
 }
+// Sections « liste par personne » du mail (Stream 1, Croissance du pipeline, STAKEHOLDERS) : chaque entree y est
+// emise sur PLUSIEURS paragraphes (nom / societe / « ICP n · Signal n · type » / libelles de lien) et non sur un
+// seul. Ne retirer que le paragraphe qui cite la personne laissait les autres lignes orphelines a cote de la carte
+// (societe sans personne, « Profile » dont la cible etait le 1er lien de meme libelle de toute la section).
+// Propre a Corridor (aucune de ces deux definitions n'est partagee avec wominds.html / kaizenology.html).
+const _MSC_PERSON_LIST_KEYS = ['stream1', 'pipeline_growth', 'stakeholder'];
+// Ligne de societe d'une entree : 0 = autre ligne, 1 = la societe seule (ou l'une des parties de son nom coupe au
+// « | »), 2 = « societe · type » (STAKEHOLDERS : « Societe · recrutement » ; Actions du jour : « Societe · dossier nouveau… »).
+function _mscCompanyLineKind(line, company) {
+  const norm = s => _mscNorm(s || '').replace(/\s+/g, ' ').trim();
+  const t = norm(line), c = norm(company);
+  if (!t || !c) return 0;
+  if (t === c) return 1;
+  if (t.startsWith(c + ' · ')) return 2;
+  return c.includes('|') && c.split('|').some(part => norm(part) === t) ? 1 : 0;
+}
+// Sections « blocs etiquetes » (Actions du jour, Connexions opportunistes) : chaque entree = un paragraphe d'ouverture
+// (« <strong>Societe</strong> », « … · dossier nouveau (hors pipeline interne) » ou « … · Nom, titre ») suivi de
+// paragraphes « FAITS : / SOURCE : / INTERPRETATION : / ACTION : ». Le nom de la personne n'apparait que dans
+// certains d'entre eux (parfois dans aucun : FAITS y cite le nouvel arrivant, pas la personne de la carte).
+const _MSC_LABELED_BLOCK_KEYS = ['today_action', 'opportunistic_connection'];
+const _MSC_LABELED_LINE = /^(faits?|facts?|source|interpretation|action)\s*:/;
+// Retire du texte d'une de ces sections les blocs d'entrees rendues en carte. Un bloc (ouverture + lignes etiquetees)
+// est retire EN ENTIER quand une de ses lignes cite une personne rendue en carte AUTRE QUE market_mention (un nom
+// de market_mention cite en passant ne condamne pas le bloc d'un autre), ou quand sa ligne d'ouverture est la societe
+// d'une carte de la MEME section (cas du nom absent du bloc). Sinon (personne non rendue, prose libre, introduction,
+// note) : ancien comportement, seules les lignes qui citent une personne rendue sont retirees.
+function _mscDropLabeledBlocks(items, citedBy, key, decisions) {
+  const norm = s => _mscNorm(s || '').replace(/\s+/g, ' ').trim();
+  const plain = it => !it.header && it.tbl < 0;
+  const labeled = it => plain(it) && _MSC_LABELED_LINE.test(norm(it.text));
+  const sameSection = decisions.filter(d => d.category === key);
+  const blocks = [];
+  for (const it of items) {
+    const last = blocks[blocks.length - 1];
+    if (labeled(it) && last && plain(last[0])) last.push(it);
+    else blocks.push([it]);
+  }
+  const out = [];
+  for (const block of blocks) {
+    if (block.some(labeled)) {
+      const opener = labeled(block[0]) ? null : block[0];
+      const owned = block.some(it => citedBy(it.text).some(d => d.category !== 'market_mention'))
+        || (!!opener && sameSection.some(d => _mscCompanyLineKind(opener.text, d.company) > 0));
+      if (owned) continue;
+    }
+    for (const it of block) if (it.header || !citedBy(it.text).length) out.push(it);
+  }
+  return out;
+}
+// Note en italique markdown residuelle (« _texte_ », telle quelle dans le mail) : underscores d'encadrement retires ;
+// texte inchange si les underscores ne sont pas exactement une paire d'encadrement (plusieurs segments « _a_ et _b_ »,
+// « __gras__ », debut sans fin) ou si un libelle de lien du paragraphe deborderait (la recherche de liens se fait par
+// texte : le texte affiche est re-indexe par le rendu, cf. _mscRenderScanEntries).
+function _mscUnwrapItalic(text, linksByText) {
+  const t = typeof text === 'string' ? text.trim() : '';
+  if (t.length < 3 || t[0] !== '_' || t[t.length - 1] !== '_') return text;
+  const inner = t.slice(1, -1);
+  if (/^\s|\s$/.test(inner) || /(^|\s)_|_(\s|$)/.test(inner)) return text;
+  const links = linksByText && typeof linksByText.get === 'function' ? linksByText.get(text) : null;
+  if (links && !links.every(l => inner.includes(l.t))) return text;
+  return inner;
+}
+// items = section.items (_mscParseEmailSections opts.rich), citedBy(texte) = decisions rendues en carte que le
+// texte cite ; chaque item porte ses propres liens (item.links : pas de recherche par texte, donc insensible a l'ambiguite
+// de linksByText). Retire, pour chaque entree rendue en carte, son paragraphe de tete
+// (celui qui cite la personne) PUIS les lignes qui le suivent tant qu'elles lui appartiennent : societe de l'entree
+// (egale, « societe · type », ou l'une des parties de son nom coupe au « | »), ligne commencant par « ICP », ligne
+// composee uniquement de libelles de lien, et -- forme « societe · type » de STAKEHOLDERS -- la ligne de resume qui
+// suit. Le bloc s'arrete a la premiere ligne qui n'est rien de cela (note de couverture, autre prose : conservee).
+// Les lignes de tableau restent traitees une par une (comportement historique).
+function _mscDropEntryBlocks(items, citedBy) {
+  const norm = s => _mscNorm(s || '').replace(/\s+/g, ' ').trim();
+  const linkOnly = it => {
+    if (!it.links || !it.links.length) return false;
+    let rest = it.text;
+    for (const l of it.links) rest = rest.split(l.t).join(' ');
+    return !/[\p{L}\p{N}]/u.test(rest);
+  };
+  const out = [];
+  let owners = null; // decisions dont les lignes sont en cours de retrait ; null = hors bloc
+  let summaryNext = false; // la ligne retiree juste avant etait « societe · type » : le resume de l'entree suit
+  for (const it of items) {
+    if (it.header || it.tbl >= 0) {
+      owners = null; summaryNext = false;
+      if (it.header || !citedBy(it.text).length) out.push(it);
+      continue;
+    }
+    const cited = citedBy(it.text);
+    if (cited.length) { owners = cited; summaryNext = false; continue; }
+    if (owners) {
+      if (/^icp\b/.test(norm(it.text)) || linkOnly(it)) { summaryNext = false; continue; }
+      const kind = owners.reduce((k, d) => Math.max(k, _mscCompanyLineKind(it.text, d.company)), 0);
+      if (kind) { summaryNext = kind === 2; continue; }
+      if (summaryNext) { summaryNext = false; continue; }
+    }
+    owners = null; summaryNext = false;
+    out.push(it);
+  }
+  return out;
+}
 // Rendu du panneau v1 (propre a Corridor) : cartes par section dans l'ordre fixe _MSC_V1_SECTIONS,
 // entourees du texte du mail. decisions = _mscDedupeDecisions(_mscEntriesToDecisions(...)). Les
 // sections narratives (synthese, contexte, coverage, ce qui a change...) restent en texte, avec
 // liens http(s) conserves (_mscParagraphHTML) ; dans les sections "personnes" (Actions du jour,
 // Connexions opportunistes, Stream N, Croissance du pipeline, STAKEHOLDERS) les lignes/paragraphes
 // qui citent une personne deja rendue en carte sont retires (pas de doublon), le reste de la prose
-// est garde. Ordre : narratif place avant la 1re section "personnes" du mail, puis pour chaque
+// est garde ; dans les sections « liste par personne » (Stream 1, Croissance du pipeline, STAKEHOLDERS,
+// _MSC_PERSON_LIST_KEYS) c'est l'entree entiere qui est retiree (_mscDropEntryBlocks : nom + societe +
+// « ICP · Signal » + libelles de lien). Ordre : narratif place avant la 1re section "personnes" du mail, puis pour chaque
 // section du contrat ses cartes suivies du texte residuel des sections du mail correspondantes,
 // puis le reste du narratif dans l'ordre du mail.
 function _mscRenderScanEntries(decisions, liveById, emailHtml) {
@@ -4615,18 +4749,32 @@ function _mscRenderScanEntries(decisions, liveById, emailHtml) {
   const matchers = decisions.map(d => {
     const n = _mscNorm(d.name).replace(/\s+/g, ' ');
     if (n.length < 3) return null;
-    return new RegExp('(^|[^\\p{L}\\p{N}])' + n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '([^\\p{L}\\p{N}]|$)', 'u');
+    return { d, re: new RegExp('(^|[^\\p{L}\\p{N}])' + n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '([^\\p{L}\\p{N}]|$)', 'u') };
   }).filter(Boolean);
-  const cites = text => { const n = _mscNorm(text); return matchers.some(m => m.test(n)); };
+  const citedBy = text => { const n = _mscNorm(text); return matchers.filter(m => m.re.test(n)).map(m => m.d); };
+  const cites = text => { const n = _mscNorm(text); return matchers.some(m => m.re.test(n)); };
   const narrative = ({ s, key }) => {
     let items = s.items || [];
     if (key) {
-      items = items.filter(it => it.header || !cites(it.text));
+      if (_MSC_PERSON_LIST_KEYS.includes(key)) items = _mscDropEntryBlocks(items, citedBy);
+      else if (_MSC_LABELED_BLOCK_KEYS.includes(key)) items = _mscDropLabeledBlocks(items, citedBy, key, decisions);
+      else items = items.filter(it => it.header || !cites(it.text));
       // En-tete d'un tableau dont toutes les lignes de donnees sont devenues des cartes : retire aussi.
       const withData = new Set(items.filter(it => !it.header && it.tbl >= 0).map(it => it.tbl));
       items = items.filter(it => !(it.header && it.tbl >= 0 && !withData.has(it.tbl)));
     }
-    return _mscNarrativeBlockHTML(s.heading, items.map(it => it.text), s.linksByText);
+    // Notes « _..._ » : underscores retires ; les liens du paragraphe sont re-indexes sous le nouveau texte
+    // (_mscNarrativeBlockHTML / _mscParagraphHTML, partages, cherchent les liens par texte de paragraphe).
+    let links = s.linksByText;
+    const shown = items.map(it => {
+      const u = _mscUnwrapItalic(it.text, s.linksByText);
+      if (u !== it.text) {
+        const l = s.linksByText && s.linksByText.get(it.text);
+        if (l && !links.has(u)) { if (links === s.linksByText) links = new Map(s.linksByText); links.set(u, l); }
+      }
+      return u;
+    });
+    return _mscNarrativeBlockHTML(s.heading, shown, links);
   };
   const cardFor = d => _mscDecisionCardHTML(d, d.id ? (liveById[d.id] || null) : null);
   const firstKeyed = secs.findIndex(x => x.key);
@@ -4758,7 +4906,7 @@ async function _loadLastMorningScanEmail() {
       <div style="font-size:var(--fs-xs);color:var(--text-secondary);margin-bottom:8px;">${_esc(data.subject || '')} · ${_esc(dateLabel)}</div>
       ${nativePanel
         ? sectionsHtml
-        : `<div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-secondary);opacity:.6;margin-bottom:6px;">${currentLang === 'fr' ? 'Aperçu de l’email envoyé' : 'Email preview'}</div>`}
+        : `<div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-secondary);opacity:.6;margin-bottom:6px;">${currentLang === 'fr' ? 'Aperçu de l’email envoyé' : 'Email preview'}</div>`}
       <div id="last-morning-scan-frame-wrap" style="max-height:${collapsedHeight};overflow:hidden;position:relative;transition:max-height .25s ease;border:1px solid var(--border);border-radius:var(--radius-sm);">
         <div id="last-morning-scan-fade" style="position:absolute;bottom:0;left:0;right:0;height:40px;background:linear-gradient(transparent, var(--bg));pointer-events:none;${nativePanel ? 'display:none;' : ''}"></div>
       </div>
@@ -9578,7 +9726,7 @@ async function openDrawer(card, initialTab = 'activity') {
     </div>
     <div class="pd-row-main" style="margin:4px 0">${_sigText}</div>
     ${_sigUrl ? `<a href="${_esc(_sigUrl)}" target="_blank" rel="noopener noreferrer" style="font-size:var(--fs-xs);color:var(--ink);text-decoration:underline;font-weight:600;">Source →</a>` : ''}
-    ${_sigInterp ? `<div style="margin-top:8px;background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--ink);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:10px;opacity:0.65;display:block;margin-bottom:3px">✦ ${currentLang==='fr'?'Analyse IA':'AI Insight'}</span>${_sigInterp}</div>` : ''}
+    ${_sigInterp ? `<div style="margin-top:8px;background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--ink);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:11px;opacity:0.65;display:block;margin-bottom:3px">✦ ${currentLang==='fr'?'Analyse IA':'AI Insight'}</span>${_sigInterp}</div>` : ''}
   ` : `<div class="pd-empty">No signal recorded yet.</div>`;
 
   // "Raison de la priorite" (F16, nouvelle section) : icp_reason existe en base, jamais rendu
@@ -9591,7 +9739,7 @@ async function openDrawer(card, initialTab = 'activity') {
   // aucun des deux n'est renseigne (le badge de fiabilite du header couvre deja cet etat neutre).
   const _lastCheckedAt = [_p.identity_verdict_checked_at, _p.company_checked_at].filter(Boolean).sort((a, b) => new Date(b) - new Date(a))[0] || null;
   const priorityReasonHTML = `
-    ${_icpReasonHTML ? `<div style="background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--ink);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:10px;opacity:0.65;display:block;margin-bottom:3px">✦ ${currentLang==='fr'?'Justification du score':'Score rationale'}</span>${_icpReasonHTML}</div>` : `<div class="pd-empty">No score rationale recorded yet.</div>`}
+    ${_icpReasonHTML ? `<div style="background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--ink);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:11px;opacity:0.65;display:block;margin-bottom:3px">✦ ${currentLang==='fr'?'Justification du score':'Score rationale'}</span>${_icpReasonHTML}</div>` : `<div class="pd-empty">No score rationale recorded yet.</div>`}
     ${_lastCheckedAt ? `<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:8px">Last verified: ${_esc(_relDate(_lastCheckedAt) || '')}</div>` : ''}
   `;
 
@@ -9617,8 +9765,8 @@ async function openDrawer(card, initialTab = 'activity') {
           </div>
           <div class="pd-role">${[_p.title, company].filter(Boolean).map(s => _esc(s)).join(' · ')}</div>
           ${firmoParts.length ? `<div class="pd-firmo">${firmoParts.map(s => _esc(s)).join(' · ')}</div>` : ''}
-          ${_p.company_verified === false ? `<div style="margin-top:5px;"><span style="font-size:10px;font-weight:700;color:#b45309;background:#fef3c7;border:1px solid #fde68a;border-radius:20px;padding:1px 6px;">⚠ Company not confirmed</span></div>` : ''}
-          ${_p.identity_confidence === 'low' ? `<div style="margin-top:3px;"><span style="font-size:10px;font-weight:700;color:#6b7280;background:#f3f4f6;border:1px solid #d1d5db;border-radius:20px;padding:1px 6px;">? Identity to verify</span></div>` : ''}
+          ${_p.company_verified === false ? `<div style="margin-top:5px;"><span style="font-size:11px;font-weight:700;color:#b45309;background:#fef3c7;border:1px solid #fde68a;border-radius:20px;padding:1px 6px;">⚠ Company not confirmed</span></div>` : ''}
+          ${_p.identity_confidence === 'low' ? `<div style="margin-top:3px;"><span style="font-size:11px;font-weight:700;color:#6b7280;background:#f3f4f6;border:1px solid #d1d5db;border-radius:20px;padding:1px 6px;">? Identity to verify</span></div>` : ''}
           <div class="drawer-last-contact" style="font-size:11px;color:var(--dim);margin-top:5px;">${lcStr ? 'Last contact: ' + _esc(lcStr) : 'No contact logged yet'}</div>
         </div>
         <div style="display:flex;gap:6px;flex-shrink:0;">
@@ -9635,7 +9783,7 @@ async function openDrawer(card, initialTab = 'activity') {
         <div class="pd-stat">
           <div class="pd-stat-label">ICP Fit Score</div>
           <div class="pd-stat-value">${_esc(_icpLbl)}</div>
-          ${(() => { const _relB = _scoreReliabilityBadge(_p); return _relB ? `<div style="font-size:10px;font-weight:700;color:${_relB.color};margin-top:2px;" title="${_esc(_relB.title)}">${_relB.icon} ${_esc(_relB.title)}</div>` : ''; })()}
+          ${(() => { const _relB = _scoreReliabilityBadge(_p); return _relB ? `<div style="font-size:11px;font-weight:700;color:${_relB.color};margin-top:2px;" title="${_esc(_relB.title)}">${_relB.icon} ${_esc(_relB.title)}</div>` : ''; })()}
         </div>
         <div class="pd-stat">
           <div class="pd-stat-label">Stage age</div>
@@ -10237,8 +10385,8 @@ function _renderCommitteeCards(stakeholders, out, company, sector, icpScore) {
     // place du role habituel, pas de bouton "Add to pipeline" (il y est deja), carte estompee.
     const _contradicted = s.identity_verdict === 'CONTRADICTED';
     const _roleBadgeHtml = _contradicted
-      ? `<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 8px;border-radius:var(--radius-pill);white-space:nowrap;background:#f1f5f9;color:#64748b">Role not confirmed</span>`
-      : `<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 8px;border-radius:var(--radius-pill);white-space:nowrap;${_roleBg(s.role)}">${_esc(s.role||'Influence')}</span>`;
+      ? `<span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 8px;border-radius:var(--radius-pill);white-space:nowrap;background:#f1f5f9;color:#64748b">Role not confirmed</span>`
+      : `<span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 8px;border-radius:var(--radius-pill);white-space:nowrap;${_roleBg(s.role)}">${_esc(s.role||'Influence')}</span>`;
     const _contradictedNoteHtml = _contradicted
       ? `<div style="font-size:var(--fs-xs);color:#b45309;font-style:italic;">Role not confirmed — last known info may be outdated.</div>`
       : '';
@@ -10252,8 +10400,8 @@ function _renderCommitteeCards(stakeholders, out, company, sector, icpScore) {
         ${_roleBadgeHtml}
       </div>
       ${_contradictedNoteHtml}
-      ${s.concern ? `<div style="font-size:var(--fs-xs);color:var(--text-secondary)"><span style="font-weight:600;text-transform:uppercase;font-size:9px;letter-spacing:0.05em;color:var(--muted);margin-right:4px">Concern</span>${_esc(s.concern)}</div>` : ''}
-      ${s.approach ? `<div style="font-size:var(--fs-xs);color:var(--text-secondary)"><span style="font-weight:600;text-transform:uppercase;font-size:9px;letter-spacing:0.05em;color:var(--muted);margin-right:4px">Approach</span>${_esc(s.approach)}</div>` : ''}
+      ${s.concern ? `<div style="font-size:var(--fs-xs);color:var(--text-secondary)"><span style="font-weight:600;text-transform:uppercase;font-size:10px;letter-spacing:0.05em;color:var(--muted);margin-right:4px">Concern</span>${_esc(s.concern)}</div>` : ''}
+      ${s.approach ? `<div style="font-size:var(--fs-xs);color:var(--text-secondary)"><span style="font-weight:600;text-transform:uppercase;font-size:10px;letter-spacing:0.05em;color:var(--muted);margin-right:4px">Approach</span>${_esc(s.approach)}</div>` : ''}
       ${_addBtnHtml}
     </div>`;
   });
@@ -10405,7 +10553,7 @@ function _renderNextActionHTML(raw, linkColor) {
     '<a href="mailto:$1" style="color:' + linkColor + ';text-decoration:underline">$1</a>'
   );
   const parsed = _parseNextActionJSON(raw);
-  const channelHTML = ch => ch ? '<div style="display:flex;align-items:center;gap:8px;"><span style="font-family:\'IBM Plex Mono\',monospace;font-size:9.5px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);">Channel</span><span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:var(--radius-pill);background:var(--chip-bg);color:var(--indigo);">' + _esc(ch) + '</span></div>' : '';
+  const channelHTML = ch => ch ? '<div style="display:flex;align-items:center;gap:8px;"><span style="font-family:\'IBM Plex Mono\',monospace;font-size:10.5px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);">Channel</span><span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:var(--radius-pill);background:var(--chip-bg);color:var(--indigo);">' + _esc(ch) + '</span></div>' : '';
   if (parsed && parsed.format === 'v2') {
     const fields = [
       ['Why now', parsed.why_now],
@@ -10416,7 +10564,7 @@ function _renderNextActionHTML(raw, linkColor) {
     return '<div style="display:flex;flex-direction:column;gap:6px;">'
       + channelHTML(parsed.channel)
       + fields.map(([label, v]) =>
-          '<div><span style="font-family:\'IBM Plex Mono\',monospace;font-size:9px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted);">' + label + '</span>'
+          '<div><span style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted);">' + label + '</span>'
           + '<div style="font-size:var(--fs-xs);line-height:1.5;color:' + linkColor + ';">' + linkify(_esc(v)) + '</div></div>'
         ).join('')
       + '</div>';
@@ -10778,7 +10926,7 @@ function _renderPriorityCards(prospects) {
     // _relSignalDate deja calcule ci-dessus (pas une deuxieme lecture de last_surfaced_in_scan_at),
     // omet le segment confidence si icp_confidence n'est pas renseigne.
     const provenanceHtml = p._morningScanCategory
-      ? `<div style="font-size:8.5px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-top:4px;">${[
+      ? `<div style="font-size:9.5px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-top:4px;">${[
           'Morning scan',
           _relSignalDate ? _esc(_relSignalDate) : null,
           p.icp_confidence ? 'Confidence ' + _esc(p.icp_confidence) : null,
@@ -10821,7 +10969,7 @@ function _renderPriorityCards(prospects) {
     const _qNote = _qualificationNote(p);
     const scoreColHtml = `<div style="width:74px;flex-shrink:0;border-right:1px solid var(--border);padding:16px 8px;text-align:center;${_bd ? 'position:relative;' : ''}" class="${_bd ? 'pri-score-wrap' : ''}">
         <div style="font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;color:var(--navy);">${scoreVal}</div>
-        <div style="font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:0.16em;text-transform:uppercase;color:var(--muted);margin-top:2px;">ICP</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:0.16em;text-transform:uppercase;color:var(--muted);margin-top:2px;">ICP</div>
         ${_relB ? `<div style="margin-top:3px;font-size:11px;font-weight:700;color:${_relB.color};" title="${_esc(_relB.title)}">${_relB.icon}${_relB.both ? '?' : ''}</div>` : ''}
         ${_bd ? `<div class="pri-score-tooltip" style="width:200px;">${_renderBreakdownPanel(_bd, null, ICP_WEIGHTS)}</div>` : ''}
       </div>`;
@@ -10842,10 +10990,10 @@ function _renderPriorityCards(prospects) {
             ${p.sector ? `<span style="font-size:var(--fs-xs);font-weight:600;padding:2px 8px;
               background:var(--chip-bg);border-radius:var(--radius-pill);color:var(--indigo);">
               ${_esc(p.sector)}</span>` : ''}
-            ${p.company_verified === false ? `<span style="font-size:10px;font-weight:700;color:#b45309;background:#fef3c7;border:1px solid #fde68a;border-radius:20px;padding:1px 6px;white-space:nowrap;" title="Company not confirmed by the data source">⚠ Company not confirmed</span>` : ''}
-            ${p.identity_confidence === 'low' ? `<span style="font-size:10px;font-weight:700;color:#6b7280;background:#f3f4f6;border:1px solid #d1d5db;border-radius:20px;padding:1px 6px;white-space:nowrap;" title="Identity not confirmed">? Identity to verify</span>` : ''}
-            ${p._morningScanCategory === 'today_action' ? `<span style="font-size:10px;font-weight:700;color:var(--red);background:var(--red-bg);border:1px solid var(--red-light);border-radius:20px;padding:1px 6px;white-space:nowrap;" title="Flagged for action by this morning's scan">⚡ Today</span>` : ''}
-            ${p._morningScanCategory === 'opportunistic_connection' ? `<span style="font-size:10px;font-weight:700;color:#6b7280;background:#f3f4f6;border:1px solid #d1d5db;border-radius:20px;padding:1px 6px;white-space:nowrap;" title="Opportunistic connection flagged by this morning's scan">🔗 Opportunistic</span>` : ''}
+            ${p.company_verified === false ? `<span style="font-size:11px;font-weight:700;color:#b45309;background:#fef3c7;border:1px solid #fde68a;border-radius:20px;padding:1px 6px;white-space:nowrap;" title="Company not confirmed by the data source">⚠ Company not confirmed</span>` : ''}
+            ${p.identity_confidence === 'low' ? `<span style="font-size:11px;font-weight:700;color:#6b7280;background:#f3f4f6;border:1px solid #d1d5db;border-radius:20px;padding:1px 6px;white-space:nowrap;" title="Identity not confirmed">? Identity to verify</span>` : ''}
+            ${p._morningScanCategory === 'today_action' ? `<span style="font-size:11px;font-weight:700;color:var(--red);background:var(--red-bg);border:1px solid var(--red-light);border-radius:20px;padding:1px 6px;white-space:nowrap;" title="Flagged for action by this morning's scan">⚡ Today</span>` : ''}
+            ${p._morningScanCategory === 'opportunistic_connection' ? `<span style="font-size:11px;font-weight:700;color:#6b7280;background:#f3f4f6;border:1px solid #d1d5db;border-radius:20px;padding:1px 6px;white-space:nowrap;" title="Opportunistic connection flagged by this morning's scan">🔗 Opportunistic</span>` : ''}
           </div>
           ${provenanceHtml}
           ${signalHtml}
@@ -13099,8 +13247,8 @@ function _drawerProfileHTML(id, p, colStage, fb){
         `<option value="">-- Signal type --</option>` +
         `${(_signalTaxonomy && Object.keys(_signalTaxonomy).length ? Object.values(_signalTaxonomy) : [{code:'S1',label:'S1'},{code:'S2',label:'S2'},{code:'S3',label:'S3'},{code:'S4',label:'S4'},{code:'activity',label:currentLang==='fr'?'Engagement passif (réaction/commentaire)':'Passive engagement (reaction/comment)',icon:'👁'}]).map(t => `<option value="${_esc(t.code)}"${(p.signal_type||'').toUpperCase()===(t.code||'').toUpperCase()?' selected':''}>${_esc(t.icon||'')} ${_esc(t.code)} — ${_esc(t.label||t.code)}</option>`).join('')}` +
       `</select>` +
-      (p.icp_reason ? `<div style="background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--ink);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:10px;opacity:0.65;display:block;margin-bottom:3px">✦ ${currentLang==='fr'?'Justification du score':'Score rationale'}</span>${v(stripHtml(p.icp_reason))}</div>` : '') +
-      (p.hard_criteria_met ? `<div style="background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--ink);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:10px;opacity:0.65;display:block;margin-bottom:3px">✦ ${currentLang==='fr'?'Critères remplis':'Criteria met'}</span><ul style="margin:0;padding-left:16px">${p.hard_criteria_met.split(';').map(c => c.trim()).filter(Boolean).map(c => `<li>${v(stripHtml(c))}</li>`).join('')}</ul></div>` : '')
+      (p.icp_reason ? `<div style="background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--ink);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:11px;opacity:0.65;display:block;margin-bottom:3px">✦ ${currentLang==='fr'?'Justification du score':'Score rationale'}</span>${v(stripHtml(p.icp_reason))}</div>` : '') +
+      (p.hard_criteria_met ? `<div style="background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--ink);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:11px;opacity:0.65;display:block;margin-bottom:3px">✦ ${currentLang==='fr'?'Critères remplis':'Criteria met'}</span><ul style="margin:0;padding-left:16px">${p.hard_criteria_met.split(';').map(c => c.trim()).filter(Boolean).map(c => `<li>${v(stripHtml(c))}</li>`).join('')}</ul></div>` : '')
     )}
     ${card(
       lbl('Deal Value') +
@@ -13836,7 +13984,7 @@ function buildCard(p){
   // pas cosmetique.
   const _dc = _hs && _sv >= 9 ? 'var(--danger)' : _hs && _sv >= 8 ? 'var(--amber)' : 'var(--muted)';
   const _lbl = _hs ? (_isEst ? '~' : '') + (_sv % 1 === 0 ? String(Math.round(_sv)) : _sv.toFixed(1)) : '—';
-  const _dial = `<svg width="26" height="26" viewBox="0 0 26 26" style="position:absolute;top:8px;right:8px;${_isEst ? 'opacity:0.72;' : ''}" aria-hidden="true"${_isEst ? ' title="Estimated score"' : ''}><circle cx="13" cy="13" r="11.25" fill="none" stroke="${_dc}" stroke-width="1.5"/><text x="13" y="17" text-anchor="middle" font-size="9" font-weight="700" fill="${_dc}" font-family="'IBM Plex Mono',monospace">${_lbl}</text></svg>`;
+  const _dial = `<svg width="26" height="26" viewBox="0 0 26 26" style="position:absolute;top:8px;right:8px;${_isEst ? 'opacity:0.72;' : ''}" aria-hidden="true"${_isEst ? ' title="Estimated score"' : ''}><circle cx="13" cy="13" r="11.25" fill="none" stroke="${_dc}" stroke-width="1.5"/><text x="13" y="17" text-anchor="middle" font-size="10" font-weight="700" fill="${_dc}" font-family="'IBM Plex Mono',monospace">${_lbl}</text></svg>`;
   // Pastille fiabilite (audit Stephane point 5) : coin bas-droit de l'anneau, comme une pastille de
   // notification -- ne prend pas de place dans le flux (position:absolute, meme coordonnee que
   // l'anneau lui-meme), donc aucun risque de reflow sur une carte deja dense. Duplique l'info deja

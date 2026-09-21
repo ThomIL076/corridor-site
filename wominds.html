@@ -104,15 +104,15 @@
   --btn-h-sm: 28px; --btn-h-md: 36px; --btn-h-lg: 44px;
 
   /* Groupe F -- typography scale */
-  --fs-micro: 10px;
-  --fs-xs: 11px;
-  --fs-sm: 12px;
-  --fs-base: 13px;
-  --fs-input: 14px;
-  --fs-md: 16px;
-  --fs-lg: 18px;
-  --fs-xl: 22px;
-  --fs-display: 28px;
+  --fs-micro: 11px;
+  --fs-xs: 12px;
+  --fs-sm: 13px;
+  --fs-base: 14px;
+  --fs-input: 15px;
+  --fs-md: 17px;
+  --fs-lg: 19px;
+  --fs-xl: 23px;
+  --fs-display: 29px;
 
   /* Groupe H -- neutres + paires semantiques (copie a l'identique de demo-private.html, brief
      parite 2026-09-13 point 1 -- ne rien renommer, valeurs identiques a la source). */
@@ -189,7 +189,7 @@ body.new-nav .top-chrome-wrapper { left: 220px; }
 }
 .spine-stage + .spine-stage { border-left: 1px solid var(--border); padding-left: 16px; margin-left: 16px; }
 .spine-dot { width: 7px; height: 7px; border-radius: 50%; background: #c6d1e2; display: inline-block; margin-bottom: 6px; }
-.spine-label { display: block; font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+.spine-label { display: block; font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
 .spine-row { display: flex; align-items: baseline; gap: 8px; white-space: nowrap; }
 .spine-count { font-family: 'IBM Plex Mono', monospace; font-size: 21px; font-weight: 600; color: var(--ink); }
 .spine-note { font-size: 13px; color: var(--muted); }
@@ -217,7 +217,7 @@ nav {
 .logo-mark span:nth-child(1),.logo-mark span:nth-child(4) { background:var(--navy); }
 .logo-mark span:nth-child(2),.logo-mark span:nth-child(3) { background:var(--blue); }
 .logo-name { font-size:var(--fs-base); font-weight:800; letter-spacing:2.5px; color:var(--navy); }
-.logo-tagline { font-size:8px; color:var(--dim); letter-spacing:1px; margin-top:1px; }
+.logo-tagline { font-size:9px; color:var(--dim); letter-spacing:1px; margin-top:1px; }
 .logo-text { display:flex; flex-direction:column; }
 .nav-badge {
   position:absolute; left:50%; transform:translateX(-50%);
@@ -426,7 +426,7 @@ button, [role="button"], select, input { min-height: var(--btn-h-sm); }
   background:var(--white); border:1.5px solid var(--border);
   border-radius:var(--radius-md); padding:14px 16px;
   cursor:pointer; transition:border-color 0.15s, box-shadow 0.15s, transform 0.15s;
-  display:flex; flex-direction:column; gap:4px; text-align:left; width:100%;
+  display:flex; flex-direction:column; gap:4px; text-align:left; width:100%; min-width:0;
 }
 .agent-card:hover {
   border-color:var(--accent-color, var(--navy));
@@ -439,14 +439,14 @@ button, [role="button"], select, input { min-height: var(--btn-h-sm); }
 .agent-status-dot { position:absolute; top:12px; right:12px; width:7px; height:7px; border-radius:50%; background:#cdd5e0; }
 .agent-status-dot.is-active { background:var(--green); }
 .agent-card-footer {
-  display:flex; align-items:center; justify-content:space-between; gap:6px;
+  display:flex; align-items:center; justify-content:space-between; gap:6px; flex-wrap:wrap;
   margin-top:6px; padding-top:8px; border-top:1px solid var(--border);
-  font-family:'IBM Plex Mono',monospace; font-size:9.5px; letter-spacing:0.04em;
+  font-family:'IBM Plex Mono',monospace; font-size:10.5px; letter-spacing:0.04em;
 }
-.agent-card-footer-status { color:var(--muted); text-transform:uppercase; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.agent-card-footer-status { color:var(--muted); text-transform:uppercase; overflow-wrap:anywhere; }
 .agent-card-footer-action { color:var(--fill-accent); font-weight:700; text-transform:uppercase; flex-shrink:0; }
 .badge-new {
-  font-size:10px; font-weight:700; letter-spacing:0.2px;
+  font-size:11px; font-weight:700; letter-spacing:0.2px;
   background:#fef3c7; color:#b45309; border:1px solid #fde68a;
   border-radius:var(--radius-pill); padding:1px 6px;
   vertical-align:middle; margin-left:4px;
@@ -515,14 +515,15 @@ button, [role="button"], select, input { min-height: var(--btn-h-sm); }
 .pipe-stat:not(:first-child) { border-left:1px solid var(--border); }
 .pipe-stat-val { font-family:'IBM Plex Mono',monospace; font-size:24px; font-weight:600; letter-spacing:-.02em; color:var(--navy); display:block; }
 .pipe-stat-val.warn { color:var(--amber); }
-.pipe-stat-label { font-family:'IBM Plex Mono',monospace; font-size:9.5px; font-weight:400; color:var(--dim); letter-spacing:.16em; text-transform:uppercase; margin-top:4px; display:block; }
+.pipe-stat-label { font-family:'IBM Plex Mono',monospace; font-size:10.5px; font-weight:400; color:var(--dim); letter-spacing:.16em; text-transform:uppercase; margin-top:4px; display:block; }
+@media (max-width:480px) { .pipe-stat { padding:0 12px; } }
 .pipe-funnel-bar { display:flex; gap:2px; height:9px; margin-top:18px; }
 .pipe-funnel-seg { border-radius:5px; }
 .pipe-funnel-legend { display:flex; gap:2px; margin-top:8px; }
-.pipe-funnel-leg-item { font-family:'IBM Plex Mono',monospace; font-size:9.5px; color:var(--muted); text-align:center; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; min-width:100px; }
+.pipe-funnel-leg-item { font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--muted); text-align:center; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; min-width:100px; }
 @media (max-width: 480px) {
   .pipe-funnel-legend { flex-wrap: wrap; row-gap: 3px; }
-  .pipe-funnel-leg-item { flex: 0 1 auto !important; width: auto !important; overflow: visible; text-overflow: clip; font-size: 8.5px; padding: 0 3px; }
+  .pipe-funnel-leg-item { flex: 0 1 auto !important; width: auto !important; overflow: visible; text-overflow: clip; font-size: 9.5px; padding: 0 3px; }
 }
 
 /* ── KANBAN ── */
@@ -534,6 +535,7 @@ button, [role="button"], select, input { min-height: var(--btn-h-sm); }
   .kanban-col { width:252px; min-width:252px; max-height:calc(100vh - 370px); overflow-y:auto; overflow-x:hidden; scrollbar-width:thin; scrollbar-color:var(--border) transparent; }
   .k-card { padding:10px 12px; }
   .k-card-name { white-space:normal; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; font-size:var(--fs-base); font-weight:700; }
+  .kanban .k-card-name { font-size:calc(var(--fs-base) - 1px); }
   .k-card-company { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:var(--fs-xs); }
   }
 .kanban-empty { font-size:var(--fs-xs); color:var(--dim); padding:14px 8px; text-align:center; line-height:1.5; cursor:pointer; opacity:0.75; }
@@ -569,6 +571,7 @@ button, [role="button"], select, input { min-height: var(--btn-h-sm); }
 .k-card-company { font-size:var(--fs-xs); color:var(--muted); margin-top:2px; }
 .k-card-badges  { display:flex; flex-wrap:wrap; gap:7px; margin-top:7px; }
 .k-badge { display:inline-flex; align-items:center; padding:2px 7px; border-radius:var(--radius-badge); font-size:var(--fs-micro); font-weight:600; background:var(--navy-light); color:var(--muted); white-space:nowrap; }
+.k-card-badges .k-badge { max-width:100%; white-space:normal; overflow-wrap:anywhere; }
 .k-badge-deal { background:var(--green-bg); color:var(--green); }
 .k-col-dot { display:inline-block; width:7px; height:7px; border-radius:50%; margin-right:6px; vertical-align:middle; }
 /* ── Édition prospect (drawer) + modale Ajout ── */
@@ -695,8 +698,8 @@ footer a { color:var(--navy); text-decoration:none; font-weight:600; }
 .rpt-subtab { font-size:var(--fs-xs); font-weight:700; letter-spacing:0.4px; padding:6px 14px; border-radius:var(--radius-sm); border:1.5px solid var(--border); background:var(--white); color:var(--muted); cursor:pointer; transition:all 0.15s; }
 .rpt-subtab:hover { color:var(--navy); border-color:var(--navy); }
 .rpt-subtab.active { background:var(--navy); border-color:var(--navy); color:#fff; }
-.ask-provenance { font-family:'IBM Plex Mono',monospace; font-size:8.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--muted); margin-top:8px; padding-top:6px; border-top:1px solid var(--border); }
-.rpt-metric-badge { font-size:10px; font-weight:700; border-radius:var(--radius-pill); padding:2px 9px; white-space:nowrap; border:1px solid transparent; }
+.ask-provenance { font-family:'IBM Plex Mono',monospace; font-size:9.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--muted); margin-top:8px; padding-top:6px; border-top:1px solid var(--border); }
+.rpt-metric-badge { font-size:11px; font-weight:700; border-radius:var(--radius-pill); padding:2px 9px; white-space:nowrap; border:1px solid transparent; }
 .rpt-vote-btn { font-size:15px; line-height:1; padding:4px 8px; border-radius:var(--radius-sm); border:1.5px solid var(--border); background:var(--white); cursor:pointer; transition:background 0.12s,border-color 0.12s; }
 .rpt-vote-btn.active-like { background:#d1fae5; border-color:#6ee7b7; }
 .rpt-vote-btn.active-unlike { background:#fee2e2; border-color:#fca5a5; }
@@ -769,7 +772,7 @@ footer a { color:var(--navy); text-decoration:none; font-weight:600; }
 .pr-group-label-green { color:var(--green); }
 .pr-summary { background:var(--navy-light); border:1px solid var(--blue-light); border-radius:var(--radius-md); padding:12px 14px; margin-bottom:14px; font-size:var(--fs-base); line-height:1.65; color:var(--text); }
 .pr-more { font-size:var(--fs-xs); color:var(--muted); text-align:center; padding:8px 0; font-style:italic; }
-.signal-badge { display:inline-block; vertical-align:middle; font-size:var(--fs-micro); font-weight:700; text-transform:uppercase; letter-spacing:.06em; padding:2px 7px; border-radius:var(--radius-pill); border:1px solid; white-space:nowrap; max-width:180px; overflow:hidden; text-overflow:ellipsis; }
+.signal-badge { display:inline-block; vertical-align:middle; font-size:var(--fs-micro); font-weight:700; text-transform:uppercase; letter-spacing:.06em; padding:2px 7px; border-radius:var(--radius-pill); border:1px solid; white-space:nowrap; max-width:210px; overflow:hidden; text-overflow:ellipsis; }
 .signal-s1 { background:#FEF3C7; color:var(--amber-text); border-color:var(--amber-border); }
 .signal-s2 { background:var(--green-bg); color:var(--green); border-color:var(--green-border); }
 .signal-s3 { background:var(--navy-light); color:var(--navy); border-color:var(--blue); }
@@ -777,9 +780,14 @@ footer a { color:var(--navy); text-decoration:none; font-weight:600; }
 .signal-generic { background:#F1F5F9; color:#475569; border-color:#CBD5E1; }
 .signal-activity { background:#F1F5F9; color:#475569; border-color:#CBD5E1; }
 .k-card-signal { margin-top:4px; margin-right:8px; }
+.k-card-signal .signal-badge { max-width:180px; }
+@media (max-width:480px) { .k-card-signal .signal-badge { max-width:200px; } }
 .sig-attr-row { padding:10px 0; border-bottom:1px solid var(--border); }
 .sig-attr-row:last-child { border-bottom:none; }
 .sig-attr-head { display:flex; align-items:center; gap:10px; margin-bottom:6px; }
+@media (max-width:480px) {
+  .sig-attr-head { flex-wrap:wrap; row-gap:4px; }
+}
 .sig-attr-meta { font-size:var(--fs-xs); color:var(--muted); }
 .sig-attr-rev-row { display:flex; align-items:center; gap:10px; }
 .sig-attr-track { flex:1; height:6px; background:var(--border); border-radius:3px; overflow:hidden; }
@@ -800,6 +808,10 @@ footer a { color:var(--navy); text-decoration:none; font-weight:600; }
 .dist-track { height:8px; background:var(--border); border-radius:var(--radius-badge); overflow:hidden; }
 .dist-fill { height:100%; border-radius:var(--radius-badge); background:var(--navy); }
 .rev-kpi-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:20px; }
+@media (max-width:480px) {
+  .rev-kpi-grid { grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+  .rev-kpi { padding:12px 10px; }
+}
 .rev-kpi { border:1px solid var(--border); border-radius:var(--radius-panel); padding:14px 16px; }
 .rev-kpi-val { font-size:var(--fs-xl); font-weight:800; color:var(--navy); display:block; }
 .rev-kpi-label { font-size:var(--fs-xs); font-weight:600; color:var(--muted); margin-top:3px; display:block; }
@@ -817,7 +829,7 @@ footer a { color:var(--navy); text-decoration:none; font-weight:600; }
 /* ── SEND QUEUE (Module) ── */
 .today-step-divider { display: flex; align-items: center; gap: 10px; margin: 22px 0 14px; }
 .today-step-divider:first-child { margin-top: 0; }
-.today-step-label { font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+.today-step-label { font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
 .today-step-rule { flex: 1; height: 1px; background: var(--border); }
 .send-card { display:flex; flex-direction:column; gap:10px; }
 .send-row { display:flex; align-items:center; gap:12px; }
@@ -826,6 +838,10 @@ footer a { color:var(--navy); text-decoration:none; font-weight:600; }
 .send-name { font-size:14px; font-weight:800; color:var(--navy); }
 .send-company { font-size:var(--fs-sm); color:var(--muted); }
 .send-touch { font-size:var(--fs-micro); font-weight:600; padding:4px 10px; border-radius:var(--radius-pill); white-space:nowrap; }
+@media (max-width:480px) {
+  .send-row { flex-wrap:wrap; }
+  .send-id { flex:1 1 calc(100% - 50px); }
+}
 .touch-j0 { background:var(--green-bg); color:var(--green); }
 .touch-j5 { background:var(--navy-light); color:var(--navy); }
 .touch-invite { background:var(--navy-light); color:var(--navy); }
@@ -861,12 +877,12 @@ body.scanner-open { overflow:hidden; }
 body.ask-open { overflow:hidden; }
 .ask-panel-head { padding:18px 22px 16px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-shrink:0; }
 .ask-panel-title { font-size:15px; font-weight:800; color:var(--navy); font-family:'Plus Jakarta Sans',sans-serif; }
-.ask-ctx-pill { font-size:10px; font-weight:700; background:var(--navy-light); color:var(--navy); border:1px solid var(--blue); border-radius:var(--radius-pill); padding:2px 8px; letter-spacing:0.02em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:220px; margin-top:3px; }
+.ask-ctx-pill { font-size:11px; font-weight:700; background:var(--navy-light); color:var(--navy); border:1px solid var(--blue); border-radius:var(--radius-pill); padding:2px 8px; letter-spacing:0.02em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:220px; margin-top:3px; }
 #ask-messages { flex:1; overflow-y:auto; padding:16px 22px; display:flex; flex-direction:column; gap:10px; }
 /* Suggested pills (port demo-private.html) -- --fill-accent au lieu de --accent (n'existe pas ici),
    meme token deja utilise pour Ask Corridor dans ce fichier (ex. avatar assistant #ask-panel). */
 .ask-suggested { padding:0 22px 12px; flex-shrink:0; }
-.ask-suggested-label { font-family:'IBM Plex Mono',monospace; font-size:8.5px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); margin-bottom:8px; }
+.ask-suggested-label { font-family:'IBM Plex Mono',monospace; font-size:9.5px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); margin-bottom:8px; }
 .ask-pills { display:flex; flex-wrap:wrap; gap:6px; }
 .ask-pill { font-family:'Plus Jakarta Sans',sans-serif; font-size:12px; padding:6px 12px; border-radius:20px; border:1px solid var(--border); background:#fff; color:var(--text); cursor:pointer; transition:border-color .15s,color .15s; }
 .ask-pill:hover { border-color:var(--fill-accent); color:var(--fill-accent); }
@@ -941,25 +957,25 @@ body.ask-open { overflow:hidden; }
 .pd-head-top { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
 .pd-name-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
 .pd-name { font-size:18px; font-weight:600; color:var(--ink); }
-.pd-stage-chip { font-family:'IBM Plex Mono',monospace; font-size:9px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; padding:2px 8px; border-radius:var(--radius-pill); background:var(--navy-light); color:var(--ink); }
+.pd-stage-chip { font-family:'IBM Plex Mono',monospace; font-size:10px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; padding:2px 8px; border-radius:var(--radius-pill); background:var(--navy-light); color:var(--ink); }
 .pd-role { font-size:13px; color:var(--muted); margin-top:2px; }
-.pd-firmo { font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:0.04em; color:var(--dim); margin-top:5px; }
+.pd-firmo { font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:0.04em; color:var(--dim); margin-top:5px; }
 .pd-stats { display:flex; margin-top:14px; }
 .pd-stat { flex:1; padding:0 12px; border-left:1px solid var(--border); min-width:0; }
 .pd-stat:first-child { border-left:none; padding-left:0; }
-.pd-stat-label { font-family:'IBM Plex Mono',monospace; font-size:8.5px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); margin-bottom:3px; }
+.pd-stat-label { font-family:'IBM Plex Mono',monospace; font-size:9.5px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); margin-bottom:3px; }
 .pd-stat-value { font-family:'IBM Plex Mono',monospace; font-size:14px; font-weight:600; color:var(--ink); display:flex; align-items:center; gap:5px; white-space:nowrap; }
 .pd-stat-edit { cursor:pointer; color:var(--muted); background:none; border:none; padding:0; font-size:11px; line-height:1; flex-shrink:0; }
 .pd-stat-edit:hover { color:var(--accent); }
 .pd-body { flex:1; min-height:0; overflow-y:auto; padding:0 22px; }
 .pd-section { padding:18px 0; border-bottom:1px solid var(--border); }
-.pd-section-label { font-family:'IBM Plex Mono',monospace; font-size:9.5px; font-weight:600; letter-spacing:0.14em; text-transform:uppercase; color:var(--muted); margin-bottom:10px; }
+.pd-section-label { font-family:'IBM Plex Mono',monospace; font-size:10.5px; font-weight:600; letter-spacing:0.14em; text-transform:uppercase; color:var(--muted); margin-bottom:10px; }
 .pd-next-action { background:var(--success-bg); border:1px solid var(--success-border); border-radius:var(--radius-md); padding:14px 16px; }
-.pd-next-action-label { font-family:'IBM Plex Mono',monospace; font-size:9px; font-weight:700; letter-spacing:0.12em; color:var(--success); margin-bottom:6px; }
+.pd-next-action-label { font-family:'IBM Plex Mono',monospace; font-size:10px; font-weight:700; letter-spacing:0.12em; color:var(--success); margin-bottom:6px; }
 .pd-next-action-text { font-size:14px; font-weight:600; color:var(--ink); line-height:1.5; }
 .pd-row { display:flex; align-items:baseline; gap:10px; padding:9px 0; border-bottom:1px solid var(--border); }
 .pd-row:last-child { border-bottom:none; }
-.pd-row-mono { font-family:'IBM Plex Mono',monospace; font-size:9.5px; letter-spacing:0.06em; color:var(--muted); flex-shrink:0; white-space:nowrap; }
+.pd-row-mono { font-family:'IBM Plex Mono',monospace; font-size:10.5px; letter-spacing:0.06em; color:var(--muted); flex-shrink:0; white-space:nowrap; }
 .pd-row-main { font-size:13px; color:var(--text); line-height:1.5; min-width:0; }
 .pd-row-name { font-size:13.5px; font-weight:600; color:var(--ink); }
 .pd-brief-card { background:var(--ink); color:#fff; border-radius:var(--radius-md); padding:16px 18px; font-size:13.5px; line-height:1.65; }
@@ -1142,7 +1158,7 @@ h1, h2, .k-card-name, .k-card-company { overflow-wrap:break-word; word-break:bre
   flex-direction: column;
   overflow-y: auto;
   font-family: 'Plus Jakarta Sans', sans-serif;
-  --sidebar-label-size: 13px;
+  --sidebar-label-size: 14px;
 }
 body.new-nav .new-sidebar { display: flex; }
 body.new-nav { padding-left: 220px; }
@@ -1165,7 +1181,7 @@ body.new-nav { padding-left: 220px; }
 .snav-section { padding: 6px 10px 2px; flex-shrink: 0; }
 .snav-section + .snav-section { margin-top: 14px; }
 .snav-section-label {
-  display: block; font-size: 9.5px; font-weight: 500; letter-spacing: 0.18em;
+  display: block; font-size: 10.5px; font-weight: 500; letter-spacing: 0.18em;
   text-transform: uppercase; color: #B7BFD6; padding: 14px 8px 4px;
 }
 /* F15 (port wominds, 2026-09-17) : "Configuration" en retrait visuel, meme regle que
@@ -1254,7 +1270,7 @@ body.new-nav { padding-left: 220px; }
   color: rgba(255,255,255,.72);
 }
 .mtab-item.active { color: #fff; font-weight: 600; }
-.mtab-badge { font-family: 'IBM Plex Mono', monospace; font-size: 9px; color: var(--sidebar-accent); }
+.mtab-badge { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--sidebar-accent); }
 .mtab-badge:empty { display: none; }
 .more-list { display: flex; flex-direction: column; }
 .more-row {
@@ -1274,7 +1290,7 @@ body.new-nav { padding-left: 220px; }
   .today-main { flex: 1; min-width: 0; }
   .today-rail { width: 296px; flex-shrink: 0; border-left: 1px solid var(--border); padding-left: 20px; }
   @media (max-width: 1180px) {
-    .today-layout { flex-direction: column; }
+    .today-layout { flex-direction: column; align-items: stretch; }
     .today-rail { width: 100%; border-left: none; border-top: 1px solid var(--border); padding-left: 0; padding-top: 20px; margin-top: 4px; }
   }
   /* .btn-sm/.toggle-pill : absents du CSS copie de kaizenology.html (meme lacune constatee sur
@@ -1288,7 +1304,7 @@ body.new-nav { padding-left: 220px; }
   .toggle-pill.active { background:var(--navy); border-color:var(--navy); color:#fff; font-weight:600; }
   .snav-live-dot { width:6px; height:6px; border-radius:50%; background:var(--success); display:inline-block; flex-shrink:0; animation:pulseDot 2.4s ease-in-out infinite; }
   .ask-panel-title-row { display:flex; align-items:center; gap:7px; }
-  .ask-panel-sub { font-family:'IBM Plex Mono',monospace; font-size:9px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); margin-top:3px; }
+  .ask-panel-sub { font-family:'IBM Plex Mono',monospace; font-size:10px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); margin-top:3px; }
   .pd-close { flex-shrink:0; width:28px; height:28px; border-radius:var(--radius-sm); border:1px solid var(--border); background:#fff; color:var(--muted); cursor:pointer; font-size:14px; display:flex; align-items:center; justify-content:center; }
   .pd-close:hover { color:var(--navy); border-color:var(--navy); }
   #auth-gate input::placeholder, #access-blocked input::placeholder { color: rgba(255,255,255,.35); }
@@ -1327,11 +1343,11 @@ body.new-nav { padding-left: 220px; }
       </div>
       <span style="font-family:'Instrument Sans',sans-serif;font-weight:600;font-size:22px;letter-spacing:0.18em;line-height:1;color:#fff;">CORRIDOR</span>
     </div>
-    <p style="text-align:center;color:rgba(255,255,255,.5);font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:0.22em;margin:0 0 28px;">TABLEAU DE BORD WOMINDS</p>
+    <p style="text-align:center;color:rgba(255,255,255,.5);font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:0.22em;margin:0 0 28px;">TABLEAU DE BORD WOMINDS</p>
     <form onsubmit="doLogin(event)">
-      <label for="login-email" style="display:block;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:0.18em;color:rgba(255,255,255,.5);margin-bottom:5px;">EMAIL</label>
+      <label for="login-email" style="display:block;font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:0.18em;color:rgba(255,255,255,.5);margin-bottom:5px;">EMAIL</label>
       <input id="login-email" type="email" autocomplete="email" required style="width:100%;box-sizing:border-box;padding:13px 14px;margin-bottom:14px;border:1px solid rgba(255,255,255,.14);border-radius:var(--radius-sm);background:rgba(255,255,255,.07);color:#fff;font-size:15px;font-family:'Instrument Sans',sans-serif;outline:none;transition:border-color .15s;">
-      <label for="login-password" style="display:block;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:0.18em;color:rgba(255,255,255,.5);margin-bottom:5px;">MOT DE PASSE</label>
+      <label for="login-password" style="display:block;font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:0.18em;color:rgba(255,255,255,.5);margin-bottom:5px;">MOT DE PASSE</label>
       <input id="login-password" type="password" autocomplete="current-password" required style="width:100%;box-sizing:border-box;padding:13px 14px;margin-bottom:18px;border:1px solid rgba(255,255,255,.14);border-radius:var(--radius-sm);background:rgba(255,255,255,.07);color:#fff;font-size:15px;font-family:'Instrument Sans',sans-serif;outline:none;transition:border-color .15s;">
       <button id="login-btn" type="submit" style="width:100%;padding:13px;border:none;border-radius:var(--radius-sm);background:#fff;color:var(--ink);font-weight:700;font-size:15px;cursor:pointer;font-family:'Instrument Sans',sans-serif;">Se connecter</button>
       <p id="login-error" style="display:none;color:var(--red-light);font-size:var(--fs-base);text-align:center;margin:14px 0 0;"></p>
@@ -1343,9 +1359,9 @@ body.new-nav { padding-left: 220px; }
              appartient au roster de Thomas (15), factuellement faux pour Wominds tant qu'aucun
              agent/workflow n'existe pour ce client -- copier le nombre aurait ete la meme erreur
              que l'incoherence 15 vs 17 deja corrigee ailleurs ce soir. -->
-        <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:0.12em;color:rgba(255,255,255,.5);">SYSTÈME ACTIF</span>
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:0.12em;color:rgba(255,255,255,.5);">SYSTÈME ACTIF</span>
       </div>
-      <div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:0.12em;">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:0.12em;">
         <a href="mailto:thomas@corridor.systems" style="color:rgba(255,255,255,.5);text-decoration:none;">CONTACT</a>
         <span style="color:rgba(255,255,255,.3);margin:0 6px;">·</span>
         <a href="https://corridor.systems" target="_blank" rel="noopener" style="color:rgba(255,255,255,.5);text-decoration:none;">CORRIDOR.SYSTEMS ↗</a>
@@ -1387,12 +1403,12 @@ body.new-nav { padding-left: 220px; }
     </div>
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
       <span style="width:6px;height:6px;border-radius:50%;background:var(--danger);display:inline-block;"></span>
-      <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:0.12em;color:var(--danger);">PROFIL INDISPONIBLE</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:0.12em;color:var(--danger);">PROFIL INDISPONIBLE</span>
     </div>
     <h2 style="color:#fff;font-family:'Instrument Sans',sans-serif;font-weight:600;font-size:21px;margin:0 0 12px;">Impossible de charger votre profil</h2>
     <p style="color:rgba(255,255,255,.65);font-size:13.5px;line-height:1.6;margin:0 0 20px;">Votre session reste valide, rien n'a été perdu. C'est une erreur de lecture de notre côté. Réessayez, et si ça persiste le détail ci-dessous est à nous transmettre.</p>
     <div style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:var(--radius-md);padding:14px 16px;margin-bottom:20px;">
-      <div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:0.18em;color:rgba(255,255,255,.5);margin-bottom:10px;">DIAGNOSTIC</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:0.18em;color:rgba(255,255,255,.5);margin-bottom:10px;">DIAGNOSTIC</div>
       <div id="pe-diag-rows"></div>
     </div>
     <button onclick="_retryProfileLoad()" style="width:100%;padding:13px;border:none;border-radius:var(--radius-sm);background:#fff;color:var(--ink);font-weight:700;font-size:15px;cursor:pointer;font-family:'Instrument Sans',sans-serif;margin-bottom:10px;">Réessayer</button>
@@ -2414,8 +2430,8 @@ let _lastProfileErrorInfo = null; // { at: Date, status: string } | null
 let _lastProfileLoadAttempts = 0;
 function _diagRow(color, label, value) {
   return '<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;">'
-    + '<span style="display:flex;align-items:center;gap:6px;font-family:\'IBM Plex Mono\',monospace;font-size:9.5px;letter-spacing:0.1em;color:rgba(255,255,255,.5);"><span style="width:6px;height:6px;border-radius:50%;background:' + color + ';display:inline-block;flex-shrink:0;"></span>' + label + '</span>'
-    + '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:9.5px;letter-spacing:0.1em;color:#fff;">' + value + '</span>'
+    + '<span style="display:flex;align-items:center;gap:6px;font-family:\'IBM Plex Mono\',monospace;font-size:10.5px;letter-spacing:0.1em;color:rgba(255,255,255,.5);"><span style="width:6px;height:6px;border-radius:50%;background:' + color + ';display:inline-block;flex-shrink:0;"></span>' + label + '</span>'
+    + '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:10.5px;letter-spacing:0.1em;color:#fff;">' + value + '</span>'
     + '</div>';
 }
 function showProfileError(retryFn) {
@@ -2484,7 +2500,7 @@ function _mscConfidenceBadge(confidence) {
     speculative: { bg: 'var(--chip-bg)', border: 'var(--border)', color: 'var(--muted)', label: 'Spéculatif' },
   };
   const c = map[(confidence || '').toLowerCase()] || map.speculatif;
-  return `<span style="display:inline-block;font-size:10px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;padding:2px 8px;border-radius:999px;background:${c.bg};border:1px solid ${c.border};color:${c.color};white-space:nowrap;">${c.label}</span>`;
+  return `<span style="display:inline-block;font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;padding:2px 8px;border-radius:999px;background:${c.bg};border:1px solid ${c.border};color:${c.color};white-space:nowrap;">${c.label}</span>`;
 }
 function _mscInitials(name) {
   const parts = (name || '').trim().split(/\s+/).filter(Boolean);
@@ -2580,8 +2596,8 @@ function _mscParseEmailSections(html, opts) {
       const addItem = (text, links, header, tbl) => {
         if (!text) return;
         current.paragraphs.push(text);
-        if (links.length && !current.linksByText.has(text)) current.linksByText.set(text, links);
-        current.items.push({ text, header, tbl });
+        _mscRegisterLinks(current, text, links);
+        current.items.push({ text, header, tbl, links });
       };
       if (tag === 'table') {
         const tbl = tableCount++;
@@ -2598,8 +2614,7 @@ function _mscParseEmailSections(html, opts) {
     const text = (el.textContent || '').replace(/\s+/g, ' ').trim();
     if (text) {
       current.paragraphs.push(text);
-      const links = _mscExtractLinks(el);
-      if (links.length && !current.linksByText.has(text)) current.linksByText.set(text, links);
+      _mscRegisterLinks(current, text, _mscExtractLinks(el));
     }
   }
   return sections;
@@ -2614,6 +2629,18 @@ function _mscExtractLinks(el) {
     if (href && t) out.push({ t, href });
   }
   return out;
+}
+// Liens d'un paragraphe de l'email, indexes par TEXTE de paragraphe (section.linksByText, lu par _mscParagraphHTML).
+// Un meme texte qui revient dans la section avec une liste de liens DIFFERENTE (ex. plusieurs « Profile » / « Site » /
+// « LinkedIn » pointant vers des personnes differentes) est AMBIGU : liste vide = texte sans lien, jamais le lien du
+// 1er paragraphe pour tous (mieux vaut aucun lien qu'un lien faux). Meme texte + memes liens : inchange. Appelee apres
+// section.paragraphs.push(text). (Helper commun aux 3 dashboards.)
+function _mscRegisterLinks(section, text, links) {
+  const map = section.linksByText;
+  if (section.paragraphs.indexOf(text) === section.paragraphs.length - 1) { if (links.length) map.set(text, links); return; }
+  const prev = map.get(text) || [];
+  const same = prev.length === links.length && prev.every((p, i) => p.t === links[i].t && p.href === links[i].href);
+  if (!same) map.set(text, []);
 }
 // Paragraphe narratif -> HTML : tout le texte passe par _esc ; seuls les liens http(s) valides dont
 // le texte figure litteralement dans le paragraphe deviennent des <a>. Sans liens = _esc(text) seul.
@@ -2641,7 +2668,7 @@ function _mscGroupDecisions(decisions) {
   return groups;
 }
 function _mscSectionLabel(heading) {
-  return `<div style="font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);opacity:.65;margin:14px 0 4px;">${_esc(heading)}</div>`;
+  return `<div style="font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);opacity:.65;margin:14px 0 4px;">${_esc(heading)}</div>`;
 }
 function _mscNarrativeBlockHTML(heading, paragraphs, linksByText) {
   if (!paragraphs.length) return '';
@@ -2759,7 +2786,7 @@ function _mscIcpStateChipHTML(state) {
     ? 'background:var(--chip-bg);border:1px solid var(--border);color:var(--muted);'
     : 'background:var(--amber-bg);border:1px solid var(--amber-border);color:var(--amber);';
   const tip = (typeof currentLang === 'undefined' || currentLang === 'fr') ? _MSC_ICP_STATE_TIP : _MSC_ICP_STATE_TIP_EN;
-  return `<span title="${_esc(tip)}" style="display:inline-block;font-size:10px;font-weight:600;padding:2px 8px;border-radius:999px;${tone}white-space:nowrap;">${_esc(state.label)}</span>`;
+  return `<span title="${_esc(tip)}" style="display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;${tone}white-space:normal;max-width:100%;box-sizing:border-box;">${_esc(state.label)}</span>`;
 }
 // Une carte par entree de decisions_json (ou de scan_entries v1, d._scanEntry), enrichie en live
 // (icp_score/icp_reason/signal/signal_interpretation/next_action_cache, id present uniquement) quand
@@ -2795,14 +2822,14 @@ function _mscDecisionCardHTML(d, live) {
   // _mscResolveSource. Jamais un lien deja present retire ou remplace ; toujours _mscSafeUrl (http/https).
   const linkedinUrl = _mscSafeUrl(d.linkedin) || _mscSafeUrl(live && live.linkedin);
   const source = _mscResolveSource(d, live);
-  if (linkedinUrl) links.push(`<a href="${_esc(linkedinUrl)}" target="_blank" rel="noopener" style="color:var(--fill-accent);text-decoration:none;font-weight:600;">LinkedIn</a>`);
-  if (source) links.push(`<a href="${_esc(source.url)}" target="_blank" rel="noopener" style="color:var(--fill-accent);text-decoration:none;font-weight:600;">${_esc(source.label)}</a>`);
-  const linksHtml = links.length ? `<div style="margin-top:6px;display:flex;gap:12px;font-size:var(--fs-xs);">${links.join('')}</div>` : '';
+  if (linkedinUrl) links.push(`<a href="${_esc(linkedinUrl)}" target="_blank" rel="noopener" style="color:var(--fill-accent);text-decoration:none;font-weight:600;white-space:nowrap;">LinkedIn</a>`);
+  if (source) links.push(`<a href="${_esc(source.url)}" target="_blank" rel="noopener" style="color:var(--fill-accent);text-decoration:none;font-weight:600;min-width:0;word-break:normal;overflow-wrap:break-word;">${_esc(source.label)}</a>`);
+  const linksHtml = links.length ? `<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px 12px;font-size:var(--fs-xs);">${links.join('')}</div>` : '';
 
   const structured = isEntry && (d.facts || d.action);
   const summary = d.summary && !structured ? `<div style="margin-top:4px;font-size:var(--fs-sm);color:var(--muted);line-height:1.4;">${_esc(d.summary)}</div>` : '';
   const factsBlock = isEntry && d.facts
-    ? `<div style="margin-top:4px;font-size:var(--fs-sm);color:var(--muted);line-height:1.4;"><span style="font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;opacity:.6;">Faits</span><div>${_esc(cleanText(d.facts))}</div></div>`
+    ? `<div style="margin-top:4px;font-size:var(--fs-sm);color:var(--muted);line-height:1.4;"><span style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;opacity:.6;">Faits</span><div>${_esc(cleanText(d.facts))}</div></div>`
     : '';
   const mandateHtml = isEntry && d.mandate ? `<span style="font-size:var(--fs-xs);color:var(--muted);">Mandat : ${_esc(d.mandate)}</span>` : '';
   const sigBadge = isEntry && typeof _sigBadge === 'function' ? _sigBadge((d.signal && d.signal.type) || (live && live.signal_type) || '') : '';
@@ -2817,7 +2844,7 @@ function _mscDecisionCardHTML(d, live) {
     ? `<div style="margin-top:6px;font-size:var(--fs-xs);color:var(--muted);line-height:1.4;">${signal ? `<strong>Signal :</strong> ${_esc(signal)}` : ''}${signal && signalInterp ? '<br>' : ''}${signalInterp ? `<strong>Interprétation :</strong> ${_esc(signalInterp)}` : ''}</div>`
     : '';
   const actionBlock = actionBody
-    ? `<div style="margin-top:6px;"><div style="font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);opacity:.6;margin-bottom:2px;">Action recommandée</div>${actionBody}</div>`
+    ? `<div style="margin-top:6px;"><div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);opacity:.6;margin-bottom:2px;">Action recommandée</div>${actionBody}</div>`
     : '';
 
   const cardStyleBase = 'display:flex;gap:10px;padding:10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:#fff;';
@@ -2923,11 +2950,11 @@ async function _loadLastMorningScanEmail() {
       // Cle name|company deja rendue en carte market_mention -- partagee entre toutes les sections
       // de la boucle pour qu'une meme personne ne s'affiche jamais deux fois.
       const renderedMarketMentionKeys = new Set();
-      // Rendu scan_entries v1 uniquement : liens http(s) gardes dans les sections narratives, et fiches
-      // live passees aux cartes "Personnes vues sur le marche" (etat ICP). Repli historique : null.
+      // Liens http(s) gardes dans les sections narratives (rendu v1 ET repli, 21/09 : le repli les perdait) ; fiches
+      // live passees aux cartes "Personnes vues sur le marche" (etat ICP) uniquement en rendu scan_entries v1.
       const mentionLive = scanEntries ? liveById : null;
       for (const s of sections) {
-        const narrLinks = scanEntries ? s.linksByText : null;
+        const narrLinks = s.linksByText;
         const cat = _MSC_PRIORITY_HEADINGS[_mscNorm(s.heading)];
         if (cat) {
           consumed.add(cat);
@@ -2972,7 +2999,7 @@ async function _loadLastMorningScanEmail() {
       <div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:8px;">${_esc(data.subject || '')} · ${_esc(dateLabel)}</div>
       ${decisions.length > 0
         ? sectionsHtml
-        : `<div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);opacity:.6;margin-bottom:6px;">Aperçu de l’email envoyé</div>`}
+        : `<div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);opacity:.6;margin-bottom:6px;">Aperçu de l’email envoyé</div>`}
       <div id="last-morning-scan-frame-wrap" style="max-height:${collapsedHeight};overflow:hidden;position:relative;transition:max-height .25s ease;border:1px solid var(--border);border-radius:var(--radius-sm);">
         <div id="last-morning-scan-fade" style="position:absolute;bottom:0;left:0;right:0;height:40px;background:linear-gradient(transparent, var(--bg));pointer-events:none;${decisions.length > 0 ? 'display:none;' : ''}"></div>
       </div>
@@ -3330,8 +3357,8 @@ const _SIGNAL_TYPE_BANNER_FR = {
 function _signalTypeBanner(st) {
   const key = (st || '').toLowerCase().replace(/_/g, '-');
   const def = _SIGNAL_TYPE_BANNER_FR[key];
-  if (def) return { html: `<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding:4px 10px;background:${def.bg};border-radius:var(--radius-sm);border:1px solid ${def.border};"><span style="font-size:10px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:${def.color};">${_esc(def.label)}</span></div>`, cardBorder: def.border };
-  if (st) { const raw = st.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()); return { html: `<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding:4px 10px;background:#f3f4f6;border-radius:var(--radius-sm);border:1px solid var(--border);"><span style="font-size:10px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted);">${_esc(raw)}</span></div>`, cardBorder: null }; }
+  if (def) return { html: `<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding:4px 10px;background:${def.bg};border-radius:var(--radius-sm);border:1px solid ${def.border};"><span style="font-size:11px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:${def.color};">${_esc(def.label)}</span></div>`, cardBorder: def.border };
+  if (st) { const raw = st.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()); return { html: `<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding:4px 10px;background:#f3f4f6;border-radius:var(--radius-sm);border:1px solid var(--border);"><span style="font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted);">${_esc(raw)}</span></div>`, cardBorder: null }; }
   return { html: '', cardBorder: null };
 }
 function _renderSignalsFeed() {
@@ -4492,7 +4519,7 @@ function _pdWhyCorridorNowHTML(p) {
     <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px;">${p.signal_type ? _sigBadge(p.signal_type) : ''}<span style="font-size:var(--fs-xs);color:var(--muted);margin-left:auto;white-space:nowrap;">${p.signal_date ? _esc(_relDate(p.signal_date) || '') : 'Date non renseignée'}</span></div>
     <div style="font-size:var(--fs-sm);color:var(--text);line-height:1.5;">${sigText}</div>
     ${sigUrl ? `<a href="${_esc(sigUrl)}" target="_blank" rel="noopener noreferrer" style="font-size:var(--fs-xs);color:var(--ink);text-decoration:underline;font-weight:600;">Source →</a>` : ''}
-    ${sigInterp ? `<div style="margin-top:8px;background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--ink);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:10px;opacity:0.65;display:block;margin-bottom:3px">✦ Analyse IA</span>${sigInterp}</div>` : ''}
+    ${sigInterp ? `<div style="margin-top:8px;background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--ink);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:11px;opacity:0.65;display:block;margin-bottom:3px">✦ Analyse IA</span>${sigInterp}</div>` : ''}
   </div>`;
 }
 // F16 (port wominds, 2026-09-17) : "Raison de la priorité" -- icp_reason jamais affiche dans le
@@ -4504,7 +4531,7 @@ function _pdPriorityReasonHTML(p) {
   const lastCheckedAt = [p.identity_verdict_checked_at, p.company_checked_at].filter(Boolean).sort((a, b) => new Date(b) - new Date(a))[0] || null;
   return `<div class="card" style="margin:16px 0;">
     <div class="card-header"><span class="card-title">Raison de la priorité</span></div>
-    ${icpReasonHTML ? `<div style="background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--ink);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:10px;opacity:0.65;display:block;margin-bottom:3px">✦ Justification du score</span>${icpReasonHTML}</div>` : `<div class="pd-empty">Aucune justification de score enregistrée.</div>`}
+    ${icpReasonHTML ? `<div style="background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--ink);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:11px;opacity:0.65;display:block;margin-bottom:3px">✦ Justification du score</span>${icpReasonHTML}</div>` : `<div class="pd-empty">Aucune justification de score enregistrée.</div>`}
     ${lastCheckedAt ? `<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:8px">Dernière vérification : ${_esc(_relDate(lastCheckedAt) || '')}</div>` : ''}
   </div>`;
 }
@@ -4781,7 +4808,7 @@ function openProspectDetail(id){
         <div class="pd-stat-label">Score ICP</div>
         <div class="pd-stat-value">${p.icp_score != null ? _esc(p.icp_score) + '/10' : 'N/D'}</div>
         <!-- F01 (port wominds, 2026-09-17) : meme badge que demo-private.html, sous le score. -->
-        ${(() => { const _relB = _scoreReliabilityBadge(p); return _relB ? `<div style="font-size:10px;font-weight:700;color:${_relB.color};margin-top:2px;" title="${_esc(_relB.title)}">${_relB.icon} ${_esc(_relB.title)}</div>` : ''; })()}
+        ${(() => { const _relB = _scoreReliabilityBadge(p); return _relB ? `<div style="font-size:11px;font-weight:700;color:${_relB.color};margin-top:2px;" title="${_esc(_relB.title)}">${_relB.icon} ${_esc(_relB.title)}</div>` : ''; })()}
       </div>
       <div class="pd-stat">
         <div class="pd-stat-label">Étape</div>
@@ -5003,14 +5030,14 @@ function _renderNextActionHTML(raw, linkColor) {
     '<a href="mailto:$1" style="color:' + linkColor + ';text-decoration:underline">$1</a>'
   );
   const parsed = _parseNextActionJSON(raw);
-  const channelHTML = ch => ch ? '<div style="display:flex;align-items:center;gap:8px;"><span style="font-family:\'IBM Plex Mono\',monospace;font-size:9.5px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);">Canal</span><span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:var(--radius-pill);background:var(--navy-light);color:var(--navy);">' + _esc(ch) + '</span></div>' : '';
+  const channelHTML = ch => ch ? '<div style="display:flex;align-items:center;gap:8px;"><span style="font-family:\'IBM Plex Mono\',monospace;font-size:10.5px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);">Canal</span><span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:var(--radius-pill);background:var(--navy-light);color:var(--navy);">' + _esc(ch) + '</span></div>' : '';
   const FIELD_LABELS_FR = { why_now: 'Pourquoi maintenant', why_this_person: 'Pourquoi cette personne', why_this_action: 'Pourquoi cette action', what_not_to_say: 'Ce qu\'il ne faut pas dire' };
   if (parsed && parsed.format === 'v2') {
     const fields = ['why_now','why_this_person','why_this_action','what_not_to_say'].map(k => [FIELD_LABELS_FR[k], parsed[k]]).filter(([, v]) => v);
     return '<div style="display:flex;flex-direction:column;gap:6px;">'
       + channelHTML(parsed.channel)
       + fields.map(([label, v]) =>
-          '<div><span style="font-family:\'IBM Plex Mono\',monospace;font-size:9px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted);">' + label + '</span>'
+          '<div><span style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted);">' + label + '</span>'
           + '<div style="font-size:var(--fs-xs);line-height:1.5;color:' + linkColor + ';">' + linkify(_esc(v)) + '</div></div>'
         ).join('')
       + '</div>';
@@ -6095,7 +6122,7 @@ function _todayCardHTML(p) {
     <div style="width:4px;background:${tierColor};flex-shrink:0;"></div>
     <div style="width:70px;flex-shrink:0;border-right:1px solid var(--border);padding:14px 6px;text-align:center;">
       <div style="font-family:'IBM Plex Mono',monospace;font-size:20px;font-weight:600;color:var(--navy);">${scoreVal}</div>
-      <div style="font-size:8.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin-top:2px;">ICP</div>
+      <div style="font-size:9.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin-top:2px;">ICP</div>
     </div>
     <div style="flex:1;padding:14px 16px;min-width:0;">
       <div style="font-weight:700;font-size:var(--fs-base);color:var(--navy);">${_esc(p.name || 'Sans nom')}</div>
@@ -7099,11 +7126,11 @@ async function renderAgentsScreen() {
 // playbook correspondant est vide (jamais de section "vide" visible).
 function _agRow(label, value) {
   if (!value) return '';
-  return `<div style="margin-bottom:10px;"><div style="font-weight:600;text-transform:uppercase;font-size:9px;letter-spacing:0.05em;color:var(--muted);margin-bottom:3px;">${_esc(label)}</div><div style="font-size:var(--fs-sm);color:var(--text);line-height:1.55;white-space:pre-wrap;">${_esc(value)}</div></div>`;
+  return `<div style="margin-bottom:10px;"><div style="font-weight:600;text-transform:uppercase;font-size:10px;letter-spacing:0.05em;color:var(--muted);margin-bottom:3px;">${_esc(label)}</div><div style="font-size:var(--fs-sm);color:var(--text);line-height:1.55;white-space:pre-wrap;">${_esc(value)}</div></div>`;
 }
 function _agList(label, items) {
   if (!Array.isArray(items) || !items.length) return '';
-  return `<div style="margin-bottom:10px;"><div style="font-weight:600;text-transform:uppercase;font-size:9px;letter-spacing:0.05em;color:var(--muted);margin-bottom:3px;">${_esc(label)}</div><ul style="margin:0;padding-left:18px;font-size:var(--fs-sm);color:var(--text);line-height:1.6;">${items.map(i => `<li>${_esc(i)}</li>`).join('')}</ul></div>`;
+  return `<div style="margin-bottom:10px;"><div style="font-weight:600;text-transform:uppercase;font-size:10px;letter-spacing:0.05em;color:var(--muted);margin-bottom:3px;">${_esc(label)}</div><ul style="margin:0;padding-left:18px;font-size:var(--fs-sm);color:var(--text);line-height:1.6;">${items.map(i => `<li>${_esc(i)}</li>`).join('')}</ul></div>`;
 }
 function _agExampleHTML(ex) {
   if (!ex) return '';
@@ -7154,7 +7181,7 @@ function _agentDetailBodyHTML(key, pb) {
     }
   }
   if (Array.isArray(pb.few_shot_examples) && pb.few_shot_examples.length) {
-    html += `<div style="font-weight:600;text-transform:uppercase;font-size:9px;letter-spacing:0.05em;color:var(--muted);margin:14px 0 3px;">Exemple de message</div>`;
+    html += `<div style="font-weight:600;text-transform:uppercase;font-size:10px;letter-spacing:0.05em;color:var(--muted);margin:14px 0 3px;">Exemple de message</div>`;
     html += _agExampleHTML(pb.few_shot_examples[0]);
   }
   return html;
@@ -8501,8 +8528,8 @@ function _renderCommitteeCards(stakeholders, out, company, sector, icpScore) {
   stakeholders.forEach((s, i) => {
     const contradicted = s.identity_verdict === 'CONTRADICTED';
     const roleBadgeHtml = contradicted
-      ? `<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 8px;border-radius:var(--radius-pill);white-space:nowrap;background:#f1f5f9;color:#64748b">Poste non confirmé</span>`
-      : `<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 8px;border-radius:var(--radius-pill);white-space:nowrap;${roleBg(s.role)}">${_esc(roleLabel(s.role))}</span>`;
+      ? `<span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 8px;border-radius:var(--radius-pill);white-space:nowrap;background:#f1f5f9;color:#64748b">Poste non confirmé</span>`
+      : `<span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 8px;border-radius:var(--radius-pill);white-space:nowrap;${roleBg(s.role)}">${_esc(roleLabel(s.role))}</span>`;
     const contradictedNoteHtml = contradicted
       ? `<div style="font-size:var(--fs-xs);color:#b45309;font-style:italic;">Poste non confirmé, dernière information connue périmée.</div>`
       : '';
@@ -8516,8 +8543,8 @@ function _renderCommitteeCards(stakeholders, out, company, sector, icpScore) {
         ${roleBadgeHtml}
       </div>
       ${contradictedNoteHtml}
-      ${s.concern ? `<div style="font-size:var(--fs-xs);color:var(--text-secondary)"><span style="font-weight:600;text-transform:uppercase;font-size:9px;letter-spacing:0.05em;color:var(--muted);margin-right:4px">Préoccupation</span>${_esc(s.concern)}</div>` : ''}
-      ${s.approach ? `<div style="font-size:var(--fs-xs);color:var(--text-secondary)"><span style="font-weight:600;text-transform:uppercase;font-size:9px;letter-spacing:0.05em;color:var(--muted);margin-right:4px">Approche</span>${_esc(s.approach)}</div>` : ''}
+      ${s.concern ? `<div style="font-size:var(--fs-xs);color:var(--text-secondary)"><span style="font-weight:600;text-transform:uppercase;font-size:10px;letter-spacing:0.05em;color:var(--muted);margin-right:4px">Préoccupation</span>${_esc(s.concern)}</div>` : ''}
+      ${s.approach ? `<div style="font-size:var(--fs-xs);color:var(--text-secondary)"><span style="font-weight:600;text-transform:uppercase;font-size:10px;letter-spacing:0.05em;color:var(--muted);margin-right:4px">Approche</span>${_esc(s.approach)}</div>` : ''}
       ${addBtnHtml}
     </div>`;
   });
