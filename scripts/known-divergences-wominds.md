@@ -337,6 +337,68 @@ Présentes uniquement dans wominds.html (29, liste brute du script,
 `loadTodayRun`, `openProspectDetail`, `renderStatsCountry`,
 `renderStatsSector`, `saveProspectForm`
 
+## Passe d'harmonisation scan_entries v1 (2026-09-21) — divergences restantes, NON TRIÉES une à une
+
+Passe locale (rien commité, rien déployé) qui aligne sur `wominds.html` (référence) les
+fonctions partagées du chantier scan_entries v1 entre les trois dashboards
+(`demo-private.html`, `wominds.html`, `kaizenology.html`). Ce script ne compare que les
+**noms** de fonctions, pas leurs corps : 47 noms non triés avant la passe, 45 après
+(`_mscFetchLiveProspects` et `_cacheProspectRow` existent désormais dans les deux fichiers,
+en forme commune, et ne sont plus signalés).
+
+Les 45 noms restants sont consignés ci-dessous **regroupés par famille, sans être triés un
+à un** (décision de Thomas : pas nécessaire ce soir). Statut de l'ensemble : `À TRIER`. Les
+familles sont indicatives (nom et rôle lus dans le code le 2026-09-21) ; aucune raison
+produit n'a été recherchée hors du chantier scan_entries.
+
+### Famille « rendu propre à la page » (chantier scan_entries v1, lu dans le code le 2026-09-21)
+
+- demo-private.html uniquement : `_mscRenderScanEntries`, `_mscSectionKeyForHeading`,
+  `_mscV1SectionLabel` (rendu par section du panneau Corridor : stream1, pipeline_growth,
+  stakeholder…), `_mscFmtDate` (date du signal, affichée seulement côté Corridor),
+  `_mscPersonKey` et `_mscDedupeDecisions` (dédoublonnage nom|société côté page ;
+  wominds.html n'en a pas — non porté, non tranché).
+- wominds.html uniquement : `_mscMentionCardsHTML`, `_mscMentionKey`,
+  `_mscSplitMentionParagraphs` (chantier market_mention du 2026-09-20 ; demo-private.html a
+  la logique équivalente en ligne dans `_mscMentionsForSection` et sa boucle de rendu — deux
+  formes pour la même idée, à factoriser plus tard si Thomas le veut).
+
+### Famille « chantier sans lien avec scan_entries » (non investiguée)
+
+- demo-private.html uniquement : rappels `_reminderClose`, `_reminderSnooze`,
+  `_removeReminderBacklogRow`, `_renderReminderBacklogRows`, `_toggleReminderBacklog` ;
+  statut système `_loadSystemActiveStatus`, `_renderSystemActiveLabel` ; signaux et actions
+  `_actionButtonLabel`, `_effectiveSignalStrength`, `_loadDeprioritizedTypes`,
+  `_qualificationNote`, `_signalSourceLabel`.
+- wominds.html uniquement : agents `_agExampleHTML`, `_agList`, `_agRow`,
+  `_agentDetailBodyHTML`, `_agentStatus`, `_loadAgentLastProposals`, `_openAgentDetail`,
+  `renderAgentsScreen` ; SEO `_seoCopyHostinger`, `_seoListHTML`, `_seoScoreColor`,
+  `_seoVariantCardHTML`, `loadSeoTab` ; filtre pays `_countryBucket`,
+  `_passesCountryFilter` ; fiche prospect `_pdEmailSequenceButtonHTML`,
+  `_pdMessageHistorySectionHTML`, `_pdPriorityReasonHTML`, `_pdWhyCorridorNowHTML`,
+  `_renderDrawerSendPanel` ; divers `_preloadNavBadges`, `_renderScannerBrief`,
+  `_stripSearchNarration`, `_todayGenerate`.
+
+### Fonctions partagées scan_entries dont le CORPS reste différent (invisible pour ce script)
+
+Identiques aux trois pages (comparaison des corps, commentaires ignorés) : `_mscSafeUrl`,
+`_mscSafeId`, `_mscValidScanEntries`, `_mscEntryToDecision`, `_mscEntriesToDecisions`,
+`_mscIcpState`, `_mscIcpStateChipHTML`, `_mscResolveSource`, `_mscExtractLinks`,
+`_mscParseEmailSections`, `_cacheProspectRow`, `_mscFetchLiveProspects` (les libellés
+FR/EN sont dans les corps communs ; wominds.html, monolingue, prend toujours la branche FR).
+Différences restantes, toutes de page :
+- `_mscParagraphHTML`, `_mscNarrativeBlockHTML`, `_mscSectionLabel` : jeton de style propre à
+  la page (`--fill-accent` / `--accent`, `--muted` / `--text-secondary`).
+- `_mscConfidenceBadge` : demo-private.html bilingue (FR/EN), wominds.html FR seul ; jeton de style.
+- `_mscDecisionCardHTML` : jetons de style ; libellés FR/EN (demo-private.html) ; route d'ouverture
+  de la fiche (`openProspectDetail` ici, `_openDrawerFromPriority` côté Corridor) ; force et
+  date du signal affichées côté Corridor seulement ; **règle du résumé, non tranchée** :
+  wominds.html masque le résumé du modèle dès que FAITS, INTERPRÉTATION ou ACTION existent,
+  demo-private.html seulement si FAITS ou ACTION existent.
+
+*Passe du 2026-09-21. Commandes de contrôle : `node scratchpad/dw_test_scan_entries.js`,
+`node scratchpad/dc_run_node.js`, `node scratchpad/dc_mutation.js`.*
+
 ---
 
 *Créé le 2026-09-13 (brief d'audit "parité fiche prospect + navigation"),

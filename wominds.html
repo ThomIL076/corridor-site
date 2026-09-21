@@ -1587,7 +1587,7 @@ body.new-nav { padding-left: 220px; }
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
         <h2 style="font-size:var(--fs-lg);font-weight:700;color:var(--navy);margin:0;">Aujourd'hui</h2>
       </div>
-      <div class="section-sub"><span id="today-queued-count">0</span> prospects prioritaires, triés par score ICP décroissant.</div>
+      <div class="section-sub"><span id="today-queued-count">0</span><span id="today-queued-sub"> prospects prioritaires, triés par score ICP décroissant.</span></div>
       <div class="today-layout">
         <div class="today-main">
           <div id="today-priorities-container"></div>
@@ -2345,7 +2345,7 @@ function switchTab(name){
   _closeSnav();
   window.scrollTo({ top: 0, behavior: 'instant' });
   _updateSpineActive(name);
-  if (name === 'today') loadTodayRun();
+  if (name === 'today') loadDailyPriorities(); // decisions du Morning Scan du jour, repli sur loadTodayRun
   if (name === 'pipeline') loadKanban();
   if (name === 'send') loadSendView();
   if (name === 'inbox') loadInboxDrafts();
@@ -2545,9 +2545,11 @@ function _mscSplitMentionParagraphs(paragraphs, mentions) {
   const after = idx === -1 ? [] : paragraphs.slice(idx + 1);
   return { macro: before.filter(p => !isNameLine(p)), after: after.filter(p => !isNameLine(p)) };
 }
-function _mscMentionCardsHTML(mentions) {
+// liveById : uniquement fourni par le rendu scan_entries v1 (etat ICP des personnes deja en base) ;
+// absent = comportement historique (aucune fiche live, aucune carte enrichie).
+function _mscMentionCardsHTML(mentions, liveById) {
   return _mscSectionLabel('Personnes vues sur le marché')
-    + `<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;">${mentions.map(d => _mscDecisionCardHTML(d, null)).join('')}</div>`;
+    + `<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;">${mentions.map(d => _mscDecisionCardHTML(d, liveById && d.id ? liveById[d.id] : null)).join('')}</div>`;
 }
 // Decoupe le HTML de l'email stocke par ses vrais titres <h2> (jamais un titre invente ou une
 // position fixe). Parse via DOMParser (document inerte : aucune ressource ne se charge, aucun
@@ -2556,21 +2558,79 @@ function _mscMentionCardsHTML(mentions) {
 // contenu genere par un modele nourri de signaux marche externes ne puisse jamais atteindre le
 // DOM vivant de la page. h1 ignore (toujours le seul titre du mail, jamais une vraie section,
 // verifie dans Formater Email HTML — Wominds ce soir).
-function _mscParseEmailSections(html) {
+// opts.rich (21/09) : corps commun avec demo-private.html et kaizenology.html (tableaux decoupes une
+// ligne par entree, section.items) ; Wominds ne l'utilise pas (l'email Wominds n'a pas de tableau
+// a decouper) -- sans opts, comportement inchange (section.items reste vide).
+function _mscParseEmailSections(html, opts) {
   let doc;
   try { doc = new DOMParser().parseFromString(html || '', 'text/html'); } catch (e) { return []; }
+  const rich = !!(opts && opts.rich);
   const nodes = Array.from(doc.body.querySelectorAll('h1, h2, p, li, table'));
   const sections = [];
   let current = null;
+  let tableCount = 0;
   for (const el of nodes) {
     const tag = el.tagName.toLowerCase();
     if (tag === 'h1') { current = null; continue; }
-    if (tag === 'h2') { current = { heading: (el.textContent || '').trim(), paragraphs: [] }; sections.push(current); continue; }
+    if (tag === 'h2') { current = { heading: (el.textContent || '').trim(), paragraphs: [], linksByText: new Map(), items: [] }; sections.push(current); continue; }
     if (!current) continue;
+    if (rich) {
+      // p/li imbriques dans un tableau : deja couverts par la ligne <tr> correspondante.
+      if (tag !== 'table' && el.closest('table')) continue;
+      const addItem = (text, links, header, tbl) => {
+        if (!text) return;
+        current.paragraphs.push(text);
+        if (links.length && !current.linksByText.has(text)) current.linksByText.set(text, links);
+        current.items.push({ text, header, tbl });
+      };
+      if (tag === 'table') {
+        const tbl = tableCount++;
+        for (const tr of Array.from(el.querySelectorAll('tr'))) {
+          const cells = Array.from(tr.children).filter(c => /^(td|th)$/i.test(c.tagName));
+          const texts = cells.map(c => (c.textContent || '').replace(/\s+/g, ' ').trim()).filter(Boolean);
+          addItem(texts.join(' · '), _mscExtractLinks(tr), cells.length > 0 && cells.every(c => /^th$/i.test(c.tagName)), tbl);
+        }
+      } else {
+        addItem((el.textContent || '').replace(/\s+/g, ' ').trim(), _mscExtractLinks(el), false, -1);
+      }
+      continue;
+    }
     const text = (el.textContent || '').replace(/\s+/g, ' ').trim();
-    if (text) current.paragraphs.push(text);
+    if (text) {
+      current.paragraphs.push(text);
+      const links = _mscExtractLinks(el);
+      if (links.length && !current.linksByText.has(text)) current.linksByText.set(text, links);
+    }
   }
   return sections;
+}
+// Liens <a href> http(s) d'un element de l'email stocke (liste blanche stricte via _mscSafeUrl :
+// javascript:, data:, mailto: et tout href non http(s) sont ecartes). Texte de lien vide = ecarte.
+function _mscExtractLinks(el) {
+  const out = [];
+  for (const a of Array.from(el.querySelectorAll('a[href]'))) {
+    const href = _mscSafeUrl(a.getAttribute('href'));
+    const t = (a.textContent || '').replace(/\s+/g, ' ').trim();
+    if (href && t) out.push({ t, href });
+  }
+  return out;
+}
+// Paragraphe narratif -> HTML : tout le texte passe par _esc ; seuls les liens http(s) valides dont
+// le texte figure litteralement dans le paragraphe deviennent des <a>. Sans liens = _esc(text) seul.
+function _mscParagraphHTML(text, linksByText) {
+  const links = linksByText && typeof linksByText.get === 'function' ? linksByText.get(text) : null;
+  if (!links || !links.length) return _esc(text);
+  let out = '';
+  let pos = 0;
+  for (const l of links) {
+    const href = _mscSafeUrl(l && l.href);
+    const i = href && l.t ? text.indexOf(l.t, pos) : -1;
+    if (i < 0) continue;
+    out += _esc(text.slice(pos, i))
+      + `<a href="${_esc(href)}" target="_blank" rel="noopener noreferrer" style="color:var(--fill-accent);text-decoration:underline;">${_esc(l.t)}</a>`;
+    pos = i + l.t.length;
+  }
+  return out + _esc(text.slice(pos));
 }
 function _mscGroupDecisions(decisions) {
   const groups = {};
@@ -2583,9 +2643,9 @@ function _mscGroupDecisions(decisions) {
 function _mscSectionLabel(heading) {
   return `<div style="font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);opacity:.65;margin:14px 0 4px;">${_esc(heading)}</div>`;
 }
-function _mscNarrativeBlockHTML(heading, paragraphs) {
+function _mscNarrativeBlockHTML(heading, paragraphs, linksByText) {
   if (!paragraphs.length) return '';
-  const body = paragraphs.map(p => `<div style="margin-bottom:4px;">${_esc(p)}</div>`).join('');
+  const body = paragraphs.map(p => `<div style="margin-bottom:4px;">${_mscParagraphHTML(p, linksByText)}</div>`).join('');
   return `${_mscSectionLabel(heading)}<div style="font-size:var(--fs-sm);color:var(--muted);line-height:1.5;margin-bottom:4px;">${body}</div>`;
 }
 // Badge ICP avec infobulle au survol -- UNIQUE implementation, partagee par les badges du Pipeline
@@ -2602,26 +2662,152 @@ function _icpBadgeWithTooltipHTML(chipHtml, score, reason, align) {
     '<span class="icp-tt" style="display:none;position:absolute;bottom:100%;' + (align === 'left' ? 'left:0' : 'right:0') + ';margin-bottom:6px;background:var(--navy);color:#fff;font-size:var(--fs-xs);font-weight:400;padding:6px 10px;border-radius:var(--radius-sm);white-space:normal;width:220px;line-height:1.4;z-index:20;box-shadow:0 2px 8px rgba(0,0,0,0.15);">' + tip + '</span>' +
     '</span>';
 }
-// Une carte par entree de decisions_json, enrichie en live (icp_score/icp_reason/signal/signal_interpretation/
-// next_action_cache, id present uniquement) quand la fiche prospect a pu etre chargee. Wominds n'a
-// pas source_url/headcount dans son schema DECISIONS -- tolere absent, jamais suppose present.
+// ── scan_entries v1 (contrat commun Corridor/Wominds/Kaizenology, 2026-09-21) ──────────────────
+// Colonne morning_scan_email_cache.scan_entries : { v:1, generated_at, entries:[...] }. Sections
+// Wominds : priority (Priorite du jour) et market_person (Personnes vues sur le marche). Chaque
+// entree est convertie en objet "decision" (meme forme que decisions_json, plus quelques champs) :
+// _loadLastMorningScanEmail et _mscDecisionCardHTML restent donc les SEULS chemins de rendu.
+const _MSC_ENTRY_SECTION_TO_CATEGORY = { priority: 'all', market_person: 'market_mention' };
+// URL affichable : http(s) uniquement, sans espace, guillemet, chevron ni caractere de controle.
+function _mscSafeUrl(u) {
+  if (typeof u !== 'string') return '';
+  const t = u.trim();
+  return /^https?:\/\/[^\s<>"\u0000-\u001f\u007f]+$/i.test(t) ? t : '';
+}
+// Identifiant prospect insere dans un onclick : caracteres sans danger uniquement (uuid attendu).
+function _mscSafeId(id) {
+  if (typeof id !== 'string' && typeof id !== 'number') return '';
+  const s = String(id);
+  return /^[A-Za-z0-9_-]{1,64}$/.test(s) ? s : '';
+}
+// scan_entries valide (objet v:1, entries tableau, au moins une entree exploitable) -> tableau
+// d'entrees, sinon null : l'appelant retombe alors sur la chaine existante (decisions_json, iframe).
+function _mscValidScanEntries(se) {
+  if (!se || typeof se !== 'object' || Array.isArray(se) || se.v !== 1 || !Array.isArray(se.entries)) return null;
+  const ok = se.entries.filter(e => e && typeof e === 'object' && !Array.isArray(e)
+    && Object.prototype.hasOwnProperty.call(_MSC_ENTRY_SECTION_TO_CATEGORY, e.section)
+    && typeof e.name === 'string' && e.name.trim());
+  return ok.length ? ok : null;
+}
+function _mscEntryToDecision(e) {
+  const str = v => (typeof v === 'string' && v.trim() ? v : null);
+  const sig = e.signal && typeof e.signal === 'object' ? e.signal : null;
+  const ics = e.icp_at_scan && typeof e.icp_at_scan === 'object' ? e.icp_at_scan : null;
+  return {
+    _scanEntry: true,
+    category: _MSC_ENTRY_SECTION_TO_CATEGORY[e.section],
+    id: _mscSafeId(e.prospect_id) || null,
+    name: e.name,
+    company: str(e.company),
+    title: str(e.title),
+    linkedin: _mscSafeUrl(e.linkedin) || null,
+    mandate: str(e.mandate),
+    confidence: str(e.confidence),
+    summary: str(e.summary),
+    interpretation: str(e.interpretation),
+    facts: str(e.facts),
+    action: str(e.action),
+    source_title: str(e.source_title),
+    source_url: _mscSafeUrl(e.source_url) || null,
+    signal: sig ? { text: str(sig.text), type: str(sig.type), strength: Number.isFinite(sig.strength) ? sig.strength : null, date: str(sig.date), url: _mscSafeUrl(sig.url) || null } : null,
+    icp_at_scan: ics ? { score: Number.isFinite(ics.score) ? ics.score : null, reason: str(ics.reason) } : null,
+  };
+}
+// Liste de "decisions" triee par rank (ordre d'affichage dans la section ; tri stable, rank absent
+// ou invalide en fin de section). La section elle-meme est portee par category (cf. _mscGroupDecisions).
+function _mscEntriesToDecisions(entries) {
+  const rank = e => (Number.isFinite(e.rank) ? e.rank : Infinity);
+  return entries.slice().sort((a, b) => rank(a) - rank(b)).map(_mscEntryToDecision);
+}
+// Etat ICP d'une carte (PRIORITE 1) -- UNIQUE endroit ou il est calcule. Regles dans l'ordre :
+// (1) fiche archivee ; (2) score arrondi different du snapshot du scan (icp_at_scan) ; (3) jamais
+// score ; (4) sinon rien. (1) et (3) ne dependent que de la fiche live : ils s'appliquent AUSSI aux
+// cartes issues de decisions_json (repli historique, addendum 21/09). (2) exige icp_at_scan, donc
+// uniquement les entrees scan_entries. Sans fiche live (personne pas en base) : null.
+function _mscIcpState(d, live) {
+  if (!d || !live) return null;
+  const fr = typeof currentLang === 'undefined' || currentLang === 'fr';
+  const fmt = n => String(Math.round(n * 10) / 10);
+  const atScan = d.icp_at_scan && Number.isFinite(d.icp_at_scan.score) ? d.icp_at_scan.score : null;
+  const liveScore = live.icp_score != null && Number.isFinite(Number(live.icp_score)) ? Number(live.icp_score) : null;
+  if (live.archived === true) {
+    return { kind: 'archived', label: (fr ? 'Archivée depuis le scan' : 'Archived since the scan') + (atScan != null ? (fr ? ' · ICP au scan : ' : ' · ICP at scan: ') + fmt(atScan) : '') };
+  }
+  if (atScan != null && liveScore != null && Math.round(liveScore) !== Math.round(atScan)) {
+    return { kind: 'reevaluated', label: (fr ? 'Réévalué depuis le scan : ' : 'Re-scored since the scan: ') + fmt(atScan) + ' → ' + fmt(liveScore) };
+  }
+  if (live.icp_score == null) return { kind: 'pending', label: fr ? 'Score en cours de calcul' : 'Score being calculated' };
+  return null;
+}
+// Lien source affiche (regle UNIQUE, addendum 21/09, helper commun avec demo-private.html et
+// kaizenology.html) : source_url s'il est un lien http(s) valide, sinon signal.url, sinon (lien de
+// secours, 21/09) la signal_url de la fiche live -- on AJOUTE un lien la ou il n'y en avait aucun,
+// jamais on ne remplace un lien present. Libelle « Source : <source_title> » si source_title, sinon
+// « Source ». null si aucun lien valide.
+function _mscResolveSource(d, live) {
+  const url = _mscSafeUrl(d.source_url) || _mscSafeUrl(d.signal && d.signal.url) || _mscSafeUrl(live && live.signal_url);
+  if (!url) return null;
+  const title = typeof d.source_title === 'string' ? d.source_title.replace(/<[^>]*>/g, '').trim() : '';
+  const sep = (typeof currentLang === 'undefined' || currentLang === 'fr') ? 'Source : ' : 'Source: ';
+  return { url, label: title ? sep + title.slice(0, 80) : 'Source' };
+}
+const _MSC_ICP_STATE_TIP = 'Le score ICP est recalculé après chaque scan ; la valeur affichée est la valeur actuelle.';
+const _MSC_ICP_STATE_TIP_EN = 'The ICP score is recalculated after each scan; the value shown is the current value.';
+function _mscIcpStateChipHTML(state) {
+  if (!state) return '';
+  const tone = state.kind === 'pending'
+    ? 'background:var(--chip-bg);border:1px solid var(--border);color:var(--muted);'
+    : 'background:var(--amber-bg);border:1px solid var(--amber-border);color:var(--amber);';
+  const tip = (typeof currentLang === 'undefined' || currentLang === 'fr') ? _MSC_ICP_STATE_TIP : _MSC_ICP_STATE_TIP_EN;
+  return `<span title="${_esc(tip)}" style="display:inline-block;font-size:10px;font-weight:600;padding:2px 8px;border-radius:999px;${tone}white-space:nowrap;">${_esc(state.label)}</span>`;
+}
+// Une carte par entree de decisions_json (ou de scan_entries v1, d._scanEntry), enrichie en live
+// (icp_score/icp_reason/signal/signal_interpretation/next_action_cache, id present uniquement) quand
+// la fiche prospect a pu etre chargee. Wominds n'a pas source_url/headcount dans son schema DECISIONS
+// -- tolere absent, jamais suppose present.
 // Cliquable vers la fiche (meme route que le reste du dashboard, openProspectDetail) uniquement
 // quand id est present -- id null = personne pas encore en base, carte volontairement non
 // cliquable, champs decisions_json seuls.
+// Entrees scan_entries : FAITS / INTERPRETATION / ACTION / lien source quand presents (summary en
+// repli tant que ni FAITS ni ACTION ne sont fournis -- regle commune avec demo-private.html et kaizenology.html,
+// decision Thomas 21/09 : une interpretation seule ne masque pas le resume), badge de type de signal, etat ICP. UN SEUL bloc action :
+// celui du scan s'il existe, sinon next_action_cache live -- jamais les deux.
 function _mscDecisionCardHTML(d, live) {
+  const isEntry = !!d._scanEntry;
+  const pid = _mscSafeId(d.id);
   const name = _esc((live && live.name) || d.name || 'Personne inconnue');
   const company = (live && live.company) || d.company || '';
   const icpScore = live && live.icp_score != null ? live.icp_score : null;
-  const signal = live && live.signal ? String(live.signal).replace(/<[^>]*>/g, '').trim() : '';
-  const signalInterp = live && live.signal_interpretation ? String(live.signal_interpretation).replace(/<[^>]*>/g, '').trim() : '';
+  const cleanText = s => String(s).replace(/<[^>]*>/g, '').trim();
+  const signalSrc = (live && live.signal) || (isEntry && d.signal && d.signal.text) || '';
+  const signal = signalSrc ? cleanText(signalSrc) : '';
+  const interpSrc = (isEntry && d.interpretation) || (live && live.signal_interpretation) || '';
+  const signalInterp = interpSrc ? cleanText(interpSrc) : '';
   const nextActionHtml = live && live.next_action_cache ? _renderNextActionHTML(live.next_action_cache, 'var(--muted)') : null;
+  const scanAction = isEntry && d.action ? cleanText(d.action) : '';
+  const actionBody = scanAction
+    ? `<div style="font-size:var(--fs-xs);line-height:1.5;color:var(--muted);">${_esc(scanAction)}</div>`
+    : nextActionHtml;
 
   const links = [];
-  if (d.linkedin) links.push(`<a href="${_esc(d.linkedin)}" target="_blank" rel="noopener" style="color:var(--fill-accent);text-decoration:none;font-weight:600;">LinkedIn</a>`);
-  if (d.source_url) links.push(`<a href="${_esc(d.source_url)}" target="_blank" rel="noopener" style="color:var(--fill-accent);text-decoration:none;font-weight:600;">Source</a>`);
+  // Liens de secours (entrees scan_entries ET repli decisions_json, 21/09) : la fiche live comble un lien
+  // MANQUANT -- linkedin (prospects.linkedin) ; source = prospects.signal_url en dernier recours, voir
+  // _mscResolveSource. Jamais un lien deja present retire ou remplace ; toujours _mscSafeUrl (http/https).
+  const linkedinUrl = _mscSafeUrl(d.linkedin) || _mscSafeUrl(live && live.linkedin);
+  const source = _mscResolveSource(d, live);
+  if (linkedinUrl) links.push(`<a href="${_esc(linkedinUrl)}" target="_blank" rel="noopener" style="color:var(--fill-accent);text-decoration:none;font-weight:600;">LinkedIn</a>`);
+  if (source) links.push(`<a href="${_esc(source.url)}" target="_blank" rel="noopener" style="color:var(--fill-accent);text-decoration:none;font-weight:600;">${_esc(source.label)}</a>`);
   const linksHtml = links.length ? `<div style="margin-top:6px;display:flex;gap:12px;font-size:var(--fs-xs);">${links.join('')}</div>` : '';
 
-  const summary = d.summary ? `<div style="margin-top:4px;font-size:var(--fs-sm);color:var(--muted);line-height:1.4;">${_esc(d.summary)}</div>` : '';
+  const structured = isEntry && (d.facts || d.action);
+  const summary = d.summary && !structured ? `<div style="margin-top:4px;font-size:var(--fs-sm);color:var(--muted);line-height:1.4;">${_esc(d.summary)}</div>` : '';
+  const factsBlock = isEntry && d.facts
+    ? `<div style="margin-top:4px;font-size:var(--fs-sm);color:var(--muted);line-height:1.4;"><span style="font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;opacity:.6;">Faits</span><div>${_esc(cleanText(d.facts))}</div></div>`
+    : '';
+  const mandateHtml = isEntry && d.mandate ? `<span style="font-size:var(--fs-xs);color:var(--muted);">Mandat : ${_esc(d.mandate)}</span>` : '';
+  const sigBadge = isEntry && typeof _sigBadge === 'function' ? _sigBadge((d.signal && d.signal.type) || (live && live.signal_type) || '') : '';
+  const confidenceHtml = !isEntry || d.confidence ? _mscConfidenceBadge(d.confidence) : '';
+  const icpStateChip = _mscIcpStateChipHTML(_mscIcpState(d, live));
   // Infobulle uniquement quand une fiche live existe (icpScore != null n'est possible que dans ce
   // cas) ; carte sans enrichissement (id null) = ni badge ni infobulle, rien a montrer.
   const icpChip = icpScore != null
@@ -2630,38 +2816,63 @@ function _mscDecisionCardHTML(d, live) {
   const signalBlock = (signal || signalInterp)
     ? `<div style="margin-top:6px;font-size:var(--fs-xs);color:var(--muted);line-height:1.4;">${signal ? `<strong>Signal :</strong> ${_esc(signal)}` : ''}${signal && signalInterp ? '<br>' : ''}${signalInterp ? `<strong>Interprétation :</strong> ${_esc(signalInterp)}` : ''}</div>`
     : '';
-  const actionBlock = nextActionHtml
-    ? `<div style="margin-top:6px;"><div style="font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);opacity:.6;margin-bottom:2px;">Action recommandée</div>${nextActionHtml}</div>`
+  const actionBlock = actionBody
+    ? `<div style="margin-top:6px;"><div style="font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);opacity:.6;margin-bottom:2px;">Action recommandée</div>${actionBody}</div>`
     : '';
 
   const cardStyleBase = 'display:flex;gap:10px;padding:10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:#fff;';
-  const cardAttrs = d.id
-    ? ` onclick="openProspectDetail('${d.id}')" style="${cardStyleBase}cursor:pointer;" onmouseover="this.style.borderColor='var(--ink)'" onmouseout="this.style.borderColor='var(--border)'"`
+  const cardAttrs = pid
+    ? ` onclick="openProspectDetail('${pid}')" style="${cardStyleBase}cursor:pointer;" onmouseover="this.style.borderColor='var(--ink)'" onmouseout="this.style.borderColor='var(--border)'"`
     : ` style="${cardStyleBase}"`;
 
   return `
     <div${cardAttrs}>
-      <div style="flex-shrink:0;width:32px;height:32px;border-radius:50%;background:var(--chip-bg);color:var(--ink);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;">${_mscInitials((live && live.name) || d.name)}</div>
+      <div style="flex-shrink:0;width:32px;height:32px;border-radius:50%;background:var(--chip-bg);color:var(--ink);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;">${_esc(_mscInitials((live && live.name) || d.name))}</div>
       <div style="flex:1;min-width:0;">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
           <span style="font-weight:700;font-size:var(--fs-sm);color:var(--ink);">${name}</span>
-          ${company ? `<span style="font-size:var(--fs-xs);color:var(--muted);">${_esc(company)}</span>` : ''}
-          ${icpChip}
-          ${_mscConfidenceBadge(d.confidence)}
+          ${company ? `<span style="font-size:var(--fs-xs);color:var(--muted);">${_esc(company)}</span>` : ''}${mandateHtml}
+          ${icpChip}${icpStateChip}${sigBadge}
+          ${confidenceHtml}
         </div>
-        ${summary}
+        ${factsBlock}${summary}
         ${signalBlock}
         ${actionBlock}
         ${linksHtml}
       </div>
     </div>`;
 }
+// Enrichissement live (une seule requete par lot sur la TABLE prospects, sous RLS -- jamais la vue
+// prospects_scan_window -- et jamais une requete par carte) -- partage par le rendu scan_entries v1 et par la
+// chaine de repli decisions_json (fonction commune avec demo-private.html et kaizenology.html, 21/09).
+// archived n'est PAS filtre : une fiche archivee depuis le scan doit rester visible avec son etat.
+const _MSC_LIVE_COLS = 'id, name, company, stage, icp_score, icp_reason, archived, signal, signal_type, signal_date, signal_url, signal_interpretation, next_action_cache, linkedin';
+async function _mscFetchLiveProspects(ids) {
+  const liveById = {};
+  if (!ids.length) return liveById;
+  try {
+    const { data: liveRows, error: liveErr } = await sbClient.from('prospects')
+      .select(_MSC_LIVE_COLS)
+      .eq('client_id', CLIENT_ID)
+      .in('id', ids);
+    if (liveErr) throw liveErr;
+    for (const row of (liveRows || [])) {
+      liveById[row.id] = row;
+      // Ne comble que les trous -- ne remplace jamais une fiche deja chargee (et donc plus complete) par le
+      // Pipeline. Approuve par Thomas -- resout le risque de sequencement (_prospectsById pas encore peuple
+      // si ce chargement termine avant celui du Pipeline). Ligne partielle (14 colonnes) : marquee, pour qu'un
+      // chargeur complet (Aujourd'hui, Envoyer) la remplace au lieu d'etre bloque par elle (cf. _cacheProspectRow).
+      _cacheProspectRow(row, true);
+    }
+  } catch (e) { console.error('[_loadLastMorningScanEmail] enrichissement live', e); }
+  return liveById;
+}
 async function _loadLastMorningScanEmail() {
   const el = document.getElementById('last-morning-scan-body');
   if (!el) return;
   try {
     const { data, error } = await sbClient.from('morning_scan_email_cache')
-      .select('subject, email_html, scan_date, generated_at, decisions_json')
+      .select('subject, email_html, scan_date, generated_at, decisions_json, scan_entries')
       .eq('client_id', CLIENT_ID)
       .order('scan_date', { ascending: false })
       .limit(1)
@@ -2678,7 +2889,14 @@ async function _loadLastMorningScanEmail() {
     // script, contenu 100% statique) -- .srcdoc assigne en propriete DOM, jamais de concatenation
     // de chaine HTML : le texte reste strictement celui de l'email, aucun risque de casse sur un
     // contenu genere par IA.
-    const decisions = Array.isArray(data.decisions_json) ? data.decisions_json : [];
+    // scan_entries v1 (contrat commun, 2026-09-21) : quand valide et non vide, sa liste (triee par
+    // rank, sections priority/market_person) remplace decisions_json pour la suite du rendu -- meme
+    // boucle, memes cartes. Absent/NULL/invalide (v != 1, entries non tableau, aucune entree
+    // exploitable) : chaine de repli EXISTANTE strictement inchangee (decisions_json puis iframe).
+    const scanEntries = _mscValidScanEntries(data.scan_entries);
+    const decisions = scanEntries
+      ? _mscEntriesToDecisions(scanEntries)
+      : (Array.isArray(data.decisions_json) ? data.decisions_json : []);
 
     let sectionsHtml = '';
     let collapsedHeight = '140px';
@@ -2699,29 +2917,17 @@ async function _loadLastMorningScanEmail() {
       const sections = _mscParseEmailSections(data.email_html);
       const groups = _mscGroupDecisions(decisions);
       const ids = [...new Set(decisions.filter(d => d && d.id).map(d => d.id))];
-      let liveById = {};
-      if (ids.length) {
-        try {
-          const { data: liveRows, error: liveErr } = await sbClient.from('prospects')
-            .select('id, name, company, stage, icp_score, icp_reason, signal, signal_interpretation, next_action_cache')
-            .eq('client_id', CLIENT_ID)
-            .in('id', ids);
-          if (liveErr) throw liveErr;
-          for (const row of (liveRows || [])) {
-            liveById[row.id] = row;
-            // Ne comble que les trous -- ne remplace jamais une fiche deja chargee (et donc plus
-            // complete) par le Pipeline. Approuve par Thomas -- resout le risque de sequencement
-            // (_prospectsById pas encore peuple si ce chargement termine avant celui du Pipeline).
-            if (!_prospectsById[row.id]) _prospectsById[row.id] = row;
-          }
-        } catch (e) { console.error('[_loadLastMorningScanEmail] enrichissement live', e); }
-      }
+      const liveById = await _mscFetchLiveProspects(ids);
 
       const consumed = new Set();
       // Cle name|company deja rendue en carte market_mention -- partagee entre toutes les sections
       // de la boucle pour qu'une meme personne ne s'affiche jamais deux fois.
       const renderedMarketMentionKeys = new Set();
+      // Rendu scan_entries v1 uniquement : liens http(s) gardes dans les sections narratives, et fiches
+      // live passees aux cartes "Personnes vues sur le marche" (etat ICP). Repli historique : null.
+      const mentionLive = scanEntries ? liveById : null;
       for (const s of sections) {
+        const narrLinks = scanEntries ? s.linksByText : null;
         const cat = _MSC_PRIORITY_HEADINGS[_mscNorm(s.heading)];
         if (cat) {
           consumed.add(cat);
@@ -2737,18 +2943,18 @@ async function _loadLastMorningScanEmail() {
             // Cartes pleines des la premiere version (demande Thomas). La prose macro de la section
             // reste affichee ; la phrase agregee (decompte sans nom des personnes ecartees) suit les cartes.
             const parts = _mscSplitMentionParagraphs(s.paragraphs, mentions);
-            sectionsHtml += (_mscNarrativeBlockHTML(s.heading, parts.macro) || _mscSectionLabel(s.heading))
-              + _mscMentionCardsHTML(mentions)
-              + (parts.after.length ? `<div style="font-size:var(--fs-xs);color:var(--muted);line-height:1.5;margin-bottom:10px;">${parts.after.map(p => _esc(p)).join('<br>')}</div>` : '');
+            sectionsHtml += (_mscNarrativeBlockHTML(s.heading, parts.macro, narrLinks) || _mscSectionLabel(s.heading))
+              + _mscMentionCardsHTML(mentions, mentionLive)
+              + (parts.after.length ? `<div style="font-size:var(--fs-xs);color:var(--muted);line-height:1.5;margin-bottom:10px;">${parts.after.map(p => _mscParagraphHTML(p, narrLinks)).join('<br>')}</div>` : '');
             continue;
           }
         }
-        sectionsHtml += _mscNarrativeBlockHTML(s.heading, s.paragraphs);
+        sectionsHtml += _mscNarrativeBlockHTML(s.heading, s.paragraphs, narrLinks);
       }
       // Filet de securite : une mention market_mention dont aucun titre/texte n'a ete retrouve dans
       // l'email (ne devrait pas arriver) ne disparait jamais silencieusement -- rendue en fin de panneau.
       const leftoverMentions = (groups.market_mention || []).filter(d => d && d.name && !renderedMarketMentionKeys.has(_mscMentionKey(d)));
-      if (leftoverMentions.length > 0) sectionsHtml += _mscMentionCardsHTML(leftoverMentions);
+      if (leftoverMentions.length > 0) sectionsHtml += _mscMentionCardsHTML(leftoverMentions, mentionLive);
       // Filet de securite : une categorie avec des decisions mais dont le titre n'a pas ete
       // retrouve tel quel dans le HTML (ne devrait pas arriver) ne perd jamais silencieusement ses
       // cartes -- rendu en fin de panneau avec son intitule canonique.
@@ -2979,6 +3185,18 @@ let _allProspects = [];
 // manquante trouvee et corrigee ici : plusieurs fonctions y ecrivaient/lisaient deja sans
 // jamais l'initialiser, ce qui aurait plante au premier clic hors Pipeline.
 let _prospectsById = {};
+// Ne comble que les trous du cache, et une ligne PARTIELLE (ex. enrichissement live du Morning Scan,
+// ~14 colonnes) ne bloque jamais une ligne complete arrivee ensuite (Aujourd'hui, Envoyer) : sans
+// cela openProspectDetail ouvrirait un tiroir appauvri. Une ligne complete deja en cache n'est
+// jamais ecrasee par une partielle. WeakSet : aucun champ ajoute aux lignes elles-memes.
+const _partialProspectRows = new WeakSet();
+function _cacheProspectRow(row, partial) {
+  if (!row || row.id == null) return;
+  const cur = _prospectsById[row.id];
+  if (cur && !(_partialProspectRows.has(cur) && !partial)) return;
+  if (partial) _partialProspectRows.add(row);
+  _prospectsById[row.id] = row;
+}
 let _signalTaxonomy = null;
 async function _loadSignalTaxonomy() {
   if (_signalTaxonomy !== null) return _signalTaxonomy;
@@ -5753,13 +5971,77 @@ async function _fetchTodaySendCounts() {
 }
 
 // ── AUJOURD'HUI ─────────────────────────────────────────────────────────────
+// Colonnes prospects des cartes Aujourd'hui -- partagees par loadDailyPriorities (decisions du
+// Morning Scan) et loadTodayRun (repli), pour que les deux alimentent _prospectsById avec la
+// meme fiche complete.
+const _TODAY_PROSPECT_COLS = 'id,name,company,title,sector,stage,icp_score,icp_reason,signal,signal_url,signal_type,signal_interpretation,signal_date,created_at,email,phone,linkedin,website_url,region,country,country_code,company_size,funding_stage,last_funding_date,total_funding,hard_criteria_met,company_verified,identity_confidence,identity_verdict,identity_verdict_checked_at,company_checked_at,score_role,score_size,score_signal_strength,score_recency,score_mandate_fit,score_completeness,reminder_date,deal_value,deal_currency,deal_structure,deal_weighted,next_action,next_action_date,next_action_cache,next_action_generated_at,origin';
+// Port de loadDailyPriorities (demo-private.html) -- oubli de clonage constate le 2026-09-21 :
+// Wominds affichait toujours le classement arithmetique (loadTodayRun) meme quand le Morning Scan
+// du jour avait deja produit des decisions. Priorite au scan : morning_scan_decisions du jour
+// (scan_date UTC, comme demo-private.html), fiches chargees en UNE requete, today_action avant
+// opportunistic_connection. Liste resolue vide (aucune decision, fiches archivees/introuvables/
+// masquees par le filtre pays) ou erreur : REPLI sur loadTodayRun, comportement inchange.
+// Source des fiches : la table prospects (non archives) et non la vue prospects_scan_window : meme
+// resultat (la vue = prospects WHERE archived = false) mais RLS respectee (la vue n'est pas
+// security_invoker), et memes colonnes que loadTodayRun.
+async function loadDailyPriorities() {
+  const container = document.getElementById('today-priorities-container');
+  if (!container) return;
+  container.innerHTML = '<div style="padding:32px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">Chargement…</div>';
+  const subEl = document.getElementById('today-queued-sub');
+  if (subEl) {
+    if (subEl.dataset.def === undefined) subEl.dataset.def = subEl.textContent;
+    subEl.textContent = subEl.dataset.def;
+  }
+  try {
+    const { data: decisionRows, error: errDecisions } = await sbClient.from('morning_scan_decisions')
+      .select('prospect_id, category, mandate_id')
+      .eq('client_id', CLIENT_ID)
+      .eq('scan_date', new Date().toISOString().slice(0, 10));
+    if (errDecisions) throw errDecisions;
+    const _catRank = { today_action: 0, opportunistic_connection: 1 };
+    const rankOf = c => (_catRank[c] !== undefined ? _catRank[c] : 2);
+    // Un prospect present dans plusieurs categories garde la mieux classee.
+    const categoryByProspect = {};
+    (decisionRows || []).forEach(r => {
+      if (!r || !r.prospect_id) return;
+      const cur = categoryByProspect[r.prospect_id];
+      if (cur === undefined || rankOf(r.category) < rankOf(cur)) categoryByProspect[r.prospect_id] = r.category;
+    });
+    const ids = Object.keys(categoryByProspect);
+    let prospects = [];
+    if (ids.length) {
+      const { data: rows, error: errDP } = await sbClient.from('prospects')
+        .select(_TODAY_PROSPECT_COLS)
+        .eq('client_id', CLIENT_ID).eq('archived', false)
+        // icp_score NULL exclu (meme filet que loadTodayRun) : jamais de "0.0 ICP" affiche.
+        .not('icp_score', 'is', null)
+        .in('id', ids);
+      if (errDP) throw errDP;
+      prospects = (rows || []).filter(_passesCountryFilter)
+        .sort((a, b) => (rankOf(categoryByProspect[a.id]) - rankOf(categoryByProspect[b.id])) || ((b.icp_score || 0) - (a.icp_score || 0)));
+    }
+    if (!prospects.length) {
+      if (ids.length) console.warn('[loadDailyPriorities] ' + ids.length + ' decision(s) Morning Scan du jour, aucune fiche exploitable (archivees/introuvables) -- repli sur loadTodayRun.');
+      return loadTodayRun();
+    }
+    prospects.forEach(p => _cacheProspectRow(p));
+    document.getElementById('today-queued-count').textContent = prospects.length;
+    if (subEl) subEl.textContent = ' prospects prioritaires du Morning Scan du jour : actions du jour d\'abord, puis connexions opportunistes.';
+    container.innerHTML = prospects.map(_todayCardHTML).join('');
+    _fetchTodaySendCounts().catch(err => console.error('_fetchTodaySendCounts:', err));
+  } catch (e) {
+    console.warn('[loadDailyPriorities] repli sur loadTodayRun :', e);
+    return loadTodayRun();
+  }
+}
 async function loadTodayRun() {
   const container = document.getElementById('today-priorities-container');
   if (!container) return;
   container.innerHTML = '<div style="padding:32px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">Chargement…</div>';
   try {
     const { data, error } = await sbClient.from('prospects')
-      .select('id,name,company,title,sector,stage,icp_score,icp_reason,signal,signal_url,signal_type,signal_interpretation,signal_date,created_at,email,phone,linkedin,website_url,region,country,country_code,company_size,funding_stage,last_funding_date,total_funding,hard_criteria_met,company_verified,identity_confidence,identity_verdict,identity_verdict_checked_at,company_checked_at,score_role,score_size,score_signal_strength,score_recency,score_mandate_fit,score_completeness,reminder_date,deal_value,deal_currency,deal_structure,deal_weighted,next_action,next_action_date,next_action_cache,next_action_generated_at,origin')
+      .select(_TODAY_PROSPECT_COLS)
       .eq('client_id', CLIENT_ID).eq('archived', false)
       .neq('stage', 'Proposal').neq('stage', 'Negotiation').neq('stage', 'Closed')
       // Fix 2026-09-15 (URGENT, filet defensif -- backstop, pas le vrai fix) : exclusion EXPLICITE
@@ -5777,7 +6059,7 @@ async function loadTodayRun() {
     // apres coup -- sans cette marge, filtrer un .limit(20) pourrait afficher moins de 20
     // prospects meme quand la base en contient davantage (cf. DISPLAY_COUNTRY_FILTER plus haut).
     const prospects = (data || []).filter(_passesCountryFilter).slice(0, 20);
-    prospects.forEach(p => { if (!_prospectsById[p.id]) _prospectsById[p.id] = p; });
+    prospects.forEach(p => _cacheProspectRow(p));
     document.getElementById('today-queued-count').textContent = prospects.length;
     if (!prospects.length) {
       container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">Aucun prospect pour l\'instant. Cette vue se remplira dès que la prospection automatique commencera à qualifier des prospects (ICP ≥ 6).</div>';
@@ -5913,7 +6195,7 @@ async function loadSendView() {
       _spFrom += 1000;
     }
     _sendProspects = _spAll.filter(_passesCountryFilter);
-    _sendProspects.forEach(p => { if (!_prospectsById[p.id]) _prospectsById[p.id] = p; });
+    _sendProspects.forEach(p => _cacheProspectRow(p));
 
     const { data: seqs, error: sErr } = await sbClient.from('sequences')
       .select('id, prospect_id, touch, body, status, sent_at')

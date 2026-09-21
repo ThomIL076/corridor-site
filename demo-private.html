@@ -4161,21 +4161,100 @@ const _MSC_CANONICAL_HEADING = { today_action: 'Actions du jour', opportunistic_
 // contenu genere par un modele nourri de signaux marche externes ne puisse jamais atteindre le DOM
 // vivant de la page. h1 ignore (toujours le seul titre du mail, jamais une vraie section, verifie
 // dans Formater Email HTML — Corridor ce soir).
-function _mscParseEmailSections(html) {
+// linksByText (Map texte du paragraphe -> liens http(s) de ce paragraphe, ajoute 2026-09-21, aligne sur
+// wominds.html) : le texte reste la seule source d'affichage, un lien n'est reinjecte que par
+// _mscParagraphHTML (rendu scan_entries v1) -- la chaine de repli n'y touche pas.
+// opts.rich (Corridor, scan_entries v1 uniquement) : les tableaux (Stream 1, Croissance du pipeline,
+// STAKEHOLDERS), aplatis en un seul bloc sans opts, sont decoupes une entree par ligne <tr>
+// (cellules jointes par " · ") ; section.items = [{ text, header, tbl }] (header = ligne d'en-tete,
+// tbl = numero du tableau d'origine, -1 hors tableau) pour retirer les lignes deja rendues en carte.
+// Sans opts : comportement du repli inchange (paragraphs identiques).
+function _mscParseEmailSections(html, opts) {
   let doc;
   try { doc = new DOMParser().parseFromString(html || '', 'text/html'); } catch (e) { return []; }
+  const rich = !!(opts && opts.rich);
   const nodes = Array.from(doc.body.querySelectorAll('h1, h2, p, li, table'));
   const sections = [];
   let current = null;
+  let tableCount = 0;
   for (const el of nodes) {
     const tag = el.tagName.toLowerCase();
     if (tag === 'h1') { current = null; continue; }
-    if (tag === 'h2') { current = { heading: (el.textContent || '').trim(), paragraphs: [] }; sections.push(current); continue; }
+    if (tag === 'h2') { current = { heading: (el.textContent || '').trim(), paragraphs: [], linksByText: new Map(), items: [] }; sections.push(current); continue; }
     if (!current) continue;
+    if (rich) {
+      // p/li imbriques dans un tableau : deja couverts par la ligne <tr> correspondante.
+      if (tag !== 'table' && el.closest('table')) continue;
+      const addItem = (text, links, header, tbl) => {
+        if (!text) return;
+        current.paragraphs.push(text);
+        if (links.length && !current.linksByText.has(text)) current.linksByText.set(text, links);
+        current.items.push({ text, header, tbl });
+      };
+      if (tag === 'table') {
+        const tbl = tableCount++;
+        for (const tr of Array.from(el.querySelectorAll('tr'))) {
+          const cells = Array.from(tr.children).filter(c => /^(td|th)$/i.test(c.tagName));
+          const texts = cells.map(c => (c.textContent || '').replace(/\s+/g, ' ').trim()).filter(Boolean);
+          addItem(texts.join(' · '), _mscExtractLinks(tr), cells.length > 0 && cells.every(c => /^th$/i.test(c.tagName)), tbl);
+        }
+      } else {
+        addItem((el.textContent || '').replace(/\s+/g, ' ').trim(), _mscExtractLinks(el), false, -1);
+      }
+      continue;
+    }
     const text = (el.textContent || '').replace(/\s+/g, ' ').trim();
-    if (text) current.paragraphs.push(text);
+    if (text) {
+      current.paragraphs.push(text);
+      const links = _mscExtractLinks(el);
+      if (links.length && !current.linksByText.has(text)) current.linksByText.set(text, links);
+    }
   }
   return sections;
+}
+// Liens <a href> http(s) d'un element de l'email stocke (liste blanche stricte via _mscSafeUrl :
+// javascript:, data:, mailto: et tout href non http(s) sont ecartes). Texte de lien vide = ecarte.
+// (Helper partage avec wominds.html.)
+function _mscExtractLinks(el) {
+  const out = [];
+  for (const a of Array.from(el.querySelectorAll('a[href]'))) {
+    const href = _mscSafeUrl(a.getAttribute('href'));
+    const t = (a.textContent || '').replace(/\s+/g, ' ').trim();
+    if (href && t) out.push({ t, href });
+  }
+  return out;
+}
+// Paragraphe narratif -> HTML : tout le texte passe par _esc ; seuls les liens http(s) valides dont
+// le texte figure litteralement dans le paragraphe deviennent des <a>. Sans liens = _esc(text) seul.
+// (Helper partage avec wominds.html ; seul le jeton de couleur du lien est propre a la page.)
+function _mscParagraphHTML(text, linksByText) {
+  const links = linksByText && typeof linksByText.get === 'function' ? linksByText.get(text) : null;
+  if (!links || !links.length) return _esc(text);
+  let out = '';
+  let pos = 0;
+  for (const l of links) {
+    const href = _mscSafeUrl(l && l.href);
+    const i = href && l.t ? text.indexOf(l.t, pos) : -1;
+    if (i < 0) continue;
+    out += _esc(text.slice(pos, i))
+      + `<a href="${_esc(href)}" target="_blank" rel="noopener noreferrer" style="color:var(--accent);text-decoration:underline;">${_esc(l.t)}</a>`;
+    pos = i + l.t.length;
+  }
+  return out + _esc(text.slice(pos));
+}
+// URL affichable : http(s) uniquement, sans espace, guillemet, chevron ni caractere de controle.
+// (Helper partage avec wominds.html.)
+function _mscSafeUrl(u) {
+  if (typeof u !== 'string') return '';
+  const t = u.trim();
+  return /^https?:\/\/[^\s<>"\u0000-\u001f\u007f]+$/i.test(t) ? t : '';
+}
+// Identifiant prospect insere dans un onclick : caracteres sans danger uniquement (uuid attendu).
+// (Helper partage avec wominds.html.)
+function _mscSafeId(id) {
+  if (typeof id !== 'string' && typeof id !== 'number') return '';
+  const s = String(id);
+  return /^[A-Za-z0-9_-]{1,64}$/.test(s) ? s : '';
 }
 function _mscGroupDecisions(decisions) {
   const groups = {};
@@ -4188,9 +4267,11 @@ function _mscGroupDecisions(decisions) {
 function _mscSectionLabel(heading) {
   return `<div style="font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-secondary);opacity:.65;margin:14px 0 4px;">${_esc(heading)}</div>`;
 }
-function _mscNarrativeBlockHTML(heading, paragraphs) {
+// linksByText (optionnel, scan_entries v1, aligne sur wominds.html) : Map texte -> liens http(s) ;
+// absent = _esc(p) seul, comportement de la chaine de repli inchange.
+function _mscNarrativeBlockHTML(heading, paragraphs, linksByText) {
   if (!paragraphs.length) return '';
-  const body = paragraphs.map(p => `<div style="margin-bottom:4px;">${_esc(p)}</div>`).join('');
+  const body = paragraphs.map(p => `<div style="margin-bottom:4px;">${_mscParagraphHTML(p, linksByText)}</div>`).join('');
   return `${_mscSectionLabel(heading)}<div style="font-size:var(--fs-sm);color:var(--text-secondary);line-height:1.5;margin-bottom:4px;">${body}</div>`;
 }
 // Fix 2026-09-20 (chantier market_mention, demande Thomas, Corridor uniquement pour cette
@@ -4240,67 +4321,335 @@ function _icpBadgeWithTooltipHTML(chipHtml, score, reason, align) {
     '<span class="icp-tt" style="display:none;position:absolute;bottom:100%;' + (align === 'left' ? 'left:0' : 'right:0') + ';margin-bottom:6px;background:var(--ink);color:#fff;font-size:var(--fs-xs);font-weight:400;padding:6px 10px;border-radius:var(--radius-sm);white-space:normal;width:220px;line-height:1.4;z-index:20;box-shadow:0 2px 8px rgba(0,0,0,0.15);">' + tip + '</span>' +
     '</span>';
 }
-// Une carte par entree de decisions_json, enrichie en live (icp_score/icp_reason/signal/signal_interpretation/
+// Date courte localisee (FR/EN) d'un timestamp ISO ; vide si absent ou invalide. (Propre a
+// Corridor : c'est la seule page dont les entrees scan_entries portent signal.date.)
+function _mscFmtDate(iso) {
+  if (!iso) return '';
+  const dt = new Date(iso);
+  if (isNaN(dt)) return '';
+  const opts = { day: 'numeric', month: 'short' };
+  if (dt.getFullYear() !== new Date().getFullYear()) opts.year = 'numeric';
+  return dt.toLocaleDateString(currentLang === 'fr' ? 'fr-FR' : 'en-GB', opts);
+}
+// Etat ICP d'une carte (PRIORITE 1) -- UNIQUE endroit ou il est calcule (helper partage avec
+// wominds.html ; seuls les libelles FR/EN different, cette page etant bilingue). Regles dans
+// l'ordre : (1) fiche archivee ; (2) score arrondi different du snapshot du scan (icp_at_scan) ;
+// (3) jamais score ; (4) sinon rien. (1) et (3) ne dependent que de la fiche live : ils s'appliquent
+// AUSSI aux cartes issues de decisions_json (repli historique, addendum 21/09). (2) exige
+// icp_at_scan, donc uniquement les entrees scan_entries. Sans fiche live (personne pas en base) : null.
+function _mscIcpState(d, live) {
+  if (!d || !live) return null;
+  const fr = typeof currentLang === 'undefined' || currentLang === 'fr';
+  const fmt = n => String(Math.round(n * 10) / 10);
+  const atScan = d.icp_at_scan && Number.isFinite(d.icp_at_scan.score) ? d.icp_at_scan.score : null;
+  const liveScore = live.icp_score != null && Number.isFinite(Number(live.icp_score)) ? Number(live.icp_score) : null;
+  if (live.archived === true) {
+    return { kind: 'archived', label: (fr ? 'Archivée depuis le scan' : 'Archived since the scan') + (atScan != null ? (fr ? ' · ICP au scan : ' : ' · ICP at scan: ') + fmt(atScan) : '') };
+  }
+  if (atScan != null && liveScore != null && Math.round(liveScore) !== Math.round(atScan)) {
+    return { kind: 'reevaluated', label: (fr ? 'Réévalué depuis le scan : ' : 'Re-scored since the scan: ') + fmt(atScan) + ' → ' + fmt(liveScore) };
+  }
+  if (live.icp_score == null) return { kind: 'pending', label: fr ? 'Score en cours de calcul' : 'Score being calculated' };
+  return null;
+}
+// Lien source affiche (regle UNIQUE, addendum 21/09, helper partage avec wominds.html et kaizenology.html) :
+// source_url s'il est un lien http(s) valide, sinon signal.url, sinon (lien de secours, 21/09) la
+// signal_url de la fiche live -- on AJOUTE un lien la ou il n'y en avait aucun, jamais on ne remplace un
+// lien present. Libelle « Source : <source_title> » si source_title, sinon « Source ». null si aucun lien valide.
+function _mscResolveSource(d, live) {
+  const url = _mscSafeUrl(d.source_url) || _mscSafeUrl(d.signal && d.signal.url) || _mscSafeUrl(live && live.signal_url);
+  if (!url) return null;
+  const title = typeof d.source_title === 'string' ? d.source_title.replace(/<[^>]*>/g, '').trim() : '';
+  const sep = (typeof currentLang === 'undefined' || currentLang === 'fr') ? 'Source : ' : 'Source: ';
+  return { url, label: title ? sep + title.slice(0, 80) : 'Source' };
+}
+const _MSC_ICP_STATE_TIP = 'Le score ICP est recalculé après chaque scan ; la valeur affichée est la valeur actuelle.';
+const _MSC_ICP_STATE_TIP_EN = 'The ICP score is recalculated after each scan; the value shown is the current value.';
+function _mscIcpStateChipHTML(state) {
+  if (!state) return '';
+  const tone = state.kind === 'pending'
+    ? 'background:var(--chip-bg);border:1px solid var(--border);color:var(--muted);'
+    : 'background:var(--amber-bg);border:1px solid var(--amber-border);color:var(--amber);';
+  const tip = (typeof currentLang === 'undefined' || currentLang === 'fr') ? _MSC_ICP_STATE_TIP : _MSC_ICP_STATE_TIP_EN;
+  return `<span title="${_esc(tip)}" style="display:inline-block;font-size:10px;font-weight:600;padding:2px 8px;border-radius:999px;${tone}white-space:nowrap;">${_esc(state.label)}</span>`;
+}
+// Une carte par entree de decisions_json (ou de scan_entries v1, d._scanEntry -- voir
+// _mscEntryToDecision), enrichie en live (icp_score/icp_reason/signal/signal_interpretation/
 // next_action_cache, id present uniquement) quand la fiche prospect a pu etre chargee. Champs
 // optionnels absents (source_url/headcount hors Corridor, ou aucune fiche live trouvee) tolerees
 // absentes -- jamais suppose presents. Cliquable vers la fiche (meme route que Priorities,
 // _openDrawerFromPriority) uniquement quand id est present -- id null = personne pas encore en
 // base, carte volontairement non cliquable, champs decisions_json seuls.
+// Etat ICP (archivee / reevalue / en cours de calcul) : toutes les cartes, voir _mscIcpState.
+// Entrees scan_entries : mandat, badge de type de signal, force et date du signal, FAITS /
+// INTERPRETATION / ACTION, lien source (_mscResolveSource). Le resume du modele reste la ligne
+// d'ouverture (Corridor : toutes les entrees en ont un), sauf si FAITS ou ACTION sont fournis.
+// UN SEUL bloc action : celui du scan s'il existe, sinon next_action_cache live -- jamais les deux.
 function _mscDecisionCardHTML(d, live) {
-  const name = _esc((live && live.name) || d.name || (currentLang === 'fr' ? 'Personne inconnue' : 'Unknown person'));
+  const isEntry = !!d._scanEntry;
+  const pid = _mscSafeId(d.id);
+  const fr = currentLang === 'fr';
+  const name = _esc((live && live.name) || d.name || (fr ? 'Personne inconnue' : 'Unknown person'));
   const company = (live && live.company) || d.company || '';
   const icpScore = live && live.icp_score != null ? live.icp_score : null;
-  const signal = live && live.signal ? String(live.signal).replace(/<[^>]*>/g, '').trim() : '';
-  const signalInterp = live && live.signal_interpretation ? String(live.signal_interpretation).replace(/<[^>]*>/g, '').trim() : '';
+  const cleanText = s => String(s).replace(/<[^>]*>/g, '').trim();
+  const signalSrc = (live && live.signal) || (isEntry && d.signal && d.signal.text) || '';
+  const signal = signalSrc ? cleanText(signalSrc) : '';
+  const interpSrc = (isEntry && d.interpretation) || (live && live.signal_interpretation) || '';
+  const signalInterp = interpSrc ? cleanText(interpSrc) : '';
   const nextActionHtml = live && live.next_action_cache ? _renderNextActionHTML(live.next_action_cache, 'var(--text-secondary)') : null;
+  const scanAction = isEntry && d.action ? cleanText(d.action) : '';
 
   const links = [];
-  if (d.linkedin) links.push(`<a href="${_esc(d.linkedin)}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;font-weight:600;">LinkedIn</a>`);
-  if (d.source_url) links.push(`<a href="${_esc(d.source_url)}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;font-weight:600;">Source</a>`);
+  // Liens de secours (entrees scan_entries ET repli decisions_json, 21/09) : la fiche live comble un lien
+  // MANQUANT -- linkedin (prospects.linkedin) ; source = prospects.signal_url en dernier recours, voir
+  // _mscResolveSource. Jamais un lien deja present retire ou remplace ; toujours _mscSafeUrl (http/https).
+  const linkedinUrl = _mscSafeUrl(d.linkedin) || _mscSafeUrl(live && live.linkedin);
+  const source = _mscResolveSource(d, live);
+  if (linkedinUrl) links.push(`<a href="${_esc(linkedinUrl)}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;font-weight:600;">LinkedIn</a>`);
+  if (source) links.push(`<a href="${_esc(source.url)}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;font-weight:600;">${_esc(source.label)}</a>`);
   const linksHtml = links.length ? `<div style="margin-top:6px;display:flex;gap:12px;font-size:var(--fs-xs);">${links.join('')}</div>` : '';
 
-  const summary = d.summary ? `<div style="margin-top:4px;font-size:var(--fs-sm);color:var(--text-secondary);line-height:1.4;">${_esc(d.summary)}</div>` : '';
+  const structured = isEntry && (d.facts || d.action);
+  const summary = d.summary && !structured ? `<div style="margin-top:4px;font-size:var(--fs-sm);color:var(--text-secondary);line-height:1.4;">${_esc(d.summary)}</div>` : '';
+  const factsBlock = isEntry && d.facts
+    ? `<div style="margin-top:4px;font-size:var(--fs-sm);color:var(--text-secondary);line-height:1.4;"><span style="font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;opacity:.6;">${fr ? 'Faits' : 'Facts'}</span><div>${_esc(cleanText(d.facts))}</div></div>`
+    : '';
+  const mandateHtml = isEntry && d.mandate ? `<span style="font-size:var(--fs-xs);color:var(--text-secondary);">${fr ? 'Mandat' : 'Mandate'} : ${_esc(d.mandate)}</span>` : '';
+  const sigType = isEntry ? ((d.signal && d.signal.type) || (live && live.signal_type) || '') : '';
+  const sigBadge = sigType && typeof _sigBadge === 'function' ? _sigBadge(sigType) : '';
+  // Force (0-10) et date du signal : uniquement dans l'instantane du scan (ni l'un ni l'autre n'a de
+  // colonne live equivalente pour la force ; la date live comble le trou).
+  const sigMetaParts = [];
+  if (isEntry && d.signal && Number.isFinite(d.signal.strength)) sigMetaParts.push(`${fr ? 'Force' : 'Strength'} ${d.signal.strength}${d.signal.strength >= 0 && d.signal.strength <= 10 ? '/10' : ''}`);
+  const sigDateLabel = isEntry ? _mscFmtDate((d.signal && d.signal.date) || (live && live.signal_date)) : '';
+  if (sigDateLabel) sigMetaParts.push(sigDateLabel);
+  const sigMeta = sigMetaParts.join(' · ');
+  const confidenceHtml = !isEntry || d.confidence ? _mscConfidenceBadge(d.confidence) : '';
+  const icpStateChip = _mscIcpStateChipHTML(_mscIcpState(d, live));
   // Infobulle uniquement quand une fiche live existe (icpScore != null n'est possible que dans ce
   // cas) ; carte sans enrichissement (id null) = ni badge ni infobulle, rien a montrer.
   const icpChip = icpScore != null
     ? _icpBadgeWithTooltipHTML(`<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:var(--radius-pill);background:var(--chip-bg);color:var(--indigo);">ICP ${_esc(String(icpScore))}</span>`, icpScore, live.icp_reason, 'left')
     : '';
-  const signalBlock = (signal || signalInterp)
-    ? `<div style="margin-top:6px;font-size:var(--fs-xs);color:var(--text-secondary);line-height:1.4;">${signal ? `<strong>Signal :</strong> ${_esc(signal)}` : ''}${signal && signalInterp ? '<br>' : ''}${signalInterp ? `<strong>Interprétation :</strong> ${_esc(signalInterp)}` : ''}</div>`
+  const signalHead = signal
+    ? `<strong>Signal :</strong> ${_esc(signal)}${sigMeta ? ` <span style="opacity:.75;">(${_esc(sigMeta)})</span>` : ''}`
+    : (sigMeta ? `<strong>Signal :</strong> ${_esc(sigMeta)}` : '');
+  const signalBlock = (signalHead || signalInterp)
+    ? `<div style="margin-top:6px;font-size:var(--fs-xs);color:var(--text-secondary);line-height:1.4;">${signalHead}${signalHead && signalInterp ? '<br>' : ''}${signalInterp ? `<strong>Interprétation :</strong> ${_esc(signalInterp)}` : ''}</div>`
     : '';
-  const actionLabel = currentLang === 'fr' ? 'Action recommandée' : 'Recommended action';
-  const actionBlock = nextActionHtml
-    ? `<div style="margin-top:6px;"><div style="font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-secondary);opacity:.6;margin-bottom:2px;">${actionLabel}</div>${nextActionHtml}</div>`
+  const actionLabel = fr ? 'Action recommandée' : 'Recommended action';
+  const actionBody = scanAction
+    ? `<div style="font-size:var(--fs-xs);line-height:1.5;color:var(--text-secondary);">${_esc(scanAction)}</div>`
+    : nextActionHtml;
+  const actionBlock = actionBody
+    ? `<div style="margin-top:6px;"><div style="font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-secondary);opacity:.6;margin-bottom:2px;">${actionLabel}</div>${actionBody}</div>`
     : '';
 
   const cardStyleBase = 'display:flex;gap:10px;padding:10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:#fff;';
-  const cardAttrs = d.id
-    ? ` onclick="_openDrawerFromPriority('${d.id}')" style="${cardStyleBase}cursor:pointer;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'"`
+  const cardAttrs = pid
+    ? ` onclick="_openDrawerFromPriority('${pid}')" style="${cardStyleBase}cursor:pointer;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'"`
     : ` style="${cardStyleBase}"`;
 
   return `
     <div${cardAttrs}>
-      <div style="flex-shrink:0;width:32px;height:32px;border-radius:50%;background:var(--chip-bg);color:var(--ink);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;">${_mscInitials((live && live.name) || d.name)}</div>
+      <div style="flex-shrink:0;width:32px;height:32px;border-radius:50%;background:var(--chip-bg);color:var(--ink);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;">${_esc(_mscInitials((live && live.name) || d.name))}</div>
       <div style="flex:1;min-width:0;">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
           <span style="font-weight:700;font-size:var(--fs-sm);color:var(--ink);">${name}</span>
-          ${company ? `<span style="font-size:var(--fs-xs);color:var(--text-secondary);">${_esc(company)}</span>` : ''}
-          ${icpChip}
-          ${_mscConfidenceBadge(d.confidence)}
+          ${company ? `<span style="font-size:var(--fs-xs);color:var(--text-secondary);">${_esc(company)}</span>` : ''}${mandateHtml}
+          ${icpChip}${icpStateChip}${sigBadge}
+          ${confidenceHtml}
         </div>
-        ${summary}
+        ${factsBlock}${summary}
         ${signalBlock}
         ${actionBlock}
         ${linksHtml}
       </div>
     </div>`;
 }
+// ── scan_entries v1 (contrat commun Corridor/Wominds/Kaizenology, 2026-09-21) ─────────────────
+// Colonne morning_scan_email_cache.scan_entries (jsonb, nullable) : { v:1, generated_at, entries:[...] },
+// ecrite par le workflow dans le meme upsert que email_html. Valide -> panneau en cartes par section
+// (ordre fixe ci-dessous) ; NULL / vide / invalide -> chaine de repli EXISTANTE (decisions_json puis
+// iframe). decisions_json n'est pas touche (contrat Today + dashboards). Chaque entree est convertie
+// en objet "decision" (meme forme que decisions_json + quelques champs) : _mscDecisionCardHTML reste
+// le SEUL chemin de rendu d'une carte.
+// Helpers partages avec wominds.html : _mscSafeUrl, _mscSafeId, _mscValidScanEntries,
+// _mscEntryToDecision, _mscEntriesToDecisions, _mscIcpState, _mscIcpStateChipHTML, _mscResolveSource,
+// _mscExtractLinks, _mscParagraphHTML. Propres a Corridor : le rendu par section (stream1,
+// pipeline_growth, stakeholder...), le dedoublonnage, la lecture live partagee et la date de signal.
+// Sections Corridor du contrat -> categorie (la categorie EST la section), dans l'ordre d'affichage
+// ET de priorite de dedoublonnage (today_action > opportunistic_connection > stream1/pipeline_growth/
+// stakeholder > market_mention).
+const _MSC_ENTRY_SECTION_TO_CATEGORY = {
+  today_action: 'today_action',
+  opportunistic_connection: 'opportunistic_connection',
+  stream1: 'stream1',
+  pipeline_growth: 'pipeline_growth',
+  stakeholder: 'stakeholder',
+  market_mention: 'market_mention',
+};
+const _MSC_V1_SECTIONS = Object.keys(_MSC_ENTRY_SECTION_TO_CATEGORY);
+// Priorite de dedoublonnage (plus petit = gagne) : propre a chaque client, lue par _mscDedupeDecisions.
+const _MSC_V1_DEDUPE_PRIORITY = { today_action: 0, opportunistic_connection: 1, stream1: 2, pipeline_growth: 3, stakeholder: 4, market_mention: 5 };
+const _MSC_LIVE_COLS = 'id, name, company, stage, icp_score, icp_reason, archived, signal, signal_type, signal_date, signal_url, signal_interpretation, next_action_cache, linkedin';
+// scan_entries valide (objet v:1, entries tableau, au moins une entree exploitable) -> tableau
+// d'entrees, sinon null : l'appelant retombe alors sur la chaine existante (decisions_json, iframe).
+function _mscValidScanEntries(se) {
+  if (!se || typeof se !== 'object' || Array.isArray(se) || se.v !== 1 || !Array.isArray(se.entries)) return null;
+  const ok = se.entries.filter(e => e && typeof e === 'object' && !Array.isArray(e)
+    && Object.prototype.hasOwnProperty.call(_MSC_ENTRY_SECTION_TO_CATEGORY, e.section)
+    && typeof e.name === 'string' && e.name.trim());
+  return ok.length ? ok : null;
+}
+function _mscEntryToDecision(e) {
+  const str = v => (typeof v === 'string' && v.trim() ? v : null);
+  const sig = e.signal && typeof e.signal === 'object' ? e.signal : null;
+  const ics = e.icp_at_scan && typeof e.icp_at_scan === 'object' ? e.icp_at_scan : null;
+  return {
+    _scanEntry: true,
+    category: _MSC_ENTRY_SECTION_TO_CATEGORY[e.section],
+    id: _mscSafeId(e.prospect_id) || null,
+    name: e.name,
+    company: str(e.company),
+    title: str(e.title),
+    linkedin: _mscSafeUrl(e.linkedin) || null,
+    mandate: str(e.mandate),
+    confidence: str(e.confidence),
+    summary: str(e.summary),
+    interpretation: str(e.interpretation),
+    facts: str(e.facts),
+    action: str(e.action),
+    source_title: str(e.source_title),
+    source_url: _mscSafeUrl(e.source_url) || null,
+    signal: sig ? { text: str(sig.text), type: str(sig.type), strength: Number.isFinite(sig.strength) ? sig.strength : null, date: str(sig.date), url: _mscSafeUrl(sig.url) || null } : null,
+    icp_at_scan: ics ? { score: Number.isFinite(ics.score) ? ics.score : null, reason: str(ics.reason) } : null,
+  };
+}
+// Liste de "decisions" triee par rank (ordre d'affichage dans la section ; tri stable, rank absent
+// ou invalide en fin de section). La section elle-meme est portee par category (cf. _mscGroupDecisions).
+function _mscEntriesToDecisions(entries) {
+  const rank = e => (Number.isFinite(e.rank) ? e.rank : Infinity);
+  return entries.slice().sort((a, b) => rank(a) - rank(b)).map(_mscEntryToDecision);
+}
+// Cle de dedoublonnage nom|societe normalisee (minuscules, sans accents, espaces reduits).
+function _mscPersonKey(name, company) {
+  const n = s => _mscNorm(s || '').replace(/\s+/g, ' ');
+  return n(name) + '|' + n(company);
+}
+// Une meme personne (nom|societe, ou meme prospect) n'apparait qu'une fois, dans sa section la plus
+// prioritaire ; renvoie les decisions regroupees par section dans l'ordre fixe, rank conserve.
+function _mscDedupeDecisions(decisions) {
+  const secOrder = c => (Object.prototype.hasOwnProperty.call(_MSC_V1_DEDUPE_PRIORITY, c) ? _MSC_V1_DEDUPE_PRIORITY[c] : 99);
+  const ordered = decisions.map((d, i) => ({ d, i })).sort((a, b) => (secOrder(a.d.category) - secOrder(b.d.category)) || (a.i - b.i));
+  const seenKeys = new Set();
+  const seenIds = new Set();
+  const out = [];
+  for (const { d } of ordered) {
+    const key = _mscPersonKey(d.name, d.company);
+    if (seenKeys.has(key) || (d.id && seenIds.has(d.id))) continue;
+    seenKeys.add(key);
+    if (d.id) seenIds.add(d.id);
+    out.push(d);
+  }
+  return out;
+}
+function _mscV1SectionLabel(key) {
+  const fr = currentLang === 'fr';
+  return ({
+    today_action: fr ? 'Actions du jour' : 'Today’s actions',
+    opportunistic_connection: fr ? 'Connexions opportunistes' : 'Opportunistic connections',
+    stream1: 'Stream 1',
+    pipeline_growth: fr ? 'Croissance du pipeline' : 'Pipeline growth',
+    stakeholder: 'Stakeholders',
+    market_mention: fr ? 'Mentions marché' : 'Market mentions',
+  })[key] || key;
+}
+// Section du contrat correspondant a un titre <h2> du mail (null = section purement narrative).
+// Reutilise _MSC_PRIORITY_HEADINGS / _mscIsMarketMentionSection (Stream 2+ = market_mention).
+function _mscSectionKeyForHeading(heading) {
+  const norm = _mscNorm(heading);
+  if (Object.prototype.hasOwnProperty.call(_MSC_PRIORITY_HEADINGS, norm)) return _MSC_PRIORITY_HEADINGS[norm];
+  if (/^stream\s*1\b/.test(norm)) return 'stream1';
+  if (norm.startsWith(_mscNorm('Croissance du pipeline'))) return 'pipeline_growth';
+  if (norm === _mscNorm('STAKEHOLDERS')) return 'stakeholder';
+  if (_mscIsMarketMentionSection(heading)) return 'market_mention';
+  return null;
+}
+// Enrichissement live (une seule requete par lot sur la TABLE prospects, sous RLS -- jamais la vue
+// prospects_scan_window -- et jamais une requete par carte) -- partage par le rendu v1 et par la
+// chaine de repli decisions_json. archived n'est PAS filtre : une fiche archivee depuis le scan doit
+// rester visible avec son etat. Ne comble que les trous de _prospectsById (jamais une fiche deja
+// chargee par le Pipeline).
+async function _mscFetchLiveProspects(ids) {
+  const liveById = {};
+  if (!ids.length) return liveById;
+  try {
+    const { data: liveRows, error: liveErr } = await sbClient.from('prospects')
+      .select(_MSC_LIVE_COLS)
+      .eq('client_id', CLIENT_ID)
+      .in('id', ids);
+    if (liveErr) throw liveErr;
+    for (const row of (liveRows || [])) {
+      liveById[row.id] = row;
+      // Ne comble que les trous -- ne remplace jamais une fiche deja chargee (et donc plus complete) par le
+      // Pipeline. Approuve par Thomas -- resout le risque de sequencement (_prospectsById pas encore peuple
+      // si ce chargement termine avant celui du Pipeline). Ligne partielle (14 colonnes) : marquee (cf. _cacheProspectRow).
+      _cacheProspectRow(row, true);
+    }
+  } catch (e) { console.error('[_loadLastMorningScanEmail] enrichissement live', e); }
+  return liveById;
+}
+// Rendu du panneau v1 (propre a Corridor) : cartes par section dans l'ordre fixe _MSC_V1_SECTIONS,
+// entourees du texte du mail. decisions = _mscDedupeDecisions(_mscEntriesToDecisions(...)). Les
+// sections narratives (synthese, contexte, coverage, ce qui a change...) restent en texte, avec
+// liens http(s) conserves (_mscParagraphHTML) ; dans les sections "personnes" (Actions du jour,
+// Connexions opportunistes, Stream N, Croissance du pipeline, STAKEHOLDERS) les lignes/paragraphes
+// qui citent une personne deja rendue en carte sont retires (pas de doublon), le reste de la prose
+// est garde. Ordre : narratif place avant la 1re section "personnes" du mail, puis pour chaque
+// section du contrat ses cartes suivies du texte residuel des sections du mail correspondantes,
+// puis le reste du narratif dans l'ordre du mail.
+function _mscRenderScanEntries(decisions, liveById, emailHtml) {
+  const secs = _mscParseEmailSections(emailHtml, { rich: true }).map(s => ({ s, key: _mscSectionKeyForHeading(s.heading) }));
+  const matchers = decisions.map(d => {
+    const n = _mscNorm(d.name).replace(/\s+/g, ' ');
+    if (n.length < 3) return null;
+    return new RegExp('(^|[^\\p{L}\\p{N}])' + n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '([^\\p{L}\\p{N}]|$)', 'u');
+  }).filter(Boolean);
+  const cites = text => { const n = _mscNorm(text); return matchers.some(m => m.test(n)); };
+  const narrative = ({ s, key }) => {
+    let items = s.items || [];
+    if (key) {
+      items = items.filter(it => it.header || !cites(it.text));
+      // En-tete d'un tableau dont toutes les lignes de donnees sont devenues des cartes : retire aussi.
+      const withData = new Set(items.filter(it => !it.header && it.tbl >= 0).map(it => it.tbl));
+      items = items.filter(it => !(it.header && it.tbl >= 0 && !withData.has(it.tbl)));
+    }
+    return _mscNarrativeBlockHTML(s.heading, items.map(it => it.text), s.linksByText);
+  };
+  const cardFor = d => _mscDecisionCardHTML(d, d.id ? (liveById[d.id] || null) : null);
+  const firstKeyed = secs.findIndex(x => x.key);
+  const cut = firstKeyed < 0 ? 0 : firstKeyed;
+  let html = '';
+  secs.slice(0, cut).forEach(x => { html += narrative(x); });
+  for (const key of _MSC_V1_SECTIONS) {
+    const bucket = decisions.filter(d => d.category === key);
+    if (bucket.length) {
+      html += _mscSectionLabel(_mscV1SectionLabel(key))
+        + `<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;">${bucket.map(cardFor).join('')}</div>`;
+    }
+    secs.forEach(x => { if (x.key === key) html += narrative(x); });
+  }
+  secs.forEach((x, i) => { if (i >= cut && !x.key) html += narrative(x); });
+  return html;
+}
 async function _loadLastMorningScanEmail() {
   const el = document.getElementById('last-morning-scan-body');
   if (!el) return;
   try {
     const { data, error } = await sbClient.from('morning_scan_email_cache')
-      .select('subject, email_html, scan_date, generated_at, decisions_json')
+      .select('subject, email_html, scan_date, generated_at, decisions_json, scan_entries')
       .eq('client_id', CLIENT_ID)
       .order('scan_date', { ascending: false })
       .limit(1)
@@ -4336,27 +4685,29 @@ async function _loadLastMorningScanEmail() {
     // prospects, jamais une requete par carte). Comportement de repli EXACTEMENT inchange (apercu
     // iframe seul, 140px, bouton "Voir l'email complet") quand decisions_json est absent ou vide --
     // anciennes lignes avant ce chantier, ou un jour sans Actions du jour ni Connexions opportunistes.
-    if (decisions.length > 0) {
+    // scan_entries v1 (2026-09-21) : si la colonne contient un objet {v:1, entries:[...]} valide et
+    // non vide, le panneau est rendu par _mscRenderScanEntries (cartes par section). Toute autre
+    // valeur (NULL, {}, {v:2}, entries non-tableau, aucune entree exploitable) ou toute erreur de
+    // rendu laisse v1Html a null : la chaine de repli existante ci-dessous s'applique, inchangee.
+    let v1Html = null;
+    try {
+      const scanEntries = _mscValidScanEntries(data.scan_entries);
+      if (scanEntries) {
+        const v1Decisions = _mscDedupeDecisions(_mscEntriesToDecisions(scanEntries));
+        const v1Ids = [...new Set(v1Decisions.filter(d => d.id).map(d => d.id))];
+        const v1Live = await _mscFetchLiveProspects(v1Ids);
+        v1Html = _mscRenderScanEntries(v1Decisions, v1Live, data.email_html);
+      }
+    } catch (e) { console.error('[_loadLastMorningScanEmail] rendu scan_entries', e); v1Html = null; }
+    if (v1Html != null) {
+      sectionsHtml = v1Html;
+      collapsedHeight = '0';
+      toggleLabel = fullScanLabel;
+    } else if (decisions.length > 0) {
       const sections = _mscParseEmailSections(data.email_html);
       const groups = _mscGroupDecisions(decisions);
       const ids = [...new Set(decisions.filter(d => d && d.id).map(d => d.id))];
-      let liveById = {};
-      if (ids.length) {
-        try {
-          const { data: liveRows, error: liveErr } = await sbClient.from('prospects')
-            .select('id, name, company, stage, icp_score, icp_reason, signal, signal_interpretation, next_action_cache')
-            .eq('client_id', CLIENT_ID)
-            .in('id', ids);
-          if (liveErr) throw liveErr;
-          for (const row of (liveRows || [])) {
-            liveById[row.id] = row;
-            // Ne comble que les trous -- ne remplace jamais une fiche deja chargee (et donc plus
-            // complete) par le Pipeline. Approuve par Thomas -- resout le risque de sequencement
-            // (_prospectsById pas encore peuple si ce chargement termine avant celui du Pipeline).
-            if (!_prospectsById[row.id]) _prospectsById[row.id] = row;
-          }
-        } catch (e) { console.error('[_loadLastMorningScanEmail] enrichissement live', e); }
-      }
+      const liveById = await _mscFetchLiveProspects(ids);
 
       const consumed = new Set();
       // Cle name|company deja rendue en liste compacte market_mention -- partagee entre toutes
@@ -4400,13 +4751,16 @@ async function _loadLastMorningScanEmail() {
       toggleLabel = fullScanLabel;
     }
 
+    // Panneau natif (cartes) : rendu v1 valide ou repli decisions_json non vide -- sinon apercu
+    // iframe seul (ancien comportement).
+    const nativePanel = v1Html != null || decisions.length > 0;
     el.innerHTML = `
       <div style="font-size:var(--fs-xs);color:var(--text-secondary);margin-bottom:8px;">${_esc(data.subject || '')} · ${_esc(dateLabel)}</div>
-      ${decisions.length > 0
+      ${nativePanel
         ? sectionsHtml
         : `<div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-secondary);opacity:.6;margin-bottom:6px;">${currentLang === 'fr' ? 'Aperçu de l’email envoyé' : 'Email preview'}</div>`}
       <div id="last-morning-scan-frame-wrap" style="max-height:${collapsedHeight};overflow:hidden;position:relative;transition:max-height .25s ease;border:1px solid var(--border);border-radius:var(--radius-sm);">
-        <div id="last-morning-scan-fade" style="position:absolute;bottom:0;left:0;right:0;height:40px;background:linear-gradient(transparent, var(--bg));pointer-events:none;${decisions.length > 0 ? 'display:none;' : ''}"></div>
+        <div id="last-morning-scan-fade" style="position:absolute;bottom:0;left:0;right:0;height:40px;background:linear-gradient(transparent, var(--bg));pointer-events:none;${nativePanel ? 'display:none;' : ''}"></div>
       </div>
       <button id="last-morning-scan-toggle" style="margin-top:6px;background:none;border:none;color:var(--ink);text-decoration:underline;font-weight:600;font-size:var(--fs-xs);cursor:pointer;padding:0;">${toggleLabel}</button>
     `;
@@ -4422,7 +4776,7 @@ async function _loadLastMorningScanEmail() {
     toggleBtn.addEventListener('click', () => {
       expanded = !expanded;
       wrap.style.maxHeight = expanded ? '420px' : collapsedHeight;
-      fade.style.display = (expanded || decisions.length > 0) ? 'none' : 'block';
+      fade.style.display = (expanded || nativePanel) ? 'none' : 'block';
       toggleBtn.textContent = expanded
         ? (currentLang === 'fr' ? 'Réduire' : 'Collapse')
         : toggleLabel;
@@ -12312,6 +12666,18 @@ applyDealBadges();
 // en base et le libellé kanban sont alignés depuis le renommage Discovery Call→Engaged.
 let _kanbanLoaded = false;
 let _prospectsById = {}; // index id(uuid) -> ligne Supabase complète, pour l'édition dans le drawer
+// Ne comble que les trous du cache, et une ligne PARTIELLE (ex. enrichissement live du Morning Scan,
+// ~14 colonnes) ne bloque jamais une ligne complete arrivee ensuite si le chargeur complet passe par cette
+// fonction (helper commun avec wominds.html et kaizenology.html, 21/09). Une ligne complete deja en cache
+// n'est jamais ecrasee par une partielle. WeakSet : aucun champ ajoute aux lignes elles-memes.
+const _partialProspectRows = new WeakSet();
+function _cacheProspectRow(row, partial) {
+  if (!row || row.id == null) return;
+  const cur = _prospectsById[row.id];
+  if (cur && !(_partialProspectRows.has(cur) && !partial)) return;
+  if (partial) _partialProspectRows.add(row);
+  _prospectsById[row.id] = row;
+}
 let _allProspects = []; // dernier fetch loadKanban complet, pour renderStats()
 const KANBAN_STAGES = ['Identified','1st Contact','Engaged','Replied','Proposal','Negotiation','Closed'];
 const _stageRank = { 'Identified':0, '1st Contact':1, 'Engaged':2, 'Replied':2.5, 'Proposal':3, 'Negotiation':4, 'Closed':5 };

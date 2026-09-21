@@ -158,6 +158,78 @@ voir CLAUDE.md, section "Fiabilité — écritures upsert silencieuses". Le stat
 divergence de fonction (existence) reste À TRIER ; c'est un bug de fiabilité distinct,
 pas une raison de porter ou pas ces fonctions.
 
+## Passe d'harmonisation scan_entries v1 (2026-09-21) — divergences restantes, NON TRIÉES une à une
+
+Passe locale (rien commité, rien déployé) qui aligne sur `wominds.html` (référence) les
+fonctions partagées du chantier scan_entries v1 entre les trois dashboards. Ce script ne
+compare que les **noms** de fonctions, pas leurs corps : 67 noms non triés avant la passe,
+49 après. La passe a aligné `kaizenology.html` sur les noms/corps communs : `_mscEntryToDecision`,
+`_mscEntriesToDecisions`, `_mscDedupeDecisions`, `_mscPersonKey`, `_mscIcpStateChipHTML`,
+`_mscParagraphHTML`, `_mscResolveSource`, `_mscFetchLiveProspects` (et `_cacheProspectRow`,
+`_MSC_LIVE_COLS`) existent maintenant dans les deux pages. Doublures supprimées côté
+kaizenology.html : `_mscEntryToCardData` (= `_mscEntryToDecision`), `_mscSourceLink`
+(= `_mscResolveSource`), `_mscLoadLiveById` (= `_mscFetchLiveProspects`), `_mscLinkifyHTML`
+(= `_mscParagraphHTML`), `_mscExtractRows` (= option `rich` de `_mscParseEmailSections`),
+`_mscEntryKey` (= `_mscPersonKey`), `_mscSortByRank` et `_mscRankOf` (= tri de
+`_mscEntriesToDecisions`), `_mscNum` et `_mscStr` (plus utilisées).
+
+Les 49 noms restants sont consignés ci-dessous **regroupés par famille, sans être triés un à
+un** (décision de Thomas : pas nécessaire ce soir). Statut de l'ensemble : `À TRIER`. Les
+familles sont indicatives (nom et rôle lus dans le code le 2026-09-21) ; aucune raison
+produit n'a été recherchée hors du chantier scan_entries.
+
+### Famille « rendu propre à la page » (chantier scan_entries v1, lu dans le code le 2026-09-21)
+
+- demo-private.html uniquement : `_mscRenderScanEntries`, `_mscSectionKeyForHeading`,
+  `_mscV1SectionLabel`, `_mscFmtDate` (panneau Corridor : sections stream1, pipeline_growth,
+  stakeholder… ; date du signal).
+- kaizenology.html uniquement : `_mscScanEntriesPanelHTML`, `_mscRenderScanEntriesPanel`
+  (panneau par mandat), `_mscFilterSectionItems`, `_mscMandateKeyFromHeading`,
+  `_mscMentionCardsHTML`, `_mscMentionKey`, `_mscMentionNames`, `_mscParagraphCitesNames`,
+  `_mscParagraphsWithoutMentions` (retrait de la prose déjà rendue en carte et cartes
+  market_mention ; l'heuristique de retrait est validée au premier scan réel, non modifiée).
+  demo-private.html a une logique voisine mais différente (`_mscRenderScanEntries`, en ligne
+  dans `_mscMentionsForSection`) — non factorisée, non tranchée.
+
+### Famille « chantier sans lien avec scan_entries » (non investiguée)
+
+- demo-private.html uniquement : intégrations `_intClosePanel`, `_intOpenPanel`,
+  `_intRenderGrid`, `_intStatus`, `_pdrvCopyKey`, `_pdrvOnKeyInput`, `_pdrvRenderStageMapping`,
+  `_pdrvRevealKey`, `_pdrvSaveMapping`, `_pdrvTestConnection`, `_sfCollectCreds`, `_sfCopyField`,
+  `_sfOnFieldInput`, `_sfRenderStageMapping`, `_sfRevealField`, `_sfSaveMapping`,
+  `_sfTestConnection`, `_slkCopyField`, `_slkNotify`, `_slkOnFieldInput`, `_slkRevealField`,
+  `_slkSaveConfig` ; rappels `_reminderClose`, `_reminderSnooze`, `_removeReminderBacklogRow`,
+  `_renderReminderBacklogRows`, `_toggleReminderBacklog` ; statut système
+  `_loadSystemActiveStatus`, `_renderSystemActiveLabel` ; signaux et actions
+  `_actionButtonLabel`, `_effectiveSignalStrength`, `_loadDeprioritizedTypes`,
+  `_qualificationNote`.
+- kaizenology.html uniquement : `_drawerBuyingCommitteeHTML`, `_handleDeepLinkAction`,
+  `_openScannerPrefilled`.
+
+### Fonctions partagées scan_entries dont le CORPS reste différent (invisible pour ce script)
+
+Identiques aux trois pages (comparaison des corps, commentaires ignorés) : `_mscSafeUrl`,
+`_mscSafeId`, `_mscValidScanEntries`, `_mscEntryToDecision`, `_mscEntriesToDecisions`,
+`_mscIcpState`, `_mscIcpStateChipHTML`, `_mscResolveSource`, `_mscExtractLinks`,
+`_mscParseEmailSections`, `_cacheProspectRow`, `_mscFetchLiveProspects` ; identiques avec
+demo-private.html seulement (wominds.html n'en a pas) : `_mscPersonKey`, `_mscDedupeDecisions`.
+Différences restantes, toutes de page :
+- `_mscParagraphHTML`, `_mscNarrativeBlockHTML`, `_mscSectionLabel`, `_mscConfidenceBadge` : jeton
+  de style propre à la page (`--fill-accent` / `--accent`, `--dim` / `--text-secondary`).
+- `_mscDecisionCardHTML` : jetons de style ; force et date du signal côté Corridor, date brute
+  seule côté Kaizenology ; règle du résumé identique à demo-private.html (masqué si FAITS ou ACTION).
+- `_mscDecisionCardHTML` : le mandat masqué sous un groupe de mandat se fait en passant
+  `mandate: null` (plus de 3e paramètre `opts`).
+- Constantes propres au client : `_MSC_ENTRY_SECTION_TO_CATEGORY`, `_MSC_V1_SECTIONS`,
+  `_MSC_V1_DEDUPE_PRIORITY`.
+- Comportements kaizenology.html modifiés par l'alignement (voulu, wominds.html = référence) :
+  chaîne JSON de `scan_entries` non acceptée, URL contenant un guillemet refusée, confiance
+  inconnue = badge « Spéculatif » (avant : aucun badge), libellés EN d'état ICP sans espace
+  avant les deux-points.
+
+*Passe du 2026-09-21. Commandes de contrôle : `node scratchpad/dk_test_scan_entries.js`,
+`node scratchpad/dc_run_node.js`, `node scratchpad/dc_mutation.js`.*
+
 ---
 
 *Dernière mise à jour : 2026-09-10. Historique complet des reclassements successifs
