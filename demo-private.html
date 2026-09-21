@@ -6777,6 +6777,107 @@ function _askEngagedDealsCount() {
   }).length;
 }
 
+/* ASK-LANG-BEGIN */
+// ── Langue de la reponse d'Ask Corridor = langue du DERNIER message de l'utilisateur (21/09) ────────────
+// Symptome : question en anglais, reponse en francais (contexte injecte = signal + interpretation + scan,
+// souvent en francais). La regle "LANGUAGE RULE" + "FINAL REMINDER" du prompt (de19aa7, 24/08)
+// repose entierement sur le modele qui "detecte" la langue au milieu d'un long prompt. Ici la langue est
+// calculee cote navigateur, sur le message lui-meme, puis rappelee au modele : directive courte en fin de
+// prompt systeme + court suffixe sur le dernier message envoye a l'API (jamais dans _askHistory ni dans
+// l'affichage). Independant de currentLang (langue de l'interface) et de tout parametre client.
+// Decision seulement si l'ecart est net ; egalite, message sans indice, autre langue -> null (aucune
+// directive, comportement historique conserve).
+const _askLex = (function () {
+  const build = function (strong, weak) {
+    const m = new Map();
+    weak.split(' ').forEach(function (w) { m.set(w, 1); });
+    strong.split(' ').forEach(function (w) { m.set(w, 2); });
+    return m;
+  };
+  const set = function (s) { return new Set(s.split(' ')); };
+  return {
+    en: build('the and for with what which who whom whose why how when where are were be been does did should would could can shall must have has had you they he she it my your our their his its this that these those there here about from into than then not if to by please thanks thank hello yes some all any more most very just only also again now new last next summarize summarise draft write explain tell show give suggest need want know think make get see look find best worst better each every other', 'is in at an of was we do will her'),
+    fr: build('est sont suis êtes être été était étaient sera serait ont avons avez pour avec où quel quelle quels quelles pourquoi quand combien nous vous ils elles elle ce cet cette ces mes tes ses notre votre leurs leur très aussi donc alors comme chez cela ça ceci celui celle ceux jamais rien aucun aucune tous toute toutes peux peut faut faire fait veux voudrais besoin dois doit doivent devrais pourrais pouvez pouvons encore toujours résume résumer rédige rédiger écris écrire donne donner dis dites explique expliquer montre montrer détaille détailler trouve cherche prépare génère traduis aujourd\'hui déjà là voici voilà merci bonjour bonsoir oui svp stp', 'de du des la le les un une et en au aux que qui ou il je tu se sa mon ma ton ta ne pas mais sur sans dans par'),
+    enContr: set('i you we they he she it that there here what whats who how where let don doesn didn isn aren wasn weren can won wouldn shouldn couldn haven hasn hadn'),
+    enSuf: set('t s m ll ve re d'),
+    frElide: build('qu j n c jusqu lorsqu puisqu', 'l d s m t')
+  };
+})();
+function _askLangScores(text) {
+  const r = { en: 0, fr: 0, enStrong: 0, frStrong: 0 };
+  if (typeof text !== 'string') return r;
+  const t = text.slice(0, 4000)
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/^[ \t]*>.*$/gm, ' ')
+    .replace(/"[^"\n]{25,}"|“[^”\n]{25,}”|«[^»\n]{25,}»/g, ' ')
+    .replace(/https?:\/\/\S+|www\.\S+|[^\s@]+@[^\s@]+\.[^\s@]+/gi, ' ')
+    .replace(/[’‘´`]/g, "'");
+  const allCaps = t === t.toUpperCase();
+  const re = /[A-Za-zÀ-ÖØ-öø-ÿŒœ]+(?:'[A-Za-zÀ-ÖØ-öø-ÿŒœ]+)?/g;
+  const add = function (lang, w) { r[lang] += w; if (w >= 2) r[lang + 'Strong']++; };
+  let m, prevEnd = 0, first = true, hints = 0;
+  while ((m = re.exec(t))) {
+    const w = m[0];
+    const atStart = first || /[.!?…:;\n]/.test(t.slice(prevEnd, m.index));
+    first = false;
+    prevEnd = m.index + w.length;
+    // nom propre en milieu de phrase (Jan, Vries, Societe Generale, L'Oreal...) : ignore
+    if (!atStart && !allCaps && w[0] !== w[0].toLowerCase() && !/^I(\W|$)/.test(w)) continue;
+    if (w === 'I') { add('en', 2); continue; }
+    const lw = w.toLowerCase();
+    const en = _askLex.en.get(lw), fr = _askLex.fr.get(lw);
+    if (en) { add('en', en); continue; }
+    if (fr) { add('fr', fr); continue; }
+    const ap = lw.indexOf("'");
+    if (ap > 0) {
+      const pre = lw.slice(0, ap), suf = lw.slice(ap + 1);
+      if (_askLex.enContr.has(pre) && _askLex.enSuf.has(suf)) { add('en', 2); continue; }
+      const el = _askLex.frElide.get(pre);
+      if (el) { add('fr', el); continue; }
+    }
+    // accents (e accent aigu compris), mots en minuscules uniquement (les noms propres accentues ne comptent pas), 2 indices max, jamais decisifs seuls
+    if (hints < 2 && /[àâçèêëîïôùûœé]/.test(w) && (allCaps || w[0] === w[0].toLowerCase())) { hints++; r.fr += 1; }
+  }
+  return r;
+}
+function _askDetectLang(text) {
+  try {
+    if (typeof text !== 'string') return null;
+    const decide = function (s) {
+      const win = function (a, strong, b) { return strong >= 1 && a >= 3 && a - b >= 2 && a >= 1.5 * b; };
+      if (win(s.en, s.enStrong, s.fr)) return 'en';
+      if (win(s.fr, s.frStrong, s.en)) return 'fr';
+      return null;
+    };
+    // consigne d'abord : premier paragraphe (un email colle en dessous ne doit pas decider) puis message entier
+    const paras = text.trim().split(/\n\s*\n/);
+    return decide(_askLangScores(paras[0])) || (paras.length > 1 ? decide(_askLangScores(text)) : null);
+  } catch (e) { return null; }
+}
+function _askLangDirective(lang) {
+  if (lang !== 'en' && lang !== 'fr') return '';
+  const en = (lang === 'en');
+  return '\n\nDETECTED LANGUAGE OF THE USER\'S LATEST MESSAGE: ' + (en ? 'ENGLISH' : 'FRENCH') +
+    ' (computed from the message itself, not from the data above). Write your ENTIRE response in ' + (en ? 'English' : 'French') +
+    ', including any summary of ' + (en ? 'French' : 'English') + ' data, unless the user explicitly asks for another language; quote ' +
+    (en ? 'French' : 'English') + ' source text only inside quotation marks.';
+}
+function _askLangTag(lang) {
+  return lang === 'en' ? '\n\n[Reply in English unless asked otherwise.]' : lang === 'fr' ? '\n\n[Réponds en français sauf demande contraire.]' : '';
+}
+// Copie des messages pour l'API : le DERNIER message utilisateur recoit le suffixe, l'historique d'origine
+// (_askHistory) et l'affichage ne sont jamais modifies.
+function _askApiMessages(history, lang) {
+  const out = history.slice();
+  const tag = _askLangTag(lang);
+  if (!tag) return out;
+  for (let i = out.length - 1; i >= 0; i--) {
+    if (out[i] && out[i].role === 'user' && typeof out[i].content === 'string') { out[i] = { role: 'user', content: out[i].content + tag }; break; }
+  }
+  return out;
+}
+/* ASK-LANG-END */
+
 async function _buildAskSystemPrompt(ctx, pipelineSnapshot, pipelineInsightsBlock) {
   const mandateBlock = (typeof _mandateContext === 'function') ? _mandateContext() : '';
   let ctxBlock = '';
@@ -6964,6 +7065,7 @@ async function _sendAskMessage() {
   if (input) input.value = '';
   const fr = (typeof currentLang !== 'undefined' && currentLang === 'fr');
   _askHistory.push({ role: 'user', content: msg });
+  const _askLang = _askDetectLang(msg);
   msgs.innerHTML += '<div class="chat-msg user"><div class="chat-avatar">T</div><div class="chat-bubble">' + _esc(msg) + '</div></div>';
   const thinkId = 'ask-think-' + Date.now();
   msgs.innerHTML += '<div class="chat-msg assistant" id="' + thinkId + '"><div class="chat-avatar">C</div><div class="chat-bubble" style="color:var(--muted);font-style:italic">' + (fr ? 'En train de réfléchir…' : 'Thinking…') + '</div></div>';
@@ -6979,7 +7081,8 @@ async function _sendAskMessage() {
   }
   const bubbleEl = () => document.getElementById(thinkId)?.querySelector('.chat-bubble');
   try {
-    const { prompt: systemPrompt } = await _buildAskSystemPrompt(_askCtx, _askSnapshot, _askInsightsBlock);
+    const { prompt: _askBasePrompt } = await _buildAskSystemPrompt(_askCtx, _askSnapshot, _askInsightsBlock);
+    const systemPrompt = _askBasePrompt + _askLangDirective(_askLang);
     // Fix 2026-09-14 (replique le fix Wominds -- meme cas reel ELEMENTS) : web_search_20250305
     // ajoute (outil gere par Anthropic cote serveur, api/generate.js relaie deja `tools` tel
     // quel, aucun changement serveur necessaire). stream:true retire : api/generate.js desactive
@@ -6995,7 +7098,7 @@ async function _sendAskMessage() {
         model: 'claude-sonnet-5',
         max_tokens: 4000,
         system: systemPrompt,
-        messages: _askHistory,
+        messages: _askApiMessages(_askHistory, _askLang),
         tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 3 }],
       })
     });
