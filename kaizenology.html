@@ -72,6 +72,10 @@
   --indigo: #3B5BDB;
   --amber-text: #92400e;
   --amber-mid: #d97706;
+  /* Jetons « danger » du badge identite contredite : copies a l'identique de demo-private.html et wominds.html (Groupe G), jamais renommes. */
+  --danger: #c9302c;
+  --danger-bg: #fdf1f1;
+  --danger-border: #eab3b3;
 
   /* Groupe D -- radius */
   --radius-badge: 4px; --radius-sm: 6px; --radius-md: 8px;
@@ -7461,8 +7465,8 @@ function _updateSentCounter() {
 // 2 barres seulement ici (LinkedIn invites / Emails) -- pas de 3e barre "Follow-ups cleared" :
 // cette notion n'existe pas structurellement dans ce fichier (arbitrage Thomas, confirme en
 // investigation -- pas de file J+5 automatique dans _applySendFilters(), pas de
-// readyJ5High/readyJ5Low ici). --accent/--danger n'existent pas comme tokens dans ce fichier
-// (seuls --navy/--red sont definis) -- adapte aux tokens reels : --navy pour le remplissage
+// readyJ5High/readyJ5Low ici). --accent n'existe pas comme token dans ce fichier (--danger n'y a ete
+// ajoute que le 21/09, pour le badge "identite contredite" : les barres gardent --red) -- adapte aux tokens reels : --navy pour le remplissage
 // normal (couleur de marque), --red pour le seuil critique (deja utilise par l'ancien
 // _updateSentCounter() a 38/40), meme seuil intermediaire #ea580c (deja une convention de ce
 // fichier, utilisee a 30/40 par l'ancien code couleur).
@@ -9071,6 +9075,8 @@ function _renderCommitteeCards(stakeholders, out, company, sector, icpScore) {
   let html = '<div style="display:flex;flex-direction:column;gap:10px;padding-top:4px">';
   stakeholders.forEach((s, i) => {
     const _contradicted = s.identity_verdict === 'CONTRADICTED';
+    // Nom/poste/reserves estompes ; le badge rouge et sa note restent a pleine opacite (contraste AA), comite en anglais (fr omis).
+    const _dim = _contradicted ? ';opacity:0.7' : '';
     const _roleBadgeHtml = _contradicted
       ? _identityContradictedBadgeHTML()
       : `<span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 8px;border-radius:var(--radius-pill);white-space:nowrap;${_roleBg(s.role)}">${_esc(s.role||'Influence')}</span>`;
@@ -9078,17 +9084,17 @@ function _renderCommitteeCards(stakeholders, out, company, sector, icpScore) {
       ? _identityContradictedNoteHTML()
       : '';
     const _addBtnHtml = _contradicted ? '' : `<button class="sh-add-btn" data-idx="${i}" style="align-self:flex-end;margin-top:4px;font-size:var(--fs-xs);padding:4px 11px;background:var(--navy);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer">+ Add to pipeline</button>`;
-    html += `<div style="border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:13px 15px;display:flex;flex-direction:column;gap:5px;${_contradicted ? 'opacity:0.7;' : ''}">
+    html += `<div style="border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:13px 15px;display:flex;flex-direction:column;gap:5px;">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;flex-wrap:wrap">
-        <div style="display:flex;align-items:center;flex-wrap:wrap;gap:0">
+        <div style="display:flex;align-items:center;flex-wrap:wrap;gap:0${_dim}">
           <span style="font-weight:700;font-size:var(--fs-sm);color:var(--text)">${_esc(s.name||'—')}</span>${_li(s.linkedin_url)}
           ${s.title ? `<span style="font-size:var(--fs-xs);color:var(--muted);margin-left:8px">${_esc(s.title)}</span>` : ''}
         </div>
         ${_roleBadgeHtml}
       </div>
       ${_contradictedNoteHtml}
-      ${s.concern ? `<div style="font-size:var(--fs-xs);color:var(--text-secondary)"><span style="font-weight:600;text-transform:uppercase;font-size:10px;letter-spacing:0.05em;color:var(--muted);margin-right:4px">Concern</span>${_esc(s.concern)}</div>` : ''}
-      ${s.approach ? `<div style="font-size:var(--fs-xs);color:var(--text-secondary)"><span style="font-weight:600;text-transform:uppercase;font-size:10px;letter-spacing:0.05em;color:var(--muted);margin-right:4px">Approach</span>${_esc(s.approach)}</div>` : ''}
+      ${s.concern ? `<div style="font-size:var(--fs-xs);color:var(--text-secondary)${_dim}"><span style="font-weight:600;text-transform:uppercase;font-size:10px;letter-spacing:0.05em;color:var(--muted);margin-right:4px">Concern</span>${_esc(s.concern)}</div>` : ''}
+      ${s.approach ? `<div style="font-size:var(--fs-xs);color:var(--text-secondary)${_dim}"><span style="font-weight:600;text-transform:uppercase;font-size:10px;letter-spacing:0.05em;color:var(--muted);margin-right:4px">Approach</span>${_esc(s.approach)}</div>` : ''}
       ${_addBtnHtml}
     </div>`;
   });
@@ -12694,11 +12700,13 @@ function _mscNarrativeBlockHTML(heading, paragraphs, linksByText) {
 // Fiche dont prospects.identity_verdict = 'CONTRADICTED' : UNIQUE source du libelle et du rendu (badge + note), partagee par
 // la vue Comite d'achat (_renderCommitteeCards, anglais, rendu inchange), la carte Morning Scan (_mscDecisionCardHTML) et le
 // tiroir prospect. fr = libelle francais (defaut : anglais, comme la vue Comite d'achat d'origine).
+// Rendu ROUGE « danger » (decision Thomas 21/09 : toutes les surfaces d'action, comite d'achat compris, un seul style) ; libelle « Identite
+// contredite » = nom du verdict en base, la note garde la nuance « role non confirme ». Jamais tronque : le retour a la ligne est autorise.
 function _identityContradictedBadgeHTML(fr) {
-  return `<span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 8px;border-radius:var(--radius-pill);white-space:nowrap;background:#f1f5f9;color:#64748b">${fr ? 'Rôle non confirmé' : 'Role not confirmed'}</span>`;
+  return `<span style="display:inline-block;font-size:11px;font-weight:700;line-height:1.3;padding:2px 8px;border-radius:var(--radius-pill);background:var(--danger-bg);border:1px solid var(--danger-border);color:var(--danger);white-space:normal;overflow-wrap:anywhere;max-width:100%;box-sizing:border-box;"><span aria-hidden="true">⚠</span> ${fr ? 'Identité contredite' : 'Identity contradicted'}</span>`;
 }
 function _identityContradictedNoteHTML(fr) {
-  return `<div style="font-size:var(--fs-xs);color:#b45309;font-style:italic;">${fr ? 'Rôle non confirmé — les dernières informations connues peuvent être périmées.' : 'Role not confirmed — last known info may be outdated.'}</div>`;
+  return `<div style="font-size:var(--fs-xs);color:var(--danger);font-style:italic;">${fr ? 'Rôle non confirmé — les dernières informations connues peuvent être périmées.' : 'Role not confirmed — last known info may be outdated.'}</div>`;
 }
 // Badge compact "fiabilite" a poser a cote d'un score ICP (audit Stephane point 5, 2026-09-11,
 // portage demo-private.html) -- memes flags/couleurs que les pastilles textuelles deja existantes

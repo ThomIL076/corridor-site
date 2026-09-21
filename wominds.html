@@ -2934,14 +2934,25 @@ function _mscIcpStateChipHTML(state) {
 function _mscReliabilityChipHTML(row) {
   const rel = row ? _scoreReliabilityBadge(row) : null;
   if (!rel) return '';
-  const contradicted = row.identity_verdict === 'CONTRADICTED';
-  const label = contradicted && rel.both ? 'Identité contredite · entreprise non confirmée' : rel.title;
-  const tone = contradicted
-    ? 'background:var(--danger-bg);border:1px solid var(--danger-border);color:var(--danger);font-weight:700;'
-    : row.company_verified === false
-      ? 'background:var(--amber-bg);border:1px solid var(--amber-border);color:var(--amber);font-weight:600;'
-      : 'background:var(--chip-bg);border:1px solid var(--border);color:var(--muted);font-weight:600;';
-  return `<span style="display:inline-block;font-size:var(--fs-micro);padding:2px 8px;border-radius:999px;${tone}white-space:normal;max-width:100%;box-sizing:border-box;">${contradicted ? '⚠' : rel.icon} ${_esc(label)}</span>`;
+  if (rel.contradicted) return _contradictedBadgeHTML(_contradictedLabelFor(rel));
+  const tone = row.company_verified === false
+    ? 'background:var(--amber-bg);border:1px solid var(--amber-border);color:var(--amber);font-weight:600;'
+    : 'background:var(--chip-bg);border:1px solid var(--border);color:var(--muted);font-weight:600;';
+  return `<span style="display:inline-block;font-size:var(--fs-micro);padding:2px 8px;border-radius:999px;${tone}white-space:normal;max-width:100%;box-sizing:border-box;">${rel.icon} ${_esc(rel.title)}</span>`;
+}
+// Badge « identite contredite » (identity_verdict = CONTRADICTED) : gabarit UNIQUE, ROUGE « danger » (decision Thomas 21/09 : toutes les surfaces
+// d'action, comite d'achat compris, un seul style). Appele par la carte Morning Scan (_mscReliabilityChipHTML), le tiroir prospect et le comite
+// d'achat ; la pastille compacte de _scoreReliabilityBadge reprend le meme jeton --danger. label facultatif (defaut : _contradictedLabel),
+// echappe. Jamais tronque : le retour a la ligne est autorise.
+function _contradictedLabel() { return 'Identité contredite'; }
+// Titre combine de _scoreReliabilityBadge (entreprise ET identite non confirmees) : il masquerait « contredite » ; ici le mot reste toujours nomme.
+function _contradictedLabelFor(rel) { return rel && rel.both ? 'Identité contredite · entreprise non confirmée' : _contradictedLabel(); }
+function _contradictedBadgeHTML(label) {
+  return `<span style="display:inline-block;font-size:11px;font-weight:700;line-height:1.3;padding:2px 8px;border-radius:var(--radius-pill);background:var(--danger-bg);border:1px solid var(--danger-border);color:var(--danger);white-space:normal;overflow-wrap:anywhere;max-width:100%;box-sizing:border-box;"><span aria-hidden="true">⚠</span> ${_esc(label || _contradictedLabel())}</span>`;
+}
+// Note explicative du comite d'achat : meme jeu de couleurs que le badge, information inchangee.
+function _contradictedNoteHTML() {
+  return `<div style="font-size:var(--fs-xs);color:var(--danger);font-style:italic;">Poste non confirmé, dernière information connue périmée.</div>`;
 }
 // Adresse email affichable en lien mailto: : forme simple ASCII uniquement (aucun espace, guillemet, chevron,
 // virgule, point d'interrogation ni « ? » de parametres type ?bcc=), 254 caracteres max. Sinon '' (pas de lien).
@@ -4636,16 +4647,19 @@ function _prospectCardHTML(p){
 // openProspectDetail) qui n'a pas d'equivalent a warnVerif/warnIdent.
 function _scoreReliabilityBadge(p) {
   const companyUnconfirmed = p.company_verified === false;
+  const contradicted = p.identity_verdict === 'CONTRADICTED';
   const identityUnconfirmed = p.identity_confidence === 'low'
-    || p.identity_verdict === 'CONTRADICTED' || p.identity_verdict === 'UNVERIFIABLE';
+    || contradicted || p.identity_verdict === 'UNVERIFIABLE';
   if (!companyUnconfirmed && !identityUnconfirmed) return null;
-  const identityTitle = p.identity_verdict === 'CONTRADICTED' ? 'Identité contredite'
+  const identityTitle = contradicted ? _contradictedLabel()
     : p.identity_verdict === 'UNVERIFIABLE' ? 'Identité non vérifiable'
     : 'Identité à vérifier';
+  // contradicted : glyphe compact en rouge danger (meme jeton et icone que le gabarit _contradictedBadgeHTML) ; les autres cas inchanges.
   return {
-    icon: companyUnconfirmed ? '⚠' : '?',
+    icon: companyUnconfirmed || contradicted ? '⚠' : '?',
     both: companyUnconfirmed && identityUnconfirmed,
-    color: companyUnconfirmed ? '#b45309' : '#6b7280',
+    contradicted,
+    color: contradicted ? 'var(--danger)' : companyUnconfirmed ? '#b45309' : '#6b7280',
     title: companyUnconfirmed && identityUnconfirmed ? 'Entreprise et identité non confirmées' : companyUnconfirmed ? 'Entreprise non confirmée' : identityTitle,
   };
 }
@@ -5000,7 +5014,7 @@ function openProspectDetail(id){
         <div class="pd-stat-label">Score ICP</div>
         <div class="pd-stat-value">${p.icp_score != null ? _esc(p.icp_score) + '/10' : 'N/D'}</div>
         <!-- F01 (port wominds, 2026-09-17) : meme badge que demo-private.html, sous le score. -->
-        ${(() => { const _relB = _scoreReliabilityBadge(p); return _relB ? `<div style="font-size:11px;font-weight:700;color:${_relB.color};margin-top:2px;" title="${_esc(_relB.title)}">${_relB.icon} ${_esc(_relB.title)}</div>` : ''; })()}
+        ${(() => { const _relB = _scoreReliabilityBadge(p); return _relB ? (_relB.contradicted ? `<div style="margin-top:2px;">${_contradictedBadgeHTML(_contradictedLabelFor(_relB))}</div>` : `<div style="font-size:11px;font-weight:700;color:${_relB.color};margin-top:2px;" title="${_esc(_relB.title)}">${_relB.icon} ${_esc(_relB.title)}</div>`) : ''; })()}
       </div>
       <div class="pd-stat">
         <div class="pd-stat-label">Étape</div>
@@ -8731,24 +8745,26 @@ function _renderCommitteeCards(stakeholders, out, company, sector, icpScore) {
   let html = '<div style="display:flex;flex-direction:column;gap:10px;">';
   stakeholders.forEach((s, i) => {
     const contradicted = s.identity_verdict === 'CONTRADICTED';
+    // Nom/poste/reserves estompes ; le badge rouge et sa note restent a pleine opacite (contraste AA).
+    const dim = contradicted ? ';opacity:0.7' : '';
     const roleBadgeHtml = contradicted
-      ? `<span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 8px;border-radius:var(--radius-pill);white-space:nowrap;background:#f1f5f9;color:#64748b">Poste non confirmé</span>`
+      ? _contradictedBadgeHTML()
       : `<span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 8px;border-radius:var(--radius-pill);white-space:nowrap;${roleBg(s.role)}">${_esc(roleLabel(s.role))}</span>`;
     const contradictedNoteHtml = contradicted
-      ? `<div style="font-size:var(--fs-xs);color:#b45309;font-style:italic;">Poste non confirmé, dernière information connue périmée.</div>`
+      ? _contradictedNoteHTML()
       : '';
     const addBtnHtml = contradicted ? '' : `<button class="sh-add-btn" data-idx="${i}" style="align-self:flex-end;margin-top:4px;font-size:var(--fs-xs);padding:4px 11px;background:var(--navy);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer">+ Ajouter au pipeline</button>`;
-    html += `<div style="border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:13px 15px;display:flex;flex-direction:column;gap:5px;${contradicted ? 'opacity:0.7;' : ''}">
+    html += `<div style="border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:13px 15px;display:flex;flex-direction:column;gap:5px;">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;flex-wrap:wrap">
-        <div style="display:flex;align-items:center;flex-wrap:wrap;gap:0">
+        <div style="display:flex;align-items:center;flex-wrap:wrap;gap:0${dim}">
           <span style="font-weight:700;font-size:var(--fs-sm);color:var(--text)">${_esc(s.name||'N/D')}</span>${li(s.linkedin_url)}
           ${s.title ? `<span style="font-size:var(--fs-xs);color:var(--muted);margin-left:8px">${_esc(s.title)}</span>` : ''}
         </div>
         ${roleBadgeHtml}
       </div>
       ${contradictedNoteHtml}
-      ${s.concern ? `<div style="font-size:var(--fs-xs);color:var(--text-secondary)"><span style="font-weight:600;text-transform:uppercase;font-size:10px;letter-spacing:0.05em;color:var(--muted);margin-right:4px">Préoccupation</span>${_esc(s.concern)}</div>` : ''}
-      ${s.approach ? `<div style="font-size:var(--fs-xs);color:var(--text-secondary)"><span style="font-weight:600;text-transform:uppercase;font-size:10px;letter-spacing:0.05em;color:var(--muted);margin-right:4px">Approche</span>${_esc(s.approach)}</div>` : ''}
+      ${s.concern ? `<div style="font-size:var(--fs-xs);color:var(--text-secondary)${dim}"><span style="font-weight:600;text-transform:uppercase;font-size:10px;letter-spacing:0.05em;color:var(--muted);margin-right:4px">Préoccupation</span>${_esc(s.concern)}</div>` : ''}
+      ${s.approach ? `<div style="font-size:var(--fs-xs);color:var(--text-secondary)${dim}"><span style="font-weight:600;text-transform:uppercase;font-size:10px;letter-spacing:0.05em;color:var(--muted);margin-right:4px">Approche</span>${_esc(s.approach)}</div>` : ''}
       ${addBtnHtml}
     </div>`;
   });

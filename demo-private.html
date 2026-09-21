@@ -4571,7 +4571,7 @@ function _mscDecisionCardHTML(d, live) {
   const contradicted = !!live && live.identity_verdict === 'CONTRADICTED';
   const rel = live ? _scoreReliabilityBadge(contradicted ? Object.assign({}, live, { identity_verdict: null }) : live, fr) : null;
   const relTone = rel && rel.icon === '⚠' ? 'background:var(--amber-bg);border:1px solid var(--amber-border);' : 'background:var(--chip-bg);border:1px solid var(--border);';
-  const identityHtml = (contradicted ? _contradictedBadgeHTML(fr ? 'Rôle non confirmé' : 'Role not confirmed') : '')
+  const identityHtml = (contradicted ? _contradictedBadgeHTML(fr) : '')
     + (rel ? `<span title="${_esc(rel.title)}" style="display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;${relTone}color:${rel.color};white-space:normal;max-width:100%;box-sizing:border-box;">${rel.icon}${rel.both ? '?' : ''} ${_esc(rel.title)}</span>` : '');
   const sectorHtml = sector ? `<span style="font-size:var(--fs-xs);font-weight:600;padding:2px 8px;background:var(--chip-bg);border-radius:var(--radius-pill);color:var(--indigo);max-width:100%;overflow-wrap:anywhere;">${_esc(sector)}</span>` : '';
   const icpScore = live && live.icp_score != null ? live.icp_score : null;
@@ -10031,6 +10031,7 @@ async function openDrawer(card, initialTab = 'activity') {
   const dealValLbl = _p.deal_value ? `${_p.deal_currency || 'EUR'} ${Math.round(parseInt(_p.deal_value) / 1000)}k` : '—';
   const links = _buildProspectLinks(_p);
   const firmoParts = [sector, _p.country, _p.company_size ? _p.company_size + ' employees' : null].filter(Boolean);
+  const _relBd = _scoreReliabilityBadge(_p);
 
   document.getElementById('drawer').innerHTML = `
     <div class="pd-header">
@@ -10044,6 +10045,7 @@ async function openDrawer(card, initialTab = 'activity') {
           ${firmoParts.length ? `<div class="pd-firmo">${firmoParts.map(s => _esc(s)).join(' · ')}</div>` : ''}
           ${_p.company_verified === false ? `<div style="margin-top:5px;"><span style="font-size:11px;font-weight:700;color:#b45309;background:#fef3c7;border:1px solid #fde68a;border-radius:20px;padding:1px 6px;">⚠ Company not confirmed</span></div>` : ''}
           ${_p.identity_confidence === 'low' ? `<div style="margin-top:3px;"><span style="font-size:11px;font-weight:700;color:#6b7280;background:#f3f4f6;border:1px solid #d1d5db;border-radius:20px;padding:1px 6px;">? Identity to verify</span></div>` : ''}
+          ${_relBd && _relBd.contradicted ? `<div style="margin-top:3px;">${_contradictedBadgeHTML(currentLang === 'fr')}</div>` : ''}
           <div class="drawer-last-contact" style="font-size:11px;color:var(--dim);margin-top:5px;">${lcStr ? 'Last contact: ' + _esc(lcStr) : 'No contact logged yet'}</div>
         </div>
         <div style="display:flex;gap:6px;flex-shrink:0;">
@@ -10060,7 +10062,7 @@ async function openDrawer(card, initialTab = 'activity') {
         <div class="pd-stat">
           <div class="pd-stat-label">ICP Fit Score</div>
           <div class="pd-stat-value">${_esc(_icpLbl)}</div>
-          ${(() => { const _relB = _scoreReliabilityBadge(_p); return _relB ? `<div style="font-size:11px;font-weight:700;color:${_relB.color};margin-top:2px;" title="${_esc(_relB.title)}">${_relB.icon} ${_esc(_relB.title)}</div>` : ''; })()}
+          ${_relBd && !_relBd.contradicted ? `<div style="font-size:11px;font-weight:700;color:${_relBd.color};margin-top:2px;" title="${_esc(_relBd.title)}">${_relBd.icon} ${_esc(_relBd.title)}</div>` : ''}
         </div>
         <div class="pd-stat">
           <div class="pd-stat-label">Stage age</div>
@@ -10659,26 +10661,28 @@ function _renderCommitteeCards(stakeholders, out, company, sector, icpScore) {
   stakeholders.forEach((s, i) => {
     // Fix 2026-09-14 : un membre deja en base dont le poste a ete contredit (parti/change depuis)
     // ne doit jamais s'afficher avec la meme autorite qu'un membre confirme -- badge explicite a la
-    // place du role habituel, pas de bouton "Add to pipeline" (il y est deja), carte estompee.
+    // place du role habituel (gabarit rouge unique _contradictedBadgeHTML, comite en anglais : false), pas de bouton
+    // "Add to pipeline" (il y est deja), nom/poste/reserves estompes (le badge et sa note restent a pleine opacite : contraste AA).
     const _contradicted = s.identity_verdict === 'CONTRADICTED';
+    const _dim = _contradicted ? ';opacity:0.7' : '';
     const _roleBadgeHtml = _contradicted
-      ? _contradictedBadgeHTML()
+      ? _contradictedBadgeHTML(false)
       : `<span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 8px;border-radius:var(--radius-pill);white-space:nowrap;${_roleBg(s.role)}">${_esc(s.role||'Influence')}</span>`;
     const _contradictedNoteHtml = _contradicted
-      ? `<div style="font-size:var(--fs-xs);color:#b45309;font-style:italic;">Role not confirmed — last known info may be outdated.</div>`
+      ? _contradictedNoteHTML(false)
       : '';
     const _addBtnHtml = _contradicted ? '' : `<button class="sh-add-btn" data-idx="${i}" style="align-self:flex-end;margin-top:4px;font-size:var(--fs-xs);padding:4px 11px;background:var(--navy);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer">+ Add to pipeline</button>`;
-    html += `<div style="border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:13px 15px;display:flex;flex-direction:column;gap:5px;${_contradicted ? 'opacity:0.7;' : ''}">
+    html += `<div style="border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:13px 15px;display:flex;flex-direction:column;gap:5px;">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;flex-wrap:wrap">
-        <div style="display:flex;align-items:center;flex-wrap:wrap;gap:0">
+        <div style="display:flex;align-items:center;flex-wrap:wrap;gap:0${_dim}">
           <span style="font-weight:700;font-size:var(--fs-sm);color:var(--text)">${_esc(s.name||'—')}</span>${_li(s.linkedin_url)}
           ${s.title ? `<span style="font-size:var(--fs-xs);color:var(--muted);margin-left:8px">${_esc(s.title)}</span>` : ''}
         </div>
         ${_roleBadgeHtml}
       </div>
       ${_contradictedNoteHtml}
-      ${s.concern ? `<div style="font-size:var(--fs-xs);color:var(--text-secondary)"><span style="font-weight:600;text-transform:uppercase;font-size:10px;letter-spacing:0.05em;color:var(--muted);margin-right:4px">Concern</span>${_esc(s.concern)}</div>` : ''}
-      ${s.approach ? `<div style="font-size:var(--fs-xs);color:var(--text-secondary)"><span style="font-weight:600;text-transform:uppercase;font-size:10px;letter-spacing:0.05em;color:var(--muted);margin-right:4px">Approach</span>${_esc(s.approach)}</div>` : ''}
+      ${s.concern ? `<div style="font-size:var(--fs-xs);color:var(--text-secondary)${_dim}"><span style="font-weight:600;text-transform:uppercase;font-size:10px;letter-spacing:0.05em;color:var(--muted);margin-right:4px">Concern</span>${_esc(s.concern)}</div>` : ''}
+      ${s.approach ? `<div style="font-size:var(--fs-xs);color:var(--text-secondary)${_dim}"><span style="font-weight:600;text-transform:uppercase;font-size:10px;letter-spacing:0.05em;color:var(--muted);margin-right:4px">Approach</span>${_esc(s.approach)}</div>` : ''}
       ${_addBtnHtml}
     </div>`;
   });
@@ -14305,7 +14309,7 @@ function buildCard(p){
     // _scoreReliabilityBadge (dont depend deja _relDot ci-dessus) -- pas d'appel a la fonction
     // ici car elle ne distingue pas "company seul" de "identity seul" (icon unique), alors que ces
     // 2 badges texte independants peuvent s'afficher ensemble (comportement existant preserve).
-    +   ((p.identity_confidence === 'low' || p.identity_verdict === 'CONTRADICTED' || p.identity_verdict === 'UNVERIFIABLE') ? `<span class="k-badge" style="color:#6b7280;" title="${p.identity_verdict === 'CONTRADICTED' ? 'Identity contradicted' : p.identity_verdict === 'UNVERIFIABLE' ? 'Identity unverifiable' : 'Identity to verify'}">? Identity</span>` : '')
+    +   (_relB && _relB.contradicted ? _contradictedBadgeHTML(currentLang === 'fr') : (p.identity_confidence === 'low' || p.identity_verdict === 'UNVERIFIABLE') ? `<span class="k-badge" style="color:#6b7280;" title="${p.identity_verdict === 'UNVERIFIABLE' ? 'Identity unverifiable' : 'Identity to verify'}">? Identity</span>` : '')
     + `</div>`
     + (p.linkedin_tag === 'connection-accepted' && p.stage === 'Engaged' && parseFloat(p.icp_score) >= 8 && p.last_contact
         ? `<div class="k-j5-badge" onclick="_j5BadgeClick(event,'${_esc(id)}')">J+5</div>`
@@ -15149,10 +15153,17 @@ async function _startEmailSeq(id, requireDraft = true) {
   }
 }
 
-// Badge « role non confirme » d'une fiche dont identity_verdict = CONTRADICTED (fix 14/09) : UNIQUE gabarit, extrait du comite d'achat
-// (_renderCommitteeCards) et reutilise par les cartes Morning Scan. label facultatif (defaut anglais = rendu historique du comite).
-function _contradictedBadgeHTML(label) {
-  return `<span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 8px;border-radius:var(--radius-pill);white-space:nowrap;background:#f1f5f9;color:#64748b">${_esc(label || 'Role not confirmed')}</span>`;
+// Badge « identite contredite » d'une fiche dont identity_verdict = CONTRADICTED : gabarit UNIQUE, ROUGE « danger » (decision Thomas 21/09 : toutes
+// les surfaces d'action, comite d'achat compris, un seul style). Appele par le comite d'achat, la carte Morning Scan, le tiroir prospect et le
+// Pipeline ; la pastille compacte de _scoreReliabilityBadge (glyphe, point) reprend le meme jeton --danger. fr truthy = libelle francais,
+// sinon anglais (le comite d'achat, en anglais, passe false). Jamais tronque : le retour a la ligne est autorise.
+function _contradictedLabel(fr) { return fr ? 'Identité contredite' : 'Identity contradicted'; }
+function _contradictedBadgeHTML(fr) {
+  return `<span style="display:inline-block;font-size:11px;font-weight:700;line-height:1.3;padding:2px 8px;border-radius:var(--radius-pill);background:var(--danger-bg);border:1px solid var(--danger-border);color:var(--danger);white-space:normal;overflow-wrap:anywhere;max-width:100%;box-sizing:border-box;"><span aria-hidden="true">⚠</span> ${_esc(_contradictedLabel(fr))}</span>`;
+}
+// Note explicative du comite d'achat : meme jeu de couleurs que le badge, information inchangee.
+function _contradictedNoteHTML(fr) {
+  return `<div style="font-size:var(--fs-xs);color:var(--danger);font-style:italic;">${fr ? 'Rôle non confirmé — les dernières informations connues peuvent être périmées.' : 'Role not confirmed — last known info may be outdated.'}</div>`;
 }
 // Badge compact "fiabilite" a poser a cote d'un score ICP (audit Stephane point 5, 2026-09-11) --
 // memes flags/couleurs que les pastilles textuelles deja existantes (kanban/priority/tiroir),
@@ -15169,16 +15180,19 @@ function _contradictedBadgeHTML(label) {
 // fr (optionnel, defaut anglais = appels existants inchanges) : titres en francais, pour la carte Morning Scan (bilingue).
 function _scoreReliabilityBadge(p, fr) {
   const companyUnconfirmed = p.company_verified === false;
+  const contradicted = p.identity_verdict === 'CONTRADICTED';
   const identityUnconfirmed = p.identity_confidence === 'low'
-    || p.identity_verdict === 'CONTRADICTED' || p.identity_verdict === 'UNVERIFIABLE';
+    || contradicted || p.identity_verdict === 'UNVERIFIABLE';
   if (!companyUnconfirmed && !identityUnconfirmed) return null;
-  const identityTitle = p.identity_verdict === 'CONTRADICTED' ? (fr ? 'Identité contredite' : 'Identity contradicted')
+  const identityTitle = contradicted ? _contradictedLabel(fr)
     : p.identity_verdict === 'UNVERIFIABLE' ? (fr ? 'Identité invérifiable' : 'Identity unverifiable')
     : (fr ? 'Identité à vérifier' : 'Identity to verify');
+  // contradicted : glyphe et point compacts en rouge danger (memes jeton et icone que le gabarit _contradictedBadgeHTML) ; les autres cas inchanges.
   return {
-    icon: companyUnconfirmed ? '⚠' : '?',
+    icon: companyUnconfirmed || contradicted ? '⚠' : '?',
     both: companyUnconfirmed && identityUnconfirmed,
-    color: companyUnconfirmed ? '#b45309' : '#6b7280',
+    contradicted,
+    color: contradicted ? 'var(--danger)' : companyUnconfirmed ? '#b45309' : '#6b7280',
     title: companyUnconfirmed && identityUnconfirmed ? (fr ? 'Société et identité non confirmées' : 'Company & identity unconfirmed') : companyUnconfirmed ? (fr ? 'Société non confirmée' : 'Company not confirmed') : identityTitle,
   };
 }
