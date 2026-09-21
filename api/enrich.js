@@ -1,4 +1,20 @@
+import { resolveClientId } from './_auth.js';
+
 const FE_BASE = 'https://app.fullenrich.com/api/v1/contact/enrich/bulk';
+
+// Fix securite 2026-09-21 : POST lancait un enrichissement payant et GET le sondait sans aucune
+// authentification. Jeton de session Supabase (Authorization: Bearer) verifie cote serveur ET appartenance
+// a la table clients, via le helper commun api/_auth.js. La verification se fait AVANT tout appel sortant.
+
+// Statuts terminaux en erreur (jamais "en cours") : sans cela un solde epuise laissait le tableau de bord
+// sonder pendant 180 s puis afficher "toujours en recherche". Cle = statut amont en minuscules.
+const TERMINAL_ERRORS = {
+  credits_insufficient: 'credits_insufficient',
+  canceled: 'canceled',
+  cancelled: 'canceled',
+  rate_limit: 'rate_limit',
+  unknown: 'unknown',
+};
 
 const RL_MAX = parseInt(process.env.RL_MAX || '30', 10);
 const RL_WINDOW_MS = 60_000;
@@ -21,6 +37,9 @@ export default async function handler(req, res) {
     return res.status(429).json({ error: 'Too many requests. Please wait before retrying.' });
   }
 
+  const resolvedClientId = await resolveClientId(req);
+  if (!resolvedClientId) return res.status(401).json({ error: 'Unauthorized' });
+
   const apiKey = process.env.FULLENRICH_API_KEY;
   if (!apiKey) return res.status(200).json({ error: 'FULLENRICH_API_KEY not configured' });
 
@@ -28,6 +47,11 @@ export default async function handler(req, res) {
   if (req.method === 'GET') {
     const enrichment_id = req.query && req.query.enrichment_id;
     if (!enrichment_id) return res.status(400).json({ error: 'enrichment_id required' });
+    // L'identifiant est concatene dans le chemin amont : un UUID (lettres, chiffres, tirets) uniquement,
+    // jamais de segments de chemin (pas de sondage d'autres endpoints avec la cle du compte).
+    if (typeof enrichment_id !== 'string' || !/^[A-Za-z0-9-]{8,64}$/.test(enrichment_id)) {
+      return res.status(400).json({ error: 'invalid enrichment_id' });
+    }
 
     try {
       const r = await fetch(FE_BASE + '/' + enrichment_id, {
@@ -38,6 +62,9 @@ export default async function handler(req, res) {
 
       // Status field varies by API version — try common names
       const st = (data.status || data.state || '').toLowerCase();
+      if (Object.prototype.hasOwnProperty.call(TERMINAL_ERRORS, st)) {
+        return res.status(200).json({ status: 'error', reason: TERMINAL_ERRORS[st] });
+      }
       if (st !== 'done' && st !== 'completed' && st !== 'finished') {
         return res.status(200).json({ status: 'in_progress' });
       }

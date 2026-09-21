@@ -13,6 +13,7 @@
 //   heyreach_linkedin_account_id  text  — (optional) force a specific sender account
 
 import { createClient } from '@supabase/supabase-js';
+import { resolveClientId } from './_auth.js';
 
 export const config = { maxDuration: 30 };
 
@@ -111,12 +112,18 @@ export default async function handler(req, res) {
     return res.status(405).json({ success: false, error: 'Method not allowed' });
   }
 
-  const { linkedinUrl, message, prospectName, client_id, touch, linkedinTag } = req.body || {};
+  // Fix securite 2026-09-21 : jeton de session Supabase + client resolu (helper commun api/_auth.js) AVANT tout
+  // appel sortant. Le client_id ne vient plus du corps : il est celui du porteur du jeton (les cles HeyReach lues
+  // sont donc toujours celles de CE client) ; un client_id du corps different est refuse.
+  const client_id = await resolveClientId(req);
+  if (!client_id) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+  const { linkedinUrl, message, prospectName, client_id: bodyClientId, touch, linkedinTag } = req.body || {};
+  if (bodyClientId !== undefined && bodyClientId !== null && bodyClientId !== '' && bodyClientId !== client_id) {
+    return res.status(403).json({ success: false, error: 'client_id mismatch' });
+  }
   if (!linkedinUrl) {
     return res.status(400).json({ success: false, error: 'linkedinUrl is required' });
-  }
-  if (!client_id) {
-    return res.status(400).json({ success: false, error: 'client_id is required' });
   }
 
   // Guard: j0/j5/j12 must only reach connected 1st-degree prospects

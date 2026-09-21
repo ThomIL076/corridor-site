@@ -128,7 +128,8 @@ check_endpoint() {
   local url="$1"
   local label="$2"
   local expected="${3:-}"
-  status=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$url" \
+  local method="${4:-POST}"
+  status=$(curl -s -o /dev/null -w "%{http_code}" -X "$method" "$url" \
     -H "Content-Type: application/json" \
     -d '{}' --max-time 10)
   if [ -z "$expected" ]; then
@@ -150,23 +151,29 @@ echo "  ATTENDU pour workflow-proxy sans auth : HTTP 401 (pas 500,"
 echo "  pas de timeout). Un 500 indiquerait un crash serveur, pas"
 echo "  juste un rejet d'auth normal."
 
-# Ajoutes le 10/09 : chemins J+5 touches par les fixes du jour (_generateSequenceMessage,
-# _startEmailSeq/_bulkStartEmailSeq) -- ni l'un ni l'autre n'avait de check dedie jusqu'ici.
-# Ni /api/generate ni /api/email-send n'ont de garde d'auth (pas de token attendu, contrairement
-# a workflow-proxy) : un corps vide suffit a distinguer "vivant et repond correctement a une
-# requete invalide" de "crash serveur" ou timeout, sans consommer de credit Anthropic/Smartlead
-# (aucun des deux ne va jusqu'a l'appel externe reussi avec un payload vide).
+# Routes fermees par jeton de session Supabase (verifie cote serveur AVANT tout appel sortant) : un appel
+# ANONYME (corps vide, aucun en-tete Authorization) doit etre rejete en 401 -- ce test n'envoie donc rien
+# (aucun email, message LinkedIn, notification, credit Anthropic/FullEnrich/Apollo/Perplexity consomme).
+# Un autre code = route re-ouverte (200/400/502...) ou crash serveur (500) ou timeout.
+# Ajoutes le 10/09 : chemins J+5 (_generateSequenceMessage, _startEmailSeq/_bulkStartEmailSeq) ; etendus le
+# 21/09 a toutes les routes d'envoi et payantes.
 echo ""
-check_endpoint "https://corridor.systems/api/generate" "generate (utilise par _generateSequenceMessage, corps vide)" "502"
-echo "  ATTENDU pour generate avec corps vide : HTTP 502 (Anthropic rejette 'messages'"
-echo "  vide, relaye tel quel) -- pas 500 (crash de la fonction Vercel elle-meme, ex:"
-echo "  cle Langfuse/Anthropic manquante) ni timeout."
-
-echo ""
-check_endpoint "https://corridor.systems/api/email-send" "email-send (utilise par _startEmailSeq/_bulkStartEmailSeq, corps vide)" "400"
-echo "  ATTENDU pour email-send avec corps vide : HTTP 400 ('email required',"
-echo "  cf. api/email-send.js) -- pas 500 ni timeout."
-
+check_endpoint "https://corridor.systems/api/generate" "generate (utilise par _generateSequenceMessage, sans auth)" "401"
+check_endpoint "https://corridor.systems/api/enrich" "enrich (utilise par _findEmailDrawer/_findPhoneDrawer, sans auth)" "401"
+check_endpoint "https://corridor.systems/api/email-send" "email-send (utilise par _startEmailSeq/_bulkStartEmailSeq, sans auth)" "401"
+check_endpoint "https://corridor.systems/api/linkedin-send" "linkedin-send (sans auth)" "401"
+check_endpoint "https://corridor.systems/api/linkedin-remove" "linkedin-remove (sans auth)" "401"
+check_endpoint "https://corridor.systems/api/inbox-send" "inbox-send (sans auth)" "401"
+check_endpoint "https://corridor.systems/api/team-notify" "team-notify (sans auth)" "401"
+check_endpoint "https://corridor.systems/api/crm-sync" "crm-sync (sans auth)" "401"
+check_endpoint "https://corridor.systems/api/enrich-contact" "enrich-contact (sans auth)" "401"
+check_endpoint "https://corridor.systems/api/market-intel" "market-intel (sans auth)" "401"
+check_endpoint "https://corridor.systems/api/web-search" "web-search (sans auth)" "401"
+check_endpoint "https://corridor.systems/api/company-enrich?domain=example.com" "company-enrich (GET, sans auth)" "401" "GET"
+check_endpoint "https://corridor.systems/api/search" "search (route retiree)" "410"
+echo "  ATTENDU : HTTP 401 pour chaque route ci-dessus (410 pour search) -- pas 200/400/502 (route ouverte"
+echo "  ou corps traite), pas 500 (crash de la fonction Vercel elle-meme, ex : import _auth.js manquant)"
+echo "  ni timeout."
 
 # ------------------------------------------------------------
 # TEST 4 — Rappel manuel (non automatisable simplement)

@@ -1,3 +1,23 @@
+import { resolveClient, supabase } from './_auth.js';
+
+// Fix securite 2026-09-21 : cette route ajoutait n'importe quel email a une campagne Smartlead (donc un envoi reel
+// depuis les boites de Thomas) sans authentification, avec un campaign_id libre. Desormais : jeton de session
+// Supabase + client resolu (helper commun api/_auth.js), AVANT tout appel sortant ; le campaign_id est derive
+// du client resolu (clients.email_campaign_id, lu cote serveur). Une valeur du corps n'est acceptee que si elle
+// appartient au client (sa campagne par defaut, ou celle d'un de SES mandats / deals) -- sinon 403.
+// Repli historique conserve, par client (memes constantes EMAIL_CAMPAIGN_ID que les dashboards) :
+const FALLBACK_CAMPAIGN_BY_CLIENT = { thomas: '3915129', kaizenology: '3778944' };
+const CAMPAIGN_ID_RE = /^[0-9]{1,12}$/;
+
+async function clientMayUseCampaign(clientId, campaignId) {
+  const { data: mandates } = await supabase.from('mandates').select('id, email_campaign_id').eq('client_id', clientId);
+  const ms = mandates || [];
+  if (ms.some(m => m.email_campaign_id != null && String(m.email_campaign_id) === campaignId)) return true;
+  if (!ms.length) return false;
+  const { data: deals } = await supabase.from('mandate_deals').select('email_campaign_id').in('segment_id', ms.map(m => m.id));
+  return (deals || []).some(d => d.email_campaign_id != null && String(d.email_campaign_id) === campaignId);
+}
+
 const RL_MAX = parseInt(process.env.RL_MAX || '30', 10);
 const RL_WINDOW_MS = 60_000;
 const _rlStore = new Map();
@@ -19,15 +39,27 @@ export default async function handler(req, res) {
     return res.status(429).json({ success: false, error: 'Too many requests. Please wait before retrying.' });
   }
 
-  console.log('Function started', req.method, JSON.stringify(req.body));
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+  const client = await resolveClient(req, 'email_campaign_id');
+  if (!client) return res.status(401).json({ error: 'Unauthorized' });
+
   const { email, first_name, last_name, company_name, campaign_id, custom_fields } = req.body || {};
   if (!email) return res.status(400).json({ error: 'email required' });
 
   const apiKey = process.env.SMARTLEAD_API_KEY;
   if (!apiKey) return res.status(200).json({ success: false, error: 'SMARTLEAD_API_KEY not configured' });
 
-  const campaignId = campaign_id || '3915129'; // Corridor -- J+5 Follow-up v2 (Active). Was '3708966' (Completed, no longer sending).
+  const defaultCampaignId = String(client.email_campaign_id || FALLBACK_CAMPAIGN_BY_CLIENT[client.client_id] || '');
+  const requested = (campaign_id === undefined || campaign_id === null || campaign_id === '') ? '' : String(campaign_id);
+  let campaignId = defaultCampaignId;
+  if (requested && requested !== defaultCampaignId) {
+    if (!CAMPAIGN_ID_RE.test(requested) || !(await clientMayUseCampaign(client.client_id, requested))) {
+      return res.status(403).json({ success: false, error: 'campaign_id not allowed for this client' });
+    }
+    campaignId = requested;
+  }
+  if (!CAMPAIGN_ID_RE.test(campaignId)) return res.status(200).json({ success: false, error: 'Email campaign not configured for this client' });
 
   try {
     const r = await fetch(

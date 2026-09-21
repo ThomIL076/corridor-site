@@ -1,3 +1,5 @@
+import { resolveClientId } from './_auth.js';
+
 export const config = { runtime: 'edge' };
 
 /**
@@ -42,6 +44,15 @@ export default async function handler(req) {
 
   if (req.method !== 'POST') {
     return new Response('Method not allowed', { status: 405 });
+  }
+
+  // Fix securite 2026-09-21 : jeton de session Supabase + client resolu (helper commun api/_auth.js) exige
+  // AVANT tout appel sortant (la route etait un relais Pipedrive ouvert a tout appelant anonyme).
+  if (!(await resolveClientId(req))) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+    });
   }
 
   let body;

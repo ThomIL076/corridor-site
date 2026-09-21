@@ -5,6 +5,7 @@
 // Fallback to env vars ONLY for client_id === 'thomas'.
 
 import { createClient } from '@supabase/supabase-js';
+import { resolveClientId } from './_auth.js';
 
 export const config = { maxDuration: 15 };
 
@@ -17,12 +18,18 @@ export default async function handler(req, res) {
     return res.status(405).json({ success: false, error: 'Method not allowed' });
   }
 
-  const { linkedinUrl, client_id } = req.body || {};
+  // Fix securite 2026-09-21 : jeton de session Supabase + client resolu (helper commun api/_auth.js) AVANT tout
+  // appel sortant. Le client_id ne vient plus du corps : il est celui du porteur du jeton ; un client_id du
+  // corps different est refuse.
+  const client_id = await resolveClientId(req);
+  if (!client_id) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+  const { linkedinUrl, client_id: bodyClientId } = req.body || {};
+  if (bodyClientId !== undefined && bodyClientId !== null && bodyClientId !== '' && bodyClientId !== client_id) {
+    return res.status(403).json({ success: false, error: 'client_id mismatch' });
+  }
   if (!linkedinUrl) {
     return res.status(400).json({ success: false, error: 'linkedinUrl is required' });
-  }
-  if (!client_id) {
-    return res.status(400).json({ success: false, error: 'client_id is required' });
   }
 
   const isThomas = client_id === 'thomas';

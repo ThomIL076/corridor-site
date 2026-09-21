@@ -1,6 +1,7 @@
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import { LangfuseSpanProcessor } from '@langfuse/otel';
 import { startObservation } from '@langfuse/tracing';
+import { resolveClientId } from './_auth.js';
 
 // exportMode: 'immediate' -- this is a short-lived serverless function, so spans
 // are flushed explicitly (forceFlush calls below) rather than relying on the
@@ -21,6 +22,70 @@ async function safeFlushLangfuse() {
 
 const MAX_TOOL_TURNS = 5;
 
+// Fix securite 2026-09-21 : cette route relayait vers le compte Anthropic sans aucune authentification
+// (CORS `*`, model/max_tokens libres). Jeton de session Supabase (Authorization: Bearer) verifie cote
+// serveur ET appartenance a la table clients, via le helper commun api/_auth.js (meme methode que memory.js,
+// pipeline-prospects.js, meeting-notes.js). La verification se fait AVANT tout appel sortant (Anthropic, Langfuse).
+
+// Durcissement du relais : liste blanche de modeles / champs / outils et plafonds. Valeurs relevees sur
+// les appelants reels (demo-private, kaizenology, wominds, demos) : un seul modele (claude-sonnet-5, ou
+// defaut serveur), max_tokens <= 16000 (kaizenology, streaming), champs model / max_tokens / messages /
+// system / tools / stream, un seul outil (web_search_20250305, max_uses 3).
+const ALLOWED_MODELS = ['claude-sonnet-5'];
+const MAX_TOKENS_CAP = 16000;
+const MAX_BODY_BYTES = 1_000_000;
+const ALLOWED_FIELDS = ['model', 'max_tokens', 'messages', 'system', 'tools', 'stream'];
+const MAX_WEB_SEARCH_USES = 5;
+
+// Origines du produit (les dashboards appellent la route en meme origine ; ceci ne sert qu'a ne plus
+// repondre `*` a n'importe quel site). Previews Vercel du projet : corridor-landing-<hash>-thomas-dratler.vercel.app.
+const ALLOWED_ORIGINS = ['https://corridor.systems', 'https://www.corridor.systems'];
+const PREVIEW_ORIGIN_RE = /^https:\/\/corridor-landing-[a-z0-9]+-thomas-dratler\.vercel\.app$/;
+
+function applyCors(req, res) {
+  res.setHeader('Vary', 'Origin');
+  const origin = req.headers['origin'];
+  if (origin && (ALLOWED_ORIGINS.includes(origin) || PREVIEW_ORIGIN_RE.test(origin))) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  }
+}
+
+// Retourne null si le corps est acceptable, sinon { status, error }. Appelee apres l'authentification
+// et avant tout appel sortant.
+function validateBody(req, body) {
+  const declared = parseInt(req.headers['content-length'] || '0', 10) || 0;
+  let actual = 0;
+  try { actual = JSON.stringify(body === undefined ? {} : body).length; } catch (e) { actual = Infinity; }
+  if (Math.max(declared, actual) > MAX_BODY_BYTES) return { status: 413, error: 'Request body too large' };
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return { status: 400, error: 'JSON object body required' };
+  for (const k of Object.keys(body)) {
+    if (!ALLOWED_FIELDS.includes(k)) return { status: 400, error: 'Field not allowed: ' + k };
+  }
+  if (body.model !== undefined && !ALLOWED_MODELS.includes(body.model)) return { status: 400, error: 'Model not allowed' };
+  if (body.max_tokens !== undefined && (!Number.isInteger(body.max_tokens) || body.max_tokens < 1 || body.max_tokens > MAX_TOKENS_CAP)) {
+    return { status: 400, error: 'max_tokens must be an integer between 1 and ' + MAX_TOKENS_CAP };
+  }
+  if (body.messages !== undefined && !Array.isArray(body.messages)) return { status: 400, error: 'messages must be an array' };
+  if (body.stream !== undefined && typeof body.stream !== 'boolean') return { status: 400, error: 'stream must be a boolean' };
+  if (body.system !== undefined && typeof body.system !== 'string' && !Array.isArray(body.system)) {
+    return { status: 400, error: 'system must be a string or an array' };
+  }
+  if (body.tools !== undefined) {
+    if (!Array.isArray(body.tools) || body.tools.length > 1) return { status: 400, error: 'Tools not allowed' };
+    for (const t of body.tools) {
+      const keys = t && typeof t === 'object' ? Object.keys(t) : [];
+      const okShape = keys.length > 0 && keys.every(k => k === 'type' || k === 'name' || k === 'max_uses');
+      if (!okShape || t.type !== 'web_search_20250305' || t.name !== 'web_search'
+        || (t.max_uses !== undefined && (!Number.isInteger(t.max_uses) || t.max_uses < 1 || t.max_uses > MAX_WEB_SEARCH_USES))) {
+        return { status: 400, error: 'Tools not allowed' };
+      }
+    }
+  }
+  return null;
+}
+
 const RL_MAX = parseInt(process.env.RL_MAX || '30', 10);
 const RL_WINDOW_MS = 60_000;
 const _rlStore = new Map();
@@ -38,7 +103,8 @@ function checkRateLimit(ip) {
 }
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  applyCors(req, res);
+  if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const ip = ((req.headers['x-forwarded-for'] || '') + '').split(',')[0].trim() || 'unknown';
@@ -48,6 +114,12 @@ export default async function handler(req, res) {
       error: { type: 'rate_limit_error', message: 'Too many requests. Please wait before retrying.' },
     });
   }
+
+  const resolvedClientId = await resolveClientId(req);
+  if (!resolvedClientId) return res.status(401).json({ error: 'Unauthorized' });
+
+  const badRequest = validateBody(req, req.body);
+  if (badRequest) return res.status(badRequest.status).json({ error: badRequest.error });
 
   const body = req.body || {};
   // Extract `stream` from body before spreading into restBody so it never leaks to Anthropic
