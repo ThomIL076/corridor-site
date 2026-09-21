@@ -8253,6 +8253,7 @@ async function openDrawer(card, initialTab = 'activity') {
         <div class="drawer-company">${_esc(company)}</div>
         ${_p.company_verified === false ? `<div style="margin-top:3px;"><span style="font-size:11px;font-weight:700;color:#b45309;background:#fef3c7;border:1px solid #fde68a;border-radius:20px;padding:1px 6px;">⚠ Company not confirmed</span></div>` : ''}
         ${_p.identity_confidence === 'low' ? `<div style="margin-top:3px;"><span style="font-size:11px;font-weight:700;color:#6b7280;background:#f3f4f6;border:1px solid #d1d5db;border-radius:20px;padding:1px 6px;">? Identity to verify</span></div>` : ''}
+        ${_p.identity_verdict === 'CONTRADICTED' ? `<div style="margin-top:3px;">${_identityContradictedBadgeHTML(currentLang === 'fr')}</div><div style="margin-top:3px;">${_identityContradictedNoteHTML(currentLang === 'fr')}</div>` : ''}
         <div class="drawer-last-contact">${lcStr ? 'Last contact: '+_esc(lcStr) : 'No contact logged yet'}</div>
         ${drawerLinksHtml}
       </div>
@@ -9071,10 +9072,10 @@ function _renderCommitteeCards(stakeholders, out, company, sector, icpScore) {
   stakeholders.forEach((s, i) => {
     const _contradicted = s.identity_verdict === 'CONTRADICTED';
     const _roleBadgeHtml = _contradicted
-      ? `<span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 8px;border-radius:var(--radius-pill);white-space:nowrap;background:#f1f5f9;color:#64748b">Role not confirmed</span>`
+      ? _identityContradictedBadgeHTML()
       : `<span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 8px;border-radius:var(--radius-pill);white-space:nowrap;${_roleBg(s.role)}">${_esc(s.role||'Influence')}</span>`;
     const _contradictedNoteHtml = _contradicted
-      ? `<div style="font-size:var(--fs-xs);color:#b45309;font-style:italic;">Role not confirmed — last known info may be outdated.</div>`
+      ? _identityContradictedNoteHTML()
       : '';
     const _addBtnHtml = _contradicted ? '' : `<button class="sh-add-btn" data-idx="${i}" style="align-self:flex-end;margin-top:4px;font-size:var(--fs-xs);padding:4px 11px;background:var(--navy);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer">+ Add to pipeline</button>`;
     html += `<div style="border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:13px 15px;display:flex;flex-direction:column;gap:5px;${_contradicted ? 'opacity:0.7;' : ''}">
@@ -9578,7 +9579,7 @@ function _renderPriorityCards(prospects) {
                      font-size:var(--fs-base);color:var(--navy);text-decoration:underline;text-align:left;">
               ${_esc(p.name || '—')}
             </button>
-            ${p.linkedin ? `<a href="${_esc(p.linkedin)}" target="_blank" rel="noopener" style="flex-shrink:0;color:var(--fill-accent);text-decoration:none;line-height:1;" title="LinkedIn"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg></a>` : ''}
+            ${_mscSafeUrl(p.linkedin) ? `<a href="${_esc(_mscSafeUrl(p.linkedin))}" target="_blank" rel="noopener" style="flex-shrink:0;color:var(--fill-accent);text-decoration:none;line-height:1;" title="LinkedIn"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg></a>` : ''}
             <span style="font-size:var(--fs-sm);color:var(--muted);">${_esc(p.company || '—')}</span>
             ${p.sector ? `<span style="font-size:var(--fs-xs);font-weight:600;padding:2px 8px;
               background:var(--chip-bg);border-radius:var(--radius-pill);color:var(--indigo);">
@@ -12373,7 +12374,12 @@ function _mscConfidenceBadge(confidence) {
     speculatif: { bg: 'var(--chip-bg)', border: 'var(--border)', color: 'var(--dim)', fr: 'Spéculatif', en: 'Speculative' },
     speculative: { bg: 'var(--chip-bg)', border: 'var(--border)', color: 'var(--dim)', fr: 'Spéculatif', en: 'Speculative' },
   };
-  const c = map[(confidence || '').toLowerCase()] || map.speculatif;
+  // Aucune confiance (null / vide / espaces) = AUCUN badge : jamais un « Speculative » invente pour un objet qui n'en porte
+  // pas (carte alimentee par la vue Today, decisions_json sans confiance, entree scan_entries a confidence null).
+  // Une valeur non vide mais inconnue garde le repli historique « Speculative ».
+  const raw = String(confidence == null ? '' : confidence);
+  if (!raw.trim()) return '';
+  const c = map[raw.toLowerCase()] || map.speculatif;
   const label = currentLang === 'fr' ? c.fr : c.en;
   return `<span style="display:inline-block;font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;padding:2px 8px;border-radius:999px;background:${c.bg};border:1px solid ${c.border};color:${c.color};white-space:nowrap;">${label}</span>`;
 }
@@ -12684,6 +12690,37 @@ function _mscNarrativeBlockHTML(heading, paragraphs, linksByText) {
   const body = paragraphs.map(p => _mscProseHTML(p, linksByText)).join('');
   return `${_mscSectionLabel(heading)}<div style="font-size:var(--fs-sm);color:var(--dim);line-height:1.5;margin-bottom:4px;">${body}</div>`;
 }
+// ── Garde d'identite (etape A de l'unification Today/Signals, 2026-09-21) ─────────────────────────────────────────
+// Fiche dont prospects.identity_verdict = 'CONTRADICTED' : UNIQUE source du libelle et du rendu (badge + note), partagee par
+// la vue Comite d'achat (_renderCommitteeCards, anglais, rendu inchange), la carte Morning Scan (_mscDecisionCardHTML) et le
+// tiroir prospect. fr = libelle francais (defaut : anglais, comme la vue Comite d'achat d'origine).
+function _identityContradictedBadgeHTML(fr) {
+  return `<span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 8px;border-radius:var(--radius-pill);white-space:nowrap;background:#f1f5f9;color:#64748b">${fr ? 'Rôle non confirmé' : 'Role not confirmed'}</span>`;
+}
+function _identityContradictedNoteHTML(fr) {
+  return `<div style="font-size:var(--fs-xs);color:#b45309;font-style:italic;">${fr ? 'Rôle non confirmé — les dernières informations connues peuvent être périmées.' : 'Role not confirmed — last known info may be outdated.'}</div>`;
+}
+// Badge compact "fiabilite" a poser a cote d'un score ICP (audit Stephane point 5, 2026-09-11,
+// portage demo-private.html) -- memes flags/couleurs que les pastilles textuelles deja existantes
+// (kanban/priority/tiroir), jamais une deuxieme logique de calcul. Deplacee ici (2026-09-21) depuis sa position
+// d'origine pour rester avec le composant qui la lit ; bg/border/titleFr ajoutes (pastille texte de la carte Morning
+// Scan : memes couleurs que les pastilles « Company not confirmed » / « Identity to verify » de la vue Today).
+function _scoreReliabilityBadge(p) {
+  const companyUnconfirmed = p.company_verified === false;
+  const identityUnconfirmed = p.identity_confidence === 'low';
+  if (!companyUnconfirmed && !identityUnconfirmed) return null;
+  return {
+    icon: companyUnconfirmed ? '⚠' : '?',
+    both: companyUnconfirmed && identityUnconfirmed,
+    color: companyUnconfirmed ? '#b45309' : '#6b7280',
+    bg: companyUnconfirmed ? '#fef3c7' : '#f3f4f6',
+    border: companyUnconfirmed ? '#fde68a' : '#d1d5db',
+    title: companyUnconfirmed && identityUnconfirmed ? 'Company & identity unconfirmed' : companyUnconfirmed ? 'Company not confirmed' : 'Identity to verify',
+    titleFr: companyUnconfirmed && identityUnconfirmed ? 'Société et identité non confirmées' : companyUnconfirmed ? 'Société non confirmée' : 'Identité à vérifier',
+  };
+}
+// Avertissement unique (console) quand une fiche live parvient a la carte sans la colonne identity_verdict (select d'un appelant incomplet).
+let _mscNoVerdictWarned = false;
 // Badge ICP avec infobulle au survol -- UNIQUE implementation, partagee par les badges du Pipeline
 // (_topProspectItems) et par les cartes du Morning Scan (_mscDecisionCardHTML) : meme mecanisme
 // (span .icp-tt affiche/masque par onmouseover/onmouseout, pas de title natif), meme source unique
@@ -12726,6 +12763,23 @@ function _mscDecisionCardHTML(d, live) {
   const signalInterp = interpSrc ? cleanText(interpSrc) : '';
   const nextActionHtml = live && live.next_action_cache ? _renderNextActionHTML(live.next_action_cache, 'var(--dim)') : null;
   const scanAction = isEntry && d.action ? cleanText(d.action) : '';
+  // Garde d'identite, secteur, email (etape A, 2026-09-21) : lus sur la fiche live UNIQUEMENT (jamais sur d) ; rien du tout
+  // quand la fiche ou la donnee est absente. CONTRADICTED = badge + note explicites (source unique : _identityContradicted*) ;
+  // societe non confirmee / identite a verifier = pastille de fiabilite existante (_scoreReliabilityBadge, une seule logique).
+  if (live && !('identity_verdict' in live) && !_mscNoVerdictWarned) {
+    _mscNoVerdictWarned = true;
+    console.warn("[_mscDecisionCardHTML] fiche live sans colonne identity_verdict : la garde d'identite ne peut pas etre evaluee (colonne absente du select de l'appelant)");
+  }
+  const contradicted = !!live && live.identity_verdict === 'CONTRADICTED';
+  const reliab = live ? _scoreReliabilityBadge(live) : null;
+  const contradictedChip = contradicted ? _identityContradictedBadgeHTML(fr) : '';
+  const contradictedNote = contradicted ? `<div style="margin-top:4px;">${_identityContradictedNoteHTML(fr)}</div>` : '';
+  const reliabChip = reliab
+    ? `<span style="display:inline-block;font-size:var(--fs-micro);font-weight:700;padding:1px 6px;border-radius:var(--radius-pill);background:${reliab.bg};border:1px solid ${reliab.border};color:${reliab.color};white-space:normal;max-width:100%;box-sizing:border-box;">${reliab.icon}${reliab.both ? '?' : ''} ${_esc(fr ? reliab.titleFr : reliab.title)}</span>`
+    : '';
+  const sector = live && typeof live.sector === 'string' ? live.sector.trim() : '';
+  const companyLine = [company, sector].filter(Boolean).join(' · ');
+  const emailAddr = _mscSafeEmail(live && live.email);
 
   const links = [];
   // Liens de secours (entrees scan_entries ET repli decisions_json, 21/09) : la fiche live comble un lien
@@ -12735,6 +12789,7 @@ function _mscDecisionCardHTML(d, live) {
   const source = _mscResolveSource(d, live);
   if (linkedinUrl) links.push(`<a href="${_esc(linkedinUrl)}" target="_blank" rel="noopener" style="color:var(--fill-accent);text-decoration:none;font-weight:600;white-space:nowrap;">LinkedIn</a>`);
   if (source) links.push(`<a href="${_esc(source.url)}" target="_blank" rel="noopener" style="color:var(--fill-accent);text-decoration:none;font-weight:600;min-width:0;word-break:normal;overflow-wrap:break-word;">${_esc(source.label)}</a>`);
+  if (emailAddr) links.push(`<a href="mailto:${_esc(emailAddr)}" style="color:var(--fill-accent);text-decoration:none;font-weight:600;min-width:0;overflow-wrap:anywhere;">${_esc(emailAddr)}</a>`);
   const linksHtml = links.length ? `<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px 12px;font-size:var(--fs-xs);">${links.join('')}</div>` : '';
 
   const structured = isEntry && (d.facts || d.action);
@@ -12748,7 +12803,7 @@ function _mscDecisionCardHTML(d, live) {
   // Date du signal (propre a Kaizenology : pas de force affichee) : instantane du scan, sinon valeur live.
   const sigDate = isEntry ? String((d.signal && d.signal.date) || (live && live.signal_date) || '') : '';
   const sigDateChip = /^\d{4}-\d{2}-\d{2}/.test(sigDate) ? `<span style="font-size:var(--fs-xs);color:var(--dim);">${_esc(sigDate.slice(0, 10))}</span>` : '';
-  const confidenceHtml = !isEntry || d.confidence ? _mscConfidenceBadge(d.confidence) : '';
+  const confidenceHtml = _mscConfidenceBadge(d.confidence);
   const icpStateChip = _mscIcpStateChipHTML(_mscIcpState(d, live));
   // Infobulle uniquement quand une fiche live existe (icpScore != null n'est possible que dans ce
   // cas) ; carte sans enrichissement (id null) = ni badge ni infobulle, rien a montrer.
@@ -12777,11 +12832,11 @@ function _mscDecisionCardHTML(d, live) {
       <div style="flex:1;min-width:0;">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
           <span style="font-weight:700;font-size:var(--fs-sm);color:var(--navy);">${name}</span>
-          ${company ? `<span style="font-size:var(--fs-xs);color:var(--dim);">${_esc(company)}</span>` : ''}${mandateHtml}
-          ${icpChip}${icpStateChip}${sigBadge}${sigDateChip}
+          ${companyLine ? `<span style="font-size:var(--fs-xs);color:var(--dim);">${_esc(companyLine)}</span>` : ''}${mandateHtml}
+          ${contradictedChip}${reliabChip}${icpChip}${icpStateChip}${sigBadge}${sigDateChip}
           ${confidenceHtml}
         </div>
-        ${factsBlock}${summary}
+        ${contradictedNote}${factsBlock}${summary}
         ${signalBlock}
         ${actionBlock}
         ${linksHtml}
@@ -12825,6 +12880,14 @@ function _mscSafeId(id) {
   if (typeof id !== 'string' && typeof id !== 'number') return '';
   const s = String(id);
   return /^[A-Za-z0-9_-]{1,64}$/.test(s) ? s : '';
+}
+// Adresse email affichable (lien mailto:) : forme locale@domaine.tld sans espace ni caractere d'attribut / de requete
+// (aucun ?, &, guillemet, chevron), 254 caracteres max ; sinon '' (rien affiche). Meme motif que la detection des emails du
+// texte genere, ancre.
+function _mscSafeEmail(e) {
+  if (typeof e !== 'string') return '';
+  const t = e.trim();
+  return t.length <= 254 && /^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$/.test(t) ? t : '';
 }
 // scan_entries valide (objet v:1, entries tableau, au moins une entree exploitable) -> tableau
 // d'entrees, sinon null : l'appelant retombe alors sur la chaine existante (decisions_json, iframe).
@@ -12932,7 +12995,9 @@ function _mscIcpStateChipHTML(state) {
 // prospects_scan_window -- et jamais une requete par carte) -- partage par le rendu scan_entries v1 et par la
 // chaine de repli decisions_json (fonction commune avec wominds.html et demo-private.html, 21/09). archived n'est
 // PAS filtre : une fiche archivee depuis le scan doit rester lisible (etat ICP "Archivee depuis le scan").
-const _MSC_LIVE_COLS = 'id, name, company, stage, icp_score, icp_reason, archived, signal, signal_type, signal_date, signal_url, signal_interpretation, next_action_cache, linkedin';
+// + sector, email, company_verified, identity_confidence, identity_verdict (2026-09-21, etape A unification Today/Signals) : garde d'identite,
+// secteur et email de la carte partagee ; memes colonnes que le Pipeline, donc la ligne partielle mise en cache reste utilisable par le tiroir.
+const _MSC_LIVE_COLS = 'id, name, company, stage, icp_score, icp_reason, archived, signal, signal_type, signal_date, signal_url, signal_interpretation, next_action_cache, linkedin, sector, email, company_verified, identity_confidence, identity_verdict';
 async function _mscFetchLiveProspects(ids) {
   const liveById = {};
   if (!ids.length) return liveById;
@@ -12946,7 +13011,7 @@ async function _mscFetchLiveProspects(ids) {
       liveById[row.id] = row;
       // Ne comble que les trous -- ne remplace jamais une fiche deja chargee (et donc plus complete) par le
       // Pipeline. Approuve par Thomas -- resout le risque de sequencement (_prospectsById pas encore peuple
-      // si ce chargement termine avant celui du Pipeline). Ligne partielle (14 colonnes) : marquee, pour qu'un
+      // si ce chargement termine avant celui du Pipeline). Ligne partielle (19 colonnes) : marquee, pour qu'un
       // chargeur complet (Aujourd'hui, Envoyer) la remplace au lieu d'etre bloque par elle (cf. _cacheProspectRow).
       _cacheProspectRow(row, true);
     }
@@ -13727,21 +13792,6 @@ async function _startEmailSeq(id) {
   }
 }
 
-// Badge compact "fiabilite" a poser a cote d'un score ICP (audit Stephane point 5, 2026-09-11,
-// portage demo-private.html) -- memes flags/couleurs que les pastilles textuelles deja existantes
-// (kanban/priority/tiroir), jamais une deuxieme logique de calcul.
-function _scoreReliabilityBadge(p) {
-  const companyUnconfirmed = p.company_verified === false;
-  const identityUnconfirmed = p.identity_confidence === 'low';
-  if (!companyUnconfirmed && !identityUnconfirmed) return null;
-  return {
-    icon: companyUnconfirmed ? '⚠' : '?',
-    both: companyUnconfirmed && identityUnconfirmed,
-    color: companyUnconfirmed ? '#b45309' : '#6b7280',
-    title: companyUnconfirmed && identityUnconfirmed ? 'Company & identity unconfirmed' : companyUnconfirmed ? 'Company not confirmed' : 'Identity to verify',
-  };
-}
-
 // targetId undefined -> ecrit dans le panneau du Scanner ('breakdown-panel', comportement
 // d'origine inchange, cf. runScanner()). targetId === null -> ne touche pas le DOM, retourne
 // juste le HTML (tiroir prospect, section ICP score breakdown, port wominds.html 2026-09-18) --
@@ -14348,7 +14398,7 @@ async function loadKanban(force){
     while (true) {
       let _kQuery = sbClient
         .from('prospects')
-        .select('id, name, company, title, sector, region, country, stage, linkedin, email, phone, deal_value, deal_currency, deal_structure, deal_weighted, notes, last_contact, reminder_date, icp_score, icp_reason, archived, client_id, linkedin_tag, origin, signal, signal_type, signal_interpretation, signal_date, created_at, draft_invite_note, company_size, next_action, next_action_date, score_signal_strength, score_growth, signal_url, mandate_id, website_url, funding_stage, last_funding_date, total_funding, additional_contacts, import_source, next_action_cache, next_action_generated_at, company_verified, identity_confidence, identity_verdict_checked_at, company_checked_at')
+        .select('id, name, company, title, sector, region, country, stage, linkedin, email, phone, deal_value, deal_currency, deal_structure, deal_weighted, notes, last_contact, reminder_date, icp_score, icp_reason, archived, client_id, linkedin_tag, origin, signal, signal_type, signal_interpretation, signal_date, created_at, draft_invite_note, company_size, next_action, next_action_date, score_signal_strength, score_growth, signal_url, mandate_id, website_url, funding_stage, last_funding_date, total_funding, additional_contacts, import_source, next_action_cache, next_action_generated_at, company_verified, identity_confidence, identity_verdict, identity_verdict_checked_at, company_checked_at')
         .eq('client_id', CLIENT_ID);
       _kQuery = _applyMandateFilter(_kQuery);
       const { data: chunk, error } = await _kQuery

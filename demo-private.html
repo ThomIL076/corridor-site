@@ -4147,7 +4147,10 @@ async function _loadSystemActiveStatus() {
 // en EN selon le workflow) vers un badge colore, en reutilisant les seules variables de couleur
 // deja communes aux 3 dashboards (--green*/--amber*/--chip-bg, confirmees presentes dans les 3
 // fichiers avant d'ecrire ce code).
+// Aucune confiance fournie (absente, vide, non-texte : ex. objet "decision" fabrique depuis une ligne prospect) -> AUCUN badge
+// (jamais un « Speculatif » invente). Une valeur non vide mais inconnue garde le repli historique « Speculatif ».
 function _mscConfidenceBadge(confidence) {
+  if (typeof confidence !== 'string' || !confidence.trim()) return '';
   const map = {
     confirme: { bg: 'var(--green-bg)', border: 'var(--green-border)', color: 'var(--green)', fr: 'Confirmé', en: 'Confirmed' },
     confirmed: { bg: 'var(--green-bg)', border: 'var(--green-border)', color: 'var(--green)', fr: 'Confirmé', en: 'Confirmed' },
@@ -4155,7 +4158,7 @@ function _mscConfidenceBadge(confidence) {
     speculatif: { bg: 'var(--chip-bg)', border: 'var(--border)', color: 'var(--muted)', fr: 'Spéculatif', en: 'Speculative' },
     speculative: { bg: 'var(--chip-bg)', border: 'var(--border)', color: 'var(--muted)', fr: 'Spéculatif', en: 'Speculative' },
   };
-  const c = map[(confidence || '').toLowerCase()] || map.speculatif;
+  const c = map[confidence.toLowerCase()] || map.speculatif;
   const label = currentLang === 'fr' ? c.fr : c.en;
   return `<span style="display:inline-block;font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;padding:2px 8px;border-radius:999px;background:${c.bg};border:1px solid ${c.border};color:${c.color};white-space:nowrap;">${label}</span>`;
 }
@@ -4409,6 +4412,13 @@ function _mscSafeUrl(u) {
   const t = u.trim();
   return /^https?:\/\/[^\s<>"\u0000-\u001f\u007f]+$/i.test(t) ? t : '';
 }
+// Adresse email affichable en lien mailto: : jeu de caracteres du linkify de _renderNextActionHTML, ancre (aucun espace, guillemet,
+// chevron ni apostrophe possible -> aucune injection d'attribut) ; chaine vide sinon.
+function _mscSafeEmail(e) {
+  if (typeof e !== 'string') return '';
+  const t = e.trim();
+  return t.length <= 254 && /^[A-Za-z0-9._%+\-]+@[A-Za-z0-9\-]+(?:\.[A-Za-z0-9\-]+)*\.[A-Za-z]{2,}$/.test(t) ? t : '';
+}
 // Identifiant prospect insere dans un onclick : caracteres sans danger uniquement (uuid attendu).
 // (Helper partage avec wominds.html.)
 function _mscSafeId(id) {
@@ -4551,6 +4561,19 @@ function _mscDecisionCardHTML(d, live) {
   const fr = currentLang === 'fr';
   const name = _esc((live && live.name) || d.name || (fr ? 'Personne inconnue' : 'Unknown person'));
   const company = (live && live.company) || d.company || '';
+  // Fiche live uniquement (colonnes de _MSC_LIVE_COLS) ; rien n'est affiche quand la donnee est absente.
+  const sector = live && typeof live.sector === 'string' ? live.sector.trim() : '';
+  const emailAddr = live ? _mscSafeEmail(live.email) : '';
+  // GARDE D'IDENTITE (non negociable) : une fiche CONTRADICTED est toujours signalee par le badge explicite du comite d'achat
+  // (_contradictedBadgeHTML) ; les autres alertes (societe non confirmee, identite a verifier / inverifiable) viennent de
+  // _scoreReliabilityBadge, unique calcul. Pour ne pas doubler le badge, le verdict CONTRADICTED est retire de la copie passee a
+  // _scoreReliabilityBadge (les autres declencheurs restent evalues).
+  const contradicted = !!live && live.identity_verdict === 'CONTRADICTED';
+  const rel = live ? _scoreReliabilityBadge(contradicted ? Object.assign({}, live, { identity_verdict: null }) : live, fr) : null;
+  const relTone = rel && rel.icon === '⚠' ? 'background:var(--amber-bg);border:1px solid var(--amber-border);' : 'background:var(--chip-bg);border:1px solid var(--border);';
+  const identityHtml = (contradicted ? _contradictedBadgeHTML(fr ? 'Rôle non confirmé' : 'Role not confirmed') : '')
+    + (rel ? `<span title="${_esc(rel.title)}" style="display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;${relTone}color:${rel.color};white-space:normal;max-width:100%;box-sizing:border-box;">${rel.icon}${rel.both ? '?' : ''} ${_esc(rel.title)}</span>` : '');
+  const sectorHtml = sector ? `<span style="font-size:var(--fs-xs);font-weight:600;padding:2px 8px;background:var(--chip-bg);border-radius:var(--radius-pill);color:var(--indigo);max-width:100%;overflow-wrap:anywhere;">${_esc(sector)}</span>` : '';
   const icpScore = live && live.icp_score != null ? live.icp_score : null;
   const cleanText = s => String(s).replace(/<[^>]*>/g, '').trim();
   const signalSrc = (live && live.signal) || (isEntry && d.signal && d.signal.text) || '';
@@ -4567,6 +4590,7 @@ function _mscDecisionCardHTML(d, live) {
   const linkedinUrl = _mscSafeUrl(d.linkedin) || _mscSafeUrl(live && live.linkedin);
   const source = _mscResolveSource(d, live);
   if (linkedinUrl) links.push(`<a href="${_esc(linkedinUrl)}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;font-weight:600;white-space:nowrap;">LinkedIn</a>`);
+  if (emailAddr) links.push(`<a href="mailto:${_esc(emailAddr)}" title="${_esc(emailAddr)}" style="color:var(--accent);text-decoration:none;font-weight:600;white-space:nowrap;">Email</a>`);
   if (source) links.push(`<a href="${_esc(source.url)}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;font-weight:600;min-width:0;word-break:normal;overflow-wrap:break-word;">${_esc(source.label)}</a>`);
   const linksHtml = links.length ? `<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px 12px;font-size:var(--fs-xs);">${links.join('')}</div>` : '';
 
@@ -4585,18 +4609,20 @@ function _mscDecisionCardHTML(d, live) {
   const sigDateLabel = isEntry ? _mscFmtDate((d.signal && d.signal.date) || (live && live.signal_date)) : '';
   if (sigDateLabel) sigMetaParts.push(sigDateLabel);
   const sigMeta = sigMetaParts.join(' · ');
-  const confidenceHtml = !isEntry || d.confidence ? _mscConfidenceBadge(d.confidence) : '';
+  const confidenceHtml = _mscConfidenceBadge(d.confidence);
   const icpStateChip = _mscIcpStateChipHTML(_mscIcpState(d, live));
   // Infobulle uniquement quand une fiche live existe (icpScore != null n'est possible que dans ce
   // cas) ; carte sans enrichissement (id null) = ni badge ni infobulle, rien a montrer.
   const icpChip = icpScore != null
     ? _icpBadgeWithTooltipHTML(`<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:var(--radius-pill);background:var(--chip-bg);color:var(--indigo);">ICP ${_esc(String(icpScore))}</span>`, icpScore, live.icp_reason, 'left')
     : '';
+  const colon = fr ? ' :' : ':';
+  const signalLabel = `<strong>Signal${colon}</strong>`;
   const signalHead = signal
-    ? `<strong>Signal :</strong> ${_esc(signal)}${sigMeta ? ` <span style="opacity:.75;">(${_esc(sigMeta)})</span>` : ''}`
-    : (sigMeta ? `<strong>Signal :</strong> ${_esc(sigMeta)}` : '');
+    ? `${signalLabel} ${_esc(signal)}${sigMeta ? ` <span style="opacity:.75;">(${_esc(sigMeta)})</span>` : ''}`
+    : (sigMeta ? `${signalLabel} ${_esc(sigMeta)}` : '');
   const signalBlock = (signalHead || signalInterp)
-    ? `<div style="margin-top:6px;font-size:var(--fs-xs);color:var(--text-secondary);line-height:1.4;">${signalHead}${signalHead && signalInterp ? '<br>' : ''}${signalInterp ? `<strong>Interprétation :</strong> ${_esc(signalInterp)}` : ''}</div>`
+    ? `<div style="margin-top:6px;font-size:var(--fs-xs);color:var(--text-secondary);line-height:1.4;">${signalHead}${signalHead && signalInterp ? '<br>' : ''}${signalInterp ? `<strong>${fr ? 'Interprétation' : 'Interpretation'}${colon}</strong> ${_esc(signalInterp)}` : ''}</div>`
     : '';
   const actionLabel = fr ? 'Action recommandée' : 'Recommended action';
   const actionBody = scanAction
@@ -4617,7 +4643,7 @@ function _mscDecisionCardHTML(d, live) {
       <div style="flex:1;min-width:0;">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
           <span style="font-weight:700;font-size:var(--fs-sm);color:var(--ink);">${name}</span>
-          ${company ? `<span style="font-size:var(--fs-xs);color:var(--text-secondary);">${_esc(company)}</span>` : ''}${mandateHtml}
+          ${company ? `<span style="font-size:var(--fs-xs);color:var(--text-secondary);">${_esc(company)}</span>` : ''}${sectorHtml}${identityHtml}${mandateHtml}
           ${icpChip}${icpStateChip}${sigBadge}
           ${confidenceHtml}
         </div>
@@ -4653,7 +4679,10 @@ const _MSC_ENTRY_SECTION_TO_CATEGORY = {
 const _MSC_V1_SECTIONS = Object.keys(_MSC_ENTRY_SECTION_TO_CATEGORY);
 // Priorite de dedoublonnage (plus petit = gagne) : propre a chaque client, lue par _mscDedupeDecisions.
 const _MSC_V1_DEDUPE_PRIORITY = { today_action: 0, opportunistic_connection: 1, stream1: 2, pipeline_growth: 3, stakeholder: 4, market_mention: 5 };
-const _MSC_LIVE_COLS = 'id, name, company, stage, icp_score, icp_reason, archived, signal, signal_type, signal_date, signal_url, signal_interpretation, next_action_cache, linkedin';
+// sector/email (affiches par la carte) + company_verified/identity_confidence/identity_verdict (garde d'identite : _scoreReliabilityBadge,
+// badge « contredit ») + hard_criteria_met/score_completeness (lus par _qualificationNote et par le tiroir via _prospectsById, que cette
+// ligne partielle peuple : sans ces colonnes le tiroir perdrait ses indicateurs de fiabilite).
+const _MSC_LIVE_COLS = 'id, name, company, stage, icp_score, icp_reason, archived, signal, signal_type, signal_date, signal_url, signal_interpretation, next_action_cache, linkedin, sector, email, company_verified, identity_confidence, identity_verdict, hard_criteria_met, score_completeness';
 // scan_entries valide (objet v:1, entries tableau, au moins une entree exploitable) -> tableau
 // d'entrees, sinon null : l'appelant retombe alors sur la chaine existante (decisions_json, iframe).
 function _mscValidScanEntries(se) {
@@ -9877,8 +9906,9 @@ async function _bcPersistFromScan(stakeholders, company) {
 function _buildProspectLinks(p) {
   const site = (p.website_url || '').trim();
   const siteHref = site && !/^https?:\/\//i.test(site) ? 'https://' + site : site;
+  const li = _mscSafeUrl(p.linkedin); // http(s) uniquement : un linkedin javascript:/data: ne produit plus de lien
   return [
-    p.linkedin ? { label: 'LinkedIn', href: p.linkedin } : null,
+    li ? { label: 'LinkedIn', href: li } : null,
     p.email ? { label: 'Email', href: 'mailto:' + p.email } : null,
     p.phone ? { label: 'Phone', href: 'tel:' + p.phone } : null,
     siteHref ? { label: 'Company site', href: siteHref } : null,
@@ -10632,7 +10662,7 @@ function _renderCommitteeCards(stakeholders, out, company, sector, icpScore) {
     // place du role habituel, pas de bouton "Add to pipeline" (il y est deja), carte estompee.
     const _contradicted = s.identity_verdict === 'CONTRADICTED';
     const _roleBadgeHtml = _contradicted
-      ? `<span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 8px;border-radius:var(--radius-pill);white-space:nowrap;background:#f1f5f9;color:#64748b">Role not confirmed</span>`
+      ? _contradictedBadgeHTML()
       : `<span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 8px;border-radius:var(--radius-pill);white-space:nowrap;${_roleBg(s.role)}">${_esc(s.role||'Influence')}</span>`;
     const _contradictedNoteHtml = _contradicted
       ? `<div style="font-size:var(--fs-xs);color:#b45309;font-style:italic;">Role not confirmed — last known info may be outdated.</div>`
@@ -15119,6 +15149,11 @@ async function _startEmailSeq(id, requireDraft = true) {
   }
 }
 
+// Badge « role non confirme » d'une fiche dont identity_verdict = CONTRADICTED (fix 14/09) : UNIQUE gabarit, extrait du comite d'achat
+// (_renderCommitteeCards) et reutilise par les cartes Morning Scan. label facultatif (defaut anglais = rendu historique du comite).
+function _contradictedBadgeHTML(label) {
+  return `<span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 8px;border-radius:var(--radius-pill);white-space:nowrap;background:#f1f5f9;color:#64748b">${_esc(label || 'Role not confirmed')}</span>`;
+}
 // Badge compact "fiabilite" a poser a cote d'un score ICP (audit Stephane point 5, 2026-09-11) --
 // memes flags/couleurs que les pastilles textuelles deja existantes (kanban/priority/tiroir),
 // jamais une deuxieme logique de calcul : juste un format compact (icone + tooltip) pour les
@@ -15131,19 +15166,20 @@ async function _startEmailSeq(id, requireDraft = true) {
 // et tournant uniquement sur les nouveaux signaux, jamais retroactivement sur la base existante)
 // et company_verified est null sur 54% -- traiter null comme une alerte flaguerait la quasi-
 // totalite du dashboard, l'inverse de l'effet recherche. Arbitrage explicite de Thomas.
-function _scoreReliabilityBadge(p) {
+// fr (optionnel, defaut anglais = appels existants inchanges) : titres en francais, pour la carte Morning Scan (bilingue).
+function _scoreReliabilityBadge(p, fr) {
   const companyUnconfirmed = p.company_verified === false;
   const identityUnconfirmed = p.identity_confidence === 'low'
     || p.identity_verdict === 'CONTRADICTED' || p.identity_verdict === 'UNVERIFIABLE';
   if (!companyUnconfirmed && !identityUnconfirmed) return null;
-  const identityTitle = p.identity_verdict === 'CONTRADICTED' ? 'Identity contradicted'
-    : p.identity_verdict === 'UNVERIFIABLE' ? 'Identity unverifiable'
-    : 'Identity to verify';
+  const identityTitle = p.identity_verdict === 'CONTRADICTED' ? (fr ? 'Identité contredite' : 'Identity contradicted')
+    : p.identity_verdict === 'UNVERIFIABLE' ? (fr ? 'Identité invérifiable' : 'Identity unverifiable')
+    : (fr ? 'Identité à vérifier' : 'Identity to verify');
   return {
     icon: companyUnconfirmed ? '⚠' : '?',
     both: companyUnconfirmed && identityUnconfirmed,
     color: companyUnconfirmed ? '#b45309' : '#6b7280',
-    title: companyUnconfirmed && identityUnconfirmed ? 'Company & identity unconfirmed' : companyUnconfirmed ? 'Company not confirmed' : identityTitle,
+    title: companyUnconfirmed && identityUnconfirmed ? (fr ? 'Société et identité non confirmées' : 'Company & identity unconfirmed') : companyUnconfirmed ? (fr ? 'Société non confirmée' : 'Company not confirmed') : identityTitle,
   };
 }
 // Signal neutre "pas encore controle" (F01) -- distinct du badge d'alerte ci-dessus : jamais

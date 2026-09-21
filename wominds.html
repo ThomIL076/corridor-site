@@ -2494,6 +2494,10 @@ function _preloadNavBadges() {
 // ecrite par le prompt n8n -- confirme/probable/speculatif) vers un badge colore, en reutilisant
 // les seules variables de couleur deja communes aux 3 dashboards (--green*/--amber*/--chip-bg,
 // confirmees presentes dans les 3 fichiers avant d'ecrire ce code).
+// Etape A (unification Today/Signals, 21/09) : confiance absente ou de valeur inconnue = AUCUN badge (chaine
+// vide) ; l'ancien repli sur « Spéculatif » inventait une confiance pour tout objet qui n'en porte pas (fiche
+// Aujourd'hui, decision sans champ confidence). Cle normalisee par _mscNorm (accents/casse) : « Confirmé »
+// n'est plus rendu « Spéculatif ».
 function _mscConfidenceBadge(confidence) {
   const map = {
     confirme: { bg: 'var(--green-bg)', border: 'var(--green-border)', color: 'var(--green)', label: 'Confirmé' },
@@ -2502,7 +2506,9 @@ function _mscConfidenceBadge(confidence) {
     speculatif: { bg: 'var(--chip-bg)', border: 'var(--border)', color: 'var(--muted)', label: 'Spéculatif' },
     speculative: { bg: 'var(--chip-bg)', border: 'var(--border)', color: 'var(--muted)', label: 'Spéculatif' },
   };
-  const c = map[(confidence || '').toLowerCase()] || map.speculatif;
+  const key = typeof confidence === 'string' ? _mscNorm(confidence) : '';
+  if (!Object.prototype.hasOwnProperty.call(map, key)) return '';
+  const c = map[key];
   return `<span style="display:inline-block;font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;padding:2px 8px;border-radius:999px;background:${c.bg};border:1px solid ${c.border};color:${c.color};white-space:nowrap;">${c.label}</span>`;
 }
 function _mscInitials(name) {
@@ -2521,7 +2527,7 @@ function _mscNorm(s) {
 const _MSC_PRIORITY_HEADINGS = {
   [_mscNorm('Priorite du jour')]: 'all',
 };
-const _MSC_CANONICAL_HEADING = { all: 'Priorite du jour' };
+const _MSC_CANONICAL_HEADING = { all: 'Priorité du jour' };
 // Fix 2026-09-20 (chantier market_mention, Wominds -- meme mecanisme que Corridor, demande Thomas).
 // Seule "Signaux du jour" est eligible (placement tranche par Thomas). Contrairement a Corridor, ou
 // la section est ENTIEREMENT remplacee par des cartes, "Signaux du jour" garde ici sa prose macro
@@ -2917,6 +2923,33 @@ function _mscIcpStateChipHTML(state) {
   const tip = (typeof currentLang === 'undefined' || currentLang === 'fr') ? _MSC_ICP_STATE_TIP : _MSC_ICP_STATE_TIP_EN;
   return `<span title="${_esc(tip)}" style="display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;${tone}white-space:normal;max-width:100%;box-sizing:border-box;">${_esc(state.label)}</span>`;
 }
+// Garde d'identite / fiabilite de la carte (etape A, unification Today/Signals, decision Thomas 21/09 : NON
+// NEGOCIABLE -- une fiche CONTRADICTED doit etre explicitement visible partout ou une carte est affichee, la
+// personne qui approuve doit voir l'identite). Regle UNIQUE = _scoreReliabilityBadge (company_verified === false,
+// identity_confidence 'low', identity_verdict CONTRADICTED/UNVERIFIABLE), jamais recalculee ici : memes libelles,
+// meme icone. Pastille : danger pour CONTRADICTED, ambre pour entreprise non confirmee, neutre sinon. Le titre
+// combine de _scoreReliabilityBadge (entreprise ET identite non confirmees) masquerait « contredite » : pour un
+// verdict CONTRADICTED le mot reste toujours nomme. Rien si aucune donnee d'identite (ligne sans ces colonnes,
+// personne pas en base, fiche fiable).
+function _mscReliabilityChipHTML(row) {
+  const rel = row ? _scoreReliabilityBadge(row) : null;
+  if (!rel) return '';
+  const contradicted = row.identity_verdict === 'CONTRADICTED';
+  const label = contradicted && rel.both ? 'Identité contredite · entreprise non confirmée' : rel.title;
+  const tone = contradicted
+    ? 'background:var(--danger-bg);border:1px solid var(--danger-border);color:var(--danger);font-weight:700;'
+    : row.company_verified === false
+      ? 'background:var(--amber-bg);border:1px solid var(--amber-border);color:var(--amber);font-weight:600;'
+      : 'background:var(--chip-bg);border:1px solid var(--border);color:var(--muted);font-weight:600;';
+  return `<span style="display:inline-block;font-size:var(--fs-micro);padding:2px 8px;border-radius:999px;${tone}white-space:normal;max-width:100%;box-sizing:border-box;">${contradicted ? '⚠' : rel.icon} ${_esc(label)}</span>`;
+}
+// Adresse email affichable en lien mailto: : forme simple ASCII uniquement (aucun espace, guillemet, chevron,
+// virgule, point d'interrogation ni « ? » de parametres type ?bcc=), 254 caracteres max. Sinon '' (pas de lien).
+function _mscSafeEmail(e) {
+  if (typeof e !== 'string') return '';
+  const t = e.trim();
+  return t.length <= 254 && /^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$/.test(t) ? t : '';
+}
 // Une carte par entree de decisions_json (ou de scan_entries v1, d._scanEntry), enrichie en live
 // (icp_score/icp_reason/signal/signal_interpretation/next_action_cache, id present uniquement) quand
 // la fiche prospect a pu etre chargee. Wominds n'a pas source_url/headcount dans son schema DECISIONS
@@ -2933,6 +2966,13 @@ function _mscDecisionCardHTML(d, live) {
   const pid = _mscSafeId(d.id);
   const name = _esc((live && live.name) || d.name || 'Personne inconnue');
   const company = (live && live.company) || d.company || '';
+  // Fiche d'ou viennent secteur, email et garde d'identite (etape A) : la fiche live quand la carte en recoit
+  // une, sinon la fiche mise en cache par _mscFetchLiveProspects (repli decisions_json : les cartes « Personnes
+  // vues sur le marche » n'y recoivent pas de live, mais une personne deja en base doit montrer son identite).
+  const ref = live || (pid && typeof _prospectsById !== 'undefined' ? _prospectsById[pid] : null) || null;
+  const sector = ref && typeof ref.sector === 'string' ? ref.sector.trim() : '';
+  const email = ref ? _mscSafeEmail(ref.email) : '';
+  const companyLine = [company, sector].filter(Boolean).join(' · ');
   const icpScore = live && live.icp_score != null ? live.icp_score : null;
   const cleanText = s => String(s).replace(/<[^>]*>/g, '').trim();
   const signalSrc = (live && live.signal) || (isEntry && d.signal && d.signal.text) || '';
@@ -2953,6 +2993,7 @@ function _mscDecisionCardHTML(d, live) {
   const source = _mscResolveSource(d, live);
   if (linkedinUrl) links.push(`<a href="${_esc(linkedinUrl)}" target="_blank" rel="noopener" style="color:var(--fill-accent);text-decoration:none;font-weight:600;white-space:nowrap;">LinkedIn</a>`);
   if (source) links.push(`<a href="${_esc(source.url)}" target="_blank" rel="noopener" style="color:var(--fill-accent);text-decoration:none;font-weight:600;min-width:0;word-break:normal;overflow-wrap:break-word;">${_esc(source.label)}</a>`);
+  if (email) links.push(`<a href="mailto:${_esc(email)}" style="color:var(--fill-accent);text-decoration:none;font-weight:600;min-width:0;overflow-wrap:anywhere;">${_esc(email)}</a>`);
   const linksHtml = links.length ? `<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px 12px;font-size:var(--fs-xs);">${links.join('')}</div>` : '';
 
   const structured = isEntry && (d.facts || d.action);
@@ -2962,7 +3003,8 @@ function _mscDecisionCardHTML(d, live) {
     : '';
   const mandateHtml = isEntry && d.mandate ? `<span style="font-size:var(--fs-xs);color:var(--muted);">Mandat : ${_esc(d.mandate)}</span>` : '';
   const sigBadge = isEntry && typeof _sigBadge === 'function' ? _sigBadge((d.signal && d.signal.type) || (live && live.signal_type) || '') : '';
-  const confidenceHtml = !isEntry || d.confidence ? _mscConfidenceBadge(d.confidence) : '';
+  const confidenceHtml = _mscConfidenceBadge(d.confidence);
+  const reliabilityChip = _mscReliabilityChipHTML(ref);
   const icpStateChip = _mscIcpStateChipHTML(_mscIcpState(d, live));
   // Infobulle uniquement quand une fiche live existe (icpScore != null n'est possible que dans ce
   // cas) ; carte sans enrichissement (id null) = ni badge ni infobulle, rien a montrer.
@@ -2987,8 +3029,8 @@ function _mscDecisionCardHTML(d, live) {
       <div style="flex:1;min-width:0;">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
           <span style="font-weight:700;font-size:var(--fs-sm);color:var(--ink);">${name}</span>
-          ${company ? `<span style="font-size:var(--fs-xs);color:var(--muted);">${_esc(company)}</span>` : ''}${mandateHtml}
-          ${icpChip}${icpStateChip}${sigBadge}
+          ${companyLine ? `<span style="font-size:var(--fs-xs);color:var(--muted);">${_esc(companyLine)}</span>` : ''}${mandateHtml}
+          ${reliabilityChip}${icpChip}${icpStateChip}${sigBadge}
           ${confidenceHtml}
         </div>
         ${factsBlock}${summary}
@@ -3002,7 +3044,9 @@ function _mscDecisionCardHTML(d, live) {
 // prospects_scan_window -- et jamais une requete par carte) -- partage par le rendu scan_entries v1 et par la
 // chaine de repli decisions_json (fonction commune avec demo-private.html et kaizenology.html, 21/09).
 // archived n'est PAS filtre : une fiche archivee depuis le scan doit rester visible avec son etat.
-const _MSC_LIVE_COLS = 'id, name, company, stage, icp_score, icp_reason, archived, signal, signal_type, signal_date, signal_url, signal_interpretation, next_action_cache, linkedin';
+// Etape A (unification Today/Signals, 21/09) : + sector, email (lignes de la carte) et company_verified,
+// identity_confidence, identity_verdict (garde d'identite, lue par _scoreReliabilityBadge via _mscReliabilityChipHTML).
+const _MSC_LIVE_COLS = 'id, name, company, stage, icp_score, icp_reason, archived, signal, signal_type, signal_date, signal_url, signal_interpretation, next_action_cache, linkedin, sector, email, company_verified, identity_confidence, identity_verdict';
 async function _mscFetchLiveProspects(ids) {
   const liveById = {};
   if (!ids.length) return liveById;
