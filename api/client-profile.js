@@ -1,9 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SECRET_KEY
-);
+import { resolveClient } from './_auth.js';
 
 // Fix securite 2026-09-11 (point 2 de l'audit demo-private.html) : loadClientProfile() faisait
 // jusqu'ici un select direct Supabase DEPUIS LE NAVIGATEUR incluant ces 6 colonnes -- le plaintext
@@ -21,8 +16,12 @@ const SECRET_FIELDS = [
   'slack_webhook_url',
 ];
 
+// Fix securite 2026-09-21 (lot 3) : la verification du jeton passe par le helper commun api/_auth.js (getUser + ligne clients
+// obligatoire). Avant, un compte Supabase valide SANS ligne clients (inscription publique eventuelle) passait l'etape
+// d'authentification et recevait un 404 ; il recoit maintenant 401 comme tout appelant non reconnu. client_id est ajoute
+// par le helper : il n'est pas repete ici.
 const SELECT_FIELDS = [
-  'client_id', 'contact_name', 'company_name', 'display_name', 'avatar_url', 'sender_bio',
+  'contact_name', 'company_name', 'display_name', 'avatar_url', 'sender_bio',
   'owner_inbox_email', 'email_campaign_id', 'messaging_playbook',
   'hubspot_api_key', 'hubspot_stage_mapping', 'hubspot_last_sync',
   'salesforce_enabled', 'salesforce_client_id', 'salesforce_client_secret', 'salesforce_username',
@@ -37,22 +36,8 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
-  const auth = req.headers['authorization'] || '';
-  const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
-  if (!token) return res.status(401).json({ error: 'Unauthorized' });
-
-  const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
-  if (authErr || !user) return res.status(401).json({ error: 'Unauthorized' });
-
-  const { data, error } = await supabase
-    .from('clients')
-    .select(SELECT_FIELDS)
-    .eq('auth_user_id', user.id)
-    .single();
-
-  if (error || !data) {
-    return res.status(404).json({ error: error?.message || 'Profile not found' });
-  }
+  const data = await resolveClient(req, SELECT_FIELDS);
+  if (!data) return res.status(401).json({ error: 'Unauthorized' });
 
   for (const field of SECRET_FIELDS) {
     data[field + '_configured'] = !!data[field];

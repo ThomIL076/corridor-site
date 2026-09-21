@@ -1,4 +1,22 @@
+import { resolveClient } from './_auth.js';
+
 export const config = { runtime: 'edge' };
+
+// Fix securite 2026-09-21 (lot 3) : sans sfCredentials, cette route retombait sur les variables SALESFORCE_* de Thomas
+// pour n'importe quel appelant anonyme, et laissait l'appelant choisir l'hote (instanceUrl) vers lequel le jeton
+// Salesforce est ensuite envoye. Desormais : jeton de session Supabase + client resolu (helper commun api/_auth.js)
+// AVANT tout appel sortant ; les identifiants du corps (sfCredentials : le client teste SES propres identifiants)
+// restent acceptes ; le repli sur les variables SALESFORCE_* est reserve au client authentifie « thomas » (les autres
+// clients sans sfCredentials recoivent 403) ; instanceUrl du corps doit etre en https sur un domaine Salesforce.
+const ENV_CREDENTIALS_CLIENTS = ['thomas'];
+function isSalesforceInstanceUrl(u) {
+  if (typeof u !== 'string' || u.length > 200) return false;
+  let p;
+  try { p = new URL(u); } catch (e) { return false; }
+  const h = p.hostname.toLowerCase();
+  return p.protocol === 'https:' && p.port === '' && p.username === '' && p.password === ''
+    && (h.endsWith('.salesforce.com') || h.endsWith('.force.com'));
+}
 
 /**
  * /api/salesforce.js
@@ -81,13 +99,21 @@ export default async function handler(req) {
       headers: {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
       }
     });
   }
 
   if (req.method !== 'POST') {
     return new Response('Method not allowed', { status: 405 });
+  }
+
+  const client = await resolveClient(req);
+  if (!client) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+    });
   }
 
   let body;
@@ -99,7 +125,19 @@ export default async function handler(req) {
 
   const { action, sfCredentials, prospect, stageMap, salesforceContactId, salesforceOpportunityId } = body;
 
-  // Credentials : body (client) ou env vars (Corridor)
+  // Credentials : body (client) ou env vars (Corridor, reservees au client « thomas »)
+  if (!sfCredentials && !ENV_CREDENTIALS_CLIENTS.includes(client.client_id)) {
+    return new Response(JSON.stringify({ error: 'Salesforce credentials required' }), {
+      status: 403,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+    });
+  }
+  if (sfCredentials && sfCredentials.instanceUrl && !isSalesforceInstanceUrl(sfCredentials.instanceUrl)) {
+    return new Response(JSON.stringify({ error: 'Invalid Salesforce instance URL' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+    });
+  }
   const creds = sfCredentials || {
     clientId:     process.env.SALESFORCE_CLIENT_ID,
     clientSecret: process.env.SALESFORCE_CLIENT_SECRET,

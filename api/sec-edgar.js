@@ -2,7 +2,15 @@
 // This endpoint is called once per Morning Scan run — never in a loop.
 // If future usage adds batch calls, add a queue or delay between requests.
 
+// Fix securite 2026-09-21 (lot 3, OPTIONNEL -- decision Thomas, voir rapport) : cette route relayait vers la SEC avec le
+// User-Agent de Thomas pour n'importe quel appelant anonyme (quota de politesse SEC consomme par des tiers, identite
+// de Corridor exposee comme relais). Desormais : jeton de session Supabase + client resolu (helper commun api/_auth.js).
+import { resolveClientId } from './_auth.js';
+
 export default async function handler(req, res) {
+  const clientId = await resolveClientId(req);
+  if (!clientId) return res.status(401).json({ error: 'Unauthorized' });
+
   const {
     q,
     forms = '13F-HR,SC 13D,SC 13G,8-K',

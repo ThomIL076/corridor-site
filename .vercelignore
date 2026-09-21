@@ -1,0 +1,21 @@
+# Fichiers internes (documentation, outillage, scripts, configuration) : ne doivent pas etre servis publiquement sur corridor.systems.
+# Verifie par recherche dans les pages, api/*, middleware.js, sw.js, vercel.json et package.json : aucun ne les charge ; seules des mentions en commentaires existent.
+# Ne JAMAIS exclure ici : api/, middleware.js, package.json, package-lock.json, vercel.json, sw.js, assets/, logos/, legal/, manifests, icones, pages *.html du site.
+/corridor_config.js
+/CLAUDE.md
+/DESIGN.md
+/PRODUCT.md
+/deploy.sh
+/smoke-tests-corridor.sh
+/test-rls-adversarial.sh
+/drift-report.txt
+/supabase_clients_trial.sql
+/call-notes-test.json
+/dedupe_prospects.js
+/inject-p2.js
+/skills-lock.json
+/scripts/
+/.githooks/
+/.impeccable/
+/.codex/
+/*.mjs

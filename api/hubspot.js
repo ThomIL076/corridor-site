@@ -1,10 +1,24 @@
+import { resolveClient } from './_auth.js';
+
 export const config = { runtime: 'edge' };
+
+// Fix securite 2026-09-21 (lot 3) : cette route relayait vers HubSpot avec la cle fournie par l'appelant, sans aucune
+// authentification (relais ouvert : n'importe qui pouvait s'en servir pour tester ou utiliser des cles HubSpot depuis
+// l'infrastructure de Corridor). Desormais : jeton de session Supabase + client resolu (helper commun api/_auth.js)
+// AVANT tout appel sortant. La cle reste celle du client (saisie dans son dashboard), jamais stockee ici.
 
 const JSON_HEADERS = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' };
 
 export default async function handler(req) {
   if (req.method !== 'POST') {
     return new Response('Method not allowed', { status: 405 });
+  }
+
+  const client = await resolveClient(req);
+  if (!client) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401, headers: JSON_HEADERS
+    });
   }
 
   const body = await req.json();

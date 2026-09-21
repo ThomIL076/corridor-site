@@ -11,14 +11,18 @@
 // vers l'infrastructure interne. Ajouter une ligne dans ACTIONS ci-dessous suffit --
 // ne jamais laisser le client fournir le chemin amont lui-meme.
 
-import { createClient } from '@supabase/supabase-js';
+import { resolveClient, supabase } from './_auth.js';
 
 export const config = { runtime: 'edge' };
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SECRET_KEY
-);
+// Fix securite 2026-09-21 (lot 3) : discovery-call-brief-send et call-briefing etaient relayes SANS authentification (call-briefing
+// est RETIRE : aucun workflow n'ecoute ce webhook, l'action est inconnue -> 400 sans appel sortant),
+// en transmettant tel quel le x-webhook-secret fourni par le navigateur (secret en dur dans les pages publiques ; le
+// workflow amont envoie un email depuis le Gmail de Thomas vers un destinataire libre). Desormais : jeton de session
+// Supabase + client resolu (helper commun api/_auth.js) pour TOUTES les actions, AVANT tout appel sortant ; le secret
+// du webhook est lu dans la variable d'environnement Vercel DISCOVERY_BRIEF_SECRET (jamais fourni par le client : tout
+// en-tete x-webhook-secret entrant est ignore) ; le destinataire est celui du client authentifie (owner_inbox_email,
+// repli par client identique aux pages) -- une valeur "to" du corps n'est acceptee que si elle lui est identique.
 
 // Base amont -- variable d'environnement Vercel de preference (WORKFLOW_UPSTREAM_BASE),
 // avec repli sur la valeur actuelle pour que ca fonctionne meme sans configuration
@@ -30,20 +34,23 @@ const UPSTREAM_BASE = process.env.WORKFLOW_UPSTREAM_BASE || 'https://thom076il.a
 // connu a l'avance. Le client ne peut jamais choisir le chemin amont lui-meme.
 const ACTIONS = {
   'icp-score-batch': '/webhook/icp-score-batch',
-  'discovery-call-brief-send': '/webhook/discovery-call-brief-send',
-  'call-briefing': '/webhook/call-briefing'
+  'discovery-call-brief-send': '/webhook/discovery-call-brief-send'
 };
 
-async function resolveClientId(token) {
-  const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
-  if (authErr || !user) return null;
-  const { data, error: clErr } = await supabase
-    .from('clients')
-    .select('client_id')
-    .eq('auth_user_id', user.id)
-    .single();
-  if (clErr || !data?.client_id) return null;
-  return data.client_id;
+// Repli du destinataire du brief quand clients.owner_inbox_email est vide : memes constantes que _ownerInboxEmail() des
+// dashboards (une seule adresse par client, jamais une adresse choisie par l'appelant).
+const FALLBACK_OWNER_EMAIL_BY_CLIENT = {
+  thomas: 'thomas@corridor.systems',
+  kaizenology: 'hello@stephanerogovsky.com',
+  'yellowwood-demo': 'eric@yellowwood.com',
+  'lka-demo': 'wael@lka.com',
+  'phci-demo': 'thomas@corridor.systems'
+};
+const MAX_BODY_CHARS = 200000;
+const MAX_SUBJECT_CHARS = 300;
+
+function jsonResponse(obj, status) {
+  return new Response(JSON.stringify(obj), { status, headers: { 'Content-Type': 'application/json' } });
 }
 
 export default async function handler(req) {
@@ -65,34 +72,24 @@ export default async function handler(req) {
     });
   }
 
+  // Authentification obligatoire pour TOUTES les actions, avant toute lecture du corps et tout appel sortant.
+  const client = await resolveClient(req, 'owner_inbox_email');
+  if (!client) return jsonResponse({ error: 'Unauthorized' }, 401);
+  const resolvedClientId = client.client_id;
+
   let body = '';
   try {
     body = await req.text();
   } catch (e) {
     body = '';
   }
+  if (body.length > MAX_BODY_CHARS) return jsonResponse({ error: 'Payload too large' }, 413);
 
-  // icp-score-batch : auth Supabase obligatoire + verification d'appartenance des prospects
+  // icp-score-batch : verification d'appartenance des prospects
   let forwardBody = body;
   let serverSecret = null;
 
   if (action === 'icp-score-batch') {
-    const auth = req.headers.get('authorization') || '';
-    const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
-    if (!token) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { 'Content-Type': 'application/json' }
-      });
-    }
-    const resolvedClientId = await resolveClientId(token);
-    if (!resolvedClientId) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { 'Content-Type': 'application/json' }
-      });
-    }
-
     let parsed;
     try { parsed = JSON.parse(body); } catch (e) {
       return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
@@ -128,16 +125,34 @@ export default async function handler(req) {
     serverSecret = process.env.ICP_SCORE_BATCH_SECRET || null;
   }
 
-  // Construction des headers amont.
-  // Pour icp-score-batch : secret lu depuis env serveur, jamais depuis le client.
-  // Pour les autres actions : comportement historique (pass-through du secret client).
-  const forwardedHeaders = { 'Content-Type': req.headers.get('Content-Type') || 'application/json' };
-  if (action === 'icp-score-batch') {
-    if (serverSecret) forwardedHeaders['x-webhook-secret'] = serverSecret;
-  } else {
-    const webhookSecret = req.headers.get('x-webhook-secret');
-    if (webhookSecret) forwardedHeaders['x-webhook-secret'] = webhookSecret;
+  // discovery-call-brief-send : le workflow amont envoie un email reel depuis le Gmail de Thomas. Le secret vient de
+  // l'environnement serveur (jamais du client), le destinataire du client authentifie, et seules les cles to / subject /
+  // html sont relayees. Sans secret configure : arret net, aucun appel sortant.
+  if (action === 'discovery-call-brief-send') {
+    let parsed;
+    try { parsed = JSON.parse(body); } catch (e) {
+      return jsonResponse({ error: 'Invalid JSON body' }, 400);
+    }
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return jsonResponse({ error: 'Invalid JSON body' }, 400);
+    }
+    const recipient = String(client.owner_inbox_email || FALLBACK_OWNER_EMAIL_BY_CLIENT[resolvedClientId] || '').trim();
+    if (!recipient) return jsonResponse({ error: 'No recipient configured for this client' }, 400);
+    const requestedTo = (parsed.to === undefined || parsed.to === null || parsed.to === '') ? '' : String(parsed.to).trim();
+    if (requestedTo && requestedTo.toLowerCase() !== recipient.toLowerCase()) {
+      return jsonResponse({ error: 'Recipient not allowed' }, 403);
+    }
+    if (typeof parsed.html !== 'string' || !parsed.html.trim()) return jsonResponse({ error: 'html required' }, 400);
+    const subject = typeof parsed.subject === 'string' ? parsed.subject.slice(0, MAX_SUBJECT_CHARS) : '';
+    serverSecret = process.env.DISCOVERY_BRIEF_SECRET || null;
+    if (!serverSecret) return jsonResponse({ error: 'Not configured' }, 503);
+    forwardBody = JSON.stringify({ to: recipient, subject, html: parsed.html });
   }
+
+  // Construction des headers amont : le x-webhook-secret est TOUJOURS celui de l'environnement serveur.
+  // Un en-tete x-webhook-secret envoye par le client n'est jamais relaye.
+  const forwardedHeaders = { 'Content-Type': req.headers.get('Content-Type') || 'application/json' };
+  if (serverSecret) forwardedHeaders['x-webhook-secret'] = serverSecret;
 
   let upstreamRes;
   try {

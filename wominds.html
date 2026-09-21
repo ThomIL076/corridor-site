@@ -3438,7 +3438,7 @@ async function _submitSignalFeedback(btn, vote, idx, stableKey) {
   const item = (window._feedItemsById || {})[idx] || {};
   const source = item.type === 'live' ? 'dashboard_live_signal' : 'dashboard_morning_scan';
   try {
-    const resp = await fetch('/api/signal-feedback', {
+    const resp = await _authFetch('/api/signal-feedback', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         prospect_id: item.prospectId || null, client_id: CLIENT_ID, mandate_id: null,
@@ -3472,7 +3472,7 @@ function _sendSignalComment(root) {
   const btn = root.querySelector('button');
   if (btn) { btn.disabled = true; btn.textContent = '…'; }
   if (ta) ta.disabled = true;
-  fetch('/api/signal-feedback', {
+  _authFetch('/api/signal-feedback', {
     method: 'PATCH', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ id: fbId, client_id: CLIENT_ID, comment }),
   }).then(r => r.json()).then(json => {

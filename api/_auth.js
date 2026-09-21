@@ -4,9 +4,13 @@
 // Fonctionne pour les routes Node (req.headers = objet) et Edge (req.headers = Headers, .get()).
 import { createClient } from '@supabase/supabase-js';
 
+// Cle service_role : la variable historique de TOUTES les routes est SUPABASE_SECRET_KEY, mais le projet Vercel
+// expose aussi SUPABASE_SERVICE_ROLE_KEY (la route client-profile a leve "supabaseKey is required" en production
+// quand seule cette derniere existait). Les deux noms sont acceptes ici, une seule fois, pour toutes les routes
+// qui passent par ce helper. L'URL du projet est publique (deja en dur dans les pages) : repli identique.
 export const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SECRET_KEY
+  process.env.SUPABASE_URL || 'https://oanokmugroiahtgcecbn.supabase.co',
+  process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
 function bearerToken(req) {

@@ -4,12 +4,9 @@
 // depuis le navigateur. Relaie last_success_at/expected_interval_minutes pour un workflow_name
 // exact, meme mecanisme que /api/client-profile (auth Bearer + service_role cote serveur).
 
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SECRET_KEY
-);
+// Fix securite 2026-09-21 (lot 3) : la verification du jeton passe par le helper commun api/_auth.js (getUser + ligne clients
+// obligatoire) : un compte Supabase valide SANS ligne clients recoit 401 au lieu de lire workflow_health.
+import { resolveClientId, supabase } from './_auth.js';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -17,12 +14,8 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
-  const auth = req.headers['authorization'] || '';
-  const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
-  if (!token) return res.status(401).json({ error: 'Unauthorized' });
-
-  const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
-  if (authErr || !user) return res.status(401).json({ error: 'Unauthorized' });
+  const clientId = await resolveClientId(req);
+  if (!clientId) return res.status(401).json({ error: 'Unauthorized' });
 
   const workflowName = (req.query.workflow_name || '').toString().trim();
   if (!workflowName) return res.status(400).json({ error: 'workflow_name is required' });
