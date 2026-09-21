@@ -832,9 +832,12 @@ button, [role="button"], select, input { min-height: 28px; }
      le flex proportionnel est pose en style inline par le JS, plus specifique qu'une regle de
      feuille de style normale) -- l'alignement colonne/segment n'est plus garanti a cette largeur,
      compromis accepte puisqu'il etait deja illisible pour les petites etapes de toute facon. */
+/* Mobile (<=480px), legende en grille 2 colonnes : une cellule par etape, etiquette a gauche / nombre a droite (le separateur " · " du desktop est masque). */
 @media (max-width: 480px) {
-  .pipe-funnel-legend { flex-wrap: wrap; row-gap: 3px; }
-  .pipe-funnel-leg-item { flex: 0 1 auto !important; width: auto !important; overflow: visible; text-overflow: clip; font-size: 9.5px; padding: 0 3px; }
+  .pipe-funnel-legend { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .pipe-funnel-leg-item { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 8px; min-width: 0; padding: 6px 10px; text-align: left; overflow: visible; text-overflow: clip; font-size: var(--fs-micro); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--chip-bg); }
+  .pfl-sep { display: none; }
+  .pfl-num { margin-left: auto; font-weight: 600; color: var(--ink); }
 }
 .k-col-dot { width:7px; height:7px; border-radius:2px; display:inline-block; margin-right:6px; flex-shrink:0; vertical-align:middle; }
 
@@ -4263,15 +4266,141 @@ function _mscParagraphHTML(text, linksByText) {
   if (!links || !links.length) return _esc(text);
   let out = '';
   let pos = 0;
-  for (const l of links) {
+  for (const s of _mscLinkSpans(text, links)) {
+    out += _esc(text.slice(pos, s.a))
+      + `<a href="${_esc(s.href)}" target="_blank" rel="noopener noreferrer" style="color:var(--accent);text-decoration:underline;">${_esc(s.t)}</a>`;
+    pos = s.b;
+  }
+  return out + _esc(text.slice(pos));
+}
+// Position de chaque lien http(s) dans le texte d'un paragraphe : recherche sequentielle par TEXTE de lien (un lien dont le
+// texte n'est pas retrouve, ou dont l'href n'est pas http(s), est ecarte). Source unique partagee par _mscParagraphHTML et
+// par le decoupage de lecture (_mscProseHTML), pour que le decoupage ne puisse jamais lier un autre passage que l'original.
+function _mscLinkSpans(text, links) {
+  const out = [];
+  let pos = 0;
+  for (const l of (links || [])) {
     const href = _mscSafeUrl(l && l.href);
     const i = href && l.t ? text.indexOf(l.t, pos) : -1;
     if (i < 0) continue;
-    out += _esc(text.slice(pos, i))
-      + `<a href="${_esc(href)}" target="_blank" rel="noopener noreferrer" style="color:var(--accent);text-decoration:underline;">${_esc(l.t)}</a>`;
+    out.push({ a: i, b: i + l.t.length, href, t: l.t });
     pos = i + l.t.length;
   }
-  return out + _esc(text.slice(pos));
+  return out;
+}
+// ── Mise en forme de lecture de la prose narrative du digest (2026-09-21, demande Thomas) ──
+// Le texte d'une section narrative (« Ce qui a change depuis hier », « Ce que Corridor a pris en charge », « Stream N »,
+// « Etat de couverture »...) arrive en UN paragraphe long (un <p> de plusieurs phrases, retours a la ligne deja aplatis par
+// _mscParseEmailSections). Rendu = memes mots, decoupes en phrases (une ligne par phrase) et, quand la phrase contient deja une
+// enumeration explicite, en petite liste a puces. Deterministe et CONSERVATEUR : au moindre doute (parentheses/guillemets
+// desequilibres, abreviation, initiale, sigle pointe, decimal, URL, coupure au milieu d'un lien) on ne coupe pas ; un paragraphe
+// sans coupure sort en HTML identique a l'ancien rendu. Le texte reste indexe par le paragraphe d'origine (linksByText), chaque
+// fragment ne recoit que les liens qu'il contient en entier (_mscLinkSpans) ; tout passe par _esc via _mscParagraphHTML.
+const _MSC_PROSE_ABBR = new Set(['m', 'mm', 'mme', 'mmes', 'mlle', 'mlles', 'mr', 'mrs', 'ms', 'dr', 'pr', 'prof', 'me', 'st', 'ste', 'sté', 'jr', 'sr', 'inc', 'ltd', 'llc', 'co', 'corp', 'cie', 'etc', 'cf', 'env', 'vs', 'no', 'nos', 'av', 'apr', 'réf', 'ref', 'fig', 'ex', 'resp', 'approx', 'tél', 'tel', 'janv', 'févr', 'fevr', 'avr', 'juil', 'sept', 'oct', 'nov', 'déc', 'dec']);
+// Niveau d'imbrication avant chaque caractere ( ), [ ], « », “ ” et guillemets droits (par parite) ; null si desequilibre.
+function _mscProseLevels(text) {
+  const lv = new Array(text.length + 1);
+  let d = 0, q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (c === '(' || c === '[' || c === '«' || c === '“') d++;
+    lv[i] = d + (q ? 1 : 0);
+    if (c === '"') q = !q;
+    else if ((c === ')' || c === ']' || c === '»' || c === '”') && d > 0) d--;
+  }
+  lv[text.length] = d + (q ? 1 : 0);
+  return d === 0 && !q ? lv : null;
+}
+// Coupures de phrases [fin, debut suivant] : « . ! ? » suivi d'un espace puis d'une majuscule, hors parentheses/guillemets,
+// hors abreviation connue (M., etc., cf., Inc....), initiale seule, sigle pointe (U.S., p.ex.), URL/domaine (point interne),
+// numerotation (« 1. ») et points de suspension ; jamais a l'interieur d'un texte de lien.
+function _mscProseCuts(text, lv, spans) {
+  const inLink = p => spans.some(x => x.a < p && p < x.b);
+  const cuts = [];
+  const re = /[.!?]\s+(?=\p{Lu})/gu;
+  let m;
+  while ((m = re.exec(text))) {
+    const i = m.index, end = i + 1, next = i + m[0].length;
+    if (lv[i] !== 0) continue;
+    if (text[i] === '.') {
+      if (text[i - 1] === '.') continue;
+      const w = text.slice(0, i).split(/\s/).pop().replace(/^[^\p{L}\p{N}]+/u, '');
+      if (w.includes('.') || /^\p{L}$/u.test(w) || /^\d{1,2}$/.test(w) || _MSC_PROSE_ABBR.has(w.toLowerCase())) continue;
+    }
+    if (inLink(end) || inLink(next)) continue;
+    cuts.push([end, next]);
+  }
+  return cuts;
+}
+// Enumeration explicite dans la phrase [s, e[ : « Intro : a ; b ; c » (points-virgules de premier niveau) ou
+// « [Intro : ] 8 x, 3 y (...), 5 z (...) » (TOUTES les virgules de premier niveau precedent un nombre : au moins 2 elements apres une intro, 3 sans).
+// Renvoie { lead: [a, b] | null, items: [[a, b], ...] } (bornes dans le texte d'origine) ou null (doute -> pas de liste).
+function _mscProseList(text, s, e, lv, spans) {
+  const inLink = p => spans.some(x => x.a < p && p < x.b);
+  const isWs = i => i >= 0 && i < text.length && /\s/.test(text[i]);
+  const skipWs = i => { while (i < e && isWs(i)) i++; return i; };
+  const trimEnd = i => { while (i > s && isWs(i - 1)) i--; return i; };
+  let end = e;
+  if (text[end - 1] === '.' && text[end - 2] !== '.' && !inLink(end - 1)) end--;
+  let lead = null, from = s;
+  for (let i = s; i < end - 1; i++) {
+    if (text[i] === ':' && lv[i] === 0 && isWs(i + 1)) { lead = [s, i + 1]; from = skipWs(i + 1); break; }
+  }
+  if (lead && (inLink(lead[1]) || inLink(from))) return null;
+  const semi = [], comma = [];
+  let commaAny = 0;
+  for (let i = from; i < end; i++) {
+    if (lv[i] !== 0) continue;
+    if (text[i] === ';' && isWs(i + 1)) semi.push(i);
+    else if (text[i] === ',' && isWs(i + 1)) { commaAny++; if (/\d/.test(text[skipWs(i + 1)] || '')) comma.push(i); }
+  }
+  let seps = null;
+  if (lead && semi.length >= 1) seps = semi;
+  else if (comma.length === commaAny && comma.length >= (lead ? 1 : 2) && /\d/.test(text[from] || '')) seps = comma;
+  if (!seps) return null;
+  const items = [];
+  let a = from;
+  for (const p of seps) {
+    const b = trimEnd(p), nextA = skipWs(p + 1);
+    if (inLink(b) || inLink(nextA)) return null;
+    items.push([a, b]);
+    a = nextA;
+  }
+  items.push([a, trimEnd(end)]);
+  if (items.some(([x, y]) => y - x < 4 || !/\p{L}/u.test(text.slice(x, y)))) return null;
+  return { lead, items };
+}
+// Blocs de lecture d'un paragraphe : [{ s, e }] (phrase) ou [{ list }] ; null = rien a mettre en forme (ancien rendu inchange).
+function _mscProseBlocks(text, spans) {
+  if (typeof text !== 'string' || text !== text.trim() || text.length < 2) return null;
+  const lv = _mscProseLevels(text);
+  if (!lv) return null;
+  const sents = [];
+  let st = 0;
+  for (const [f, n] of _mscProseCuts(text, lv, spans)) { sents.push([st, f]); st = n; }
+  sents.push([st, text.length]);
+  const blocks = sents.map(([s, e]) => { const list = _mscProseList(text, s, e, lv, spans); return list ? { list } : { s, e }; });
+  return blocks.length === 1 && !blocks[0].list ? null : blocks;
+}
+// Paragraphe narratif -> HTML de lecture. Sans coupure : exactement l'ancien HTML (<div marge 4px>). Avec coupures : un bloc
+// (marge 10px) contenant une ligne par phrase et, pour une enumeration, l'intro puis une <ul> (les separateurs « , » / « ; » de
+// l'enumeration sont remplaces par les puces, le point final de la phrase n'est pas repete sur la derniere puce).
+function _mscProseHTML(text, linksByText) {
+  const plain = () => `<div style="margin-bottom:4px;">${_mscParagraphHTML(text, linksByText)}</div>`;
+  const links = linksByText && typeof linksByText.get === 'function' ? linksByText.get(text) : null;
+  const spans = _mscLinkSpans(text, links);
+  const blocks = _mscProseBlocks(text, spans);
+  if (!blocks) return plain();
+  const frag = ([s, e]) => {
+    const t = text.slice(s, e);
+    const ls = spans.filter(x => x.a >= s && x.b <= e).map(x => ({ t: x.t, href: x.href }));
+    return _mscParagraphHTML(t, ls.length ? new Map([[t, ls]]) : null);
+  };
+  const body = blocks.map(b => b.list
+    ? (b.list.lead ? `<div style="margin-bottom:3px;">${frag(b.list.lead)}</div>` : '')
+      + `<ul style="margin:0 0 5px;padding-left:18px;">${b.list.items.map(r => `<li style="margin-bottom:3px;">${frag(r)}</li>`).join('')}</ul>`
+    : `<div style="margin-bottom:5px;">${frag([b.s, b.e])}</div>`).join('');
+  return `<div style="margin-bottom:10px;">${body}</div>`;
 }
 // URL affichable : http(s) uniquement, sans espace, guillemet, chevron ni caractere de controle.
 // (Helper partage avec wominds.html.)
@@ -4302,7 +4431,7 @@ function _mscSectionLabel(heading) {
 // absent = _esc(p) seul, comportement de la chaine de repli inchange.
 function _mscNarrativeBlockHTML(heading, paragraphs, linksByText) {
   if (!paragraphs.length) return '';
-  const body = paragraphs.map(p => `<div style="margin-bottom:4px;">${_mscParagraphHTML(p, linksByText)}</div>`).join('');
+  const body = paragraphs.map(p => _mscProseHTML(p, linksByText)).join('');
   return `${_mscSectionLabel(heading)}<div style="font-size:var(--fs-sm);color:var(--text-secondary);line-height:1.5;margin-bottom:4px;">${body}</div>`;
 }
 // Fix 2026-09-20 (chantier market_mention, demande Thomas, Corridor uniquement pour cette
@@ -14292,7 +14421,7 @@ function _renderPipelineStatsCard({ counts, total, inConv, highPrio, emea, na })
   ).join('');
   const legEl = document.getElementById('pipe-funnel-legend');
   if (legEl) legEl.innerHTML = KANBAN_STAGES.map((s, i) =>
-    `<div class="pipe-funnel-leg-item" style="flex:${Math.max(counts[s], 0.02)}">${_esc(s)} · ${counts[s]}</div>`
+    `<div class="pipe-funnel-leg-item" style="flex:${Math.max(counts[s], 0.02)}"><span class="pfl-name">${_esc(s)}</span><span class="pfl-sep"> · </span><span class="pfl-num">${counts[s]}</span></div>`
   ).join('');
 }
 // Stats live (onglet Stats) — calculés sur _allProspects (dernier fetch loadKanban)
