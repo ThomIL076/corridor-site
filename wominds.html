@@ -7061,7 +7061,13 @@ function _runSendSearch() {
   }
   resultsEl.innerHTML = matches.map(p => {
     const t = _suggestTouch(p);
-    return `<div onclick="_selectManualProspect('${_esc(p.id)}')" style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);font-size:var(--fs-base);display:flex;align-items:center;gap:8px"><span style="font-weight:600">${_esc(p.name)}</span><span style="color:var(--muted)">${_esc(p.company)}</span><span class="send-touch ${TOUCH_LABELS[t]?.class||'touch-j0'}" style="font-size:var(--fs-micro);padding:2px 6px;margin-left:auto">${TOUCH_LABELS[t]?.label||t}</span></div>`;
+    // Meme garde que _sendCardHTML (fix 18/09, porte ici le 22/09) : la liste d'autocompletion ne
+    // doit pas non plus afficher un badge de touche pour une connexion LinkedIn non acceptee.
+    const _blocked = t !== 'invite' && p.linkedin_tag !== 'connection-accepted';
+    const _badge = _blocked
+      ? `<span class="send-touch" style="font-size:var(--fs-micro);padding:2px 6px;margin-left:auto;background:#f3f4f6;color:#6b7280;" title="Connexion pas encore acceptée">⏳ En attente</span>`
+      : `<span class="send-touch ${TOUCH_LABELS[t]?.class||'touch-j0'}" style="font-size:var(--fs-micro);padding:2px 6px;margin-left:auto">${TOUCH_LABELS[t]?.label||t}</span>`;
+    return `<div onclick="_selectManualProspect('${_esc(p.id)}')" style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);font-size:var(--fs-base);display:flex;align-items:center;gap:8px"><span style="font-weight:600">${_esc(p.name)}</span><span style="color:var(--muted)">${_esc(p.company)}</span>${_badge}</div>`;
   }).join('');
   resultsEl.style.display = 'block';
 }
