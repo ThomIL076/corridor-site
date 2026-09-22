@@ -5260,7 +5260,20 @@ window.addEventListener('popstate', async () => {
 });
 
 // ── BILINGUE (EN / FR) ──
-let currentLang = 'en';
+// FIX 22/09 (bug reel confirme par Thomas, captures + view-source) : currentLang demarrait
+// toujours a 'en' sans aucune initialisation automatique ni persistance (pas de localStorage) --
+// la SEULE facon de passer en francais etait un clic manuel sur le bouton FR de la modale profil
+// (setLang('fr'), ligne ~17080), perdu a chaque rechargement de page. Ca expliquait a la fois le
+// chantier Today et le chantier Reports de ce soir (les deux geres par applyLang()/data-fr, tous
+// deux corrects en HTML mais jamais appliques faute de currentLang='fr') -- et un 3e cas
+// preexistant non signale (le libelle "Today" de la barre laterale, snav-section-label, deja en
+// place depuis un chantier anterieur, jamais fonctionnel pour la meme raison). Corridor est
+// mono-client (ce fichier ne sert que 'thomas') et doit etre en francais par defaut (Corridor +
+// Wominds -> francais, Kaizenology -> anglais) -- pas besoin de logique conditionnelle par
+// client_id ici, juste le bon defaut. Le bouton EN (setLang('en')) reste fonctionnel pour basculer
+// manuellement si besoin, verifie en conditions reelles (Chromium headless, aucun clic requis pour
+// obtenir le francais au chargement, bascule manuelle EN toujours operationnelle).
+let currentLang = 'fr';
 const agentWelcome = {
   en: {
     cmo: "CMO Orchestrator here. Tell me what is on your plate this week - campaigns, launches, pipeline pressure, or positioning questions - and I will help you prioritise and coordinate across channels.",
