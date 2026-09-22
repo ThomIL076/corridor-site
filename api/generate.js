@@ -304,15 +304,28 @@ export default async function handler(req, res) {
       return res.status(502).json({ error: data.error?.message || 'Anthropic API error', errorType: data.error?.type || null });
     }
 
+    // Fix 22/09 (trou de garde trouve en diagnostiquant une troncature reelle sur Manual Send,
+    // Corridor) : contrairement au chemin STREAMING ci-dessus (event 'max_tokens' explicite), ce
+    // chemin ne verifiait jamais data.stop_reason avant de relayer un succes -- une reponse coupee
+    // par la limite de tokens etait indiscernable d'une reponse complete pour l'appelant. Additif
+    // uniquement (truncated:true en plus du corps Anthropic normal, jamais de changement de statut
+    // HTTP ni de retrait de contenu) : ne casse aucun appelant existant qui ignore ce champ, laisse
+    // un appelant qui le regarde deja detecter le cas -- meme visibilite Langfuse que le chemin
+    // streaming (statusMessage 'max_tokens'), pour le diagnostic comme pour l'affichage cote client.
+    const wasTruncated = data.stop_reason === 'max_tokens';
+    if (wasTruncated) {
+      console.error('[generate] response truncated: stop_reason=max_tokens, max_tokens requested=', restBody.max_tokens);
+    }
     generation.update({
       output: data.content,
+      ...(wasTruncated ? { statusMessage: 'max_tokens' } : {}),
       ...(totalInputTokens || totalOutputTokens
         ? { usageDetails: { input: totalInputTokens, output: totalOutputTokens } }
         : {}),
     }).end();
-    trace.update({ output: data.content }).end();
+    trace.update({ output: data.content, ...(wasTruncated ? { statusMessage: 'max_tokens' } : {}) }).end();
     await safeFlushLangfuse();
-    res.status(200).json(data);
+    res.status(200).json(wasTruncated ? { ...data, truncated: true } : data);
   } catch (e) {
     console.error('[generate] exception:', e.message);
     generation.update({ level: 'ERROR', statusMessage: e.message }).end();
