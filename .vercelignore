@@ -19,3 +19,10 @@
 /.impeccable/
 /.codex/
 /*.mjs
+# 22/09 : backups automatiques crees par `patch` (Git Bash) en cas de correspondance floue
+# sur un hunk -- jamais trackes par git, mais sans cette regle ils se retrouvaient uploades
+# tels quels par `vercel --prod --force` (qui deploie le repertoire de travail local, pas
+# strictement le contenu commite). Trouve traine dans un deploiement (demo-private.html.orig,
+# 1+ Mo, jamais servi a aucune route reelle -- pas la cause du bug de langue investigue ce
+# soir, juste un artefact a ne plus jamais re-uploader).
+*.orig
