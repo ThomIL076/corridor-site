@@ -5361,6 +5361,26 @@ function _relTimeShort(iso) {
 function _agentKeyFromName(name) {
   return (name || '').toLowerCase().replace(/\s+/g, '');
 }
+// FIX 22/09 (residus de langue Today, panneau "Agents en action") : agent_name/action_summary
+// viennent de agent_activity_log, ecrits en dur en anglais par certains noeuds n8n (ex. "Daily
+// Digest"/"Published daily digest", workflow Daily Activity Summary ; "Outlook Reply Capture",
+// workflow du meme nom). Decision Thomas : ne JAMAIS traduire agent_name lui-meme (cle technique
+// lue par _agentKeyFromName() juste au-dessus pour le matching de couleur -- une valeur
+// francaise casserait ce matching en silence) -- libelle d'affichage SEPARE ici, uniquement pour
+// le rendu. Repli sur la valeur brute si non repertoriee (jamais un texte invente).
+const _AGENT_DISPLAY_FR = {
+  'Daily Digest': 'Digest quotidien',
+  'Outlook Reply Capture': 'Capture réponses Outlook',
+};
+const _ACTION_SUMMARY_DISPLAY_FR = {
+  'Published daily digest': 'Digest quotidien publié',
+};
+function _agentDisplayName(name) {
+  return (currentLang === 'fr' && _AGENT_DISPLAY_FR[name]) ? _AGENT_DISPLAY_FR[name] : (name || '');
+}
+function _actionSummaryDisplay(text) {
+  return (currentLang === 'fr' && _ACTION_SUMMARY_DISPLAY_FR[text]) ? _ACTION_SUMMARY_DISPLAY_FR[text] : (text || '');
+}
 
 async function _loadAgentsAtWork() {
   const el = document.getElementById('agents-at-work-list');
@@ -5385,8 +5405,8 @@ async function _loadAgentsAtWork() {
       const _meta = _AGENT_META[_agentKeyFromName(r.agent_name)];
       const _color = (_meta && _meta.color) || 'var(--blue-brand)';
       return '<div style="border-left:2px solid ' + _color + ';padding:4px 0 4px 10px;margin-bottom:8px;">'
-        + '<div style="font-family:monospace;font-size:var(--fs-xs);font-weight:600;color:' + _color + ';text-transform:uppercase;letter-spacing:0.04em;">' + _esc(r.agent_name || '') + '</div>'
-        + '<div style="color:var(--text);font-size:var(--fs-sm);">' + _esc(r.action_summary || '') + '</div>'
+        + '<div style="font-family:monospace;font-size:var(--fs-xs);font-weight:600;color:' + _color + ';text-transform:uppercase;letter-spacing:0.04em;">' + _esc(_agentDisplayName(r.agent_name)) + '</div>'
+        + '<div style="color:var(--text);font-size:var(--fs-sm);">' + _esc(_actionSummaryDisplay(r.action_summary)) + '</div>'
         + '<div style="font-family:monospace;font-size:var(--fs-xs);color:var(--muted);">' + _relTimeShort(r.occurred_at) + '</div>'
         + '</div>';
     }).join('');
@@ -14604,7 +14624,7 @@ function renderStats(){
   const tot = active.length;
   // Distribution secteur (top 6)
   const sec = {};
-  active.forEach(p => { const s = (p.sector && p.sector.trim()) || 'Other'; sec[s] = (sec[s] || 0) + 1; });
+  active.forEach(p => { const s = (p.sector && p.sector.trim()) || (currentLang === 'fr' ? 'Autre' : 'Other'); sec[s] = (sec[s] || 0) + 1; });
   const secSorted = Object.entries(sec).sort((a,b) => b[1]-a[1]).slice(0,6);
   const sEl = document.getElementById('stats-sector');
   if (sEl) sEl.innerHTML = (secSorted.length ? secSorted : [['—',0]]).map(([name,c]) => {
@@ -14624,7 +14644,7 @@ function renderStats(){
   if (rEl) rEl.innerHTML = (topCty.length ? topCty : [['—',0]]).map(([name,c]) => {
     const pct = tot ? Math.round(c/tot*100) : 0;
     return `<div class="dist-row"><div class="dist-meta"><span class="dist-name">${_esc(name)}</span><span class="dist-pct">${pct}%</span></div><div class="dist-track"><div class="dist-fill" style="width:${pct}%"></div></div></div>`;
-  }).join('') + (otherCount > 0 ? `<div class="dist-row"><div class="dist-meta"><span class="dist-name" style="color:var(--muted)">Other (${ctySorted.length - 8})</span><span class="dist-pct">${tot ? Math.round(otherCount/tot*100) : 0}%</span></div><div class="dist-track"><div class="dist-fill" style="width:${tot ? Math.round(otherCount/tot*100) : 0}%"></div></div></div>` : '');
+  }).join('') + (otherCount > 0 ? `<div class="dist-row"><div class="dist-meta"><span class="dist-name" style="color:var(--muted)">${currentLang === 'fr' ? 'Autre' : 'Other'} (${ctySorted.length - 8})</span><span class="dist-pct">${tot ? Math.round(otherCount/tot*100) : 0}%</span></div><div class="dist-track"><div class="dist-fill" style="width:${tot ? Math.round(otherCount/tot*100) : 0}%"></div></div></div>` : '');
   renderStatsRevenue();
   renderStatsRetainer();
   renderStatsSignal();
@@ -14736,7 +14756,7 @@ async function _loadSignalTaxonomy() {
   if (_signalTaxonomyPromise) return _signalTaxonomyPromise;
   _signalTaxonomyPromise = _supabase
     .from('signal_taxonomy')
-    .select('code, label, icon')
+    .select('code, label, label_fr, icon')
     .eq('client_id', CLIENT_ID)
     .order('code')
     .then(({ data }) => {
@@ -14747,10 +14767,15 @@ async function _loadSignalTaxonomy() {
     .catch(() => { _signalTaxonomy = {}; return {}; });
   return _signalTaxonomyPromise;
 }
+// FIX 22/09 (migration label_fr, 41/41 lignes signal_taxonomy peuplees -- Thomas : "pas de
+// deploiement a moitie qui laisserait certains badges traduits et d'autres non"). Meme mecanisme
+// que le reste du fichier (currentLang === 'fr' ? ... : ...) ; repli sur e.label (anglais) si
+// label_fr est absent pour une raison quelconque, jamais un badge vide.
 function _sigLabel(code) {
   const t = (code || '').toUpperCase();
   const e = _signalTaxonomy && _signalTaxonomy[t];
-  return e ? (e.label || t) : (t || 'Signal');
+  if (!e) return t || 'Signal';
+  return (currentLang === 'fr' && e.label_fr) ? e.label_fr : (e.label || t);
 }
 function _sigIcon(code) {
   const t = (code || '').toUpperCase();
