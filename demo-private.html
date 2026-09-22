@@ -1657,7 +1657,7 @@ body.new-nav { padding-left: 220px; }
 
 <!-- MOBILE BOTTOM TAB BAR (Phase 1 chunk 5, < 768px) -->
 <nav class="mobile-tabbar" id="mobile-tabbar" aria-label="Mobile navigation">
-  <button class="mtab-item" data-nav="priorities" onclick="_switchNewNav('priorities')">Today</button>
+  <button class="mtab-item" data-nav="priorities" onclick="_switchNewNav('priorities')"><span data-en="Today" data-fr="Aujourd'hui">Today</span></button>
   <button class="mtab-item" data-nav="pipeline" onclick="_switchNewNav('pipeline')">Pipeline</button>
   <button class="mtab-item" data-nav="send" onclick="_switchNewNav('send')">
     <span>Send</span><span class="mtab-badge" id="mtab-badge-send"></span>
@@ -2141,29 +2141,29 @@ body.new-nav { padding-left: 220px; }
   <div class="tab-panel" id="tab-priorities">
     <div style="padding:24px 16px 0;max-width:1120px;margin:0 auto;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
-        <h2 style="font-size:var(--fs-lg);font-weight:700;color:var(--navy);margin:0;">Today's run</h2>
+        <h2 style="font-size:var(--fs-lg);font-weight:700;color:var(--navy);margin:0;" data-en="Today's run" data-fr="Aujourd'hui">Today's run</h2>
         <div style="display:flex;align-items:center;gap:8px;">
           <button id="priorities-skip-btn" class="btn-secondary" onclick="_prioritiesSkip()">
-            Skip batch
+            <span data-en="Skip batch" data-fr="Passer ce lot">Skip batch</span>
           </button>
           <button id="priorities-next-btn" onclick="_prioritiesNext()" disabled
             style="padding:8px 18px;border-radius:var(--radius-pill);background:var(--navy);color:#fff;border:none;font-size:var(--fs-sm);font-weight:600;cursor:pointer;opacity:0.4;">
-            Next batch →
+            <span data-en="Next batch →" data-fr="Lot suivant →">Next batch →</span>
           </button>
         </div>
       </div>
-      <div class="section-sub"><span id="priorities-queued-count">0</span> actions queued today. Work top to bottom. The system re-ranks after each send.</div>
+      <div class="section-sub"><span id="priorities-queued-count">0</span><span data-en=" actions queued today. Work top to bottom. The system re-ranks after each send." data-fr=" actions en file aujourd'hui. Traitez-les de haut en bas. Le système reclasse après chaque envoi."> actions queued today. Work top to bottom. The system re-ranks after each send.</span></div>
       <div class="today-layout">
         <div class="today-main">
           <div class="today-step-divider">
-            <span class="today-step-label">Step 1 · High-conviction signals</span>
+            <span class="today-step-label" data-en="Step 1 · High-conviction signals" data-fr="Étape 1 · Signaux à forte conviction">Step 1 · High-conviction signals</span>
             <span class="today-step-rule"></span>
           </div>
           <div id="priorities-container"></div>
           <!-- Step 2 : masque par defaut, revele par _loadFollowUpsDue() seulement s'il existe
                au moins un prospect avec reminder_date <= aujourd'hui (cf. arbitrage Thomas). -->
           <div class="today-step-divider" id="today-followup-divider" hidden>
-            <span class="today-step-label">Step 2 · Due now</span>
+            <span class="today-step-label" data-en="Step 2 · Due now" data-fr="Étape 2 · À traiter maintenant">Step 2 · Due now</span>
             <span class="today-step-rule"></span>
             <span class="today-step-count" id="today-followup-count"></span>
           </div>
@@ -2173,7 +2173,7 @@ body.new-nav { padding-left: 220px; }
                de retard, les rappels frais n'apparaissaient quasiment jamais). Repliee par defaut,
                compteur reel (count exact, pas juste les lignes rendues) -- cf. _loadFollowUpsDue(). -->
           <div class="today-step-divider" id="today-backlog-divider" hidden style="cursor:pointer" onclick="_toggleReminderBacklog()">
-            <span class="today-step-label">Needs revalidation</span>
+            <span class="today-step-label" data-en="Needs revalidation" data-fr="À revalider">Needs revalidation</span>
             <span class="today-step-rule"></span>
             <span class="today-step-count" id="today-backlog-count"></span>
             <span id="today-backlog-chevron" style="margin-left:6px;color:var(--muted);">▸</span>
@@ -2183,14 +2183,14 @@ body.new-nav { padding-left: 220px; }
         <div class="today-rail">
           <div class="card" style="margin-bottom:16px;">
             <div class="card-header" style="display:flex;align-items:center;gap:8px;">
-              <span class="card-title">Agents at work</span>
+              <span class="card-title" data-en="Agents at work" data-fr="Agents en action">Agents at work</span>
               <span class="card-badge badge-auto">LIVE</span>
             </div>
-            <div id="agents-at-work-list" style="font-size:var(--fs-sm);color:var(--muted);overflow-wrap:anywhere;word-break:break-word;">Loading...</div>
+            <div id="agents-at-work-list" style="font-size:var(--fs-sm);color:var(--muted);overflow-wrap:anywhere;word-break:break-word;" data-en="Loading..." data-fr="Chargement…">Loading...</div>
           </div>
           <div class="card">
-            <div class="card-header"><span class="card-title">Today's capacity</span></div>
-            <div id="today-capacity-bars" style="font-size:var(--fs-sm);color:var(--muted);">Loading...</div>
+            <div class="card-header"><span class="card-title" data-en="Today's capacity" data-fr="Capacité du jour">Today's capacity</span></div>
+            <div id="today-capacity-bars" style="font-size:var(--fs-sm);color:var(--muted);" data-en="Loading..." data-fr="Chargement…">Loading...</div>
           </div>
         </div>
       </div>
@@ -4762,9 +4762,10 @@ function _mscEntryToDecision(e) {
 // constant (jamais de la donnee) ; categorie inconnue ou hostile (__proto__, constructor...) ou absente (repli arithmetique) = aucune puce.
 function _mscDecisionFromProspect(p) {
   const base = 'font-size:11px;font-weight:700;padding:2px 8px;border-radius:var(--radius-pill);white-space:nowrap;';
+  const fr = currentLang === 'fr';
   const chips = {
-    today_action: `<span style="${base}color:var(--red);background:var(--red-bg);border:1px solid var(--red-light);" title="Flagged for action by this morning's scan">⚡ Today</span>`,
-    opportunistic_connection: `<span style="${base}color:#6b7280;background:#f3f4f6;border:1px solid #d1d5db;" title="Opportunistic connection flagged by this morning's scan">🔗 Opportunistic</span>`,
+    today_action: `<span style="${base}color:var(--red);background:var(--red-bg);border:1px solid var(--red-light);" title="${fr ? 'Signalé pour action par le scan de ce matin' : "Flagged for action by this morning's scan"}">${fr ? '⚡ Aujourd\'hui' : '⚡ Today'}</span>`,
+    opportunistic_connection: `<span style="${base}color:#6b7280;background:#f3f4f6;border:1px solid #d1d5db;" title="${fr ? 'Connexion opportuniste signalée par le scan de ce matin' : "Opportunistic connection flagged by this morning's scan"}">${fr ? '🔗 Opportuniste' : '🔗 Opportunistic'}</span>`,
   };
   const d = _mscEntryToDecision({
     prospect_id: p.id, name: p.name, company: p.company, linkedin: p.linkedin,
@@ -5351,6 +5352,7 @@ function _agentKeyFromName(name) {
 async function _loadAgentsAtWork() {
   const el = document.getElementById('agents-at-work-list');
   if (!el) return;
+  const fr = currentLang === 'fr';
   try {
     let q = sbClient.from('agent_activity_log')
       .select('agent_name, action_summary, occurred_at')
@@ -5361,7 +5363,9 @@ async function _loadAgentsAtWork() {
     const { data, error } = await q;
     if (error) throw error;
     if (!data || !data.length) {
-      el.innerHTML = '<div style="color:var(--muted);">No agent activity logged yet — this shows up as soon as an agent runs.</div>';
+      el.innerHTML = fr
+        ? '<div style="color:var(--muted);">Aucune activité d\'agent enregistrée pour l\'instant — elle apparaîtra dès qu\'un agent s\'exécute.</div>'
+        : '<div style="color:var(--muted);">No agent activity logged yet — this shows up as soon as an agent runs.</div>';
       return;
     }
     el.innerHTML = data.map(r => {
@@ -5375,7 +5379,9 @@ async function _loadAgentsAtWork() {
     }).join('');
   } catch(e) {
     console.warn('[agents-at-work]', e);
-    el.innerHTML = '<div style="color:var(--muted);">Unable to load agent activity right now.</div>';
+    el.innerHTML = fr
+      ? '<div style="color:var(--muted);">Impossible de charger l\'activité des agents pour le moment.</div>'
+      : '<div style="color:var(--muted);">Unable to load agent activity right now.</div>';
   }
 }
 
@@ -9435,10 +9441,11 @@ function _renderCapacityBars(containerId, inv, em, followUpsCleared, followUpsDu
       </div>
     </div>`;
   };
+  const fr = currentLang === 'fr';
   el.innerHTML =
-    bar('LinkedIn invites', inv, INVITE_DAILY_LIMIT) +
+    bar(fr ? 'Invitations LinkedIn' : 'LinkedIn invites', inv, INVITE_DAILY_LIMIT) +
     bar('Emails', em, EMAIL_DAILY_LIMIT) +
-    bar('Follow-ups cleared', followUpsCleared, followUpsDue);
+    bar(fr ? 'Relances traitées' : 'Follow-ups cleared', followUpsCleared, followUpsDue);
 }
 
 async function _fetchTodaySendCounts() {
@@ -9796,6 +9803,10 @@ function _fmtReminder(iso) {
   if (!iso) return null;
   const d = new Date(iso); if (isNaN(d)) return null;
   const days = Math.ceil((d - Date.now()) / 86400000);
+  // Bilingue (22/09, TB-08) : memes paliers/valeurs, libelles FR repris tels quels de
+  // wominds.html:_fmtReminder (meme fonction, meme nom, meme contrat sur les 3 dashboards --
+  // aucune nouvelle convention inventee ici).
+  const fr = currentLang === 'fr';
   if (days < 0) {
     // Paliers (arbitrage Thomas) : <30j inchange (jours), 30-364j en mois arrondis, >=365j en
     // annees arrondies -- un compte de jours a 4 chiffres sur un prospect oublie depuis des
@@ -9803,14 +9814,22 @@ function _fmtReminder(iso) {
     // _relDate() juste au-dessus, pas d'abreviation inventee.
     const od = Math.abs(days);
     let magnitude;
-    if (od < 30) magnitude = od + 'd';
-    else if (od < 365) { const m = Math.round(od / 30); magnitude = m + (m === 1 ? ' month' : ' months'); }
-    else { const y = Math.round(od / 365); magnitude = y + (y === 1 ? ' year' : ' years'); }
-    return { label:'Overdue by ' + magnitude, overdue:true };
+    if (fr) {
+      if (od < 30) magnitude = od + 'j';
+      else if (od < 365) { const m = Math.round(od / 30); magnitude = m + ' mois'; }
+      else { const y = Math.round(od / 365); magnitude = y + (y === 1 ? ' an' : ' ans'); }
+    } else {
+      if (od < 30) magnitude = od + 'd';
+      else if (od < 365) { const m = Math.round(od / 30); magnitude = m + (m === 1 ? ' month' : ' months'); }
+      else { const y = Math.round(od / 365); magnitude = y + (y === 1 ? ' year' : ' years'); }
+    }
+    return { label: (fr ? 'En retard de ' : 'Overdue by ') + magnitude, overdue:true };
   }
-  if (days === 0) return { label:'Today', overdue:false };
-  if (days === 1) return { label:'Tomorrow', overdue:false };
-  return { label:'In ' + days + ' days — ' + d.toLocaleDateString('en-GB',{day:'numeric',month:'short'}), overdue:false };
+  if (days === 0) return { label: fr ? 'Aujourd\'hui' : 'Today', overdue:false };
+  if (days === 1) return { label: fr ? 'Demain' : 'Tomorrow', overdue:false };
+  return fr
+    ? { label: 'Dans ' + days + ' jours, le ' + d.toLocaleDateString('fr-FR',{day:'numeric',month:'short'}), overdue:false }
+    : { label: 'In ' + days + ' days — ' + d.toLocaleDateString('en-GB',{day:'numeric',month:'short'}), overdue:false };
 }
 // Tiroir prospect (restructuration scroll) : meme definition de "au point mort" que le scoring
 // de priorite quotidienne (hasOverdueReminder, cf. _scoreLead) -- pas une nouvelle notion, reuse
@@ -11162,7 +11181,7 @@ function _updateQueuedCount() {
 async function loadDailyPriorities() {
   const container = document.getElementById('priorities-container');
   if (!container) return;
-  container.innerHTML = '<div style="padding:32px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">Loading priorities…</div>';
+  container.innerHTML = '<div style="padding:32px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">' + (currentLang === 'fr' ? 'Chargement des priorités…' : 'Loading priorities…') + '</div>';
 
   try {
     const _pbMandateId = (activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null;
@@ -11304,7 +11323,7 @@ async function loadDailyPriorities() {
 
   } catch(e) {
     if (container) container.innerHTML =
-      `<div style="padding:32px;text-align:center;color:var(--muted);">Error: ${e.message}</div>`;
+      `<div style="padding:32px;text-align:center;color:var(--muted);">${currentLang === 'fr' ? 'Erreur' : 'Error'}: ${e.message}</div>`;
   }
 }
 
@@ -11317,10 +11336,11 @@ async function loadDailyPriorities() {
 function _priorityFooterHTML(p) {
   const pid = _mscSafeId(p.id);
   if (!pid || p.next_action_cache) return '';
+  const fr = currentLang === 'fr';
   return `<div class="pri-action" id="pri-action-${pid}" style="margin-top:6px;" onclick="event.stopPropagation()">
     <button id="pri-gen-${pid}" onclick="_priorityGenerate('${pid}')"
       style="font-size:var(--fs-xs);padding:4px 11px;background:var(--navy);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer">
-      ${_actionButtonLabel(p, 'Regenerate', 'Generate')}
+      ${_actionButtonLabel(p, fr ? 'Régénérer' : 'Regenerate', fr ? 'Générer' : 'Generate')}
     </button>
   </div>`;
 }
@@ -11330,9 +11350,10 @@ function _renderPriorityCards(prospects) {
   if (!container) return;
 
   if (!prospects.length) {
+    const fr = currentLang === 'fr';
     container.innerHTML =
       '<div style="padding:40px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">' +
-      'No eligible prospects in this batch. Click "Next batch" to continue.</div>';
+      (fr ? 'Aucun prospect éligible dans ce lot. Cliquez sur « Lot suivant » pour continuer.' : 'No eligible prospects in this batch. Click "Next batch" to continue.') + '</div>';
     const btn = document.getElementById('priorities-next-btn');
     if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
     return;
@@ -11412,14 +11433,14 @@ async function _loadFollowUpsDue() {
     const fiveDaysAgo = new Date(Date.now() - 5 * 86400000).toISOString();
     rows.forEach(p => { p._j5Eligible = _isJ5Eligible(p, fiveDaysAgo); });
     if (divider) divider.hidden = rows.length === 0;
-    if (countEl) countEl.textContent = rows.length ? rows.length + ' due' : '';
+    if (countEl) countEl.textContent = rows.length ? rows.length + (currentLang === 'fr' ? ' à traiter' : ' due') : '';
     _renderFollowUpRows(rows);
 
     const backlogRows = _reminderBacklogProspects = backlogRes.data || [];
     backlogRows.forEach(p => _cacheProspectRow(p));
     _reminderBacklogTotal = backlogRes.count != null ? backlogRes.count : backlogRows.length;
     if (backlogDivider) backlogDivider.hidden = _reminderBacklogTotal === 0;
-    if (backlogCountEl) backlogCountEl.textContent = _reminderBacklogTotal ? _reminderBacklogTotal + ' overdue' : '';
+    if (backlogCountEl) backlogCountEl.textContent = _reminderBacklogTotal ? _reminderBacklogTotal + (currentLang === 'fr' ? ' en retard' : ' overdue') : '';
     if (backlogEl) backlogEl.hidden = true; // toujours repliee au (re)chargement, meme si deja ouverte avant
     const chevronEl = document.getElementById('today-backlog-chevron');
     if (chevronEl) chevronEl.textContent = '▸';
@@ -11438,6 +11459,7 @@ async function _loadFollowUpsDue() {
 function _renderFollowUpRows(rows) {
   const el = document.getElementById('today-followups-container');
   if (!el) return;
+  const fr = currentLang === 'fr';
   el.innerHTML = rows.map(p => {
     const initials = _esc((p.name || '?').trim().split(/\s+/).map(s => s[0] || '').slice(0, 2).join('').toUpperCase() || '?');
     const rem = _fmtReminder(p.reminder_date);
@@ -11447,8 +11469,8 @@ function _renderFollowUpRows(rows) {
     // trop recent, deja envoye...), un bouton pointant vers Send n'a rien a tenir -- on ouvre le
     // tiroir a la place (memes actions log/reminder deja disponibles la, rien de duplique).
     const actionBtn = p._j5Eligible
-      ? `<button onclick="_goToJ5Followup('${p.id}')" style="flex-shrink:0;padding:6px 14px;border-radius:var(--radius-pill);background:#f2f9f5;border:1px solid #cfe0d8;color:#166b48;font-size:var(--fs-sm);font-weight:600;cursor:pointer;">Send follow-up</button>`
-      : `<button onclick="_openDrawerFromPriority('${p.id}')" style="flex-shrink:0;padding:6px 14px;border-radius:var(--radius-pill);background:none;border:1px solid var(--border);color:var(--text);font-size:var(--fs-sm);font-weight:600;cursor:pointer;">Review prospect</button>`;
+      ? `<button onclick="_goToJ5Followup('${p.id}')" style="flex-shrink:0;padding:6px 14px;border-radius:var(--radius-pill);background:#f2f9f5;border:1px solid #cfe0d8;color:#166b48;font-size:var(--fs-sm);font-weight:600;cursor:pointer;">${fr ? 'Envoyer la relance' : 'Send follow-up'}</button>`
+      : `<button onclick="_openDrawerFromPriority('${p.id}')" style="flex-shrink:0;padding:6px 14px;border-radius:var(--radius-pill);background:none;border:1px solid var(--border);color:var(--text);font-size:var(--fs-sm);font-weight:600;cursor:pointer;">${fr ? 'Voir le prospect' : 'Review prospect'}</button>`;
     return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);">
       <div style="width:30px;height:30px;border-radius:50%;background:var(--navy-light);color:var(--ink);font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${initials}</div>
       <div style="min-width:0;flex:1;">
@@ -11478,6 +11500,7 @@ function _toggleReminderBacklog() {
 function _renderReminderBacklogRows(rows) {
   const el = document.getElementById('today-backlog-container');
   if (!el) return;
+  const fr = currentLang === 'fr';
   el.innerHTML = rows.map(p => {
     const initials = _esc((p.name || '?').trim().split(/\s+/).map(s => s[0] || '').slice(0, 2).join('').toUpperCase() || '?');
     const rem = _fmtReminder(p.reminder_date);
@@ -11489,10 +11512,10 @@ function _renderReminderBacklogRows(rows) {
         ${rem ? `<div style="font-family:'IBM Plex Mono',monospace;font-size:var(--fs-xs);color:var(--danger);margin-top:2px;">${_esc(rem.label)}</div>` : ''}
       </div>
       <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;">
-        <button onclick="_openDrawerFromPriority('${p.id}')" style="padding:5px 10px;border-radius:var(--radius-pill);background:none;border:1px solid var(--border);color:var(--text);font-size:var(--fs-xs);font-weight:600;cursor:pointer;">Reactivate</button>
-        <button onclick="_reminderSnooze('${p.id}', 7)" style="padding:5px 10px;border-radius:var(--radius-pill);background:none;border:1px solid var(--border);color:var(--text);font-size:var(--fs-xs);font-weight:600;cursor:pointer;">+7d</button>
-        <button onclick="_reminderSnooze('${p.id}', 30)" style="padding:5px 10px;border-radius:var(--radius-pill);background:none;border:1px solid var(--border);color:var(--text);font-size:var(--fs-xs);font-weight:600;cursor:pointer;">+30d</button>
-        <button onclick="_reminderClose('${p.id}')" style="padding:5px 10px;border-radius:var(--radius-pill);background:none;border:1px solid var(--border);color:var(--muted);font-size:var(--fs-xs);font-weight:600;cursor:pointer;">Close</button>
+        <button onclick="_openDrawerFromPriority('${p.id}')" style="padding:5px 10px;border-radius:var(--radius-pill);background:none;border:1px solid var(--border);color:var(--text);font-size:var(--fs-xs);font-weight:600;cursor:pointer;">${fr ? 'Réactiver' : 'Reactivate'}</button>
+        <button onclick="_reminderSnooze('${p.id}', 7)" style="padding:5px 10px;border-radius:var(--radius-pill);background:none;border:1px solid var(--border);color:var(--text);font-size:var(--fs-xs);font-weight:600;cursor:pointer;">${fr ? '+7j' : '+7d'}</button>
+        <button onclick="_reminderSnooze('${p.id}', 30)" style="padding:5px 10px;border-radius:var(--radius-pill);background:none;border:1px solid var(--border);color:var(--text);font-size:var(--fs-xs);font-weight:600;cursor:pointer;">${fr ? '+30j' : '+30d'}</button>
+        <button onclick="_reminderClose('${p.id}')" style="padding:5px 10px;border-radius:var(--radius-pill);background:none;border:1px solid var(--border);color:var(--muted);font-size:var(--fs-xs);font-weight:600;cursor:pointer;">${fr ? 'Clôturer' : 'Close'}</button>
       </div>
     </div>`;
   }).join('');
@@ -11506,7 +11529,7 @@ function _removeReminderBacklogRow(id) {
   _reminderBacklogProspects = _reminderBacklogProspects.filter(p => p.id !== id);
   _reminderBacklogTotal = Math.max(0, _reminderBacklogTotal - 1);
   const countEl = document.getElementById('today-backlog-count');
-  if (countEl) countEl.textContent = _reminderBacklogTotal ? _reminderBacklogTotal + ' overdue' : '';
+  if (countEl) countEl.textContent = _reminderBacklogTotal ? _reminderBacklogTotal + (currentLang === 'fr' ? ' en retard' : ' overdue') : '';
   const divider = document.getElementById('today-backlog-divider');
   if (divider && _reminderBacklogTotal === 0) divider.hidden = true;
 }
@@ -11518,9 +11541,9 @@ async function _reminderSnooze(id, days) {
   const iso = new Date(Date.now() + days * 86400000).toISOString();
   const { error } = await sbClient.from('prospects')
     .update({ reminder_date: iso }).eq('id', id).eq('client_id', CLIENT_ID);
-  if (error) { showToast('Error postponing reminder'); return; }
+  if (error) { showToast(currentLang === 'fr' ? 'Erreur lors du report du rappel' : 'Error postponing reminder'); return; }
   _patchProspectCaches(id, { reminder_date: iso });
-  showToast('Reminder postponed');
+  showToast(currentLang === 'fr' ? 'Rappel reporté' : 'Reminder postponed');
   _removeReminderBacklogRow(id);
 }
 
@@ -11551,7 +11574,9 @@ async function _goToJ5Followup(id) {
     // message expanded and clickable right when we're telling the user their prospect isn't
     // in this queue at all.
     document.querySelectorAll('#send-list .send-expand').forEach(expEl => { expEl.style.display = 'none'; });
-    showToast("Not in the Send queue right now — it may have changed stage or already been sent.");
+    showToast(currentLang === 'fr'
+      ? "Plus dans la file d'envoi actuellement — l'étape a peut-être changé, ou l'email a déjà été envoyé."
+      : "Not in the Send queue right now — it may have changed stage or already been sent.");
     return;
   }
   const expandEl = document.getElementById('se-' + id);
@@ -11567,7 +11592,8 @@ async function _priorityGenerate(prospectId) {
   const actionDiv = document.getElementById('pri-action-' + prospectId);
   const p = _prospectsById[prospectId];
   if (!p || !actionDiv) return;
-  if (btn) { btn.disabled = true; btn.textContent = 'Generating…'; }
+  const fr = currentLang === 'fr';
+  if (btn) { btn.disabled = true; btn.textContent = fr ? 'Génération…' : 'Generating…'; }
 
   try {
     const { data: ints } = await sbClient.from('interactions')
@@ -11580,8 +11606,8 @@ async function _priorityGenerate(prospectId) {
     const text = await _generateNextAction({ ...p, score: p.icp_score });
     if (!text.trim()) {
       console.error('[_priorityGenerate] empty response for', p.name, p.company);
-      actionDiv.innerHTML = `<span style="color:var(--muted);font-size:var(--fs-xs);">No response from AI — try again.</span>`;
-      if (btn) { btn.disabled = false; btn.textContent = 'Generate'; }
+      actionDiv.innerHTML = `<span style="color:var(--muted);font-size:var(--fs-xs);">${fr ? "Pas de réponse de l'IA, réessayez." : 'No response from AI — try again.'}</span>`;
+      if (btn) { btn.disabled = false; btn.textContent = fr ? 'Générer' : 'Generate'; }
       return;
     }
     actionDiv.innerHTML = _renderNextActionHTML(text, 'var(--navy)');
@@ -11589,15 +11615,15 @@ async function _priorityGenerate(prospectId) {
     actionDiv.style.lineHeight = '1.65';
     actionDiv.style.color = 'var(--navy)';
     actionDiv.classList.add('loaded');
-    if (btn) { btn.disabled = false; btn.textContent = 'Regenerate'; }
+    if (btn) { btn.disabled = false; btn.textContent = fr ? 'Régénérer' : 'Regenerate'; }
     if (_prospectsById[prospectId]) _prospectsById[prospectId].next_action_cache = text;
     const sp = _priorityShownProspects.find(x => x.id === prospectId);
     if (sp) sp.next_action_cache = text;
     _updatePrioritiesNextBtn();
   } catch(e) {
     console.error('[_priorityGenerate] error:', e);
-    actionDiv.innerHTML = `<span style="color:var(--muted);font-size:var(--fs-xs);">Error: ${e.message}</span>`;
-    if (btn) { btn.disabled = false; btn.textContent = 'Generate'; }
+    actionDiv.innerHTML = `<span style="color:var(--muted);font-size:var(--fs-xs);">${fr ? 'Erreur' : 'Error'}: ${e.message}</span>`;
+    if (btn) { btn.disabled = false; btn.textContent = fr ? 'Générer' : 'Generate'; }
   }
 }
 
@@ -15344,7 +15370,7 @@ function _qualificationNote(p) {
 // totale par defaut. Ne bloque jamais le clic, meme gestionnaire derriere (_priorityGenerate/
 // _drawerAI inchanges) -- seul le texte change.
 function _actionButtonLabel(p, cachedLabel, freshLabel) {
-  if (_scoreReliabilityBadge(p)) return '⚠ Verify source first';
+  if (_scoreReliabilityBadge(p)) return currentLang === 'fr' ? '⚠ Vérifier la source d\'abord' : '⚠ Verify source first';
   return p.next_action_cache ? cachedLabel : freshLabel;
 }
 
