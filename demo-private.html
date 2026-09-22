@@ -10145,8 +10145,12 @@ async function openDrawer(card, initialTab = 'activity') {
   const _icpLbl      = _isEstDrawer ? '~' + icpVal.toFixed(1) : icpVal.toFixed(1);
   const icpDial      = `<svg width="54" height="54" viewBox="0 0 52 52" style="flex-shrink:0;${_isEstDrawer ? 'opacity:0.72;' : ''}"${_isEstDrawer ? ' title="Estimated score"' : ''}><circle cx="26" cy="26" r="22" fill="none" stroke="var(--border)" stroke-width="4.5"/><circle cx="26" cy="26" r="22" fill="none" stroke="${icpColor}" stroke-width="4.5" stroke-dasharray="${icpDash} ${icpC}" stroke-linecap="round" transform="rotate(-90 26 26)"/><text x="26" y="30" text-anchor="middle" font-family="'Plus Jakarta Sans',sans-serif" font-size="12" font-weight="700" fill="${icpColor}">${_icpLbl}</text></svg>`;
   const sector       = (_p.sector && _p.sector.trim()) ? _p.sector.trim() : '';
-  const head         = card.closest('.kanban-col')?.querySelector('.kanban-col-head span');
-  const stage        = head ? (head.dataset.en || head.textContent.trim()) : 'Identified';
+  // FIX 22/09 (chantier langue tiroir, point 1) : plus de lecture DOM d'une colonne kanban
+  // (retombait toujours sur 'Identified' en dur quand le tiroir s'ouvre depuis Today/Send/backlog,
+  // ou aucune colonne kanban n'existe) -- resolu depuis le stage canonique du prospect (_p.stage,
+  // toujours charge) via la table STAGE_DISPLAY_LABELS, correct quel que soit le point d'entree.
+  const _stageLbl    = _stageDisplayLabel(_p.stage);
+  const stage        = currentLang === 'fr' ? _stageLbl.fr : _stageLbl.en;
   const lastContact  = card.dataset.lastContact  || null;
   const reminderDate = card.dataset.reminderDate || null;
   const clientId     = card.dataset.clientId     || CLIENT_ID;
@@ -10245,7 +10249,7 @@ async function openDrawer(card, initialTab = 'activity') {
         <div style="flex:1;min-width:0">
           <div class="pd-name-row">
             <span class="pd-name">${_esc(name)}</span>
-            <span class="pd-stage-chip">${_esc(stage)}</span>
+            <span class="pd-stage-chip" data-en="${_esc(_stageLbl.en)}" data-fr="${_esc(_stageLbl.fr)}">${_esc(stage)}</span>
           </div>
           <div class="pd-role">${[_p.title, company].filter(Boolean).map(s => _esc(s)).join(' · ')}</div>
           ${firmoParts.length ? `<div class="pd-firmo">${firmoParts.map(s => _esc(s)).join(' · ')}</div>` : ''}
@@ -13281,6 +13285,30 @@ const KANBAN_STAGES = ['Identified','1st Contact','Engaged','Replied','Proposal'
 const _stageRank = { 'Identified':0, '1st Contact':1, 'Engaged':2, 'Replied':2.5, 'Proposal':3, 'Negotiation':4, 'Closed':5 };
 // Mapping colonne kanban → valeur `stage` canonique en base (libellé kanban = valeur DB depuis le renommage Discovery Call→Engaged).
 const STAGE_DB = { 'Identified':'Identified', '1st Contact':'1st Contact', 'Engaged':'Engaged', 'Replied':'Replied', 'Proposal':'Proposal', 'Negotiation':'Negotiation', 'Closed':'Closed' };
+// FIX 22/09 (chantier langue tiroir, point 1, bug preexistant confirme par Thomas) : libelles
+// d'affichage par stage, extraits tels quels des en-tetes de colonnes kanban (kanban-col-head,
+// data-en/data-fr, L.2374-2392) -- source de verite unique, reutilisable SANS dependre du DOM d'une
+// colonne kanban. Avant ce fix, le tiroir prospect lisait le libelle via
+// card.closest('.kanban-col')?.querySelector('.kanban-col-head span'), qui ne renvoie jamais rien
+// quand le tiroir est ouvert depuis Today/Send/backlog de rappels (la carte n'est alors pas dans une
+// colonne kanban) -- le tiroir retombait alors TOUJOURS sur 'Identified' code en dur, quel que soit
+// le vrai stage du prospect. _stageDisplayLabel() lit desormais le stage canonique (_p.stage, colonne
+// prospects.stage, toujours disponible) et resout son libelle d'affichage independamment du DOM.
+const STAGE_DISPLAY_LABELS = {
+  'Identified':  { en: 'Identified',  fr: 'Identifiés' },
+  '1st Contact': { en: 'Connected',   fr: 'Connecté' },
+  'Engaged':     { en: 'Engaged',     fr: 'Engagés' },
+  'Replied':     { en: 'Replied',     fr: 'Répondu' },
+  'Proposal':    { en: 'Proposal',    fr: 'Proposition' },
+  'Negotiation': { en: 'Negotiation', fr: 'Négociation' },
+  'Closed':      { en: 'Closed',      fr: 'Clôturé' },
+};
+function _stageDisplayLabel(rawStage) {
+  // Repli defensif : stage inconnu/absent (ne devrait pas arriver pour un stage issu de la base,
+  // mais jamais invente un libelle pour une valeur non reconnue) -- affiche la valeur brute telle
+  // quelle plutot que de la traduire a tort ou de planter.
+  return STAGE_DISPLAY_LABELS[rawStage] || { en: rawStage || 'Identified', fr: rawStage || 'Identifiés' };
+}
 // Persiste le stage d'un prospect en Supabase (drag-drop kanban). id = uuid de la ligne (data-id de la carte).
 async function persistStage(id, stage){
   if (!id) return;
