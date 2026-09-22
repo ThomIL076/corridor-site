@@ -6991,6 +6991,20 @@ async function _sendViaLinkedIn(pid, touch, elPrefix = '') {
 // (_sendViaLinkedIn) d'une note manuelle -- avant ce fix, tout envoi reel aurait ete
 // mal etiquete "(manuel)" dans interactions.
 async function _markSent(pid, touch, auto = false, msgText = '', elPrefix = '') {
+  // Garde de connexion (chemin MANUEL uniquement -- le chemin automatique _sendViaLinkedIn() est
+  // deja garde en amont), meme chantier que demo-private.html/kaizenology.html : avant ce fix, aucune
+  // verification n'empechait de marquer "envoye" un touch post-invitation (j0/j5/j12) pour un
+  // prospect dont l'invitation LinkedIn n'avait jamais ete acceptee. Confirmation, pas blocage dur --
+  // meme philosophie que _confirmIfContradicted, laisse l'utilisateur outrepasser en connaissance de cause.
+  if (!auto && touch !== 'invite') {
+    const _msConnP = _sendProspects.find(x => x.id === pid) || _prospectsById[pid];
+    if (_msConnP && _msConnP.linkedin_tag !== 'connection-accepted') {
+      const _fr = typeof currentLang === 'undefined' || currentLang === 'fr';
+      if (!confirm(_fr
+        ? "Cette invitation LinkedIn ne semble pas encore acceptée. Marquer comme envoyé quand même ?"
+        : "This LinkedIn invitation doesn't appear to be accepted yet. Mark as sent anyway?")) return;
+    }
+  }
   const card = document.getElementById(elPrefix + 'sc-' + pid);
   const btn = document.getElementById(elPrefix + 'sms-' + pid);
   if (btn) btn.disabled = true;

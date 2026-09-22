@@ -9493,6 +9493,22 @@ async function _fetchTodaySendCounts() {
 }
 
 async function _markSent(pid, touch, auto = false, msgText = '', elPrefix = '') {
+  // Garde de connexion (chemin MANUEL uniquement, meme perimetre que _confirmIfContradicted
+  // ci-dessous -- le chemin automatique _sendViaLinkedIn() revient deja bloque en amont) : avant
+  // ce fix, un clic sur "Mark as sent" pour un touch autre que 'invite' avancait le stage ET, si le
+  // stage cible etait post-connexion, reecrivait linkedin_tag='connection-accepted' -- meme si la
+  // vraie connexion LinkedIn n'avait jamais ete acceptee (seul le mecanisme externe qui detecte une
+  // acceptation reelle doit jamais ecrire cette valeur). Confirmation (pas un blocage dur) : coherent avec
+  // _confirmIfContradicted, laisse l'utilisateur outrepasser s'il sait la donnee en retard de sync.
+  if (!auto && touch !== 'invite') {
+    const _msConnP = _sendProspects.find(x => x.id === pid) || _prospectsById[pid];
+    if (_msConnP && _msConnP.linkedin_tag !== 'connection-accepted') {
+      const _fr = currentLang === 'fr';
+      if (!confirm(_fr
+        ? "Cette invitation LinkedIn ne semble pas encore acceptée. Marquer comme envoyé quand même ?"
+        : "This LinkedIn invitation doesn't appear to be accepted yet. Mark as sent anyway?")) return;
+    }
+  }
   const card = document.getElementById(elPrefix + 'sc-' + pid);
   // Meme pattern anti-double-clic que _sendViaLinkedIn()/_startEmailSeq() (demande Thomas) : pose
   // avant tout write, jamais reactive dans le chemin de succes -- la carte est retiree du DOM par
@@ -9531,12 +9547,10 @@ async function _markSent(pid, touch, auto = false, msgText = '', elPrefix = '') 
   const _newRank = _stageRank[newStage] ?? -1;
   let eStage = null;
   if (p && newStage && _newRank > _curRank) {
-    const advancedStages = ['1st Contact','Engaged','Replied','Proposal','Closed'];
-    const stageUpdates = { stage: newStage };
-    if (advancedStages.includes(newStage) && p.linkedin_tag === 'invite-sent') {
-      stageUpdates.linkedin_tag = 'connection-accepted';
-    }
-    ({ error: eStage } = await sbClient.from('prospects').update(stageUpdates).eq('id', pid).eq('client_id', CLIENT_ID));
+    // Ne reecrit plus jamais linkedin_tag ici (fix garde de connexion, meme chantier que ci-dessus) :
+    // seul le mecanisme externe qui detecte une acceptation reelle doit ecrire 'connection-accepted'
+    // -- avancer le stage sur un envoi manuel/automatise ne prouve rien sur l'acceptation reelle.
+    ({ error: eStage } = await sbClient.from('prospects').update({ stage: newStage }).eq('id', pid).eq('client_id', CLIENT_ID));
     if (eStage) console.error('_markSent stage:', eStage);
   }
   let eLinkedinTag = null;
