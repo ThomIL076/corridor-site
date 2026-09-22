@@ -1675,12 +1675,12 @@ body.new-nav { padding-left: 220px; }
 <div class="top-chrome-wrapper">
 <nav aria-label="Primary navigation">
   <div class="mandate-bar" id="mandate-bar" style="display:none;">
-    <span class="mandate-bar-label">MANDATE</span>
+    <span class="mandate-bar-label" data-en="MANDATE" data-fr="MANDAT">MANDATE</span>
     <select class="input-select" id="mandate-select" onchange="_onMandateChange()">
-      <option value="">Consolidated view (all)</option>
+      <option value="" data-en="Consolidated view (all)" data-fr="Vue consolidée (tous)">Consolidated view (all)</option>
     </select>
     <select class="input-select" id="deal-select" style="display:none;" onchange="_onDealChange()">
-      <option value="">No specific deal</option>
+      <option value="" data-en="No specific deal" data-fr="Aucun deal spécifique">No specific deal</option>
     </select>
   </div>
 
@@ -1704,7 +1704,7 @@ body.new-nav { padding-left: 220px; }
 <div class="journey-spine" id="journey-spine">
   <button class="spine-stage" data-spine="signal" onclick="_switchNewNav('system','signals')">
     <span class="spine-dot"></span>
-    <span class="spine-label">Signal</span>
+    <span class="spine-label" data-en="Signal" data-fr="Signal">Signal</span>
     <!-- Pas de .spine-row ici volontairement : aucune source persistee ne correspond a ce que
          la vue Signals affiche reellement (voir chunk 2). Un compte vide a cote d'une note
          statique "new this week" ressemblerait a un bug de chargement plutot qu'a une absence
@@ -1713,20 +1713,20 @@ body.new-nav { padding-left: 220px; }
   </button>
   <button class="spine-stage" data-spine="qualify" onclick="_switchNewNav('pipeline')">
     <span class="spine-dot"></span>
-    <span class="spine-label">Qualify</span>
-    <div class="spine-row"><span class="spine-count" id="spine-count-qualify"></span><span class="spine-note">to qualify</span></div>
+    <span class="spine-label" data-en="Qualify" data-fr="Qualifier">Qualify</span>
+    <div class="spine-row"><span class="spine-count" id="spine-count-qualify"></span><span class="spine-note" data-en="to qualify" data-fr="à qualifier">to qualify</span></div>
     <span class="spine-rail"></span>
   </button>
   <button class="spine-stage" data-spine="send" onclick="_switchNewNav('send')">
     <span class="spine-dot"></span>
-    <span class="spine-label">Send</span>
-    <div class="spine-row"><span class="spine-count" id="spine-count-send"></span><span class="spine-note">due today</span></div>
+    <span class="spine-label" data-en="Send" data-fr="Envoyer">Send</span>
+    <div class="spine-row"><span class="spine-count" id="spine-count-send"></span><span class="spine-note" data-en="due today" data-fr="dus aujourd'hui">due today</span></div>
     <span class="spine-rail"></span>
   </button>
   <button class="spine-stage" data-spine="reply" onclick="_switchNewNav('inbox')">
     <span class="spine-dot"></span>
-    <span class="spine-label">Reply</span>
-    <div class="spine-row"><span class="spine-count" id="spine-count-reply"></span><span class="spine-note">to triage</span></div>
+    <span class="spine-label" data-en="Reply" data-fr="Répondre">Reply</span>
+    <div class="spine-row"><span class="spine-count" id="spine-count-reply"></span><span class="spine-note" data-en="to triage" data-fr="à trier">to triage</span></div>
     <span class="spine-rail"></span>
   </button>
   <button class="spine-stage" data-spine="indeal" onclick="_switchNewNav('pipeline')">
@@ -1734,13 +1734,13 @@ body.new-nav { padding-left: 220px; }
     <!-- F10 : "In deal" survendait la maturite reelle (le calcul reste stage rank >= Engaged,
          hors Closed -- inchange, cf. renderKanban plus bas). "Engaged+" est le titre principal
          desormais ; l'ancienne note "engaged +" devient redondante avec lui, retiree. -->
-    <span class="spine-label">Engaged+</span>
+    <span class="spine-label" data-en="Engaged+" data-fr="Engagé+">Engaged+</span>
     <div class="spine-row"><span class="spine-count" id="spine-count-indeal"></span><span class="spine-note"></span></div>
     <span class="spine-rail"></span>
   </button>
   <button class="spine-stage" data-spine="client" onclick="_switchNewNav('clients')">
     <span class="spine-dot"></span>
-    <span class="spine-label">Client</span>
+    <span class="spine-label" data-en="Client" data-fr="Client">Client</span>
     <div class="spine-row"><span class="spine-count" id="spine-count-client"></span><span class="spine-note" id="spine-note-client"></span></div>
     <span class="spine-rail"></span>
   </button>
@@ -2671,13 +2671,13 @@ body.new-nav { padding-left: 220px; }
 
     <!-- Intelligence header -->
     <div class="module-header" style="margin-bottom:20px;">
-      <div class="module-title">Signals & Pipeline</div>
+      <div class="module-title" data-en="Signals & Pipeline" data-fr="Signaux & Pipeline">Signals & Pipeline</div>
     </div>
     <!-- Sub-nav -->
     <div class="sys-tabs">
-      <button class="sys-tab active" data-sys="signals" onclick="_switchSysTab('signals')">Signals</button>
-      <button class="sys-tab" data-sys="pipeintel" onclick="_switchSysTab('pipeintel')">Pipeline health</button>
-      <button class="sys-tab" data-sys="reports" onclick="_switchSysTab('reports')">Reports</button>
+      <button class="sys-tab active" data-sys="signals" onclick="_switchSysTab('signals')"><span data-en="Signals" data-fr="Signaux">Signals</span></button>
+      <button class="sys-tab" data-sys="pipeintel" onclick="_switchSysTab('pipeintel')"><span data-en="Pipeline health" data-fr="Santé du pipeline">Pipeline health</span></button>
+      <button class="sys-tab" data-sys="reports" onclick="_switchSysTab('reports')"><span data-en="Reports" data-fr="Rapports">Reports</span></button>
     </div>
 
     <!-- ── Signals ── -->
@@ -2747,8 +2747,8 @@ body.new-nav { padding-left: 220px; }
     <!-- ── Reports ── -->
     <div class="sys-panel" id="syspanel-reports" style="display:none;">
       <div class="rpt-subtab-bar">
-        <button class="toggle-pill active" id="rpt-tab-weekly" onclick="_switchRptTab('weekly')">Weekly</button>
-        <button class="toggle-pill" id="rpt-tab-daily" onclick="_switchRptTab('daily')">Daily</button>
+        <button class="toggle-pill active" id="rpt-tab-weekly" onclick="_switchRptTab('weekly')"><span data-en="Weekly" data-fr="Hebdomadaire">Weekly</span></button>
+        <button class="toggle-pill" id="rpt-tab-daily" onclick="_switchRptTab('daily')"><span data-en="Daily" data-fr="Quotidien">Daily</span></button>
       </div>
       <!-- Weekly panel -->
       <div id="rpt-panel-weekly">
@@ -2756,14 +2756,14 @@ body.new-nav { padding-left: 220px; }
              manuellement depuis le dashboard, seulement par le workflow n8n du vendredi --
              meme structure de header que le panel Daily juste en dessous (provenance seule). -->
         <div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
-          <span class="ask-provenance" style="margin-top:0;padding-top:0;border-top:none;">Weekly Report</span>
+          <span class="ask-provenance" style="margin-top:0;padding-top:0;border-top:none;" data-en="Weekly Report" data-fr="Rapport hebdomadaire">Weekly Report</span>
         </div>
         <div id="weekly-reports-list"></div>
       </div>
       <!-- Daily panel -->
       <div id="rpt-panel-daily" style="display:none;">
         <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
-          <span class="ask-provenance" style="margin-top:0;padding-top:0;border-top:none;">Daily Digest</span>
+          <span class="ask-provenance" style="margin-top:0;padding-top:0;border-top:none;" data-en="Daily Digest" data-fr="Digest quotidien">Daily Digest</span>
         </div>
         <div id="daily-reports-list"></div>
       </div>
@@ -3386,19 +3386,23 @@ function _weekLabelOf(r) {
   const d = new Date(r.week_start || r.created_at);
   const mon = new Date(d);
   mon.setDate(mon.getDate() - (mon.getDay() === 0 ? 6 : mon.getDay() - 1));
-  return { mon, label: 'Week of ' + mon.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) };
+  const fr = typeof currentLang !== 'undefined' && currentLang === 'fr';
+  const prefix = fr ? 'Semaine du ' : 'Week of ';
+  return { mon, label: prefix + mon.toLocaleDateString(fr ? 'fr-FR' : 'en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) };
 }
 function _weeklyRecsHtml(r, vm) {
   const existingVote = vm[r.id] || null;
   if (!r.recommendations_text) return '';
+  const fr = typeof currentLang !== 'undefined' && currentLang === 'fr';
+  const statusText = existingVote ? (existingVote === 'like' ? (fr ? 'Marqué utile' : 'Marked useful') : (fr ? 'Marqué pas utile' : 'Marked not useful')) : '';
   return `
     <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:14px;">
-      <div style="font-size:var(--fs-xs);font-weight:700;color:var(--muted);letter-spacing:0.5px;text-transform:uppercase;margin-bottom:8px;">Recommendations</div>
+      <div style="font-size:var(--fs-xs);font-weight:700;color:var(--muted);letter-spacing:0.5px;text-transform:uppercase;margin-bottom:8px;">${fr ? 'Recommandations' : 'Recommendations'}</div>
       <div style="font-size:var(--fs-base);line-height:1.6;">${renderMarkdown(r.recommendations_text || '')}</div>
       <div style="display:flex;gap:8px;margin-top:10px;align-items:center;">
-        <button class="rpt-vote-btn ${existingVote === 'like' ? 'active-like' : ''}" id="vote-like-${_esc(r.id)}" onclick="_weeklyVote('${_esc(r.id)}','like')" title="Useful">👍</button>
-        <button class="rpt-vote-btn ${existingVote === 'unlike' ? 'active-unlike' : ''}" id="vote-unlike-${_esc(r.id)}" onclick="_weeklyVote('${_esc(r.id)}','unlike')" title="Not useful">👎</button>
-        <span id="vote-status-${_esc(r.id)}" style="font-size:var(--fs-xs);color:var(--muted);">${existingVote ? (existingVote === 'like' ? 'Marked useful' : 'Marked not useful') : ''}</span>
+        <button class="rpt-vote-btn ${existingVote === 'like' ? 'active-like' : ''}" id="vote-like-${_esc(r.id)}" onclick="_weeklyVote('${_esc(r.id)}','like')" title="${fr ? 'Utile' : 'Useful'}">👍</button>
+        <button class="rpt-vote-btn ${existingVote === 'unlike' ? 'active-unlike' : ''}" id="vote-unlike-${_esc(r.id)}" onclick="_weeklyVote('${_esc(r.id)}','unlike')" title="${fr ? 'Pas utile' : 'Not useful'}">👎</button>
+        <span id="vote-status-${_esc(r.id)}" style="font-size:var(--fs-xs);color:var(--muted);">${statusText}</span>
       </div>
     </div>`;
 }
@@ -3407,17 +3411,20 @@ function _weeklyRecsHtml(r, vm) {
 function _renderWeeklyList(reports, voteMap) {
   const list = document.getElementById('weekly-reports-list');
   if (!list) return;
+  const fr = typeof currentLang !== 'undefined' && currentLang === 'fr';
   if (!reports || !reports.length) {
-    list.innerHTML = '<div style="color:var(--text-secondary);font-size:var(--fs-base);padding:16px 0;">No report generated yet. Click Generate Report to run.</div>';
+    list.innerHTML = `<div style="color:var(--text-secondary);font-size:var(--fs-base);padding:16px 0;">${fr ? 'Aucun rapport généré pour l\'instant. Cliquez sur Générer le rapport pour lancer la génération.' : 'No report generated yet. Click Generate Report to run.'}</div>`;
     return;
   }
   const vm = voteMap || {};
   const [latest, ...past] = reports;
   const latestInfo = _weekLabelOf(latest);
+  const latestTag = fr ? 'DERNIER' : 'LATEST';
+  const weekTag = fr ? 'SEMAINE' : 'WEEK';
 
   const latestHtml = `<div style="border:1px solid var(--border);border-radius:var(--radius-panel);padding:18px 20px;margin-bottom:16px;">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
-      <span style="font-family:'IBM Plex Mono',monospace;font-size:var(--fs-xs);font-weight:700;letter-spacing:0.06em;color:var(--accent);">LATEST &middot; WEEK ${_isoWeekNum(latestInfo.mon)}</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:var(--fs-xs);font-weight:700;letter-spacing:0.06em;color:var(--accent);">${latestTag} &middot; ${weekTag} ${_isoWeekNum(latestInfo.mon)}</span>
       <span style="font-size:var(--fs-xs);color:var(--muted);">${_esc(latestInfo.label)}</span>
     </div>
     <div style="font-family:'Instrument Sans',sans-serif;font-size:19px;font-weight:600;letter-spacing:-.01em;line-height:1.4;color:var(--ink);margin-bottom:12px;max-width:42em;text-wrap:pretty;">${_esc(latest.summary || '')}</div>
@@ -3430,9 +3437,9 @@ function _renderWeeklyList(reports, voteMap) {
     const rowId = 'weekly-full-' + (r.id || idx);
     return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);">
         <span style="flex:1;min-width:0;font-size:var(--fs-sm);font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${_esc(info.label)}">${_esc(info.label)}</span>
-        <span style="width:64px;flex-shrink:0;font-size:var(--fs-xs);color:var(--muted);text-transform:uppercase;">Weekly</span>
-        <span style="width:80px;flex-shrink:0;font-size:var(--fs-xs);color:var(--muted);">${info.mon.toLocaleDateString('en-GB',{day:'numeric',month:'short'})}</span>
-        <button class="btn-secondary btn-sm" onclick="_toggleWeeklyView('${rowId}',this)" style="flex-shrink:0;">Open</button>
+        <span style="width:64px;flex-shrink:0;font-size:var(--fs-xs);color:var(--muted);text-transform:uppercase;">${fr ? 'Hebdo' : 'Weekly'}</span>
+        <span style="width:80px;flex-shrink:0;font-size:var(--fs-xs);color:var(--muted);">${info.mon.toLocaleDateString(fr ? 'fr-FR' : 'en-GB',{day:'numeric',month:'short'})}</span>
+        <button class="btn-secondary btn-sm" onclick="_toggleWeeklyView('${rowId}',this)" style="flex-shrink:0;">${fr ? 'Ouvrir' : 'Open'}</button>
       </div>
       <div id="${rowId}" style="display:none;padding:12px 0;border-bottom:1px solid var(--border);font-size:var(--fs-base);line-height:1.6;">${renderMarkdown(r.full_report || '')}${_weeklyRecsHtml(r, vm)}</div>`;
   }).join('');
@@ -3448,7 +3455,8 @@ function _toggleWeeklyView(id, btn) {
   if (!full) return;
   const open = full.style.display === 'none';
   full.style.display = open ? '' : 'none';
-  if (btn) btn.textContent = open ? 'Close' : 'Open';
+  const fr = typeof currentLang !== 'undefined' && currentLang === 'fr';
+  if (btn) btn.textContent = open ? (fr ? 'Fermer' : 'Close') : (fr ? 'Ouvrir' : 'Open');
 }
 async function _loadWeeklyReports() {
   const list = document.getElementById('weekly-reports-list');
@@ -3470,7 +3478,8 @@ async function _loadWeeklyReports() {
     _renderWeeklyList(reports, voteMap);
   } catch(e) {
     console.warn('[_loadWeeklyReports]', e);
-    list.innerHTML = '<div style="color:var(--text-secondary);font-size:var(--fs-base);padding:16px 0;">Could not load reports.</div>';
+    const fr = typeof currentLang !== 'undefined' && currentLang === 'fr';
+    list.innerHTML = `<div style="color:var(--text-secondary);font-size:var(--fs-base);padding:16px 0;">${fr ? 'Impossible de charger les rapports.' : 'Could not load reports.'}</div>`;
   }
 }
 
@@ -3503,7 +3512,7 @@ async function _weeklyVote(reportId, vote) {
     }
     if (likeBtn)   { likeBtn.classList.toggle('active-like',   vote === 'like');   likeBtn.disabled = false; }
     if (unlikeBtn) { unlikeBtn.classList.toggle('active-unlike', vote === 'unlike'); unlikeBtn.disabled = false; }
-    if (statusEl)  { statusEl.textContent = vote === 'like' ? 'Marked useful' : 'Marked not useful'; }
+    if (statusEl)  { const fr = typeof currentLang !== 'undefined' && currentLang === 'fr'; statusEl.textContent = vote === 'like' ? (fr ? 'Marqué utile' : 'Marked useful') : (fr ? 'Marqué pas utile' : 'Marked not useful'); }
   } catch(e) {
     console.error('[_weeklyVote]', e);
     if (likeBtn)   likeBtn.disabled = false;
@@ -3512,33 +3521,37 @@ async function _weeklyVote(reportId, vote) {
 }
 
 const _RPT_METRIC_COLS = [
-  { key: 'total_active_prospects', label: 'Active',       color: '#3B5BDB' },
-  { key: 'new_prospects_today',    label: 'New today',    color: '#1D9E75' },
-  { key: 'signals_today',          label: 'Signals',      color: '#6B4BC0' }, // SIGNALS (section 01) : "signal counts in the daily digest", nomme explicitement dans la spec
-  { key: 'interactions_today',     label: 'Interactions', color: '#2568B5' },
+  { key: 'total_active_prospects', en: 'Active',       fr: 'Actifs',                 color: '#3B5BDB' },
+  { key: 'new_prospects_today',    en: 'New today',    fr: 'Nouveaux aujourd\'hui',  color: '#1D9E75' },
+  { key: 'signals_today',          en: 'Signals',      fr: 'Signaux',                color: '#6B4BC0' }, // SIGNALS (section 01) : "signal counts in the daily digest", nomme explicitement dans la spec
+  { key: 'interactions_today',     en: 'Interactions', fr: 'Interactions',           color: '#2568B5' },
 ];
 
 function _renderDailyList(rows) {
   const list = document.getElementById('daily-reports-list');
   if (!list) return;
+  const fr = typeof currentLang !== 'undefined' && currentLang === 'fr';
   if (!rows || !rows.length) {
-    list.innerHTML = '<div style="color:var(--text-secondary);font-size:var(--fs-base);padding:16px 0;">No daily activity for the last 14 days.</div>';
+    list.innerHTML = `<div style="color:var(--text-secondary);font-size:var(--fs-base);padding:16px 0;">${fr ? 'Aucune activité quotidienne sur les 14 derniers jours.' : 'No daily activity for the last 14 days.'}</div>`;
     return;
   }
+  const locale = fr ? 'fr-FR' : 'en-GB';
   list.innerHTML = rows.map(r => {
-    const dateLabel = new Date(r.date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+    const dateLabel = new Date(r.date).toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
     const metrics = r.metrics || {};
     const badges = _RPT_METRIC_COLS.filter(m => metrics[m.key] != null && metrics[m.key] !== 0).map(m =>
-      `<span class="rpt-metric-badge" style="background:${m.color}18;color:${m.color};border-color:${m.color}30;">${_esc(String(metrics[m.key]))} ${_esc(m.label)}</span>`
+      `<span class="rpt-metric-badge" style="background:${m.color}18;color:${m.color};border-color:${m.color}30;">${_esc(String(metrics[m.key]))} ${_esc(fr ? m.fr : m.en)}</span>`
     ).join('');
     const summaryHtml = r.summary_text ? `<div style="font-size:var(--fs-base);line-height:1.6;color:var(--text-primary);margin-top:${badges ? '10px' : '0'};">${_esc(r.summary_text).replace(/\n/g, '<br>')}</div>` : '';
     // created_at (timestamp with time zone) = quand le resume a ete ecrit ; date (date simple)
     // = le jour metier couvert, deja utilise pour dateLabel -- deux questions differentes,
     // confirme sur le schema reel.
     const writtenAt = r.created_at
-      ? new Date(r.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).toUpperCase()
+      ? new Date(r.created_at).toLocaleString(locale, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).toUpperCase()
       : dateLabel.toUpperCase();
-    const provenanceHtml = `<div class="ask-provenance">WRITTEN ${_esc(writtenAt)} &middot; NO ACTION REQUIRED</div>`;
+    const provenanceHtml = fr
+      ? `<div class="ask-provenance">ÉCRIT LE ${_esc(writtenAt)} &middot; AUCUNE ACTION REQUISE</div>`
+      : `<div class="ask-provenance">WRITTEN ${_esc(writtenAt)} &middot; NO ACTION REQUIRED</div>`;
     return `<div style="border:1px solid var(--border);border-radius:var(--radius-panel);padding:14px 16px;margin-bottom:8px;">
       <div style="display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap;">
         <span style="font-size:var(--fs-xs);font-weight:700;color:var(--text-secondary);white-space:nowrap;flex-shrink:0;padding-top:2px;">${_esc(dateLabel)}</span>
@@ -3553,7 +3566,8 @@ function _renderDailyList(rows) {
 async function _loadDailyReports() {
   const list = document.getElementById('daily-reports-list');
   if (!list) return;
-  list.innerHTML = '<div style="color:var(--text-secondary);font-size:var(--fs-base);padding:12px 0;">Loading…</div>';
+  const fr = typeof currentLang !== 'undefined' && currentLang === 'fr';
+  list.innerHTML = `<div style="color:var(--text-secondary);font-size:var(--fs-base);padding:12px 0;">${fr ? 'Chargement…' : 'Loading…'}</div>`;
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - 14);
   const cutoffStr = cutoff.toISOString().slice(0, 10);
@@ -3567,7 +3581,8 @@ async function _loadDailyReports() {
     _renderDailyList(data || []);
   } catch(e) {
     console.warn('[_loadDailyReports]', e);
-    list.innerHTML = '<div style="color:var(--text-secondary);font-size:var(--fs-base);padding:16px 0;">Could not load daily activity.</div>';
+    const fr2 = typeof currentLang !== 'undefined' && currentLang === 'fr';
+    list.innerHTML = `<div style="color:var(--text-secondary);font-size:var(--fs-base);padding:16px 0;">${fr2 ? 'Impossible de charger l\'activité quotidienne.' : 'Could not load daily activity.'}</div>`;
   }
 }
 
@@ -3813,7 +3828,7 @@ async function _loadMandateOptions() {
 }
 
 async function _loadDealOptions(mandateId, dealSel) {
-  dealSel.innerHTML = '<option value="">No specific deal</option>';
+  dealSel.innerHTML = `<option value="">${(typeof currentLang!=='undefined'&&currentLang==='fr')?'Aucun deal spécifique':'No specific deal'}</option>`;
   dealSel.style.display = 'none';
   if (!mandateId || mandateId === '__ALL__') return;
   try {
@@ -3880,7 +3895,7 @@ async function _onMandateChange() {
       const fb = new URL(window.location.href);
       fb.searchParams.delete('mandate');
       history.replaceState({ mandate: null }, '', fb.toString());
-      if (_dealSel2) { _dealSel2.innerHTML = '<option value="">No specific deal</option>'; _dealSel2.style.display = 'none'; }
+      if (_dealSel2) { _dealSel2.innerHTML = `<option value="">${(typeof currentLang!=='undefined'&&currentLang==='fr')?'Aucun deal spécifique':'No specific deal'}</option>`; _dealSel2.style.display = 'none'; }
     } else if (_dealSel2) {
       await _loadDealOptions(val, _dealSel2);
     }
@@ -3888,7 +3903,7 @@ async function _onMandateChange() {
     activeMandateId = null;
     activeDealId = null;
     _activeMandate = null;
-    if (_dealSel2) { _dealSel2.innerHTML = '<option value="">No specific deal</option>'; _dealSel2.style.display = 'none'; }
+    if (_dealSel2) { _dealSel2.innerHTML = `<option value="">${(typeof currentLang!=='undefined'&&currentLang==='fr')?'Aucun deal spécifique':'No specific deal'}</option>`; _dealSel2.style.display = 'none'; }
   }
   _morningItems = []; _liveAlertItems = []; _renderSignalsFeed();
   loadKanban(true);
@@ -15514,7 +15529,10 @@ async function loadClientsKanban(force) {
     const _spineClientCount = document.getElementById('spine-count-client');
     if (_spineClientCount) _spineClientCount.textContent = _crmTotal;
     const _spineClientNote = document.getElementById('spine-note-client');
-    if (_spineClientNote) _spineClientNote.textContent = _crmTotal === 0 ? 'none yet' : 'under management';
+    if (_spineClientNote) {
+      const _fr = typeof currentLang !== 'undefined' && currentLang === 'fr';
+      _spineClientNote.textContent = _crmTotal === 0 ? (_fr ? 'aucun pour le moment' : 'none yet') : (_fr ? 'sous gestion' : 'under management');
+    }
     const _crmEmptyEl = document.getElementById('crm-empty-state');
     const _crmScrollEl = document.getElementById('crm-kanban-scroll');
     const _crmFilterBar = document.getElementById('crm-filter-bar');
