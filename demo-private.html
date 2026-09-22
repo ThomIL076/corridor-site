@@ -4460,11 +4460,14 @@ function _mscSectionLabel(heading) {
   return `<div style="font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-secondary);opacity:.65;margin:14px 0 4px;">${_esc(heading)}</div>`;
 }
 // linksByParagraph (optionnel, tableau parallele a `paragraphs`, aligne sur wominds.html) ; absent
-// = _esc(p) seul, comportement de la chaine de repli inchange.
+// = _esc(p) seul, comportement de la chaine de repli inchange. heading falsy (S1C, chantier cartes Stream 1
+// repli) : aucune etiquette de section emise (le texte residuel d'une section deja etiquetee par ses cartes
+// n'affiche pas une 2e etiquette) -- tous les appelants existants passent toujours un heading non vide, donc
+// leur rendu est strictement inchange.
 function _mscNarrativeBlockHTML(heading, paragraphs, linksByParagraph) {
   if (!paragraphs.length) return '';
   const body = paragraphs.map((p, i) => _mscProseHTML(p, linksByParagraph ? linksByParagraph[i] : null)).join('');
-  return `${_mscSectionLabel(heading)}<div style="font-size:var(--fs-sm);color:var(--text-secondary);line-height:1.5;margin-bottom:4px;">${body}</div>`;
+  return `${heading ? _mscSectionLabel(heading) : ''}<div style="font-size:var(--fs-sm);color:var(--text-secondary);line-height:1.5;margin-bottom:4px;">${body}</div>`;
 }
 // Fix 2026-09-20 (chantier market_mention, demande Thomas, Corridor uniquement pour cette
 // premiere passe) : Stream 2 et suivants (titre dynamique, nombre variable par jour) et
@@ -4945,6 +4948,65 @@ function _mscDropEntryBlocks(items, citedBy) {
   }
   return out;
 }
+// S1C (chantier cartes Stream 1, repli decisions_json / scan_entries invalide) -- Stream 1 n'a JAMAIS d'entree
+// dans decisions_json (seules today_action/opportunistic_connection/market_mention y figurent, cf.
+// _MSC_PRIORITY_HEADINGS/_MSC_CANONICAL_HEADING) : sans scan_entries v1 valide, la SEULE donnee disponible pour
+// Stream 1 est le texte brut de la section. Forme FIXE verifiee sur un vrai mail Corridor (2026-09-21,
+// s1_real_thomas.json, rejouee dans les tests) : une entree = EXACTEMENT nom (paragraphe i-2, "<strong>Nom</strong>")
+// / societe (i-1) / "ICP n · Signal n · type" (i, seul ancrage fiable -- jamais ambigu, jamais confondu avec un
+// nom ou une societe) / au PLUS une ligne de lien juste apres (i+1, uniquement si elle porte au moins un lien --
+// son ABSENCE est normale et confirmee sur le vrai mail : 2 entrees sur 10 n'ont aucune ligne de lien). Convertie
+// via _mscEntryToDecision -- AUCUNE 2e logique de construction de "decision", meme adaptateur que scan_entries v1
+// -- puis rendue par _mscDecisionCardHTML, SEUL chemin de rendu de carte (reutilise tel quel, aucun nouveau style).
+// Champs JAMAIS remplis ici, absents du texte donc jamais inventes : signal.text/date/url, interpretation, facts,
+// action, mandate, confidence, id prospect. Consequence DOCUMENTEE (pas un bug) de l'id absent : AUCUN
+// enrichissement live possible (_mscFetchLiveProspects n'interroge que par id) -> _mscDecisionCardHTML n'affiche
+// alors AUCUN chip ICP (icpScore n'est jamais lu que sur `live`, jamais sur icp_at_scan) et une carte non
+// cliquable -- exactement le comportement deja accepte ailleurs pour toute carte decisions_json sans id (cf.
+// commentaire "id null" de _mscDecisionCardHTML). La carte de repli est donc plus pauvre que la carte scan_entries
+// v1 (nom, societe, force/type de signal, lien(s)), jamais un texte invente pour combler ICP/interpretation/action.
+// Renvoie aussi `consumed` (Set d'index dans `paragraphs`) pour que l'appelant retire ces lignes du texte residuel
+// (note de couverture, intro...) sans toucher aux autres -- meme esprit que _mscDropEntryBlocks, sur du texte non
+// enrichi de section/tbl/header (Stream 1 en repli est une suite de <p>, jamais un <table>, confirme sur le vrai mail).
+function _mscStream1EntriesFromParagraphs(paragraphs, linksByParagraph) {
+  const ICP_RE = /^ICP\s+(\d+(?:\.\d+)?)\s*·\s*Signal\s+(\d+(?:\.\d+)?)\s*·\s*(.+?)\s*$/i;
+  const consumed = new Set();
+  const entries = [];
+  for (let i = 0; i < paragraphs.length; i++) {
+    if (consumed.has(i)) continue;
+    const m = ICP_RE.exec((paragraphs[i] || '').trim());
+    if (!m) continue;
+    const nameIdx = i - 2, companyIdx = i - 1;
+    if (nameIdx < 0 || consumed.has(nameIdx) || consumed.has(companyIdx)) continue;
+    const name = (paragraphs[nameIdx] || '').trim();
+    const company = (paragraphs[companyIdx] || '').trim();
+    if (!name || ICP_RE.test(name) || ICP_RE.test(company)) continue;
+    let linkedin = null, sourceUrl = null, linkIdx = -1;
+    const nextLinks = linksByParagraph ? linksByParagraph[i + 1] : null;
+    if (nextLinks && nextLinks.length) {
+      linkIdx = i + 1;
+      for (const l of nextLinks) {
+        const href = _mscSafeUrl(l && l.href);
+        if (!href) continue;
+        const label = ((l && l.t) || '').trim().toLowerCase();
+        if (!linkedin && (label === 'profile' || label === 'linkedin')) linkedin = href;
+        else if (!sourceUrl) sourceUrl = href;
+      }
+    }
+    consumed.add(nameIdx); consumed.add(companyIdx); consumed.add(i);
+    if (linkIdx >= 0) consumed.add(linkIdx);
+    entries.push({
+      section: 'stream1',
+      name,
+      company: company || null,
+      icp_at_scan: { score: Number(m[1]) },
+      signal: { strength: Number(m[2]), type: m[3].trim() || null },
+      linkedin,
+      source_url: sourceUrl,
+    });
+  }
+  return { entries, consumed };
+}
 // Rendu du panneau v1 (propre a Corridor) : cartes par section dans l'ordre fixe _MSC_V1_SECTIONS,
 // entourees du texte du mail. decisions = _mscDedupeDecisions(_mscEntriesToDecisions(...)). Les
 // sections narratives (synthese, contexte, coverage, ce qui a change...) restent en texte, avec
@@ -5087,6 +5149,23 @@ async function _loadLastMorningScanEmail() {
             // explicitement exclus sont anonymises en amont, jamais nommes dans ce texte).
             sectionsHtml += _mscSectionLabel(s.heading)
               + `<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;">${mentions.map(d => _mscDecisionCardHTML(d, d.id ? liveById[d.id] : null)).join('')}</div>`;
+            continue;
+          }
+        } else if (_mscSectionKeyForHeading(s.heading) === 'stream1') {
+          // S1C : Stream 1 n'a jamais d'entree dans decisions_json (cf. _mscStream1EntriesFromParagraphs) --
+          // les cartes sont reconstruites depuis le texte brut de CETTE section, jamais depuis `decisions`/`groups`
+          // (qui ne peuvent structurellement pas contenir Stream 1). Aucun enrichissement live (pas d'id) : voir
+          // le commentaire de _mscStream1EntriesFromParagraphs pour la limite documentee (pas de chip ICP).
+          const s1 = _mscStream1EntriesFromParagraphs(s.paragraphs, s.linksByParagraph);
+          if (s1.entries.length > 0) {
+            const cards = s1.entries.map(_mscEntryToDecision).map(d => _mscDecisionCardHTML(d, null)).join('');
+            sectionsHtml += _mscSectionLabel(s.heading)
+              + `<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;">${cards}</div>`;
+            const restParagraphs = s.paragraphs.filter((_, idx) => !s1.consumed.has(idx));
+            const restLinks = s.linksByParagraph.filter((_, idx) => !s1.consumed.has(idx));
+            // heading null : l'etiquette "Stream 1" est deja posee ci-dessus (au-dessus des cartes) -- pas de 2e
+            // etiquette pour le texte residuel (note de couverture, intro...), cf. _mscNarrativeBlockHTML.
+            sectionsHtml += _mscNarrativeBlockHTML(null, restParagraphs, restLinks);
             continue;
           }
         }
