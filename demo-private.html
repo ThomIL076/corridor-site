@@ -4486,7 +4486,12 @@ function _icpBadgeWithTooltipHTML(chipHtml, score, reason, align) {
   const tip = reason
     ? 'ICP ' + s + '/10 — ' + _esc(reason)
     : 'ICP Score: ' + s + '/10 — scored by Corridor pipeline: role seniority, sector fit, company size, signal activity, and mandate alignment';
-  return '<span style="position:relative;display:inline-block;" onmouseover="this.querySelector(\'.icp-tt\').style.display=\'block\'" onmouseout="this.querySelector(\'.icp-tt\').style.display=\'none\'">' +
+  // align 'left' : l'infobulle (220px) ancree au bord gauche de la puce deborde a droite quand la puce est loin sur la droite (mobile : +30 a +100px, defilement
+  // horizontal de la page pendant le survol/tap) -> a l'affichage, decalee vers la gauche juste assez pour rester dans la fenetre (marge 8px). 'right' inchange.
+  const over = align === 'left'
+    ? 'var t=this.querySelector(\'.icp-tt\');t.style.display=\'block\';t.style.left=\'0\';var o=t.getBoundingClientRect().right-document.documentElement.clientWidth+8;if(o>0)t.style.left=(-o)+\'px\''
+    : 'this.querySelector(\'.icp-tt\').style.display=\'block\'';
+  return '<span style="position:relative;display:inline-block;" onmouseover="' + over + '" onmouseout="this.querySelector(\'.icp-tt\').style.display=\'none\'">' +
     chipHtml +
     '<span class="icp-tt" style="display:none;position:absolute;bottom:100%;' + (align === 'left' ? 'left:0' : 'right:0') + ';margin-bottom:6px;background:var(--ink);color:#fff;font-size:var(--fs-xs);font-weight:400;padding:6px 10px;border-radius:var(--radius-sm);white-space:normal;width:220px;line-height:1.4;z-index:20;box-shadow:0 2px 8px rgba(0,0,0,0.15);">' + tip + '</span>' +
     '</span>';
@@ -4555,6 +4560,9 @@ function _mscIcpStateChipHTML(state) {
 // INTERPRETATION / ACTION, lien source (_mscResolveSource). Le resume du modele reste la ligne
 // d'ouverture (Corridor : toutes les entrees en ont un), sauf si FAITS ou ACTION sont fournis.
 // UN SEUL bloc action : celui du scan s'il existe, sinon next_action_cache live -- jamais les deux.
+// Crochet optionnel d._extraChips (etape B, vue Today) = FONCTION renvoyant le HTML de puces supplementaires, posees en fin de ligne d'en-tete.
+// Une fonction, jamais une chaine : le repli decisions_json passe a cette carte l'objet JSON de la base TEL QUEL, et un objet JSON ne peut pas
+// porter de fonction -- aucun HTML venant de la donnee n'atteint la carte par cette voie. Absent = aucun effet (HTML de Signals / Morning Scan inchange).
 function _mscDecisionCardHTML(d, live) {
   const isEntry = !!d._scanEntry;
   const pid = _mscSafeId(d.id);
@@ -4589,9 +4597,9 @@ function _mscDecisionCardHTML(d, live) {
   // _mscResolveSource. Jamais un lien deja present retire ou remplace ; toujours _mscSafeUrl (http/https).
   const linkedinUrl = _mscSafeUrl(d.linkedin) || _mscSafeUrl(live && live.linkedin);
   const source = _mscResolveSource(d, live);
-  if (linkedinUrl) links.push(`<a href="${_esc(linkedinUrl)}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;font-weight:600;white-space:nowrap;">LinkedIn</a>`);
-  if (emailAddr) links.push(`<a href="mailto:${_esc(emailAddr)}" title="${_esc(emailAddr)}" style="color:var(--accent);text-decoration:none;font-weight:600;white-space:nowrap;">Email</a>`);
-  if (source) links.push(`<a href="${_esc(source.url)}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;font-weight:600;min-width:0;word-break:normal;overflow-wrap:break-word;">${_esc(source.label)}</a>`);
+  if (linkedinUrl) links.push(`<a href="${_esc(linkedinUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:var(--accent);text-decoration:none;font-weight:600;white-space:nowrap;">LinkedIn</a>`);
+  if (emailAddr) links.push(`<a href="mailto:${_esc(emailAddr)}" title="${_esc(emailAddr)}" onclick="event.stopPropagation()" style="color:var(--accent);text-decoration:none;font-weight:600;white-space:nowrap;">Email</a>`);
+  if (source) links.push(`<a href="${_esc(source.url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:var(--accent);text-decoration:none;font-weight:600;min-width:0;word-break:normal;overflow-wrap:break-word;">${_esc(source.label)}</a>`);
   const linksHtml = links.length ? `<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px 12px;font-size:var(--fs-xs);">${links.join('')}</div>` : '';
 
   const structured = isEntry && (d.facts || d.action);
@@ -4645,7 +4653,7 @@ function _mscDecisionCardHTML(d, live) {
           <span style="font-weight:700;font-size:var(--fs-sm);color:var(--ink);">${name}</span>
           ${company ? `<span style="font-size:var(--fs-xs);color:var(--text-secondary);">${_esc(company)}</span>` : ''}${sectorHtml}${identityHtml}${mandateHtml}
           ${icpChip}${icpStateChip}${sigBadge}
-          ${confidenceHtml}
+          ${confidenceHtml}${typeof d._extraChips === 'function' ? d._extraChips() : ''}
         </div>
         ${factsBlock}${summary}
         ${signalBlock}
@@ -4715,6 +4723,27 @@ function _mscEntryToDecision(e) {
     signal: sig ? { text: str(sig.text), type: str(sig.type), strength: Number.isFinite(sig.strength) ? sig.strength : null, date: str(sig.date), url: _mscSafeUrl(sig.url) || null } : null,
     icp_at_scan: ics ? { score: Number.isFinite(ics.score) ? ics.score : null, reason: str(ics.reason) } : null,
   };
+}
+// Objet « decision » d'une ligne prospect de Today (etape B de l'unification Today/Signals) : pseudo-entree scan_entries
+// (_scanEntry:true) portant signal{text,type,date,url} -> le badge de type de signal et la date reviennent sur la carte partagee ;
+// AUCUNE confiance (Today n'en a pas : _mscConfidenceBadge n'affiche alors rien, jamais un « Speculatif » invente). Conversion
+// deleguee a _mscEntryToDecision (memes validations _mscSafeId / _mscSafeUrl, aucune 2e logique). La ligne Today elle-meme est passee
+// comme fiche « live » a _mscDecisionCardHTML (garde d'identite, secteur, email, icp_reason, action en cache).
+// Puces propres a Today (categorie du Morning Scan, memes libelles et titres qu'avant) : passees par le crochet d._extraChips, une FONCTION au texte
+// constant (jamais de la donnee) ; categorie inconnue ou hostile (__proto__, constructor...) ou absente (repli arithmetique) = aucune puce.
+function _mscDecisionFromProspect(p) {
+  const base = 'font-size:11px;font-weight:700;padding:2px 8px;border-radius:var(--radius-pill);white-space:nowrap;';
+  const chips = {
+    today_action: `<span style="${base}color:var(--red);background:var(--red-bg);border:1px solid var(--red-light);" title="Flagged for action by this morning's scan">⚡ Today</span>`,
+    opportunistic_connection: `<span style="${base}color:#6b7280;background:#f3f4f6;border:1px solid #d1d5db;" title="Opportunistic connection flagged by this morning's scan">🔗 Opportunistic</span>`,
+  };
+  const d = _mscEntryToDecision({
+    prospect_id: p.id, name: p.name, company: p.company, linkedin: p.linkedin,
+    signal: { text: p.signal, type: p.signal_type, date: p.signal_date, url: p.signal_url },
+  });
+  const cat = p._morningScanCategory;
+  if (Object.prototype.hasOwnProperty.call(chips, cat)) { d.category = cat; d._extraChips = () => chips[cat]; }
+  return d;
 }
 // Liste de "decisions" triee par rank (ordre d'affichage dans la section ; tri stable, rank absent
 // ou invalide en fin de section). La section elle-meme est portee par category (cf. _mscGroupDecisions).
@@ -8149,7 +8178,9 @@ async function loadSendView() {
     while (true) {
       let _spQuery = sbClient
         .from('prospects')
-        .select('id, name, company, title, sector, region, country, stage, linkedin, last_contact, reminder_date, linkedin_tag, icp_score, client_id, origin, created_at, signal, signal_type, signal_date, email, last_surfaced_in_scan_at, scan_appearance_count, next_action_cache')
+        // identity_verdict ajoute (garde d'identite elargie, 22/09) : Send etait une surface INVISIBLE (aucune colonne d'identite
+        // chargee) -- _sendViaLinkedIn/_startEmailSeq lisent ce champ pour la confirmation NOMMEE sur une fiche CONTRADICTED.
+        .select('id, name, company, title, sector, region, country, stage, linkedin, last_contact, reminder_date, linkedin_tag, icp_score, client_id, origin, created_at, signal, signal_type, signal_date, email, last_surfaced_in_scan_at, scan_appearance_count, next_action_cache, identity_verdict')
         .eq('client_id', CLIENT_ID);
       _spQuery = _applyMandateFilter(_spQuery);
       const { data: chunk, error: pErr } = await _spQuery
@@ -9194,6 +9225,9 @@ async function _markReady(pid, elPrefix = '') {
 async function _sendViaLinkedIn(pid, touch, elPrefix = '') {
   const p = _sendProspects.find(x => x.id === pid) || _prospectsById[pid];
   if (!p) return;
+  // Garde d'identite elargie : cette fonction n'avait AUCUNE confirmation (envoi immediat au clic) -- surface listee INVISIBLE par
+  // l'audit. Aucun dialogue si la fiche n'est pas CONTRADICTED (comportement inchange, meme envoi immediat qu'avant).
+  if (!_confirmIfContradicted(p)) return;
   const out = document.getElementById(elPrefix + 'so-' + pid);
   const body = out?.textContent?.trim() || '';
   if (!body) { showToast('No message to send'); return; }
@@ -9435,9 +9469,15 @@ async function _markSent(pid, touch, auto = false, msgText = '', elPrefix = '') 
 // -- une donnee exportee (CSV, potentiellement reimportee ailleurs) doit porter le meme avertissement
 // que le dashboard, pas moins. Reutilise les data-attributes deja poses par buildCard() (aucun
 // nouveau calcul, aucune requete supplementaire).
-function _dataReliabilityLabel(companyVerifiedAttr, identityConfidenceAttr) {
+// Garde d'identite elargie : identityVerdictAttr ajoute (3e parametre) -- avant ce correctif, une fiche CONTRADICTED avec
+// identity_confidence différent de 'low' (le cas courant : le verdict CONTRADICTED n'implique pas forcement une confidence basse,
+// cf. audit) sortait avec le label "Verified", la pire lecture possible d'une donnee exportee. CONTRADICTED prime sur les autres flags
+// (le cas le plus grave l'emporte, meme logique que _scoreReliabilityBadge qui priorise deja contradicted).
+function _dataReliabilityLabel(companyVerifiedAttr, identityConfidenceAttr, identityVerdictAttr) {
   const companyUnconfirmed = companyVerifiedAttr === 'false';
   const identityUnconfirmed = identityConfidenceAttr === 'low';
+  const contradicted = identityVerdictAttr === 'CONTRADICTED';
+  if (contradicted) return companyUnconfirmed ? 'Company unconfirmed & identity contradicted' : 'Identity contradicted';
   if (companyUnconfirmed && identityUnconfirmed) return 'Company & identity unconfirmed';
   if (companyUnconfirmed) return 'Company unconfirmed';
   if (identityUnconfirmed) return 'Identity unconfirmed';
@@ -9454,7 +9494,7 @@ function exportCSV(){
       const company = companyRaw.split('·')[0].trim();
       const sector = (card.querySelector('.k-badge-sector')?.textContent || '').trim();
       const score = card.dataset.icpScore || '';
-      const reliability = _dataReliabilityLabel(card.dataset.companyVerified, card.dataset.identityConfidence);
+      const reliability = _dataReliabilityLabel(card.dataset.companyVerified, card.dataset.identityConfidence, card.dataset.identityVerdict);
       rows.push([name, company, sector, stage, score, reliability, card.dataset.country || card.dataset.region || '']);
     });
   });
@@ -10873,6 +10913,9 @@ async function _generateNextAction(p) {
     : null;
   const _companyUnverified = _fullP.company_verified === false;
   const _lowIdentityConfidence = _fullP.identity_confidence === 'low';
+  // Garde d'identite elargie : le prompt ignorait totalement identity_verdict -- ajoute au meme gabarit qu'EMPLOYER/IDENTITY UNCONFIRMED
+  // ci-dessus (meme mouvement, pas une 2e logique). CONTRADICTED est un signal plus fort qu'UNCONFIRMED : drapeau et regle dedies.
+  const _identityContradicted = _fullP.identity_verdict === 'CONTRADICTED';
 
   const [_drLive, _drMemory] = await Promise.all([
     _prefetchWebContext(p.company, p.sector),
@@ -10891,13 +10934,15 @@ ANTI-HALLUCINATION RULES — strictly enforced:
 3. Two calls on the same prospect must produce consistent outputs — never contradict yourself by inventing different facts each time.
 4. If SIGNAL INTERPRETATION is provided below, it has already been analyzed and verified — use it as given, do not re-derive or contradict it.
 5. If EMPLOYER UNCONFIRMED is flagged below, mention in "what_not_to_say" that the employer is unconfirmed and should not be stated as certain.
-6. If IDENTITY UNCONFIRMED is flagged below, mention in "what_not_to_say" that this contact's identity is not reliably confirmed.`;
+6. If IDENTITY UNCONFIRMED is flagged below, mention in "what_not_to_say" that this contact's identity is not reliably confirmed.
+7. If IDENTITY CONTRADICTED is flagged below, treat this with extra caution: mention in "what_not_to_say" that this contact's role/identity has been contradicted by more recent signals and should not be stated as certain.`;
 
   const userMsg = `Prospect: ${p.name} at ${p.company||'unknown'} (${p.sector||'unknown sector'}). Stage: ${p.stage||'unknown'}. Score: ${p.score||'not set'}.${p.email ? ' Email: ' + p.email + '.' : ''}
 ${(_signalType || _signal) ? 'Signal: ' + (_signalType ? '[' + _signalType + '] ' : '') + (_signal ? _signal.replace(/<[^>]*>/g,'').slice(0, 200) : '') : ''}
 ${_signalInterp ? 'SIGNAL INTERPRETATION (already analyzed — use as given, do not reinterpret): ' + _signalInterp : ''}
 ${_companyUnverified ? 'EMPLOYER UNCONFIRMED: true — the data source has not confirmed this person still works at this company.' : ''}
 ${_lowIdentityConfidence ? 'IDENTITY UNCONFIRMED: true — this contact\'s identity match is low-confidence.' : ''}
+${_identityContradicted ? 'IDENTITY CONTRADICTED: true — more recent signals contradict what we previously knew about this contact\'s role or identity.' : ''}
 ${ctx ? 'Recent interactions: ' + ctx : 'No interactions logged.'}
 ${rem ? 'Next reminder: ' + rem : ''}
 ${_drMemory ? '\nPROSPECT MEMORY:\n' + _drMemory : ''}
@@ -11160,6 +11205,24 @@ async function loadDailyPriorities() {
   }
 }
 
+// Pied de carte propre a Today (etape B) : bouton Generate SEULEMENT quand la fiche n'a pas d'action en cache (la carte partagee affiche deja
+// l'action en cache, « Action recommandee »). Memes id (pri-action-<id> / pri-gen-<id>) et meme gestionnaire que l'ancienne carte :
+// _priorityGenerate est reutilisee telle quelle, ainsi que _actionButtonLabel (« ⚠ Verify source first » si _scoreReliabilityBadge alerte).
+// Place HORS de la carte cliquable : un clic sur le bouton n'ouvre pas le tiroir. Id non sur (_mscSafeId vide) -> pas de bouton.
+// Gabarit du bouton (demande Thomas 22/09 : plus de barre pleine largeur, cohérent avec l'échelle compacte de la carte partagee) : REUTILISE le
+// bouton navy en pilule deja existant sur cette meme carte partagee (« Use this » des Proposals, meme radius-pill que les badges de la carte),
+// pas un style invente ; largeur au contenu, pas 100%. Le resultat genere reste rendu sans cadre par _priorityGenerate (inchangee).
+function _priorityFooterHTML(p) {
+  const pid = _mscSafeId(p.id);
+  if (!pid || p.next_action_cache) return '';
+  return `<div class="pri-action" id="pri-action-${pid}" style="margin-top:6px;">
+    <button id="pri-gen-${pid}" onclick="_priorityGenerate('${pid}')"
+      style="padding:6px 14px;border-radius:var(--radius-pill);background:var(--navy);color:#fff;border:none;font-size:var(--fs-sm);font-weight:600;cursor:pointer;">
+      ${_actionButtonLabel(p, 'Regenerate', 'Generate')}
+    </button>
+  </div>`;
+}
+
 function _renderPriorityCards(prospects) {
   const container = document.getElementById('priorities-container');
   if (!container) return;
@@ -11173,119 +11236,14 @@ function _renderPriorityCards(prospects) {
     return;
   }
 
-  container.innerHTML = prospects.map(p => {
-    const scoreVal = (p.icp_score || 0).toFixed(1);
-    // Tier bar (README) : danger >=9, warn 8-8.9, neutre en dessous -- pas de 3e couleur
-    // inventee, on retombe sur --border quand aucun des deux seuils n'est atteint.
-    const tierColor = (p.icp_score || 0) >= 9 ? 'var(--danger)' : ((p.icp_score || 0) >= 8 ? 'var(--amber)' : 'var(--border)');
-    const signalHtml = p.signal
-      ? `<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:4px;line-height:1.4;">`
-        + (p.signal_type ? _sigBadge(p.signal_type) : '')
-        + _esc(p.signal.replace(/<[^>]*>/g, '').slice(0, 160))
-        + `</div>`
-      : '';
-    const cardLinks = _buildProspectLinks(p);
-    const linksHtml = cardLinks.length
-      ? `<div class="pd-links">${cardLinks.map(l => `<a class="pd-link" href="${_esc(l.href)}" target="_blank" rel="noopener noreferrer">${l.label}</a>`).join('')}</div>`
-      : '';
-    // "Surfaced by scan" seulement si last_surfaced_in_scan_at est renseigne (pas invente si la
-    // donnee manque, meme principe que le reste du fichier) -- toujours accroche a une date reelle
-    // (signal_date), jamais affiche seul.
-    // F03 (audit 2026-09-17) : un signal existe mais sans signal_date -> "date not specified"
-    // explicite plutot que rien -- jamais de repli sur created_at/updated_at (date d'import,
-    // pas la date reelle de l'evenement). Pas de signal du tout -> toujours null, comme avant.
-    const _relSignalDate = p.signal_date ? _relDate(p.signal_date) : (p.signal ? 'date not specified' : null);
-    // Affichee seulement en repli arithmetique (pas de _morningScanCategory) : quand la carte
-    // vient d'une decision du scan, provenanceHtml ci-dessous porte deja le meme temps relatif --
-    // metaHtml serait redondante juste en dessous.
-    const metaHtml = (_relSignalDate && !p._morningScanCategory)
-      ? `<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:6px;">${p.last_surfaced_in_scan_at ? 'Surfaced by scan · ' : ''}${_esc(_relSignalDate)}</div>`
-      : '';
-    // Provenance (maquette, "MORNING SCAN · {temps relatif} · CONFIDENCE {niveau}") : uniquement
-    // sur les cartes venant reellement d'une decision du scan (_morningScanCategory non-null) --
-    // rien sur les cartes du calcul arithmetique de repli, pas de ligne vide/placeholder. Reutilise
-    // _relSignalDate deja calcule ci-dessus (pas une deuxieme lecture de last_surfaced_in_scan_at),
-    // omet le segment confidence si icp_confidence n'est pas renseigne.
-    const provenanceHtml = p._morningScanCategory
-      ? `<div style="font-size:9.5px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-top:4px;">${[
-          'Morning scan',
-          _relSignalDate ? _esc(_relSignalDate) : null,
-          p.icp_confidence ? 'Confidence ' + _esc(p.icp_confidence) : null,
-        ].filter(Boolean).join(' · ')}</div>`
-      : '';
-    const cachedRendered = p.next_action_cache
-      ? _renderNextActionHTML(p.next_action_cache, 'var(--navy)')
-      : null;
-    // F01 : libelle du bouton reflete un probleme de qualification reel (_actionButtonLabel),
-    // pas juste l'etat cache/frais. Le clic reste le meme gestionnaire (_priorityGenerate) --
-    // aucun blocage, seul le texte change.
-    const actionHtml = cachedRendered
-      ? `<div class="pri-action loaded" id="pri-action-${p.id}"
-           style="margin-top:12px;font-size:var(--fs-sm);line-height:1.65;color:var(--navy);">${cachedRendered}</div>`
-      : `<div class="pri-action" id="pri-action-${p.id}" style="margin-top:12px;">
-           <button id="pri-gen-${p.id}" onclick="_priorityGenerate('${p.id}')"
-             style="width:100%;padding:11px 14px;font-size:var(--fs-sm);border-radius:var(--radius-sm);
-                    background:var(--navy);color:#fff;border:none;cursor:pointer;font-weight:700;">
-             ${_actionButtonLabel(p, 'Regenerate', 'Generate')}
-           </button>
-         </div>`;
-
-    // README met le contenu de actionHtml dans une colonne action 196px a droite (channel +
-    // CTA court). On ne l'y force pas : next_action_cache est un texte multi-lignes genere par
-    // l'IA, pas un court libelle -- le comprimer dans 196px degraderait la lisibilite sans
-    // apporter de risque justifie pour ce premier ecran. Reste en pleine largeur sous le corps,
-    // comme avant ; seuls tier-bar/colonne score/corps sont restructures.
-    // Ventilation ICP (README) : pas de place pour un panneau complet dans une colonne de 74px --
-    // tooltip au survol (CSS :hover, cf. .pri-score-wrap/.pri-score-tooltip) qui reutilise
-    // _renderBreakdownPanel (targetId=null -> juste le HTML, pas d'ecriture DOM) plutot que de
-    // recalculer l'affichage. Rien si aucune des 6 colonnes score_* n'est renseignee.
-    const _bd = _icpBreakdownFromColumns(p);
-    // Fiabilite a cote du score (audit Stephane point 5) : colonne dediee 74px avec de la marge
-    // verticale (padding 16px), pas de largeur/hauteur fixe -- une ligne compacte de plus ne casse
-    // rien ici, contrairement au kanban.
-    const _relB = _scoreReliabilityBadge(p);
-    // F01 : note neutre "pas encore controle" -- jamais colore/alarmant, distincte de _relB
-    // (probleme reel detecte). Sous le score, pas dans la colonne 74px (trop etroite pour du
-    // texte) : sur sa propre ligne discrete a cote du nom, cf. plus bas dans ce template.
-    const _qNote = _qualificationNote(p);
-    const scoreColHtml = `<div style="width:74px;flex-shrink:0;border-right:1px solid var(--border);padding:16px 8px;text-align:center;${_bd ? 'position:relative;' : ''}" class="${_bd ? 'pri-score-wrap' : ''}">
-        <div style="font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;color:var(--navy);">${scoreVal}</div>
-        <div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:0.16em;text-transform:uppercase;color:var(--muted);margin-top:2px;">ICP</div>
-        ${_relB ? `<div style="margin-top:3px;font-size:11px;font-weight:700;color:${_relB.color};" title="${_esc(_relB.title)}">${_relB.icon}${_relB.both ? '?' : ''}</div>` : ''}
-        ${_bd ? `<div class="pri-score-tooltip" style="width:200px;">${_renderBreakdownPanel(_bd, null, ICP_WEIGHTS)}</div>` : ''}
-      </div>`;
-
-    return `<div class="priority-card" data-id="${p.id}"
-        style="display:flex;background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius-md);margin-bottom:12px;overflow:hidden;">
-      <div style="width:3px;flex-shrink:0;background:${tierColor};"></div>
-      ${scoreColHtml}
-      <div style="flex:1;min-width:0;padding:16px 20px;">
-        <div style="min-width:0;flex:1;">
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-            <button onclick="_openDrawerFromPriority('${p.id}')"
-              style="background:none;border:none;padding:0;cursor:pointer;font-weight:700;
-                     font-size:var(--fs-base);color:var(--navy);text-decoration:underline;text-align:left;">
-              ${_esc(p.name || '—')}
-            </button>
-            <span style="font-size:var(--fs-sm);color:var(--muted);">${_esc(p.company || '—')}</span>
-            ${p.sector ? `<span style="font-size:var(--fs-xs);font-weight:600;padding:2px 8px;
-              background:var(--chip-bg);border-radius:var(--radius-pill);color:var(--indigo);">
-              ${_esc(p.sector)}</span>` : ''}
-            ${p.company_verified === false ? `<span style="font-size:11px;font-weight:700;color:#b45309;background:#fef3c7;border:1px solid #fde68a;border-radius:20px;padding:1px 6px;white-space:nowrap;" title="Company not confirmed by the data source">⚠ Company not confirmed</span>` : ''}
-            ${p.identity_confidence === 'low' ? `<span style="font-size:11px;font-weight:700;color:#6b7280;background:#f3f4f6;border:1px solid #d1d5db;border-radius:20px;padding:1px 6px;white-space:nowrap;" title="Identity not confirmed">? Identity to verify</span>` : ''}
-            ${p._morningScanCategory === 'today_action' ? `<span style="font-size:11px;font-weight:700;color:var(--red);background:var(--red-bg);border:1px solid var(--red-light);border-radius:20px;padding:1px 6px;white-space:nowrap;" title="Flagged for action by this morning's scan">⚡ Today</span>` : ''}
-            ${p._morningScanCategory === 'opportunistic_connection' ? `<span style="font-size:11px;font-weight:700;color:#6b7280;background:#f3f4f6;border:1px solid #d1d5db;border-radius:20px;padding:1px 6px;white-space:nowrap;" title="Opportunistic connection flagged by this morning's scan">🔗 Opportunistic</span>` : ''}
-          </div>
-          ${provenanceHtml}
-          ${signalHtml}
-          ${linksHtml}
-          ${metaHtml}
-          ${_qNote ? `<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:4px;">${_esc(_qNote)}</div>` : ''}
-        </div>
-        ${actionHtml}
-      </div>
-    </div>`;
-  }).join('');
+  // Etape B (unification Today/Signals) : la carte de Today EST la carte partagee _mscDecisionCardHTML (meme rendu que Morning Scan /
+  // Signals). Adaptateur _mscDecisionFromProspect (type + date du signal), la ligne Today sert de fiche live (garde d'identite, secteur,
+  // email, icp_reason, action en cache), puces ⚡/🔗 par le crochet d._extraChips de l'adaptateur, pied Generate propre a Today sous la carte.
+  // Meme rendu en mode decisions du scan et en repli arithmetique (un seul moteur de rendu). L'enveloppe .priority-card[data-id] est conservee.
+  container.innerHTML = prospects.map(p => `<div class="priority-card" data-id="${_esc(_mscSafeId(p.id))}" style="margin-bottom:12px;">`
+    + _mscDecisionCardHTML(_mscDecisionFromProspect(p), p)
+    + _priorityFooterHTML(p)
+    + `</div>`).join('');
 }
 
 // ── Today, Step 2 : Reminders due (README) ────────────────────────────────────────────────────
@@ -11614,8 +11572,10 @@ async function loadInboxDrafts(view = 'pending') {
     }
     const prospectIds = [...new Set(drafts.map(d => d.prospect_id).filter(Boolean))];
     if (prospectIds.length) {
+      // identity_verdict ajoute (garde d'identite elargie, 22/09) : Inbox etait une surface INVISIBLE -- _inboxSend en a besoin pour
+      // la confirmation NOMMEE. Ligne PARTIELLE (deja le cas avant) : _cacheProspectRow ci-dessous ne comble que les trous.
       const { data: pRows, error: pErr } = await sbClient.from('prospects')
-        .select('id,name,company,linkedin,linkedin_tag,mandate_id,email,phone,website_url')
+        .select('id,name,company,linkedin,linkedin_tag,mandate_id,email,phone,website_url,identity_verdict')
         .eq('client_id', CLIENT_ID)
         .in('id', prospectIds);
       if (pErr) console.error('[inbox] prospects batch-fetch error:', pErr);
@@ -11788,6 +11748,9 @@ async function _inboxSend(draftId, prospectId) {
   const raw = _inboxRawPayloads[draftId];
   const conversationId = raw?.conversation_id || raw?.conversationId || null;
   if (!conversationId) { showToast('No conversationId in raw_payload — cannot send direct reply'); return; }
+  // Garde d'identite elargie : Inbox envoyait sans aucune confirmation -- surface listee INVISIBLE par l'audit. Aucun dialogue si la
+  // fiche n'est pas CONTRADICTED (comportement inchange).
+  if (!_confirmIfContradicted(_inboxProspectsById[prospectId] || _prospectsById[prospectId])) return;
   if (sendBtn) sendBtn.disabled = true;
   if (dismissBtn) dismissBtn.disabled = true;
   try {
@@ -11972,6 +11935,13 @@ async function _proposalUseVariant(id, variantIndex) {
     .select('content_type, prospect_id, variants, mandate_id')
     .eq('id', id).single();
   if (fetchErr || !prop) { console.error('[_proposalUseVariant] fetch failed:', fetchErr); showToast('Error loading proposal'); return; }
+  // Garde d'identite elargie : « Use this » n'avait aucune confirmation -- surface listee INVISIBLE par l'audit. _prospectsById peut
+  // deja avoir la fiche (Pipeline/Today/Signals charges avant Proposals) ; sinon lecture minimale dediee (meme discipline que les
+  // autres "garde-fou fraicheur" du fichier, ex. _startEmailSeq/_sendViaLinkedIn). Aucun dialogue si la fiche n'est pas CONTRADICTED.
+  const _propP = prop.prospect_id
+    ? (_prospectsById[prop.prospect_id] || (await sbClient.from('prospects').select('name, company, identity_verdict').eq('id', prop.prospect_id).eq('client_id', CLIENT_ID).maybeSingle()).data)
+    : null;
+  if (!_confirmIfContradicted(_propP)) return;
   const variantText = (Array.isArray(prop.variants) && prop.variants[variantIndex]) ? (prop.variants[variantIndex].text || '') : '';
 
   if (prop.content_type === 'linkedin_post') {
@@ -12057,6 +12027,8 @@ const _PENDING_ACTION_TYPE_LABELS = {
   // sans etre un engagement de forme de payload pour ce type.
   buying_committee_map: 'Buying committee map',
 };
+// Cache local (id -> ligne pending_actions complete, prospect_id inclus) -- alimente par loadPendingActionsView(), lu par _paApprove().
+let _pendingActionsById = {};
 
 function _paActionText(action) {
   const p = action.payload || {};
@@ -12092,6 +12064,9 @@ async function loadPendingActionsView() {
       _setPendingActionsBadge(0);
       return;
     }
+    // Garde d'identite elargie : _paApprove(id) a besoin de action.prospect_id (colonne deja en base, select('*') ci-dessus la
+    // renvoie deja) sans requete supplementaire -- cache local, jamais re-fetch, jamais une 2e logique de lecture.
+    actions.forEach(a => { _pendingActionsById[a.id] = a; });
     container.innerHTML = actions.map(_renderPendingActionCard).join('');
     _setPendingActionsBadge(actions.length);
   } catch(e) {
@@ -12125,6 +12100,15 @@ function _renderPendingActionCard(action) {
 }
 
 async function _paApprove(id) {
+  // Garde d'identite elargie : Approvals n'avait aucune confirmation -- surface listee INVISIBLE par l'audit. action.prospect_id vient
+  // du cache pose par loadPendingActionsView() (deja en memoire, aucune requete de plus) ; _prospectsById peut deja avoir la fiche,
+  // sinon lecture minimale dediee. Rien a verifier si prospect_id absent (approbation non rattachee, cas connu de l'audit) ; aucun
+  // dialogue si la fiche n'est pas CONTRADICTED.
+  const _paProspectId = _pendingActionsById[id]?.prospect_id;
+  if (_paProspectId) {
+    const _paP = _prospectsById[_paProspectId] || (await sbClient.from('prospects').select('name, company, identity_verdict').eq('id', _paProspectId).eq('client_id', CLIENT_ID).maybeSingle()).data;
+    if (!_confirmIfContradicted(_paP)) return;
+  }
   const { error } = await sbClient.from('pending_actions')
     .update({ status: 'approved', decided_at: new Date().toISOString() })
     .eq('id', id);
@@ -14199,7 +14183,10 @@ async function _bulkStartEmailSeq() {
     return;
   }
 
-  if (!confirm(`Start the email sequence for ${toSend.length} prospect(s)?\nThis will send the first email immediately to each.`)) {
+  // Garde d'identite elargie : la confirmation nomme CHAQUE fiche CONTRADICTED du lot (pas un avertissement generique), en reutilisant
+  // le meme texte que le point d'envoi unitaire -- une seule fonction pour construire ce texte, ici passee un tableau.
+  const _bulkP = toSend.map(pid => _prospectsById[pid] || _prospectsById[parseInt(pid)]).filter(Boolean);
+  if (!confirm(`Start the email sequence for ${toSend.length} prospect(s)?\nThis will send the first email immediately to each.` + _contradictedWarningText(_bulkP))) {
     if (btn) { btn.disabled = false; btn.textContent = 'Email Sequence'; }
     return;
   }
@@ -14290,7 +14277,7 @@ function buildCard(p){
   // a verifier visuellement, c'est le placement le plus incertain des 3 ecrans sans rendu reel.
   const _relB = _scoreReliabilityBadge(p);
   const _relDot = _relB ? `<span style="position:absolute;top:29px;right:6px;width:9px;height:9px;border-radius:50%;background:${_relB.color};border:1.5px solid #fff;z-index:1;" title="${_esc(_relB.title)}"></span>` : '';
-  return `<div class="k-card" role="button" tabindex="0" data-id="${_esc(id)}" data-last-contact="${_esc(p.last_contact || '')}" data-reminder-date="${_esc(p.reminder_date || '')}" data-client-id="${CLIENT_ID}" data-linkedin-tag="${_esc(p.linkedin_tag || '')}" data-name="${_esc(p.name || '')}" data-company="${_esc(p.company || '')}" data-sector="${_esc(p.sector || '')}" data-region="${_esc(p.region || '')}" data-stage="${_esc(p.stage || '')}" data-icp-score="${score}" data-country="${_esc(p.country || '')}" data-signal-type="${_esc(p.signal_type || '')}" data-origin="${_esc(p.origin || '')}" data-deal="${Number(p.deal_value) || 0}" data-confidence="${_calcConfidence(p)}" data-job-title="${_esc(p.title || '')}" data-next-action="${p.next_action ? '1' : '0'}" data-next-action-date="${_esc(p.next_action_date || '')}" data-has-signal="${!!(p.signal_type) && !!(p.signal) && !_GENERIC_SIGNAL_TYPES.has(p.signal_type) ? 'true' : 'false'}" data-company-verified="${p.company_verified === false ? 'false' : 'true'}" data-identity-confidence="${_esc(p.identity_confidence || '')}">`
+  return `<div class="k-card" role="button" tabindex="0" data-id="${_esc(id)}" data-last-contact="${_esc(p.last_contact || '')}" data-reminder-date="${_esc(p.reminder_date || '')}" data-client-id="${CLIENT_ID}" data-linkedin-tag="${_esc(p.linkedin_tag || '')}" data-name="${_esc(p.name || '')}" data-company="${_esc(p.company || '')}" data-sector="${_esc(p.sector || '')}" data-region="${_esc(p.region || '')}" data-stage="${_esc(p.stage || '')}" data-icp-score="${score}" data-country="${_esc(p.country || '')}" data-signal-type="${_esc(p.signal_type || '')}" data-origin="${_esc(p.origin || '')}" data-deal="${Number(p.deal_value) || 0}" data-confidence="${_calcConfidence(p)}" data-job-title="${_esc(p.title || '')}" data-next-action="${p.next_action ? '1' : '0'}" data-next-action-date="${_esc(p.next_action_date || '')}" data-has-signal="${!!(p.signal_type) && !!(p.signal) && !_GENERIC_SIGNAL_TYPES.has(p.signal_type) ? 'true' : 'false'}" data-company-verified="${p.company_verified === false ? 'false' : 'true'}" data-identity-confidence="${_esc(p.identity_confidence || '')}" data-identity-verdict="${_esc(p.identity_verdict || '')}">`
     + `<input type="checkbox" class="k-card-select" data-pid="${_esc(id)}" onchange="_onCardSelect(this)" onclick="event.stopPropagation()" style="position:absolute;top:10px;left:8px;width:14px;height:14px;cursor:pointer;z-index:2;accent-color:var(--ink);">`
     + _dial
     + _relDot
@@ -15079,7 +15066,10 @@ async function _startEmailSeq(id, requireDraft = true) {
     showToast('Generate and mark the message ready first');
     return;
   }
-  if (!confirm(`Start the email sequence for ${p.name} at ${p.company}?\nThis will send the first email immediately.`)) return;
+  // Garde d'identite elargie : meme confirm() qu'avant pour toute fiche (comportement inchange), + avertissement NOMME ajoute au
+  // message quand la fiche est CONTRADICTED (_contradictedWarningText renvoie '' sinon, rien n'est ajoute). Couvre Send ET Rappels
+  // (Today Step 2 -> _goToJ5Followup -> ce meme bouton) ET le tiroir (requireDraft=false), un seul point d'envoi.
+  if (!confirm(`Start the email sequence for ${p.name} at ${p.company}?\nThis will send the first email immediately.` + _contradictedWarningText(p))) return;
   if (btn) { btn.disabled = true; btn.textContent = 'Sending...'; btn.style.background = 'var(--muted)'; }
   if (statusEl) statusEl.textContent = '';
   try {
@@ -15164,6 +15154,31 @@ function _contradictedBadgeHTML(fr) {
 // Note explicative du comite d'achat : meme jeu de couleurs que le badge, information inchangee.
 function _contradictedNoteHTML(fr) {
   return `<div style="font-size:var(--fs-xs);color:var(--danger);font-style:italic;">${fr ? 'Rôle non confirmé — les dernières informations connues peuvent être périmées.' : 'Role not confirmed — last known info may be outdated.'}</div>`;
+}
+// ── GARDE D'IDENTITE ELARGIE (audit ia_ 21/09, decision Thomas) : confirmation NOMMEE avant tout envoi vers une fiche CONTRADICTED, sur
+// TOUTES les surfaces d'action, PAS seulement le badge visuel deja en place. Jamais bloquant en soi (un CONTRADICTED peut etre un faux
+// positif) : la fiche reste utilisable, un confirm() natif nomme juste la personne (et sa societe) avant d'agir. Reutilise l'UNIQUE
+// donnee deja lue partout ailleurs (p.identity_verdict === 'CONTRADICTED', meme champ que _scoreReliabilityBadge/_contradictedBadgeHTML) --
+// aucune nouvelle logique de detection. p peut etre un objet unique ou un tableau (envoi groupe) ; identity_verdict absent/different de
+// CONTRADICTED -> ignore silencieusement (comportement inchange, aucun texte ajoute). fr omis -> suit currentLang (oubli corrige le 22/09,
+// signale par Thomas : cette page est bilingue partout ailleurs, ce texte ne doit pas rester fige en anglais) ; explicitement passe -> priorite
+// a l'appelant. Memes noms/signature que kaizenology.html (coherence entre les 3 dashboards, feedback_shared_fixes_all_three).
+function _contradictedWarningText(ps, fr) {
+  fr = fr === undefined ? currentLang === 'fr' : fr;
+  const list = (Array.isArray(ps) ? ps : [ps]).filter(p => p && p.identity_verdict === 'CONTRADICTED');
+  if (!list.length) return '';
+  const who = list.map(p => (p.company ? `${p.name || '?'} (${p.company})` : (p.name || '?'))).join(', ');
+  return fr
+    ? `\n\n⚠ Identité contredite (${list.length}) : ${who}. Des signaux récents contredisent ce que l'on sait ${list.length > 1 ? 'de ces contacts' : 'de ce contact'} — il peut s'agir d'un faux positif.`
+    : `\n\n⚠ Identity contradicted (${list.length}): ${who}. Recent signals contradict what we know about ${list.length > 1 ? 'these contacts' : 'this contact'} — this may be a false positive.`;
+}
+// A poser en garde sur une surface qui n'a PAS deja de confirm() d'envoi : aucun dialogue si rien n'est CONTRADICTED (comportement
+// inchange), sinon un confirm() natif nommant la ou les fiches. Les surfaces qui confirment deja (ex. _startEmailSeq) appendent plutot
+// _contradictedWarningText() directement a leur message existant -- pas un 2e dialogue empile. fr omis -> suit currentLang, meme regle.
+function _confirmIfContradicted(ps, fr) {
+  fr = fr === undefined ? currentLang === 'fr' : fr;
+  const warn = _contradictedWarningText(ps, fr);
+  return !warn || confirm((fr ? 'Continuer malgré l\'alerte identité ?' : 'Continue despite the identity warning?') + warn);
 }
 // Badge compact "fiabilite" a poser a cote d'un score ICP (audit Stephane point 5, 2026-09-11) --
 // memes flags/couleurs que les pastilles textuelles deja existantes (kanban/priority/tiroir),
