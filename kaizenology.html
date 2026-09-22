@@ -9609,20 +9609,29 @@ function _renderPriorityCards(prospects) {
   // Etape B (unification Today/Signals, 2026-09-21) : la carte est le composant partage _mscDecisionCardHTML (memes badges, memes libelles que Signals ;
   // la ligne Today est passee comme fiche « live »). Ce rendu sert AUSSI le repli arithmetique. Seul le pied Generate reste propre a Today, et seulement
   // quand aucune action n'est en cache (sinon la carte affiche « Action recommandee » elle-meme). Identifiant non sur (_mscSafeId) = carte sans pied.
+  // TB-16 (22/09) : le pied est injecte A L'INTERIEUR de la colonne de contenu (flex:1;min-width:0) de _mscDecisionCardHTML, juste apres
+  // ${linksHtml} -- PAS concatene apres le div carte (qui est lui-meme display:flex en ligne [avatar][contenu] : y ajouter un 3e enfant en
+  // aurait fait une 3e COLONNE a droite, pas un bloc sous le texte). La carte se termine toujours par exactement deux </div> imbriques
+  // (fermeture de la colonne de contenu puis de la carte) ; on cible le premier des deux pour retomber dans la colonne, comme actionBlock/
+  // linksHtml deja presents. Avant ce fix : concatene en frere dans l'enveloppe .priority-card (non bordee) -- le resultat de
+  // _priorityGenerate sortait visuellement du cadre de la carte.
   container.innerHTML = prospects.map(p => {
     const pid = _mscSafeId(p.id);
-    return `<div class="priority-card"${pid ? ` data-id="${pid}"` : ''} style="margin-bottom:10px;">
-      ${_mscDecisionCardHTML(_mscDecisionFromProspect(p), p)}
-      ${pid && !p.next_action_cache ? _priorityGenerateFooterHTML(pid) : ''}
-    </div>`;
+    const cardHtml = _mscDecisionCardHTML(_mscDecisionFromProspect(p), p);
+    const footerHtml = pid && !p.next_action_cache ? _priorityGenerateFooterHTML(pid) : '';
+    const merged = footerHtml ? cardHtml.replace(/(\s*<\/div>\s*<\/div>)\s*$/, footerHtml + '$1') : cardHtml;
+    return `<div class="priority-card"${pid ? ` data-id="${pid}"` : ''} style="margin-bottom:10px;">${merged}</div>`;
   }).join('');
 }
 
 // Pied de carte propre a Today (etape B) : bouton Generate + emplacement du resultat. _priorityGenerate est INCHANGEE et cherche #pri-gen-<id> / #pri-action-<id> ;
-// le resultat s'affiche sous la carte. Une seule logique de generation (pas de _actionButtonLabel dans ce fichier : le libelle « Generate » etait deja en dur).
-// Bouton compact : memes declarations CSS que le bouton « + Add to pipeline » du Comite d'achat (_addBtnHtml), pas un style invente.
+// le resultat s'affiche desormais A L'INTERIEUR du cadre de la carte (TB-16, 22/09 -- auparavant "sous la carte", hors bordure). Une seule
+// logique de generation (pas de _actionButtonLabel dans ce fichier : le libelle « Generate » etait deja en dur). onclick="event.stopPropagation()"
+// pose sur le pied pour qu'un clic sur le bouton ou sur le resultat n'atteigne plus le onclick d'ouverture du tiroir porte par le div carte
+// (necessaire maintenant que le pied est un enfant de ce div, plus un frere). Bouton compact : memes declarations CSS que le bouton
+// « + Add to pipeline » du Comite d'achat (_addBtnHtml), pas un style invente.
 function _priorityGenerateFooterHTML(pid) {
-  return `<div class="pri-action" id="pri-action-${pid}" style="margin-top:6px;text-align:right;">
+  return `<div class="pri-action" id="pri-action-${pid}" style="margin-top:6px;text-align:right;" onclick="event.stopPropagation()">
     <button id="pri-gen-${pid}" onclick="_priorityGenerate('${pid}')"
       style="font-size:var(--fs-xs);padding:4px 11px;background:var(--navy);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer">
       Generate

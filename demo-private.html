@@ -11212,19 +11212,18 @@ async function loadDailyPriorities() {
   }
 }
 
-// Pied de carte propre a Today (etape B) : bouton Generate SEULEMENT quand la fiche n'a pas d'action en cache (la carte partagee affiche deja
-// l'action en cache, « Action recommandee »). Memes id (pri-action-<id> / pri-gen-<id>) et meme gestionnaire que l'ancienne carte :
-// _priorityGenerate est reutilisee telle quelle, ainsi que _actionButtonLabel (« ⚠ Verify source first » si _scoreReliabilityBadge alerte).
-// Place HORS de la carte cliquable : un clic sur le bouton n'ouvre pas le tiroir. Id non sur (_mscSafeId vide) -> pas de bouton.
-// Gabarit du bouton (demande Thomas 22/09 : plus de barre pleine largeur, cohérent avec l'échelle compacte de la carte partagee) : REUTILISE le
-// bouton navy en pilule deja existant sur cette meme carte partagee (« Use this » des Proposals, meme radius-pill que les badges de la carte),
-// pas un style invente ; largeur au contenu, pas 100%. Le resultat genere reste rendu sans cadre par _priorityGenerate (inchangee).
+// TB-16 (22/09) : desormais injecte A L'INTERIEUR du div cliquable retourne par _mscDecisionCardHTML (cf. _renderPriorityCards) pour que le
+// resultat genere reste dans le cadre de la carte -- onclick="event.stopPropagation()" pose ici (remplace l'ancienne protection "hors de la
+// carte") pour qu'un clic sur le bouton ou sur le resultat n'atteigne plus le onclick d'ouverture du tiroir porte par le div parent. Id non
+// sur (_mscSafeId vide) -> pas de bouton. Gabarit du bouton : REUTILISE tel quel le style deja en place sur Wominds (_todaySharedCardHTML) et
+// Kaizenology (_priorityGenerateFooterHTML) pour ce meme pied Today -- pas le bouton "Use this" des Proposals (radius-pill), qui divergeait
+// des deux autres fichiers. Largeur au contenu, jamais 100%.
 function _priorityFooterHTML(p) {
   const pid = _mscSafeId(p.id);
   if (!pid || p.next_action_cache) return '';
-  return `<div class="pri-action" id="pri-action-${pid}" style="margin-top:6px;">
+  return `<div class="pri-action" id="pri-action-${pid}" style="margin-top:6px;" onclick="event.stopPropagation()">
     <button id="pri-gen-${pid}" onclick="_priorityGenerate('${pid}')"
-      style="padding:6px 14px;border-radius:var(--radius-pill);background:var(--navy);color:#fff;border:none;font-size:var(--fs-sm);font-weight:600;cursor:pointer;">
+      style="font-size:var(--fs-xs);padding:4px 11px;background:var(--navy);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer">
       ${_actionButtonLabel(p, 'Regenerate', 'Generate')}
     </button>
   </div>`;
@@ -11247,10 +11246,18 @@ function _renderPriorityCards(prospects) {
   // Signals). Adaptateur _mscDecisionFromProspect (type + date du signal), la ligne Today sert de fiche live (garde d'identite, secteur,
   // email, icp_reason, action en cache), puces ⚡/🔗 par le crochet d._extraChips de l'adaptateur, pied Generate propre a Today sous la carte.
   // Meme rendu en mode decisions du scan et en repli arithmetique (un seul moteur de rendu). L'enveloppe .priority-card[data-id] est conservee.
-  container.innerHTML = prospects.map(p => `<div class="priority-card" data-id="${_esc(_mscSafeId(p.id))}" style="margin-bottom:12px;">`
-    + _mscDecisionCardHTML(_mscDecisionFromProspect(p), p)
-    + _priorityFooterHTML(p)
-    + `</div>`).join('');
+  // TB-16 (22/09) : le pied est injecte A L'INTERIEUR de la colonne de contenu (flex:1;min-width:0) de _mscDecisionCardHTML, juste apres
+  // ${linksHtml} -- PAS concatene apres le div carte (qui est lui-meme display:flex en ligne [avatar][contenu] : y ajouter un 3e enfant
+  // en aurait fait une 3e COLONNE a droite, pas un bloc sous le texte). La carte se termine toujours par exactement deux </div> imbriques
+  // (fermeture de la colonne de contenu puis de la carte) ; on cible le premier des deux pour retomber dans la colonne, comme actionBlock/
+  // linksHtml deja presents. Avant ce fix : concatene en frere dans l'enveloppe .priority-card (non bordee) -- le resultat de
+  // _priorityGenerate sortait visuellement du cadre de la carte.
+  container.innerHTML = prospects.map(p => {
+    const cardHtml = _mscDecisionCardHTML(_mscDecisionFromProspect(p), p);
+    const footerHtml = _priorityFooterHTML(p);
+    const merged = footerHtml ? cardHtml.replace(/(\s*<\/div>\s*<\/div>)\s*$/, footerHtml + '$1') : cardHtml;
+    return `<div class="priority-card" data-id="${_esc(_mscSafeId(p.id))}" style="margin-bottom:12px;">${merged}</div>`;
+  }).join('');
 }
 
 // ── Today, Step 2 : Reminders due (README) ────────────────────────────────────────────────────

@@ -6379,25 +6379,32 @@ function _mscDecisionFromProspect(p) {
   };
 }
 // Carte d'Aujourd'hui = carte partagee + pied « Generer » (seulement sans action en cache : avec une action en cache, la carte partagee l'affiche deja
-// dans « Action recommandee », jamais deux blocs action). Le pied est un FRERE de la carte (pas un enfant) : le clic sur « Generer » n'atteint donc pas
-// le onclick de la carte (ouverture du tiroir). La carte lit live.signal AVANT d.signal.text : la ligne passee en « live » porte le texte NETTOYE
-// (copie, _prospectsById reste intact). _todayGenerate et les ids today-gen-/today-action- sont ceux de l'ancienne carte (aucune logique nouvelle).
-// Bouton compact (retour de Thomas 22/09 : la grosse barre pleine largeur heritee de l'ancien Aujourd'hui est disproportionnee sur la carte partagee) --
-// style REUTILISE tel quel (aucun nouveau style invente) : identique au bouton « + Ajouter au pipeline » du comite d'achat (_renderCommitteeCards,
-// .sh-add-btn), seul bouton d'action deja pose au bas d'une carte compacte dans ce fichier ; auto-largeur (aucun width defini), jamais pleine largeur.
+// dans « Action recommandee », jamais deux blocs action). TB-16 (22/09) : le pied est desormais injecte A L'INTERIEUR de la colonne de contenu
+// (flex:1;min-width:0) de _mscDecisionCardHTML, juste apres ${linksHtml} -- PAS concatene apres le div carte (qui est lui-meme display:flex en
+// ligne [avatar][contenu] : y ajouter un 3e enfant en aurait fait une 3e COLONNE a droite, pas un bloc sous le texte). La carte se termine
+// toujours par exactement deux </div> imbriques (fermeture de la colonne de contenu puis de la carte) ; on cible le premier des deux pour
+// retomber dans la colonne, comme actionBlock/linksHtml deja presents. Avant ce fix : FRERE de la carte (hors du cadre borde), ce qui faisait
+// deborder le resultat sous la bordure. onclick="event.stopPropagation()" pose sur le pied (remplace l'ancienne protection par simple
+// fraternite) pour qu'un clic sur « Generer » ou sur le resultat n'atteigne plus le onclick d'ouverture du tiroir porte par le div carte. La
+// carte lit live.signal AVANT d.signal.text : la ligne passee en « live » porte le texte NETTOYE (copie, _prospectsById reste intact).
+// _todayGenerate et les ids today-gen-/today-action- sont ceux de l'ancienne carte (aucune logique nouvelle). Bouton compact (retour de Thomas
+// 22/09 : la grosse barre pleine largeur heritee de l'ancien Aujourd'hui est disproportionnee sur la carte partagee) -- style REUTILISE tel
+// quel (aucun nouveau style invente) : identique au bouton « + Ajouter au pipeline » du comite d'achat (_renderCommitteeCards, .sh-add-btn),
+// seul bouton d'action deja pose au bas d'une carte compacte dans ce fichier ; auto-largeur (aucun width defini), jamais pleine largeur.
 function _todaySharedCardHTML(p) {
   const d = _mscDecisionFromProspect(p);
   const card = _mscDecisionCardHTML(d, Object.assign({}, p, { signal: d.signal.text }));
   const pid = d.id;
   const footer = pid && !p.next_action_cache
-    ? `<div id="today-action-${pid}" style="margin-top:6px;font-size:var(--fs-xs);line-height:1.5;">
+    ? `<div id="today-action-${pid}" style="margin-top:6px;font-size:var(--fs-xs);line-height:1.5;" onclick="event.stopPropagation()">
          <button id="today-gen-${pid}" onclick="_todayGenerate('${pid}')"
            style="font-size:var(--fs-xs);padding:4px 11px;background:var(--navy);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer">
            Générer
          </button>
        </div>`
     : '';
-  return `<div style="margin-bottom:10px;">${card}${footer}</div>`;
+  const merged = footer ? card.replace(/(\s*<\/div>\s*<\/div>)\s*$/, footer + '$1') : card;
+  return `<div style="margin-bottom:10px;">${merged}</div>`;
 }
 function _todayCardHTML(p) {
   const scoreVal = (p.icp_score || 0).toFixed(1);
