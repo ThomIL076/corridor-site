@@ -9928,7 +9928,14 @@ function _reminderBannerHTML(reminderDate) {
 
 // ── Buying committee (3 fixed roles, persisted, extends the DM-verification pattern) ──
 const _BC_ROLES = ['economic_buyer', 'champion', 'technical_evaluator'];
-const _BC_ROLE_LABELS = { economic_buyer: 'Economic Buyer', champion: 'Champion', technical_evaluator: 'Technical Evaluator' };
+// FIX 22/09 (chantier langue tiroir, point 3, GO Thomas) : libelles bilingues, meme mecanisme que
+// _pdAdditionalContactsHTML (currentLang === 'fr' ? ... : ...) -- FR reprend telles quelles les
+// traductions deja etablies et deployees sur wominds.html (meme concept de role, meme produit).
+const _BC_ROLE_LABELS = {
+  economic_buyer:      { en: 'Economic Buyer',     fr: 'Décideur budgétaire' },
+  champion:             { en: 'Champion',            fr: 'Sponsor interne' },
+  technical_evaluator: { en: 'Technical Evaluator', fr: 'Évaluateur technique' },
+};
 // Un rôle confirmé bouge rarement en 90 jours ; un rôle "not identified" doit être retenté
 // plus vite -- l'absence de résultat aujourd'hui n'est pas une preuve d'absence dans 3 mois.
 const _BC_FOUND_STALE_DAYS = 90;
@@ -10022,13 +10029,14 @@ async function _loadBuyingCommittee(prospectId, p) {
 function _renderBuyingCommittee(prospectId, byRole, loading) {
   const el = document.getElementById('bc-section-' + prospectId);
   if (!el) return;
+  const _bcFr = currentLang === 'fr';
   if (loading) {
-    el.innerHTML = '<div style="font-size:var(--fs-xs);color:var(--muted);font-style:italic">Researching buying committee...</div>';
+    el.innerHTML = '<div style="font-size:var(--fs-xs);color:var(--muted);font-style:italic">' + (_bcFr ? 'Recherche du comité d\'achat…' : 'Researching buying committee...') + '</div>';
     return;
   }
   el.innerHTML = _BC_ROLES.map(role => {
     const r = byRole[role];
-    const label = _BC_ROLE_LABELS[role];
+    const label = _bcFr ? _BC_ROLE_LABELS[role].fr : _BC_ROLE_LABELS[role].en;
     if (r && r.name) {
       const nameHtml = r.linkedin
         ? '<a href="' + _esc(r.linkedin) + '" target="_blank" rel="noopener" style="color:var(--ink);text-decoration:underline;font-weight:600;">' + _esc(r.name) + '</a>'
@@ -10040,7 +10048,7 @@ function _renderBuyingCommittee(prospectId, byRole, loading) {
     }
     return '<div style="display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);font-size:var(--fs-sm);">'
       + '<span style="color:var(--muted);flex-shrink:0;">' + label + '</span>'
-      + '<span style="color:var(--dim);">Not identified</span>'
+      + '<span style="color:var(--dim);">' + (_bcFr ? 'Non identifié' : 'Not identified') + '</span>'
       + '</div>';
   }).join('');
 }
@@ -10362,8 +10370,8 @@ async function openDrawer(card, initialTab = 'activity') {
 
       <!-- 6. BUYING COMMITTEE -->
       <div class="pd-section">
-        <div class="pd-section-label">Buying committee</div>
-        <div id="bc-section-${prospectId}" style="font-size:var(--fs-xs);color:var(--muted);font-style:italic">Loading...</div>
+        <div class="pd-section-label" data-en="Buying committee" data-fr="Comité d'achat">Buying committee</div>
+        <div id="bc-section-${prospectId}" style="font-size:var(--fs-xs);color:var(--muted);font-style:italic" data-en="Loading..." data-fr="Chargement…">Loading...</div>
         ${_pdAdditionalContactsHTML(prospectId, _p)}
       </div>
 

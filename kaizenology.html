@@ -8068,7 +8068,13 @@ function _buildProspectLinks(p) {
 }
 
 const _BC_ROLES = ['decision_maker', 'advisor', 'board_family_influencer'];
-const _BC_ROLE_LABELS = { decision_maker: 'Decision-maker', advisor: 'Advisor (financial/legal)', board_family_influencer: 'Board/Family influencer' };
+// FIX 22/09 (chantier langue tiroir, point 3, GO Thomas) : libelles bilingues, meme mecanisme que
+// _drawerBuyingCommitteeHTML/_acSection juste a cote (currentLang === 'fr' ? ... : ...).
+const _BC_ROLE_LABELS = {
+  decision_maker:           { en: 'Decision-maker',               fr: 'Décideur' },
+  advisor:                   { en: 'Advisor (financial/legal)',     fr: 'Conseiller (financier/juridique)' },
+  board_family_influencer:  { en: 'Board/Family influencer',       fr: 'Conseil d\'administration / famille' },
+};
 
 const _BC_FOUND_STALE_DAYS = 90;
 const _BC_NOTFOUND_STALE_DAYS = 30;
@@ -8161,13 +8167,14 @@ async function _loadBuyingCommittee(prospectId, p) {
 function _renderBuyingCommittee(prospectId, byRole, loading) {
   const el = document.getElementById('bc-section-' + prospectId);
   if (!el) return;
+  const _bcFr = currentLang === 'fr';
   if (loading) {
-    el.innerHTML = '<div style="font-size:var(--fs-xs);color:var(--muted);font-style:italic">Researching buying committee...</div>';
+    el.innerHTML = '<div style="font-size:var(--fs-xs);color:var(--muted);font-style:italic">' + (_bcFr ? 'Recherche du comité d\'achat…' : 'Researching buying committee...') + '</div>';
     return;
   }
   el.innerHTML = _BC_ROLES.map(role => {
     const r = byRole[role];
-    const label = _BC_ROLE_LABELS[role];
+    const label = _bcFr ? _BC_ROLE_LABELS[role].fr : _BC_ROLE_LABELS[role].en;
     if (r && r.name) {
       const nameHtml = r.linkedin
         ? '<a href="' + _esc(r.linkedin) + '" target="_blank" rel="noopener" style="color:var(--text);text-decoration:underline;font-weight:600;">' + _esc(r.name) + '</a>'
@@ -8179,7 +8186,7 @@ function _renderBuyingCommittee(prospectId, byRole, loading) {
     }
     return '<div style="display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);font-size:var(--fs-sm);">'
       + '<span style="color:var(--muted);flex-shrink:0;">' + label + '</span>'
-      + '<span style="color:var(--dim);">Not identified</span>'
+      + '<span style="color:var(--dim);">' + (_bcFr ? 'Non identifié' : 'Not identified') + '</span>'
       + '</div>';
   }).join('');
 }
@@ -11461,8 +11468,8 @@ function _drawerBuyingCommitteeHTML(id, p) {
     `).join('') +
     `</div>` : '';
   return `<div style="padding:16px 20px;border-top:1px solid var(--border)">
-    ${lbl('Buying committee')}
-    <div id="bc-section-${v(id)}" style="font-size:var(--fs-xs);color:var(--muted);font-style:italic">Loading...</div>
+    ${lbl(currentLang === 'fr' ? 'Comité d\'achat' : 'Buying committee')}
+    <div id="bc-section-${v(id)}" style="font-size:var(--fs-xs);color:var(--muted);font-style:italic">${currentLang === 'fr' ? 'Chargement…' : 'Loading...'}</div>
     ${_acSection}
   </div>`;
 }
