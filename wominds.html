@@ -2561,14 +2561,24 @@ function _mscMentionsForSection(paragraphs, marketMentions, renderedKeys) {
 // Separe les paragraphes de la section : prose macro (avant le sous-titre) et texte restant apres
 // le sous-titre (phrase agregee). Toute ligne qui cite le nom d'une mention rendue en carte est
 // retiree des deux (jamais affichee deux fois). Sous-titre absent : tout ce qui ne cite pas un nom
-// de mention reste en prose.
-function _mscSplitMentionParagraphs(paragraphs, mentions) {
+// de mention reste en prose. linksByParagraph (optionnel, tableau parallele a `paragraphs`) est
+// filtre EN PARALLELE (macroLinks/afterLinks) pour que le lien de chaque paragraphe garde reste
+// attache a sa propre position apres le split + filtre (fix 2026-09-22 -- cf. _mscRegisterLinks).
+function _mscSplitMentionParagraphs(paragraphs, mentions, linksByParagraph) {
   const names = mentions.map(m => (m.name || '').toLowerCase()).filter(Boolean);
   const isNameLine = p => { const lc = p.toLowerCase(); return names.some(n => lc.includes(n)); };
   const idx = paragraphs.findIndex(p => _mscNorm(p).startsWith(_MSC_MENTION_SUBTITLE));
-  const before = idx === -1 ? paragraphs : paragraphs.slice(0, idx);
+  const linkAt = i => (linksByParagraph ? linksByParagraph[i] : null);
+  const zip = (arr, offset) => arr.reduce((acc, p, j) => {
+    if (!isNameLine(p)) { acc.paragraphs.push(p); acc.links.push(linkAt(offset + j)); }
+    return acc;
+  }, { paragraphs: [], links: [] });
+  const beforeEnd = idx === -1 ? paragraphs.length : idx;
+  const before = paragraphs.slice(0, beforeEnd);
   const after = idx === -1 ? [] : paragraphs.slice(idx + 1);
-  return { macro: before.filter(p => !isNameLine(p)), after: after.filter(p => !isNameLine(p)) };
+  const macro = zip(before, 0);
+  const afterZ = zip(after, idx + 1);
+  return { macro: macro.paragraphs, macroLinks: macro.links, after: afterZ.paragraphs, afterLinks: afterZ.links };
 }
 // liveById : uniquement fourni par le rendu scan_entries v1 (etat ICP des personnes deja en base) ;
 // absent = comportement historique (aucune fiche live, aucune carte enrichie).
@@ -2586,6 +2596,13 @@ function _mscMentionCardsHTML(mentions, liveById) {
 // opts.rich (21/09) : corps commun avec demo-private.html et kaizenology.html (tableaux decoupes une
 // ligne par entree, section.items) ; Wominds ne l'utilise pas (l'email Wominds n'a pas de tableau
 // a decouper) -- sans opts, comportement inchange (section.items reste vide).
+// 2026-09-22 : linksByText (Map texte -> liens) remplace par linksByParagraph (tableau parallele a
+// paragraphs, linksByParagraph[i] = liens du i-eme paragraphe) -- l'ancien tracking par TEXTE videmait
+// le lien de TOUS les paragraphes portant un meme texte des que deux d'entre eux pointaient vers des
+// liens differents (garde-fou "ambigu" de l'ancien _mscRegisterLinks). Meme correctif que
+// demo-private.html/kaizenology.html (helper partage) ; verifie sans occurrence reelle sur les emails
+// Wominds a date (format "Priorite du jour" : chaque ligne cite le nom, jamais un texte de paragraphe
+// litteralement identique entre deux personnes), mais le mecanisme partage merite le meme correctif.
 function _mscParseEmailSections(html, opts) {
   let doc;
   try { doc = new DOMParser().parseFromString(html || '', 'text/html'); } catch (e) { return []; }
@@ -2597,7 +2614,7 @@ function _mscParseEmailSections(html, opts) {
   for (const el of nodes) {
     const tag = el.tagName.toLowerCase();
     if (tag === 'h1') { current = null; continue; }
-    if (tag === 'h2') { current = { heading: (el.textContent || '').trim(), paragraphs: [], linksByText: new Map(), items: [] }; sections.push(current); continue; }
+    if (tag === 'h2') { current = { heading: (el.textContent || '').trim(), paragraphs: [], linksByParagraph: [], items: [] }; sections.push(current); continue; }
     if (!current) continue;
     if (rich) {
       // p/li imbriques dans un tableau : deja couverts par la ligne <tr> correspondante.
@@ -2605,7 +2622,7 @@ function _mscParseEmailSections(html, opts) {
       const addItem = (text, links, header, tbl) => {
         if (!text) return;
         current.paragraphs.push(text);
-        _mscRegisterLinks(current, text, links);
+        _mscRegisterLinks(current, links);
         current.items.push({ text, header, tbl, links });
       };
       if (tag === 'table') {
@@ -2623,7 +2640,7 @@ function _mscParseEmailSections(html, opts) {
     const text = (el.textContent || '').replace(/\s+/g, ' ').trim();
     if (text) {
       current.paragraphs.push(text);
-      _mscRegisterLinks(current, text, _mscExtractLinks(el));
+      _mscRegisterLinks(current, _mscExtractLinks(el));
     }
   }
   return sections;
@@ -2639,22 +2656,18 @@ function _mscExtractLinks(el) {
   }
   return out;
 }
-// Liens d'un paragraphe de l'email, indexes par TEXTE de paragraphe (section.linksByText, lu par _mscParagraphHTML).
-// Un meme texte qui revient dans la section avec une liste de liens DIFFERENTE (ex. plusieurs « Profile » / « Site » /
-// « LinkedIn » pointant vers des personnes differentes) est AMBIGU : liste vide = texte sans lien, jamais le lien du
-// 1er paragraphe pour tous (mieux vaut aucun lien qu'un lien faux). Meme texte + memes liens : inchange. Appelee apres
-// section.paragraphs.push(text). (Helper commun aux 3 dashboards.)
-function _mscRegisterLinks(section, text, links) {
-  const map = section.linksByText;
-  if (section.paragraphs.indexOf(text) === section.paragraphs.length - 1) { if (links.length) map.set(text, links); return; }
-  const prev = map.get(text) || [];
-  const same = prev.length === links.length && prev.every((p, i) => p.t === links[i].t && p.href === links[i].href);
-  if (!same) map.set(text, []);
+// Liens d'un paragraphe de l'email, indexes par OCCURRENCE/POSITION (section.linksByParagraph[i]).
+// Chaque paragraphe garde SES PROPRES liens, quel que soit le texte d'un autre paragraphe de la
+// section -- plus de notion d'ambiguite texte-repete. Appelee juste apres section.paragraphs.push(text),
+// meme position implicite (longueur des deux tableaux toujours egale). (Helper commun aux 3 dashboards.)
+function _mscRegisterLinks(section, links) {
+  section.linksByParagraph.push(links || []);
 }
 // Paragraphe narratif -> HTML : tout le texte passe par _esc ; seuls les liens http(s) valides dont
 // le texte figure litteralement dans le paragraphe deviennent des <a>. Sans liens = _esc(text) seul.
-function _mscParagraphHTML(text, linksByText) {
-  const links = linksByText && typeof linksByText.get === 'function' ? linksByText.get(text) : null;
+// `links` est directement le tableau de liens DEJA RESOLU pour ce paragraphe (plus de Map ni de
+// recherche par texte depuis le fix 2026-09-22).
+function _mscParagraphHTML(text, links) {
   if (!links || !links.length) return _esc(text);
   let out = '';
   let pos = 0;
@@ -2686,8 +2699,9 @@ function _mscLinkSpans(text, links) {
 // _mscParseEmailSections). Rendu = memes mots, decoupes en phrases (une ligne par phrase) et, quand la phrase contient deja une
 // enumeration explicite, en petite liste a puces. Deterministe et CONSERVATEUR : au moindre doute (parentheses/guillemets
 // desequilibres, abreviation, initiale, sigle pointe, decimal, URL, coupure au milieu d'un lien) on ne coupe pas ; un paragraphe
-// sans coupure sort en HTML identique a l'ancien rendu. Le texte reste indexe par le paragraphe d'origine (linksByText), chaque
-// fragment ne recoit que les liens qu'il contient en entier (_mscLinkSpans) ; tout passe par _esc via _mscParagraphHTML.
+// sans coupure sort en HTML identique a l'ancien rendu. Les liens (links, deja resolus positionnellement par l'appelant) sont
+// decoupes en spans une fois pour le paragraphe entier ; chaque fragment ne recoit que les liens qu'il contient en entier
+// (_mscLinkSpans) ; tout passe par _esc via _mscParagraphHTML.
 const _MSC_PROSE_ABBR = new Set(['m', 'mm', 'mme', 'mmes', 'mlle', 'mlles', 'mr', 'mrs', 'ms', 'dr', 'pr', 'prof', 'me', 'st', 'ste', 'sté', 'jr', 'sr', 'inc', 'ltd', 'llc', 'co', 'corp', 'cie', 'etc', 'cf', 'env', 'vs', 'no', 'nos', 'av', 'apr', 'réf', 'ref', 'fig', 'ex', 'resp', 'approx', 'tél', 'tel', 'janv', 'févr', 'fevr', 'avr', 'juil', 'sept', 'oct', 'nov', 'déc', 'dec']);
 // Niveau d'imbrication avant chaque caractere ( ), [ ], « », “ ” et guillemets droits (par parite) ; null si desequilibre.
 function _mscProseLevels(text) {
@@ -2777,16 +2791,15 @@ function _mscProseBlocks(text, spans) {
 // Paragraphe narratif -> HTML de lecture. Sans coupure : exactement l'ancien HTML (<div marge 4px>). Avec coupures : un bloc
 // (marge 10px) contenant une ligne par phrase et, pour une enumeration, l'intro puis une <ul> (les separateurs « , » / « ; » de
 // l'enumeration sont remplaces par les puces, le point final de la phrase n'est pas repete sur la derniere puce).
-function _mscProseHTML(text, linksByText) {
-  const plain = () => `<div style="margin-bottom:4px;">${_mscParagraphHTML(text, linksByText)}</div>`;
-  const links = linksByText && typeof linksByText.get === 'function' ? linksByText.get(text) : null;
+function _mscProseHTML(text, links) {
+  const plain = () => `<div style="margin-bottom:4px;">${_mscParagraphHTML(text, links)}</div>`;
   const spans = _mscLinkSpans(text, links);
   const blocks = _mscProseBlocks(text, spans);
   if (!blocks) return plain();
   const frag = ([s, e]) => {
     const t = text.slice(s, e);
     const ls = spans.filter(x => x.a >= s && x.b <= e).map(x => ({ t: x.t, href: x.href }));
-    return _mscParagraphHTML(t, ls.length ? new Map([[t, ls]]) : null);
+    return _mscParagraphHTML(t, ls);
   };
   const body = blocks.map(b => b.list
     ? (b.list.lead ? `<div style="margin-bottom:3px;">${frag(b.list.lead)}</div>` : '')
@@ -2805,9 +2818,10 @@ function _mscGroupDecisions(decisions) {
 function _mscSectionLabel(heading) {
   return `<div style="font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);opacity:.65;margin:14px 0 4px;">${_esc(heading)}</div>`;
 }
-function _mscNarrativeBlockHTML(heading, paragraphs, linksByText) {
+// linksByParagraph (optionnel, tableau parallele a `paragraphs`) ; absent = _esc(p) seul, comportement inchange.
+function _mscNarrativeBlockHTML(heading, paragraphs, linksByParagraph) {
   if (!paragraphs.length) return '';
-  const body = paragraphs.map(p => _mscProseHTML(p, linksByText)).join('');
+  const body = paragraphs.map((p, i) => _mscProseHTML(p, linksByParagraph ? linksByParagraph[i] : null)).join('');
   return `${_mscSectionLabel(heading)}<div style="font-size:var(--fs-sm);color:var(--muted);line-height:1.5;margin-bottom:4px;">${body}</div>`;
 }
 // Badge ICP avec infobulle au survol -- UNIQUE implementation, partagee par les badges du Pipeline
@@ -3158,7 +3172,7 @@ async function _loadLastMorningScanEmail() {
       // live passees aux cartes "Personnes vues sur le marche" (etat ICP) uniquement en rendu scan_entries v1.
       const mentionLive = scanEntries ? liveById : null;
       for (const s of sections) {
-        const narrLinks = s.linksByText;
+        const narrLinks = s.linksByParagraph;
         const cat = _MSC_PRIORITY_HEADINGS[_mscNorm(s.heading)];
         if (cat) {
           consumed.add(cat);
@@ -3173,10 +3187,10 @@ async function _loadLastMorningScanEmail() {
           if (mentions.length > 0) {
             // Cartes pleines des la premiere version (demande Thomas). La prose macro de la section
             // reste affichee ; la phrase agregee (decompte sans nom des personnes ecartees) suit les cartes.
-            const parts = _mscSplitMentionParagraphs(s.paragraphs, mentions);
-            sectionsHtml += (_mscNarrativeBlockHTML(s.heading, parts.macro, narrLinks) || _mscSectionLabel(s.heading))
+            const parts = _mscSplitMentionParagraphs(s.paragraphs, mentions, narrLinks);
+            sectionsHtml += (_mscNarrativeBlockHTML(s.heading, parts.macro, parts.macroLinks) || _mscSectionLabel(s.heading))
               + _mscMentionCardsHTML(mentions, mentionLive)
-              + (parts.after.length ? `<div style="font-size:var(--fs-xs);color:var(--muted);line-height:1.5;margin-bottom:10px;">${parts.after.map(p => _mscParagraphHTML(p, narrLinks)).join('<br>')}</div>` : '');
+              + (parts.after.length ? `<div style="font-size:var(--fs-xs);color:var(--muted);line-height:1.5;margin-bottom:10px;">${parts.after.map((p, i) => _mscParagraphHTML(p, parts.afterLinks[i])).join('<br>')}</div>` : '');
             continue;
           }
         }

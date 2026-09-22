@@ -4187,9 +4187,16 @@ const _MSC_CANONICAL_HEADING = { today_action: 'Actions du jour', opportunistic_
 // contenu genere par un modele nourri de signaux marche externes ne puisse jamais atteindre le DOM
 // vivant de la page. h1 ignore (toujours le seul titre du mail, jamais une vraie section, verifie
 // dans Formater Email HTML — Corridor ce soir).
-// linksByText (Map texte du paragraphe -> liens http(s) de ce paragraphe, ajoute 2026-09-21, aligne sur
-// wominds.html) : le texte reste la seule source d'affichage, un lien n'est reinjecte que par
-// _mscParagraphHTML (rendu scan_entries v1) -- la chaine de repli n'y touche pas.
+// linksByParagraph (tableau parallele a section.paragraphs, section.linksByParagraph[i] = liens
+// http(s) du i-eme paragraphe, ajoute 2026-09-22 en remplacement de l'ancien linksByText -- Map
+// texte -> liens qui, lorsque le MEME texte de paragraphe revenait dans la section avec des liens
+// DIFFERENTS, ex. la liste "Profile · Post" de Stream 1 -- une ligne par prospect, meme texte,
+// href different a chaque fois -- videmait le lien pour TOUS les paragraphes concernes (garde-fou
+// "ambigu" de l'ancien _mscRegisterLinks, confirme en rejouant le vrai code sur le vrai mail Corridor
+// du 22/09 : 9 lignes sur 10 perdaient leur lien). Le tracking par OCCURRENCE/POSITION elimine cette
+// classe d'ambiguite : chaque paragraphe garde ses PROPRES liens quel que soit son texte, jamais
+// besoin de detecter/vider un conflit) : le texte reste la seule source d'affichage, un lien n'est
+// reinjecte que par _mscParagraphHTML (rendu scan_entries v1) -- la chaine de repli n'y touche pas.
 // opts.rich (Corridor, scan_entries v1 uniquement) : les tableaux (Stream 1, Croissance du pipeline,
 // STAKEHOLDERS), aplatis en un seul bloc sans opts, sont decoupes une entree par ligne <tr>
 // (cellules jointes par " · ") ; section.items = [{ text, header, tbl }] (header = ligne d'en-tete,
@@ -4206,7 +4213,7 @@ function _mscParseEmailSections(html, opts) {
   for (const el of nodes) {
     const tag = el.tagName.toLowerCase();
     if (tag === 'h1') { current = null; continue; }
-    if (tag === 'h2') { current = { heading: (el.textContent || '').trim(), paragraphs: [], linksByText: new Map(), items: [] }; sections.push(current); continue; }
+    if (tag === 'h2') { current = { heading: (el.textContent || '').trim(), paragraphs: [], linksByParagraph: [], items: [] }; sections.push(current); continue; }
     if (!current) continue;
     if (rich) {
       // p/li imbriques dans un tableau : deja couverts par la ligne <tr> correspondante.
@@ -4214,7 +4221,7 @@ function _mscParseEmailSections(html, opts) {
       const addItem = (text, links, header, tbl) => {
         if (!text) return;
         current.paragraphs.push(text);
-        _mscRegisterLinks(current, text, links);
+        _mscRegisterLinks(current, links);
         current.items.push({ text, header, tbl, links });
       };
       if (tag === 'table') {
@@ -4232,7 +4239,7 @@ function _mscParseEmailSections(html, opts) {
     const text = (el.textContent || '').replace(/\s+/g, ' ').trim();
     if (text) {
       current.paragraphs.push(text);
-      _mscRegisterLinks(current, text, _mscExtractLinks(el));
+      _mscRegisterLinks(current, _mscExtractLinks(el));
     }
   }
   return sections;
@@ -4249,23 +4256,23 @@ function _mscExtractLinks(el) {
   }
   return out;
 }
-// Liens d'un paragraphe de l'email, indexes par TEXTE de paragraphe (section.linksByText, lu par _mscParagraphHTML).
-// Un meme texte qui revient dans la section avec une liste de liens DIFFERENTE (ex. plusieurs « Profile » / « Site » /
-// « LinkedIn » pointant vers des personnes differentes) est AMBIGU : liste vide = texte sans lien, jamais le lien du
-// 1er paragraphe pour tous (mieux vaut aucun lien qu'un lien faux). Meme texte + memes liens : inchange. Appelee apres
-// section.paragraphs.push(text). (Helper commun aux 3 dashboards.)
-function _mscRegisterLinks(section, text, links) {
-  const map = section.linksByText;
-  if (section.paragraphs.indexOf(text) === section.paragraphs.length - 1) { if (links.length) map.set(text, links); return; }
-  const prev = map.get(text) || [];
-  const same = prev.length === links.length && prev.every((p, i) => p.t === links[i].t && p.href === links[i].href);
-  if (!same) map.set(text, []);
+// Liens d'un paragraphe de l'email, indexes par OCCURRENCE/POSITION (section.linksByParagraph[i],
+// lu par _mscParagraphHTML via l'appelant qui connait la position). Chaque paragraphe garde SES
+// PROPRES liens, quel que soit le texte d'un autre paragraphe de la section -- plus de notion
+// d'ambiguite texte-repete (fix 2026-09-22 : Stream 1 emet une ligne par prospect au texte
+// litteralement identique "Profile · Post"/"Profile", href different a chaque fois ; l'ancien
+// tracking par TEXTE (Map) videmait le lien des qu'un texte revenait avec des liens differents).
+// Appelee juste apres section.paragraphs.push(text), meme position implicite (longueur des deux
+// tableaux toujours egale). (Helper commun aux 3 dashboards.)
+function _mscRegisterLinks(section, links) {
+  section.linksByParagraph.push(links || []);
 }
 // Paragraphe narratif -> HTML : tout le texte passe par _esc ; seuls les liens http(s) valides dont
 // le texte figure litteralement dans le paragraphe deviennent des <a>. Sans liens = _esc(text) seul.
+// `links` est directement le tableau de liens DEJA RESOLU pour ce paragraphe (section.linksByParagraph[i]
+// ou equivalent positionnel) -- plus de Map ni de recherche par texte depuis le fix 2026-09-22.
 // (Helper partage avec wominds.html ; seul le jeton de couleur du lien est propre a la page.)
-function _mscParagraphHTML(text, linksByText) {
-  const links = linksByText && typeof linksByText.get === 'function' ? linksByText.get(text) : null;
+function _mscParagraphHTML(text, links) {
   if (!links || !links.length) return _esc(text);
   let out = '';
   let pos = 0;
@@ -4297,8 +4304,9 @@ function _mscLinkSpans(text, links) {
 // _mscParseEmailSections). Rendu = memes mots, decoupes en phrases (une ligne par phrase) et, quand la phrase contient deja une
 // enumeration explicite, en petite liste a puces. Deterministe et CONSERVATEUR : au moindre doute (parentheses/guillemets
 // desequilibres, abreviation, initiale, sigle pointe, decimal, URL, coupure au milieu d'un lien) on ne coupe pas ; un paragraphe
-// sans coupure sort en HTML identique a l'ancien rendu. Le texte reste indexe par le paragraphe d'origine (linksByText), chaque
-// fragment ne recoit que les liens qu'il contient en entier (_mscLinkSpans) ; tout passe par _esc via _mscParagraphHTML.
+// sans coupure sort en HTML identique a l'ancien rendu. Les liens (links, deja resolus positionnellement par l'appelant) sont
+// decoupes en spans une fois pour le paragraphe entier ; chaque fragment ne recoit que les liens qu'il contient en entier
+// (_mscLinkSpans) ; tout passe par _esc via _mscParagraphHTML.
 const _MSC_PROSE_ABBR = new Set(['m', 'mm', 'mme', 'mmes', 'mlle', 'mlles', 'mr', 'mrs', 'ms', 'dr', 'pr', 'prof', 'me', 'st', 'ste', 'sté', 'jr', 'sr', 'inc', 'ltd', 'llc', 'co', 'corp', 'cie', 'etc', 'cf', 'env', 'vs', 'no', 'nos', 'av', 'apr', 'réf', 'ref', 'fig', 'ex', 'resp', 'approx', 'tél', 'tel', 'janv', 'févr', 'fevr', 'avr', 'juil', 'sept', 'oct', 'nov', 'déc', 'dec']);
 // Niveau d'imbrication avant chaque caractere ( ), [ ], « », “ ” et guillemets droits (par parite) ; null si desequilibre.
 function _mscProseLevels(text) {
@@ -4388,16 +4396,15 @@ function _mscProseBlocks(text, spans) {
 // Paragraphe narratif -> HTML de lecture. Sans coupure : exactement l'ancien HTML (<div marge 4px>). Avec coupures : un bloc
 // (marge 10px) contenant une ligne par phrase et, pour une enumeration, l'intro puis une <ul> (les separateurs « , » / « ; » de
 // l'enumeration sont remplaces par les puces, le point final de la phrase n'est pas repete sur la derniere puce).
-function _mscProseHTML(text, linksByText) {
-  const plain = () => `<div style="margin-bottom:4px;">${_mscParagraphHTML(text, linksByText)}</div>`;
-  const links = linksByText && typeof linksByText.get === 'function' ? linksByText.get(text) : null;
+function _mscProseHTML(text, links) {
+  const plain = () => `<div style="margin-bottom:4px;">${_mscParagraphHTML(text, links)}</div>`;
   const spans = _mscLinkSpans(text, links);
   const blocks = _mscProseBlocks(text, spans);
   if (!blocks) return plain();
   const frag = ([s, e]) => {
     const t = text.slice(s, e);
     const ls = spans.filter(x => x.a >= s && x.b <= e).map(x => ({ t: x.t, href: x.href }));
-    return _mscParagraphHTML(t, ls.length ? new Map([[t, ls]]) : null);
+    return _mscParagraphHTML(t, ls);
   };
   const body = blocks.map(b => b.list
     ? (b.list.lead ? `<div style="margin-bottom:3px;">${frag(b.list.lead)}</div>` : '')
@@ -4437,11 +4444,11 @@ function _mscGroupDecisions(decisions) {
 function _mscSectionLabel(heading) {
   return `<div style="font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-secondary);opacity:.65;margin:14px 0 4px;">${_esc(heading)}</div>`;
 }
-// linksByText (optionnel, scan_entries v1, aligne sur wominds.html) : Map texte -> liens http(s) ;
-// absent = _esc(p) seul, comportement de la chaine de repli inchange.
-function _mscNarrativeBlockHTML(heading, paragraphs, linksByText) {
+// linksByParagraph (optionnel, tableau parallele a `paragraphs`, aligne sur wominds.html) ; absent
+// = _esc(p) seul, comportement de la chaine de repli inchange.
+function _mscNarrativeBlockHTML(heading, paragraphs, linksByParagraph) {
   if (!paragraphs.length) return '';
-  const body = paragraphs.map(p => _mscProseHTML(p, linksByText)).join('');
+  const body = paragraphs.map((p, i) => _mscProseHTML(p, linksByParagraph ? linksByParagraph[i] : null)).join('');
   return `${_mscSectionLabel(heading)}<div style="font-size:var(--fs-sm);color:var(--text-secondary);line-height:1.5;margin-bottom:4px;">${body}</div>`;
 }
 // Fix 2026-09-20 (chantier market_mention, demande Thomas, Corridor uniquement pour cette
@@ -4875,20 +4882,19 @@ function _mscDropLabeledBlocks(items, citedBy, key, decisions) {
 }
 // Note en italique markdown residuelle (« _texte_ », telle quelle dans le mail) : underscores d'encadrement retires ;
 // texte inchange si les underscores ne sont pas exactement une paire d'encadrement (plusieurs segments « _a_ et _b_ »,
-// « __gras__ », debut sans fin) ou si un libelle de lien du paragraphe deborderait (la recherche de liens se fait par
-// texte : le texte affiche est re-indexe par le rendu, cf. _mscRenderScanEntries).
-function _mscUnwrapItalic(text, linksByText) {
+// « __gras__ », debut sans fin) ou si un libelle de lien du paragraphe deborderait. `links` = liens DEJA resolus pour
+// CE paragraphe (it.links, positionnel) -- plus de re-indexation par texte depuis le fix 2026-09-22 (cf. _mscRenderScanEntries).
+function _mscUnwrapItalic(text, links) {
   const t = typeof text === 'string' ? text.trim() : '';
   if (t.length < 3 || t[0] !== '_' || t[t.length - 1] !== '_') return text;
   const inner = t.slice(1, -1);
   if (/^\s|\s$/.test(inner) || /(^|\s)_|_(\s|$)/.test(inner)) return text;
-  const links = linksByText && typeof linksByText.get === 'function' ? linksByText.get(text) : null;
   if (links && !links.every(l => inner.includes(l.t))) return text;
   return inner;
 }
 // items = section.items (_mscParseEmailSections opts.rich), citedBy(texte) = decisions rendues en carte que le
-// texte cite ; chaque item porte ses propres liens (item.links : pas de recherche par texte, donc insensible a l'ambiguite
-// de linksByText). Retire, pour chaque entree rendue en carte, son paragraphe de tete
+// texte cite ; chaque item porte ses propres liens (item.links, positionnel : jamais de recherche par texte, donc
+// aucune ambiguite possible). Retire, pour chaque entree rendue en carte, son paragraphe de tete
 // (celui qui cite la personne) PUIS les lignes qui le suivent tant qu'elles lui appartiennent : societe de l'entree
 // (egale, « societe · type », ou l'une des parties de son nom coupe au « | »), ligne commencant par « ICP », ligne
 // composee uniquement de libelles de lien, et -- forme « societe · type » de STAKEHOLDERS -- la ligne de resume qui
@@ -4954,18 +4960,12 @@ function _mscRenderScanEntries(decisions, liveById, emailHtml) {
       const withData = new Set(items.filter(it => !it.header && it.tbl >= 0).map(it => it.tbl));
       items = items.filter(it => !(it.header && it.tbl >= 0 && !withData.has(it.tbl)));
     }
-    // Notes « _..._ » : underscores retires ; les liens du paragraphe sont re-indexes sous le nouveau texte
-    // (_mscNarrativeBlockHTML / _mscParagraphHTML, partages, cherchent les liens par texte de paragraphe).
-    let links = s.linksByText;
-    const shown = items.map(it => {
-      const u = _mscUnwrapItalic(it.text, s.linksByText);
-      if (u !== it.text) {
-        const l = s.linksByText && s.linksByText.get(it.text);
-        if (l && !links.has(u)) { if (links === s.linksByText) links = new Map(s.linksByText); links.set(u, l); }
-      }
-      return u;
-    });
-    return _mscNarrativeBlockHTML(s.heading, shown, links);
+    // it.links (positionnel, deja resolu par _mscParseEmailSections -- jamais une recherche par texte) voyage avec
+    // chaque item quel que soit le retrait des underscores « _..._ » ; plus de re-indexation necessaire depuis le
+    // fix 2026-09-22 (_mscNarrativeBlockHTML consomme desormais un tableau de liens parallele a `shown`, pas un Map).
+    const linksArr = items.map(it => it.links);
+    const shown = items.map((it, i) => _mscUnwrapItalic(it.text, linksArr[i]));
+    return _mscNarrativeBlockHTML(s.heading, shown, linksArr);
   };
   const cardFor = d => _mscDecisionCardHTML(d, d.id ? (liveById[d.id] || null) : null);
   const firstKeyed = secs.findIndex(x => x.key);
@@ -5075,10 +5075,12 @@ async function _loadLastMorningScanEmail() {
             continue;
           }
         }
-        // 22/09 : le repli garde lui aussi les liens http(s) du mail (linksByText), comme le rendu scan_entries v1
-        // (_mscRenderScanEntries) et comme kaizenology.html/wominds.html (deja corriges le 21/09) -- sans ca toute
-        // section narrative de ce chemin (pas seulement Stream 1) perdait ses liens quand scan_entries est NULL/invalide.
-        sectionsHtml += _mscNarrativeBlockHTML(s.heading, s.paragraphs, s.linksByText);
+        // 22/09 : le repli garde lui aussi les liens http(s) du mail (linksByParagraph), comme le rendu scan_entries v1
+        // (_mscRenderScanEntries) et comme kaizenology.html/wominds.html (deja corriges le 21/09, meme jour que le passage
+        // au tracking par POSITION ci-dessus) -- sans ca toute section narrative de ce chemin (pas seulement Stream 1)
+        // perdait ses liens quand scan_entries est NULL/invalide, ou les perdait pour un texte de paragraphe repete
+        // (ex. Stream 1 "Profile · Post" -- une ligne par prospect, meme texte, href different a chaque fois).
+        sectionsHtml += _mscNarrativeBlockHTML(s.heading, s.paragraphs, s.linksByParagraph);
       }
       // Filet de securite : une categorie avec des decisions mais dont le titre n'a pas ete
       // retrouve tel quel dans le HTML (ne devrait pas arriver) ne perd jamais silencieusement ses
