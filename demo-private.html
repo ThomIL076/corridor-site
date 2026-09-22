@@ -1442,17 +1442,6 @@ body.new-nav { padding-left: 220px; }
   .k-ri-toggle { font-size:var(--fs-xs);color:var(--navy);background:none;border:none;padding:0;cursor:pointer;font-family:inherit;font-weight:600; }
   .k-ri-toggle:hover { color:var(--blue); }
   .k-reply-intel h1,.k-reply-intel h2,.k-reply-intel h3,.k-reply-intel h4,.k-reply-intel strong { color:var(--text) !important; }
-  .pri-score-tooltip { display:none; position:absolute; top:calc(100% + 6px); left:0; z-index:30; box-shadow:0 6px 20px rgba(14,26,46,.14); text-align:left; }
-  .pri-score-wrap:hover .pri-score-tooltip { display:block; }
-  /* Le panneau retourne par _renderBreakdownPanel est plus haut que la card (74px de colonne
-     score, panneau ~150px) -- overflow:hidden sur .priority-card (necessaire au reste du temps
-     pour que la barre de couleur tier respecte les coins arrondis) le tronquerait sinon. Rendu
-     visible seulement pendant le survol du score, via :has() (Chrome/Safari/Firefox tous a jour).
-     !important necessaire : overflow:hidden est pose en style inline sur .priority-card (pas une
-     classe), et un style inline gagne toujours contre une regle de feuille de style -- meme
-     :has() -- sauf !important. Sans lui cette regle etait un no-op silencieux (tooltip toujours
-     coupe des qu'il sortait de la boite de la card, cause exacte de la regression post-87bf09b). */
-  .priority-card:has(.pri-score-wrap:hover) { overflow: visible !important; }
 </style>
 </head>
 <body>

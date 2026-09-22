@@ -6374,7 +6374,7 @@ async function loadTodayRun() {
   }
 }
 // ── Etape B (unification Today/Signals, 21/09) : la vue Aujourd'hui rend ses cartes avec le composant PARTAGE _mscDecisionCardHTML (celui des
-// cartes Morning Scan / Signaux) au lieu de _todayCardHTML (ancien gabarit, plus appele : nettoyage a part). Decisions de Thomas : pied
+// cartes Morning Scan / Signaux) au lieu de _todayCardHTML (ancien gabarit, retiree le 22/09 -- nettoyage code mort, item #3). Decisions de Thomas : pied
 // « Generer » propre a Aujourd'hui (option A) ; infobulle = icp_reason ; ligne de provenance abandonnee (Wominds n'en a pas) ; le repli
 // arithmetique (loadTodayRun) rend la meme carte.
 // Adaptateur (meme NOM et meme forme sur les 3 dashboards) : ligne prospects chargee par Aujourd'hui -> pseudo-entree scan_entries (_scanEntry:true,
@@ -6419,39 +6419,6 @@ function _todaySharedCardHTML(p) {
     : '';
   const merged = footer ? card.replace(/(\s*<\/div>\s*<\/div>)\s*$/, footer + '$1') : card;
   return `<div style="margin-bottom:10px;">${merged}</div>`;
-}
-function _todayCardHTML(p) {
-  const scoreVal = (p.icp_score || 0).toFixed(1);
-  const tierColor = (p.icp_score || 0) >= 9 ? 'var(--danger)' : ((p.icp_score || 0) >= 8 ? 'var(--amber)' : 'var(--border)');
-  const sig = p.signal_type ? _sigBadge(p.signal_type) : '';
-  const signalText = p.signal ? _sanitizeSignal(p.signal).replace(/<[^>]*>/g, '').slice(0, 160) : '';
-  // Generate/NEXT ACTION par carte (parite demo-private.html:9757-9819, _priorityGenerate) --
-  // reutilise _renderNextActionHTML/_generateNextAction deja ecrits pour le tiroir, pas une
-  // deuxieme implementation. event.stopPropagation() necessaire : toute la carte ouvre deja
-  // le tiroir au clic (onclick plus bas), le bouton/panneau ne doivent pas le declencher aussi.
-  const cachedRendered = p.next_action_cache ? _renderNextActionHTML(p.next_action_cache, 'var(--navy)') : null;
-  const actionHtml = cachedRendered
-    ? `<div class="loaded" id="today-action-${p.id}" style="margin-top:10px;font-size:var(--fs-xs);line-height:1.6;" onclick="event.stopPropagation()">${cachedRendered}</div>`
-    : `<div id="today-action-${p.id}" style="margin-top:10px;" onclick="event.stopPropagation()">
-         <button id="today-gen-${p.id}" onclick="_todayGenerate('${p.id}')"
-           style="width:100%;padding:9px 12px;font-size:var(--fs-xs);border-radius:var(--radius-sm);
-                  background:var(--navy);color:#fff;border:none;cursor:pointer;font-weight:700;">
-           Générer
-         </button>
-       </div>`;
-  return `<div class="card" style="display:flex;padding:0;margin-bottom:12px;overflow:hidden;cursor:pointer;" onclick="openProspectDetail('${p.id}')">
-    <div style="width:4px;background:${tierColor};flex-shrink:0;"></div>
-    <div style="width:70px;flex-shrink:0;border-right:1px solid var(--border);padding:14px 6px;text-align:center;">
-      <div style="font-family:'IBM Plex Mono',monospace;font-size:20px;font-weight:600;color:var(--navy);">${scoreVal}</div>
-      <div style="font-size:9.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin-top:2px;">ICP</div>
-    </div>
-    <div style="flex:1;padding:14px 16px;min-width:0;">
-      <div style="font-weight:700;font-size:var(--fs-base);color:var(--navy);">${_esc(p.name || 'Sans nom')}</div>
-      <div style="font-size:var(--fs-sm);color:var(--muted);">${_esc(p.company || 'N/D')}${p.sector ? ' · ' + _esc(p.sector) : ''}</div>
-      ${p.signal ? `<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:6px;line-height:1.4;">${sig} ${signalText}</div>` : ''}
-      ${actionHtml}
-    </div>
-  </div>`;
 }
 async function _todayGenerate(prospectId) {
   const btn = document.getElementById('today-gen-' + prospectId);
