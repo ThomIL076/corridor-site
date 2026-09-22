@@ -4453,7 +4453,11 @@ function _mscNarrativeBlockHTML(heading, paragraphs, linksByText) {
 function _mscIsMarketMentionSection(heading) {
   const norm = _mscNorm(heading);
   if (norm === _mscNorm('STAKEHOLDERS')) return true;
-  return /^stream\s*\d+/.test(norm);
+  // 22/09 : exclut explicitement Stream 1 -- /^stream\s*\d+/ seul matchait aussi "Stream 1" malgre le
+  // commentaire ci-dessus ("Stream 2 et suivants" uniquement, jamais Stream 1, sa propre section narrative
+  // avec sa cle _mscSectionKeyForHeading 'stream1' dediee). Un simple [2-9]\d* casserait Stream 10+ (le premier
+  // chiffre examine serait '1') -- exclusion explicite par regex dediee plutot qu'un intervalle de chiffres.
+  return /^stream\s*\d+/.test(norm) && !/^stream\s*1\b/.test(norm);
 }
 // decisions_json n'a pas de champ "section d'origine" (le schema DECISIONS reste le meme pour
 // les 3 categories) -- l'attribution d'une entree market_mention a une section precise se fait
@@ -5071,7 +5075,10 @@ async function _loadLastMorningScanEmail() {
             continue;
           }
         }
-        sectionsHtml += _mscNarrativeBlockHTML(s.heading, s.paragraphs);
+        // 22/09 : le repli garde lui aussi les liens http(s) du mail (linksByText), comme le rendu scan_entries v1
+        // (_mscRenderScanEntries) et comme kaizenology.html/wominds.html (deja corriges le 21/09) -- sans ca toute
+        // section narrative de ce chemin (pas seulement Stream 1) perdait ses liens quand scan_entries est NULL/invalide.
+        sectionsHtml += _mscNarrativeBlockHTML(s.heading, s.paragraphs, s.linksByText);
       }
       // Filet de securite : une categorie avec des decisions mais dont le titre n'a pas ete
       // retrouve tel quel dans le HTML (ne devrait pas arriver) ne perd jamais silencieusement ses
