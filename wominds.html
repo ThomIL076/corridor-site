@@ -2819,7 +2819,12 @@ function _mscNarrativeBlockHTML(heading, paragraphs, linksByText) {
 function _icpBadgeWithTooltipHTML(chipHtml, score, reason, align) {
   const s = _esc(String(score));
   const tip = reason ? 'ICP ' + s + '/10, ' + _esc(reason) : 'Score ICP : ' + s + '/10';
-  return '<span style="position:relative;display:inline-block;" onmouseover="this.querySelector(\'.icp-tt\').style.display=\'block\'" onmouseout="this.querySelector(\'.icp-tt\').style.display=\'none\'">' +
+  // Debordement a droite (mobile : puce collee a gauche de la carte, infobulle de 220px ancree en 'left') : a l'affichage, mesure la position
+  // reelle et decale vers la gauche juste assez pour rester dans la fenetre (marge 8px). Ancrage 'right' inchange (jamais utilise ici).
+  const over = align === 'left'
+    ? 'var t=this.querySelector(\'.icp-tt\');t.style.display=\'block\';t.style.left=\'0\';var o=t.getBoundingClientRect().right-document.documentElement.clientWidth+8;if(o>0)t.style.left=(-o)+\'px\''
+    : 'this.querySelector(\'.icp-tt\').style.display=\'block\'';
+  return '<span style="position:relative;display:inline-block;" onmouseover="' + over + '" onmouseout="this.querySelector(\'.icp-tt\').style.display=\'none\'">' +
     chipHtml +
     '<span class="icp-tt" style="display:none;position:absolute;bottom:100%;' + (align === 'left' ? 'left:0' : 'right:0') + ';margin-bottom:6px;background:var(--navy);color:#fff;font-size:var(--fs-xs);font-weight:400;padding:6px 10px;border-radius:var(--radius-sm);white-space:normal;width:220px;line-height:1.4;z-index:20;box-shadow:0 2px 8px rgba(0,0,0,0.15);">' + tip + '</span>' +
     '</span>';
@@ -2961,6 +2966,18 @@ function _mscSafeEmail(e) {
   const t = e.trim();
   return t.length <= 254 && /^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$/.test(t) ? t : '';
 }
+// Nettoyage commun du texte d'un signal (etape B, 22/09) : voir _sanitizeSignal (retire « (mot-cle : ...) », remplace « votre profil » par le
+// nom du client). ICI on veut du texte BRUT que l'appelant re-echappera lui-meme (composant carte, adaptateur Aujourd'hui) -- deux etapes DANS CET
+// ORDRE : (1) retire TOUTE balise HTML litterale du texte BRUT d'abord (attributs compris, ex. <img onerror=...> entierement supprime ; un <a href>
+// du backend reduit a son texte) -- jamais de HTML reel dans le resultat ; (2) _sanitizeSignal sur le texte deja sans balise, pour ses SEULES
+// substitutions textuelles (plus rien a proteger par le SAFE_A de _sanitizeSignal), puis decode les entites qu'elle introduit (elle echappe pour un
+// affichage HTML direct) -- l'appelant re-echappe lui-meme via _esc, jamais de double echappement. Fonction UNIQUE, partagee par le composant et
+// par l'adaptateur (_mscDecisionFromProspect) : cf. feedback_no_duplicate_logic.
+function _mscCleanSignalText(s) {
+  if (typeof s !== 'string' || !s.trim()) return '';
+  const stripped = s.replace(/<[^>]*>/g, '');
+  return _sanitizeSignal(stripped).replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&amp;/g, '&').trim();
+}
 // Une carte par entree de decisions_json (ou de scan_entries v1, d._scanEntry), enrichie en live
 // (icp_score/icp_reason/signal/signal_interpretation/next_action_cache, id present uniquement) quand
 // la fiche prospect a pu etre chargee. Wominds n'a pas source_url/headcount dans son schema DECISIONS
@@ -2972,6 +2989,9 @@ function _mscSafeEmail(e) {
 // repli tant que ni FAITS ni ACTION ne sont fournis -- regle commune avec demo-private.html et kaizenology.html,
 // decision Thomas 21/09 : une interpretation seule ne masque pas le resume), badge de type de signal, etat ICP. UN SEUL bloc action :
 // celui du scan s'il existe, sinon next_action_cache live -- jamais les deux.
+// Crochet optionnel d._extraChips (etape B, meme nom sur les 3 dashboards) : FONCTION sans argument renvoyant du HTML DEJA construit et echappe par l'appelant, ajoutee
+// apres les puces existantes ; absent ou non fonction (dont toute CHAINE : le repli decisions_json passe l'objet JSON de la base tel quel, une chaine y serait
+// un HTML non echappe = XSS stocke ; un objet JSON ne porte jamais de fonction) = aucun effet (Signaux / Morning Scan ne le renseignent jamais).
 function _mscDecisionCardHTML(d, live) {
   const isEntry = !!d._scanEntry;
   const pid = _mscSafeId(d.id);
@@ -2987,7 +3007,7 @@ function _mscDecisionCardHTML(d, live) {
   const icpScore = live && live.icp_score != null ? live.icp_score : null;
   const cleanText = s => String(s).replace(/<[^>]*>/g, '').trim();
   const signalSrc = (live && live.signal) || (isEntry && d.signal && d.signal.text) || '';
-  const signal = signalSrc ? cleanText(signalSrc) : '';
+  const signal = signalSrc ? _mscCleanSignalText(signalSrc) : '';
   const interpSrc = (isEntry && d.interpretation) || (live && live.signal_interpretation) || '';
   const signalInterp = interpSrc ? cleanText(interpSrc) : '';
   const nextActionHtml = live && live.next_action_cache ? _renderNextActionHTML(live.next_action_cache, 'var(--muted)') : null;
@@ -3002,9 +3022,9 @@ function _mscDecisionCardHTML(d, live) {
   // _mscResolveSource. Jamais un lien deja present retire ou remplace ; toujours _mscSafeUrl (http/https).
   const linkedinUrl = _mscSafeUrl(d.linkedin) || _mscSafeUrl(live && live.linkedin);
   const source = _mscResolveSource(d, live);
-  if (linkedinUrl) links.push(`<a href="${_esc(linkedinUrl)}" target="_blank" rel="noopener" style="color:var(--fill-accent);text-decoration:none;font-weight:600;white-space:nowrap;">LinkedIn</a>`);
-  if (source) links.push(`<a href="${_esc(source.url)}" target="_blank" rel="noopener" style="color:var(--fill-accent);text-decoration:none;font-weight:600;min-width:0;word-break:normal;overflow-wrap:break-word;">${_esc(source.label)}</a>`);
-  if (email) links.push(`<a href="mailto:${_esc(email)}" style="color:var(--fill-accent);text-decoration:none;font-weight:600;min-width:0;overflow-wrap:anywhere;">${_esc(email)}</a>`);
+  if (linkedinUrl) links.push(`<a href="${_esc(linkedinUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:var(--fill-accent);text-decoration:none;font-weight:600;white-space:nowrap;">LinkedIn</a>`);
+  if (source) links.push(`<a href="${_esc(source.url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:var(--fill-accent);text-decoration:none;font-weight:600;min-width:0;word-break:normal;overflow-wrap:break-word;">${_esc(source.label)}</a>`);
+  if (email) links.push(`<a href="mailto:${_esc(email)}" onclick="event.stopPropagation()" style="color:var(--fill-accent);text-decoration:none;font-weight:600;min-width:0;overflow-wrap:anywhere;">${_esc(email)}</a>`);
   const linksHtml = links.length ? `<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px 12px;font-size:var(--fs-xs);">${links.join('')}</div>` : '';
 
   const structured = isEntry && (d.facts || d.action);
@@ -3041,7 +3061,7 @@ function _mscDecisionCardHTML(d, live) {
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
           <span style="font-weight:700;font-size:var(--fs-sm);color:var(--ink);">${name}</span>
           ${companyLine ? `<span style="font-size:var(--fs-xs);color:var(--muted);">${_esc(companyLine)}</span>` : ''}${mandateHtml}
-          ${reliabilityChip}${icpChip}${icpStateChip}${sigBadge}
+          ${reliabilityChip}${icpChip}${icpStateChip}${sigBadge}${typeof d._extraChips === 'function' ? d._extraChips() : ''}
           ${confidenceHtml}
         </div>
         ${factsBlock}${summary}
@@ -4629,14 +4649,15 @@ function _prospectCardHTML(p){
   const sig = _sigBadge(p.signal_type);
   const regionTag = p.region ? `<span class="k-badge">${_esc(p.region)}</span>` : '';
   const sectorBadge = p.sector ? `<span class="k-badge k-badge-sector">${_esc(p.sector)}</span>` : '';
+  const warnContra = p.identity_verdict === 'CONTRADICTED' ? _contradictedBadgeHTML() : '';
   const warnVerif = p.company_verified === false ? `<span class="k-badge" style="color:#b45309;background:#fef3c7;border-color:#fde68a;" title="Entreprise non confirmée">⚠ Entreprise</span>` : '';
-  const warnIdent = p.identity_confidence === 'low' ? `<span class="k-badge" style="color:#6b7280;" title="Identité à vérifier">? Identité</span>` : '';
+  const warnIdent = (!warnContra && p.identity_confidence === 'low') ? `<span class="k-badge" style="color:#6b7280;" title="Identité à vérifier">? Identité</span>` : '';
   const place = (p.country || '').trim();
   return `<div class="k-card" data-id="${_esc(p.id)}" data-name="${_esc(p.name || '')}" data-company="${_esc(p.company || '')}" data-sector="${_esc(p.sector || '')}" data-stage="${_esc(p.stage || 'Identified')}" data-icp-score="${p.icp_score != null ? _esc(p.icp_score) : ''}" data-country="${_esc(p.country || '')}" data-signal-type="${_esc((p.signal_type || '').toUpperCase())}" data-has-signal="${!!p.signal}" onclick="openProspectDetail('${p.id}')">
     <div class="k-card-name">${_esc(p.name || 'Sans nom')}</div>
     <div class="k-card-company">${_esc(p.company || 'N/D')}${place ? ' · ' + _esc(place) : ''}</div>
     ${p.signal ? `<div class="k-card-signal">${sig}</div>` : ''}
-    <div class="k-card-badges">${icp}${regionTag}${sectorBadge}${warnVerif}${warnIdent}</div>
+    <div class="k-card-badges">${icp}${regionTag}${sectorBadge}${warnContra}${warnVerif}${warnIdent}</div>
   </div>`;
 }
 // F01 (port wominds, 2026-09-17) : equivalent de _scoreReliabilityBadge (demo-private.html/
@@ -5293,6 +5314,17 @@ async function _fetchProspectMemory(pid) {
   } catch(e) { /* fail-open, endpoint generique deja utilise ailleurs */ }
   return '';
 }
+// Garde d'identite elargie (tache 3, 22/09) : bloc de contexte UNIQUE pour les DEUX generateurs de message (_generateNextAction : tiroir + carte
+// partagee ; _generateSequenceMessage : Envoyer) -- 3 signaux INDEPENDANTS (entreprise non confirmee, confiance identite basse, identite
+// CONTREDITE : deux colonnes distinctes en base, un CONTRADICTED peut survenir sans identity_confidence='low', cf. audit ia_ 21/09). Chaine
+// vide si aucun signal (comportement inchange pour une fiche fiable, aucun effet sur le prompt).
+function _mscIdentityPromptBlock(p) {
+  const lines = [];
+  if (p && p.company_verified === false) lines.push("EMPLOYEUR NON CONFIRMÉ : true -- la source de données n'a pas confirmé que cette personne travaille toujours dans cette entreprise.");
+  if (p && p.identity_confidence === 'low') lines.push("IDENTITÉ NON CONFIRMÉE : true -- la correspondance d'identité de ce contact est peu fiable.");
+  if (p && p.identity_verdict === 'CONTRADICTED') lines.push("IDENTITÉ CONTREDITE : true -- une vérification a explicitement CONTREDIT que cette personne occupe encore ce poste chez cette entreprise.");
+  return lines.join('\n');
+}
 async function _generateNextAction(p) {
   const ctx = _drawerInteractions.slice(0,3)
     .map(i => `${_INT_LABELS_FR[i.type] || i.type}${i.note ? ': ' + i.note.slice(0,80) : ''} (${_relDate(i.created_at) || 'récent'})`)
@@ -5302,8 +5334,6 @@ async function _generateNextAction(p) {
   const _signal = _fullP.signal || null;
   const _signalType = _fullP.signal_type || null;
   const _signalInterp = _fullP.signal_interpretation ? _fullP.signal_interpretation.replace(/<[^>]*>/g,'').trim().slice(0, 300) : null;
-  const _companyUnverified = _fullP.company_verified === false;
-  const _lowIdentityConfidence = _fullP.identity_confidence === 'low';
 
   const [_drLive, _drMemory] = await Promise.all([
     _prefetchWebContext(p.company, p.sector, p.website_url),
@@ -5332,14 +5362,14 @@ RÈGLES ANTI-HALLUCINATION -- strictement appliquées :
 3. Deux appels sur le même prospect doivent produire des résultats cohérents -- ne vous contredisez jamais en inventant des faits différents.
 4. Si une INTERPRÉTATION DU SIGNAL est fournie ci-dessous, elle a déjà été analysée et vérifiée -- utilisez-la telle quelle, ne la réinterprétez pas.
 5. Si EMPLOYEUR NON CONFIRMÉ est signalé ci-dessous, mentionnez dans what_not_to_say que l'employeur n'est pas confirmé et ne doit pas être présenté comme certain.
-6. Si IDENTITÉ NON CONFIRMÉE est signalée ci-dessous, mentionnez dans what_not_to_say que l'identité de ce contact n'est pas fiablement confirmée.`;
+6. Si IDENTITÉ NON CONFIRMÉE est signalée ci-dessous, mentionnez dans what_not_to_say que l'identité de ce contact n'est pas fiablement confirmée.
+7. Si IDENTITÉ CONTREDITE est signalée ci-dessous, une vérification a explicitement CONTREDIT que cette personne occupe encore ce poste chez cette entreprise -- mentionnez-le clairement dans what_not_to_say, sans exception.`;
 
   const userMsg = `Prospect : ${p.name} chez ${p.company || 'inconnu'} (${p.sector || 'secteur inconnu'}). Étape : ${STAGE_LABEL_FR[p.stage] || p.stage || 'inconnue'}. Score ICP global : ${p.icp_score || 'non défini'}.${p.email ? ' Email : ' + p.email + '.' : ''}
 ${breakdownLine ? 'Détail du score ICP : ' + breakdownLine + '.' : ''}
 ${(_signalType || _signal) ? 'Signal : ' + (_signalType ? '[' + _signalType + '] ' : '') + (_signal ? _signal.replace(/<[^>]*>/g,'').slice(0, 200) : '') : ''}
 ${_signalInterp ? 'INTERPRÉTATION DU SIGNAL (déjà analysée, utilisez-la telle quelle) : ' + _signalInterp : ''}
-${_companyUnverified ? "EMPLOYEUR NON CONFIRMÉ : true -- la source de données n'a pas confirmé que cette personne travaille toujours dans cette entreprise." : ''}
-${_lowIdentityConfidence ? "IDENTITÉ NON CONFIRMÉE : true -- la correspondance d'identité de ce contact est peu fiable." : ''}
+${_mscIdentityPromptBlock(_fullP)}
 ${ctx ? 'Interactions récentes : ' + ctx : 'Aucune interaction loguée.'}
 ${rem ? 'Prochain rappel : ' + rem : ''}
 ${_drMemory ? '\nMÉMOIRE PROSPECT :\n' + _drMemory : ''}
@@ -6131,6 +6161,18 @@ function _renderPendingActionCard(action) {
   </div>`;
 }
 async function _paApprove(id) {
+  // Garde d'identite elargie (tache 3, 22/09) : l'approbation demarre l'envoi automatise sous 10 min (cf. showToast plus bas) -- confirmation
+  // NOMMEE si la fiche est CONTREDITE. Deux lectures supplementaires (pending_actions puis prospects), jamais d'ecriture avant confirmation.
+  try {
+    const { data: paRow } = await sbClient.from('pending_actions').select('payload, prospect_id').eq('id', id).maybeSingle();
+    if (paRow && paRow.prospect_id) {
+      const { data: pr } = await sbClient.from('prospects').select('identity_verdict').eq('id', paRow.prospect_id).eq('client_id', CLIENT_ID).maybeSingle();
+      if (pr && pr.identity_verdict === 'CONTRADICTED') {
+        const named = Object.assign({}, paRow.payload || {}, { identity_verdict: 'CONTRADICTED' });
+        if (!_confirmIfContradicted(named)) return;
+      }
+    }
+  } catch (e) { console.error('[_paApprove] verification identite', e); }
   const { error } = await sbClient.from('pending_actions')
     .update({ status: 'approved', decided_at: new Date().toISOString() })
     .eq('id', id);
@@ -6273,7 +6315,7 @@ async function loadDailyPriorities() {
     prospects.forEach(p => _cacheProspectRow(p));
     document.getElementById('today-queued-count').textContent = prospects.length;
     if (subEl) subEl.textContent = ' prospects prioritaires du Morning Scan du jour : actions du jour d\'abord, puis connexions opportunistes.';
-    container.innerHTML = prospects.map(_todayCardHTML).join('');
+    container.innerHTML = prospects.map(_todaySharedCardHTML).join('');
     _fetchTodaySendCounts().catch(err => console.error('_fetchTodaySendCounts:', err));
   } catch (e) {
     console.warn('[loadDailyPriorities] repli sur loadTodayRun :', e);
@@ -6309,13 +6351,53 @@ async function loadTodayRun() {
     if (!prospects.length) {
       container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">Aucun prospect pour l\'instant. Cette vue se remplira dès que la prospection automatique commencera à qualifier des prospects (ICP ≥ 6).</div>';
     } else {
-      container.innerHTML = prospects.map(_todayCardHTML).join('');
+      container.innerHTML = prospects.map(_todaySharedCardHTML).join('');
     }
     _fetchTodaySendCounts().catch(err => console.error('_fetchTodaySendCounts:', err));
   } catch(e) {
     console.error('[loadTodayRun]', e);
     container.innerHTML = '<div style="padding:32px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">Impossible de charger les priorités du jour pour le moment.</div>';
   }
+}
+// ── Etape B (unification Today/Signals, 21/09) : la vue Aujourd'hui rend ses cartes avec le composant PARTAGE _mscDecisionCardHTML (celui des
+// cartes Morning Scan / Signaux) au lieu de _todayCardHTML (ancien gabarit, plus appele : nettoyage a part). Decisions de Thomas : pied
+// « Generer » propre a Aujourd'hui (option A) ; infobulle = icp_reason ; ligne de provenance abandonnee (Wominds n'en a pas) ; le repli
+// arithmetique (loadTodayRun) rend la meme carte.
+// Adaptateur (meme NOM et meme forme sur les 3 dashboards) : ligne prospects chargee par Aujourd'hui -> pseudo-entree scan_entries (_scanEntry:true,
+// signal {text,type,date}, JAMAIS de confidence : aucun badge de confiance invente). Le texte du signal passe par _mscCleanSignalText (TB-11,
+// meme helper que le composant depuis le 22/09 : retire « (mot-cle : ...) » et remplace « votre profil » par le nom du client, en texte brut).
+function _mscDecisionFromProspect(p) {
+  const sig = _mscCleanSignalText(p && p.signal);
+  return {
+    _scanEntry: true,
+    id: p ? _mscSafeId(p.id) || null : null,
+    name: p && p.name ? String(p.name) : null,
+    company: p && p.company ? String(p.company) : null,
+    title: p && p.title ? String(p.title) : null,
+    linkedin: p ? _mscSafeUrl(p.linkedin) || null : null,
+    signal: { text: sig || null, type: p && p.signal_type ? String(p.signal_type) : null, date: p && p.signal_date ? String(p.signal_date) : null },
+  };
+}
+// Carte d'Aujourd'hui = carte partagee + pied « Generer » (seulement sans action en cache : avec une action en cache, la carte partagee l'affiche deja
+// dans « Action recommandee », jamais deux blocs action). Le pied est un FRERE de la carte (pas un enfant) : le clic sur « Generer » n'atteint donc pas
+// le onclick de la carte (ouverture du tiroir). La carte lit live.signal AVANT d.signal.text : la ligne passee en « live » porte le texte NETTOYE
+// (copie, _prospectsById reste intact). _todayGenerate et les ids today-gen-/today-action- sont ceux de l'ancienne carte (aucune logique nouvelle).
+// Bouton compact (retour de Thomas 22/09 : la grosse barre pleine largeur heritee de l'ancien Aujourd'hui est disproportionnee sur la carte partagee) --
+// style REUTILISE tel quel (aucun nouveau style invente) : identique au bouton « + Ajouter au pipeline » du comite d'achat (_renderCommitteeCards,
+// .sh-add-btn), seul bouton d'action deja pose au bas d'une carte compacte dans ce fichier ; auto-largeur (aucun width defini), jamais pleine largeur.
+function _todaySharedCardHTML(p) {
+  const d = _mscDecisionFromProspect(p);
+  const card = _mscDecisionCardHTML(d, Object.assign({}, p, { signal: d.signal.text }));
+  const pid = d.id;
+  const footer = pid && !p.next_action_cache
+    ? `<div id="today-action-${pid}" style="margin-top:6px;font-size:var(--fs-xs);line-height:1.5;">
+         <button id="today-gen-${pid}" onclick="_todayGenerate('${pid}')"
+           style="font-size:var(--fs-xs);padding:4px 11px;background:var(--navy);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer">
+           Générer
+         </button>
+       </div>`
+    : '';
+  return `<div style="margin-bottom:10px;">${card}${footer}</div>`;
 }
 function _todayCardHTML(p) {
   const scoreVal = (p.icp_score || 0).toFixed(1);
@@ -6637,6 +6719,7 @@ async function _generateSequenceMessage(pid, touch, forceGenerate = false, elPre
   const greetingRule = prospectFirstName
     ? `Le message doit commencer par "Bonjour ${prospectFirstName}," -- utilisez exactement ce prénom, jamais un autre prénom inventé ou supposé.\n`
     : '';
+  const identityBlock = _mscIdentityPromptBlock(p);
 
   // Fix 2026-09-19 (uniformisation avec demo-private.html:7729/kaizenology.html:6861, demande
   // Thomas) : remplace l'ancien mecanisme (web_search_20250305 natif Anthropic, laisse au modele
@@ -6704,8 +6787,9 @@ Contexte Wominds : plateforme de mesure, pilotage et mise en conformité de l'é
 Prospect : ${p.name || 'inconnu'}, ${p.title || 'poste inconnu'} chez ${p.company || 'entreprise inconnue'}${p.sector ? ' (secteur : ' + p.sector + ')' : ''}.
 ${signalLine}
 ${greetingRule}
+${identityBlock}
 ${liveBlock}${personBlock}
-Règles impératives : n'inventez aucun fait sur le prospect, son entreprise, ou Wominds au-delà de ce qui est donné ci-dessus ou dans le contexte de recherche fourni. Pas de tiret cadratin (—), remplacez par une virgule ou un point. Écrivez UNIQUEMENT le corps du message final, sans préambule ni explication, et surtout sans aucune trace de votre recherche (jamais "d'après mes recherches", "j'ai trouvé que", "une recherche récente indique" ou équivalent) : les faits trouvés doivent être intégrés naturellement, comme si vous les connaissiez déjà. Si le message se termine par une signature, signez EXACTEMENT "${senderFirstName}" -- jamais "Wominds", jamais le nom de l'entreprise ou du client, uniquement le prénom de l'expéditeur.`;
+Règles impératives : n'inventez aucun fait sur le prospect, son entreprise, ou Wominds au-delà de ce qui est donné ci-dessus ou dans le contexte de recherche fourni.${identityBlock ? ' Si une ligne IDENTITÉ CONTREDITE ou NON CONFIRMÉE est présente ci-dessus, écrivez un message neutre qui ne présuppose pas que ce contact occupe toujours ce poste chez cette entreprise.' : ''} Pas de tiret cadratin (—), remplacez par une virgule ou un point. Écrivez UNIQUEMENT le corps du message final, sans préambule ni explication, et surtout sans aucune trace de votre recherche (jamais "d'après mes recherches", "j'ai trouvé que", "une recherche récente indique" ou équivalent) : les faits trouvés doivent être intégrés naturellement, comme si vous les connaissiez déjà. Si le message se termine par une signature, signez EXACTEMENT "${senderFirstName}" -- jamais "Wominds", jamais le nom de l'entreprise ou du client, uniquement le prénom de l'expéditeur.`;
   try {
     // Fix 2026-09-14 (cas reel Maxime Nelia/Duralex SCOP SA, "Erreur de generation.") : 400 etait
     // insuffisant -- claude-sonnet-5 consomme un budget de "thinking" etendu (variable d'un appel
@@ -6833,9 +6917,29 @@ async function _markReady(pid, elPrefix = '') {
 // venir d'une copie _sendProspects perimee -- et connexion 1er degre exigee pour j0/j5/j12). Le
 // credential d'envoi et l'ID de campagne sont resolus cote serveur par client_id, rien de
 // specifique a Wominds cote client -- meme mecanisme deja en place pour Kaizenology/Thomas.
+// GARDE D'IDENTITE ELARGIE (tache 3, 22/09 ; nommage aligne sur Corridor/Kaizenology le 22/09 soir) : confirmation NOMMEE avant tout
+// envoi/approbation vers un contact dont l'identite a ete CONTREDITE (decision Thomas 21/09 : afficher PARTOUT + avertir par
+// confirmation nommee, jamais desactiver -- un CONTRADICTED peut etre un faux positif, ex. Rui Mota Guedes).
+function _contradictedWarningText(ps, fr) {
+  fr = fr === undefined ? (typeof currentLang === 'undefined' || currentLang === 'fr') : fr;
+  const list = (Array.isArray(ps) ? ps : [ps]).filter(p => p && p.identity_verdict === 'CONTRADICTED');
+  if (!list.length) return '';
+  const who = list.map(p => (p.company ? `${p.name || '?'} (${p.company})` : (p.name || '?'))).join(', ');
+  return fr
+    ? `\n\n⚠ Identité contredite (${list.length}) : ${who}. Des signaux récents contredisent ce que l'on sait ${list.length > 1 ? 'de ces contacts' : 'de ce contact'} — il peut s'agir d'un faux positif.`
+    : `\n\n⚠ Identity contradicted (${list.length}): ${who}. Recent signals contradict what we know about ${list.length > 1 ? 'these contacts' : 'this contact'} — this may be a false positive.`;
+}
+// A poser en garde sur une surface qui n'a PAS deja de confirm() d'envoi (Wominds : Envoyer, Approbation) : aucun dialogue si rien
+// n'est CONTREDIT (comportement inchange), sinon un confirm() natif nommant la ou les fiches.
+function _confirmIfContradicted(ps, fr) {
+  fr = fr === undefined ? (typeof currentLang === 'undefined' || currentLang === 'fr') : fr;
+  const warn = _contradictedWarningText(ps, fr);
+  return !warn || confirm((fr ? 'Continuer malgré l\'alerte identité ?' : 'Continue despite the identity warning?') + warn);
+}
 async function _sendViaLinkedIn(pid, touch, elPrefix = '') {
   const p = _sendProspects.find(x => x.id === pid) || _prospectsById[pid];
   if (!p) return;
+  if (!_confirmIfContradicted(p)) return;
   const out = document.getElementById(elPrefix + 'so-' + pid);
   const body = out?.textContent?.trim() || '';
   if (!body) { showToast('Aucun message à envoyer'); return; }
