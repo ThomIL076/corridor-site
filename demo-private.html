@@ -10144,11 +10144,15 @@ function _buildProspectLinks(p) {
   const site = (p.website_url || '').trim();
   const siteHref = site && !/^https?:\/\//i.test(site) ? 'https://' + site : site;
   const li = _mscSafeUrl(p.linkedin); // http(s) uniquement : un linkedin javascript:/data: ne produit plus de lien
+  // FIX 23/09 (chantier langue tiroir, point 4, GO Thomas) : libelles bilingues -- meme
+  // traduction que le reste du produit (wominds.html) pour rester coherent : Email inchange,
+  // Telephone/Site web pour Phone/Company site.
+  const _fr = typeof currentLang !== 'undefined' && currentLang === 'fr';
   return [
     li ? { label: 'LinkedIn', href: li } : null,
     p.email ? { label: 'Email', href: 'mailto:' + p.email } : null,
-    p.phone ? { label: 'Phone', href: 'tel:' + p.phone } : null,
-    siteHref ? { label: 'Company site', href: siteHref } : null,
+    p.phone ? { label: _fr ? 'Téléphone' : 'Phone', href: 'tel:' + p.phone } : null,
+    siteHref ? { label: _fr ? 'Site web' : 'Company site', href: siteHref } : null,
   ].filter(Boolean);
 }
 
@@ -10240,12 +10244,12 @@ async function openDrawer(card, initialTab = 'activity') {
   const whyNowHTML = _sigText ? `
     <div class="pd-row">
       <span class="pd-row-mono">${_p.signal_type ? _sigBadge(_p.signal_type) : 'SIGNAL'}</span>
-      <span class="pd-row-mono" style="margin-left:auto">${_esc(_p.signal_date ? (_relDate(_p.signal_date) || '') : 'date not specified')}</span>
+      <span class="pd-row-mono" style="margin-left:auto">${_esc(_p.signal_date ? (_relDate(_p.signal_date) || '') : (currentLang==='fr'?'date non précisée':'date not specified'))}</span>
     </div>
     <div class="pd-row-main" style="margin:4px 0">${_sigText}</div>
     ${_sigUrl ? `<a href="${_esc(_sigUrl)}" target="_blank" rel="noopener noreferrer" style="font-size:var(--fs-xs);color:var(--ink);text-decoration:underline;font-weight:600;">Source →</a>` : ''}
     ${_sigInterp ? `<div style="margin-top:8px;background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--ink);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:11px;opacity:0.65;display:block;margin-bottom:3px">✦ ${currentLang==='fr'?'Analyse IA':'AI Insight'}</span>${_sigInterp}</div>` : ''}
-  ` : `<div class="pd-empty">No signal recorded yet.</div>`;
+  ` : `<div class="pd-empty">${currentLang==='fr'?'Aucun signal enregistré pour le moment.':'No signal recorded yet.'}</div>`;
 
   // "Raison de la priorite" (F16, nouvelle section) : icp_reason existe en base, jamais rendu
   // dans le tiroir jusqu'ici (seulement dans Edit details, L.12263). Le badge de fiabilite du
@@ -10257,8 +10261,8 @@ async function openDrawer(card, initialTab = 'activity') {
   // aucun des deux n'est renseigne (le badge de fiabilite du header couvre deja cet etat neutre).
   const _lastCheckedAt = [_p.identity_verdict_checked_at, _p.company_checked_at].filter(Boolean).sort((a, b) => new Date(b) - new Date(a))[0] || null;
   const priorityReasonHTML = `
-    ${_icpReasonHTML ? `<div style="background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--ink);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:11px;opacity:0.65;display:block;margin-bottom:3px">✦ ${currentLang==='fr'?'Justification du score':'Score rationale'}</span>${_icpReasonHTML}</div>` : `<div class="pd-empty">No score rationale recorded yet.</div>`}
-    ${_lastCheckedAt ? `<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:8px">Last verified: ${_esc(_relDate(_lastCheckedAt) || '')}</div>` : ''}
+    ${_icpReasonHTML ? `<div style="background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--ink);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:11px;opacity:0.65;display:block;margin-bottom:3px">✦ ${currentLang==='fr'?'Justification du score':'Score rationale'}</span>${_icpReasonHTML}</div>` : `<div class="pd-empty">${currentLang==='fr'?'Aucune justification de score enregistrée pour le moment.':'No score rationale recorded yet.'}</div>`}
+    ${_lastCheckedAt ? `<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:8px">${currentLang==='fr'?'Dernière vérification :':'Last verified:'} ${_esc(_relDate(_lastCheckedAt) || '')}</div>` : ''}
   `;
 
   // ICP SCORE BREAKDOWN (port wominds.html, 2026-09-18) : panneau des 6 sous-scores ponderes,
@@ -10284,10 +10288,10 @@ async function openDrawer(card, initialTab = 'activity') {
           </div>
           <div class="pd-role">${[_p.title, company].filter(Boolean).map(s => _esc(s)).join(' · ')}</div>
           ${firmoParts.length ? `<div class="pd-firmo">${firmoParts.map(s => _esc(s)).join(' · ')}</div>` : ''}
-          ${_p.company_verified === false ? `<div style="margin-top:5px;"><span style="font-size:11px;font-weight:700;color:#b45309;background:#fef3c7;border:1px solid #fde68a;border-radius:20px;padding:1px 6px;">⚠ Company not confirmed</span></div>` : ''}
-          ${_p.identity_confidence === 'low' ? `<div style="margin-top:3px;"><span style="font-size:11px;font-weight:700;color:#6b7280;background:#f3f4f6;border:1px solid #d1d5db;border-radius:20px;padding:1px 6px;">? Identity to verify</span></div>` : ''}
+          ${_p.company_verified === false ? `<div style="margin-top:5px;"><span style="font-size:11px;font-weight:700;color:#b45309;background:#fef3c7;border:1px solid #fde68a;border-radius:20px;padding:1px 6px;">⚠ ${currentLang==='fr'?'Société non confirmée':'Company not confirmed'}</span></div>` : ''}
+          ${_p.identity_confidence === 'low' ? `<div style="margin-top:3px;"><span style="font-size:11px;font-weight:700;color:#6b7280;background:#f3f4f6;border:1px solid #d1d5db;border-radius:20px;padding:1px 6px;">? ${currentLang==='fr'?'Identité à vérifier':'Identity to verify'}</span></div>` : ''}
           ${_relBd && _relBd.contradicted ? `<div style="margin-top:3px;">${_contradictedBadgeHTML(currentLang === 'fr')}</div>` : ''}
-          <div class="drawer-last-contact" style="font-size:11px;color:var(--dim);margin-top:5px;">${lcStr ? 'Last contact: ' + _esc(lcStr) : 'No contact logged yet'}</div>
+          <div class="drawer-last-contact" style="font-size:11px;color:var(--dim);margin-top:5px;">${lcStr ? (currentLang==='fr'?'Dernier contact : ':'Last contact: ') + _esc(lcStr) : (currentLang==='fr'?'Aucun contact enregistré':'No contact logged yet')}</div>
         </div>
         <div style="display:flex;gap:6px;flex-shrink:0;">
           <button onclick="openScannerPanel('drawer')" style="display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:var(--radius-sm);background:#fff;border:1px solid var(--border);cursor:pointer;color:var(--muted);" title="Scan company" aria-label="Scan this company">
@@ -10301,12 +10305,12 @@ async function openDrawer(card, initialTab = 'activity') {
       </div>
       <div class="pd-stats">
         <div class="pd-stat">
-          <div class="pd-stat-label">ICP Fit Score</div>
+          <div class="pd-stat-label">${currentLang==='fr'?'Score de fit ICP':'ICP Fit Score'}</div>
           <div class="pd-stat-value">${_esc(_icpLbl)}</div>
           ${_relBd && !_relBd.contradicted ? `<div style="font-size:11px;font-weight:700;color:${_relBd.color};margin-top:2px;" title="${_esc(_relBd.title)}">${_relBd.icon} ${_esc(_relBd.title)}</div>` : ''}
         </div>
         <div class="pd-stat">
-          <div class="pd-stat-label">Stage age</div>
+          <div class="pd-stat-label">${currentLang==='fr'?'Ancienneté du stade':'Stage age'}</div>
           <div class="pd-stat-value">${stageAgeLbl}</div>
         </div>
         <div class="pd-stat">
@@ -10314,7 +10318,7 @@ async function openDrawer(card, initialTab = 'activity') {
           <div class="pd-stat-value">${touchCount}</div>
         </div>
         <div class="pd-stat">
-          <div class="pd-stat-label">Deal value</div>
+          <div class="pd-stat-label">${currentLang==='fr'?'Valeur du deal':'Deal value'}</div>
           <div class="pd-stat-value">${_esc(dealValLbl)}
             <button class="pd-stat-edit" onclick="_pdOpenEditDetails('dv-deal-type')" title="Edit deal value" aria-label="Edit deal value">✎</button>
           </div>
@@ -10327,20 +10331,20 @@ async function openDrawer(card, initialTab = 'activity') {
 
       <!-- 1. WHY CORRIDOR, NOW (F16, ex-"2. SIGNAL TIMELINE", fusion signal+source+interpretation) -->
       <div class="pd-section">
-        <div class="pd-section-label">Why Corridor, now</div>
+        <div class="pd-section-label">${currentLang==='fr'?'Pourquoi Corridor, maintenant':'Why Corridor, now'}</div>
         ${whyNowHTML}
       </div>
 
       <!-- 2. PRIORITY REASON (F16, nouvelle section : icp_reason + derniere verification) -->
       <div class="pd-section">
-        <div class="pd-section-label">Priority reason</div>
+        <div class="pd-section-label">${currentLang==='fr'?'Raison de la priorité':'Priority reason'}</div>
         ${priorityReasonHTML}
       </div>
 
       <!-- 3. ICP SCORE BREAKDOWN (port wominds.html, 2026-09-18) -->
       ${_icpBd ? `
       <div class="pd-section">
-        <div class="pd-section-label">ICP score breakdown</div>
+        <div class="pd-section-label">${currentLang==='fr'?'Détail du score ICP':'ICP score breakdown'}</div>
         ${_icpBreakdownHTML}
       </div>` : ''}
 
@@ -10476,9 +10480,9 @@ async function openDrawer(card, initialTab = 'activity') {
     </div>
 
     <div class="pd-footer">
-      <button class="btn-primary btn-md" style="flex:1;justify-content:center" onclick="_pdToggleCompose(true)">Generate message</button>
-      <button class="btn-secondary btn-md" style="flex:1;justify-content:center" onclick="_pdOpenEditDetails('ed-stage')">Move stage</button>
-      <button class="btn-secondary btn-md" onclick="archiveProspect('${prospectId}')">Archive</button>
+      <button class="btn-primary btn-md" style="flex:1;justify-content:center" onclick="_pdToggleCompose(true)">${currentLang==='fr'?'Générer un message':'Generate message'}</button>
+      <button class="btn-secondary btn-md" style="flex:1;justify-content:center" onclick="_pdOpenEditDetails('ed-stage')">${currentLang==='fr'?"Changer d'étape":'Move stage'}</button>
+      <button class="btn-secondary btn-md" onclick="archiveProspect('${prospectId}')">${currentLang==='fr'?'Archiver':'Archive'}</button>
     </div>`;
 
   const _dEl = document.getElementById('drawer');
@@ -13763,7 +13767,7 @@ function _drawerProfileHTML(id, p, colStage, fb){
       `<div id="signal-link-wrap" style="font-size:var(--fs-xs)">${(() => { const _u = p.signal_url || _extractSigUrl(p.signal); return _u ? `<a href="${_esc(_u)}" target="_blank" rel="noopener noreferrer" style="color:var(--ink);text-decoration:underline;font-weight:600;">${_signalSourceLabel(_u, (typeof currentLang!=='undefined'?currentLang:'en'), true)} →</a>` : ''; })()}</div>` +
       // F03 : signal sans signal_date -> "date not specified" explicite, jamais de repli sur
       // created_at/updated_at. Rien si aucun signal du tout (comportement inchange).
-      ((p.signal || p.signal_date) ? `<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:2px">Signal: ${_esc(p.signal_date && _relDate(p.signal_date) ? _relDate(p.signal_date) : 'date not specified')}</div>` : '') +
+      ((p.signal || p.signal_date) ? `<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:2px">Signal: ${_esc(p.signal_date && _relDate(p.signal_date) ? _relDate(p.signal_date) : (currentLang==='fr'?'date non précisée':'date not specified'))}</div>` : '') +
       `<select id="drawer-signal-type" style="font-size:var(--fs-sm);padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);color:var(--text)">` +
         `<option value="">-- Signal type --</option>` +
         `${(_signalTaxonomy && Object.keys(_signalTaxonomy).length ? Object.values(_signalTaxonomy) : [{code:'S1',label:'S1'},{code:'S2',label:'S2'},{code:'S3',label:'S3'},{code:'S4',label:'S4'},{code:'activity',label:currentLang==='fr'?'Engagement passif (réaction/commentaire)':'Passive engagement (reaction/comment)',icon:'👁'}]).map(t => `<option value="${_esc(t.code)}"${(p.signal_type||'').toUpperCase()===(t.code||'').toUpperCase()?' selected':''}>${_esc(t.icon||'')} ${_esc(t.code)} — ${_esc(t.label||t.code)}</option>`).join('')}` +
@@ -15512,8 +15516,8 @@ function _renderBreakdownPanel(scores, targetId, weights) {
     </div>`;
   }).join('');
   const html = `<div style="background:var(--white);border:1px solid var(--border);border-radius:var(--radius-panel);padding:14px 16px;margin-top:4px;">
-    <p style="font-size:var(--fs-xs);font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:0 0 10px;">Explainable ICP Score</p>
-    ${rows || '<p style="font-size:var(--fs-sm);color:var(--muted);margin:0">No breakdown available</p>'}
+    <p style="font-size:var(--fs-xs);font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:0 0 10px;">${currentLang==='fr'?'Score ICP explicable':'Explainable ICP Score'}</p>
+    ${rows || `<p style="font-size:var(--fs-sm);color:var(--muted);margin:0">${currentLang==='fr'?'Aucun détail disponible':'No breakdown available'}</p>`}
   </div>`;
   if (targetId !== null) {
     const panel = document.getElementById(targetId || 'breakdown-panel');

@@ -8080,11 +8080,15 @@ function _reminderBannerHTML(reminderDate) {
 function _buildProspectLinks(p) {
   const site = (p.website_url || '').trim();
   const siteHref = site && !/^https?:\/\//i.test(site) ? 'https://' + site : site;
+  // FIX 23/09 (chantier langue tiroir, point 4, GO Thomas) : libelles bilingues -- meme
+  // traduction que le reste du produit (wominds.html) pour rester coherent : Email inchange,
+  // Telephone/Site web pour Phone/Company site.
+  const _fr = typeof currentLang !== 'undefined' && currentLang === 'fr';
   return [
     p.linkedin ? { label: 'LinkedIn', href: p.linkedin } : null,
     p.email ? { label: 'Email', href: 'mailto:' + p.email } : null,
-    p.phone ? { label: 'Phone', href: 'tel:' + p.phone } : null,
-    siteHref ? { label: 'Company site', href: siteHref } : null,
+    p.phone ? { label: _fr ? 'Téléphone' : 'Phone', href: 'tel:' + p.phone } : null,
+    siteHref ? { label: _fr ? 'Site web' : 'Company site', href: siteHref } : null,
   ].filter(Boolean);
 }
 
@@ -8329,19 +8333,19 @@ async function openDrawer(card, initialTab = 'activity') {
   const _stripHtmlPd = s => (s || '').replace(/<a\s[^>]*>([^<]*)<\/a>/gi, '$1').replace(/<[^>]*>/g, '').trim();
   const _sigInterp = _p.signal_interpretation ? _esc(_stripHtmlPd(_p.signal_interpretation)) : '';
   const _whyNowHTML = _sigText ? `
-    <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px;">${_p.signal_type ? _sigBadge(_p.signal_type) : ''}<span style="font-size:var(--fs-xs);color:var(--muted);margin-left:auto;white-space:nowrap;">${_esc(_p.signal_date ? (_relDate(_p.signal_date) || '') : 'date not specified')}</span></div>
+    <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px;">${_p.signal_type ? _sigBadge(_p.signal_type) : ''}<span style="font-size:var(--fs-xs);color:var(--muted);margin-left:auto;white-space:nowrap;">${_esc(_p.signal_date ? (_relDate(_p.signal_date) || '') : (currentLang==='fr'?'date non précisée':'date not specified'))}</span></div>
     <div style="font-size:var(--fs-sm);color:var(--text);line-height:1.5;">${_sigText}</div>
     ${_sigUrl ? `<a href="${_esc(_sigUrl)}" target="_blank" rel="noopener noreferrer" style="font-size:var(--fs-xs);color:var(--blue-brand);text-decoration:underline;font-weight:600;">Source →</a>` : ''}
     ${_sigInterp ? `<div style="margin-top:8px;background:var(--navy-light);border:1px solid var(--blue);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--navy);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:11px;opacity:0.65;display:block;margin-bottom:3px">✦ ${currentLang==='fr'?'Analyse IA':'AI Insight'}</span>${_sigInterp}</div>` : ''}
-  ` : `<div style="font-size:var(--fs-sm);color:var(--dim);font-style:italic">No signal recorded yet.</div>`;
+  ` : `<div style="font-size:var(--fs-sm);color:var(--dim);font-style:italic">${currentLang==='fr'?'Aucun signal enregistré pour le moment.':'No signal recorded yet.'}</div>`;
   // F16 : "Priority reason" -- icp_reason jamais affiche dans le tiroir jusqu'ici (seulement
   // dans Edit details), plus derniere verification (identity_verdict_checked_at/
   // company_checked_at, le plus recent des deux). Rien affiche si aucun des deux n'est renseigne.
   const _icpReasonHTML = _p.icp_reason ? _esc(_stripHtmlPd(_p.icp_reason)) : '';
   const _lastCheckedAt = [_p.identity_verdict_checked_at, _p.company_checked_at].filter(Boolean).sort((a, b) => new Date(b) - new Date(a))[0] || null;
   const _priorityReasonHTML = `
-    ${_icpReasonHTML ? `<div style="background:var(--navy-light);border:1px solid var(--blue);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--navy);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:11px;opacity:0.65;display:block;margin-bottom:3px">✦ ${currentLang==='fr'?'Justification du score':'Score rationale'}</span>${_icpReasonHTML}</div>` : `<div style="font-size:var(--fs-sm);color:var(--dim);font-style:italic">No score rationale recorded yet.</div>`}
-    ${_lastCheckedAt ? `<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:8px">Last verified: ${_esc(_relDate(_lastCheckedAt) || '')}</div>` : ''}
+    ${_icpReasonHTML ? `<div style="background:var(--navy-light);border:1px solid var(--blue);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--navy);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:11px;opacity:0.65;display:block;margin-bottom:3px">✦ ${currentLang==='fr'?'Justification du score':'Score rationale'}</span>${_icpReasonHTML}</div>` : `<div style="font-size:var(--fs-sm);color:var(--dim);font-style:italic">${currentLang==='fr'?'Aucune justification de score enregistrée pour le moment.':'No score rationale recorded yet.'}</div>`}
+    ${_lastCheckedAt ? `<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:8px">${currentLang==='fr'?'Dernière vérification :':'Last verified:'} ${_esc(_relDate(_lastCheckedAt) || '')}</div>` : ''}
   `;
   // ICP SCORE BREAKDOWN (port wominds.html, 2026-09-18) : panneau des 6 sous-scores ponderes,
   // visible directement dans le corps du tiroir -- n'existait nulle part cote kaizenology avant
@@ -8360,10 +8364,10 @@ async function openDrawer(card, initialTab = 'activity') {
       <div style="flex:1;min-width:0">
         <div class="drawer-name">${_esc(name)}</div>
         <div class="drawer-company">${_esc(company)}</div>
-        ${_p.company_verified === false ? `<div style="margin-top:3px;"><span style="font-size:11px;font-weight:700;color:#b45309;background:#fef3c7;border:1px solid #fde68a;border-radius:20px;padding:1px 6px;">⚠ Company not confirmed</span></div>` : ''}
-        ${_p.identity_confidence === 'low' ? `<div style="margin-top:3px;"><span style="font-size:11px;font-weight:700;color:#6b7280;background:#f3f4f6;border:1px solid #d1d5db;border-radius:20px;padding:1px 6px;">? Identity to verify</span></div>` : ''}
+        ${_p.company_verified === false ? `<div style="margin-top:3px;"><span style="font-size:11px;font-weight:700;color:#b45309;background:#fef3c7;border:1px solid #fde68a;border-radius:20px;padding:1px 6px;">⚠ ${currentLang==='fr'?'Société non confirmée':'Company not confirmed'}</span></div>` : ''}
+        ${_p.identity_confidence === 'low' ? `<div style="margin-top:3px;"><span style="font-size:11px;font-weight:700;color:#6b7280;background:#f3f4f6;border:1px solid #d1d5db;border-radius:20px;padding:1px 6px;">? ${currentLang==='fr'?'Identité à vérifier':'Identity to verify'}</span></div>` : ''}
         ${_p.identity_verdict === 'CONTRADICTED' ? `<div style="margin-top:3px;">${_identityContradictedBadgeHTML(currentLang === 'fr')}</div><div style="margin-top:3px;">${_identityContradictedNoteHTML(currentLang === 'fr')}</div>` : ''}
-        <div class="drawer-last-contact">${lcStr ? 'Last contact: '+_esc(lcStr) : 'No contact logged yet'}</div>
+        <div class="drawer-last-contact">${lcStr ? (currentLang==='fr'?'Dernier contact : ':'Last contact: ')+_esc(lcStr) : (currentLang==='fr'?'Aucun contact enregistré':'No contact logged yet')}</div>
         ${drawerLinksHtml}
       </div>
       ${icpDial}
@@ -8378,18 +8382,18 @@ async function openDrawer(card, initialTab = 'activity') {
     <div id="drawer-body" style="flex:1;min-height:0;overflow-y:auto;">
       <!-- 1. WHY CORRIDOR, NOW (F16, remplace l'ancien encart signal/icp_reason fixe) -->
       <div style="padding:16px 20px;">
-        <div class="drawer-section-title">Why Corridor, now</div>
+        <div class="drawer-section-title">${currentLang==='fr'?'Pourquoi Corridor, maintenant':'Why Corridor, now'}</div>
         ${_whyNowHTML}
       </div>
       <!-- 2. PRIORITY REASON (F16, nouvelle section) -->
       <div style="padding:16px 20px;border-top:1px solid var(--border)">
-        <div class="drawer-section-title">Priority reason</div>
+        <div class="drawer-section-title">${currentLang==='fr'?'Raison de la priorité':'Priority reason'}</div>
         ${_priorityReasonHTML}
       </div>
       <!-- 3. ICP SCORE BREAKDOWN (port wominds.html, 2026-09-18) -->
       ${_icpBd ? `
       <div style="padding:16px 20px;border-top:1px solid var(--border)">
-        <div class="drawer-section-title">ICP score breakdown</div>
+        <div class="drawer-section-title">${currentLang==='fr'?'Détail du score ICP':'ICP score breakdown'}</div>
         ${_icpBreakdownHTML}
       </div>` : ''}
       <!-- 4. NEXT ACTION (depuis l'ancien onglet Activity) -->
@@ -8820,9 +8824,9 @@ async function openDrawer(card, initialTab = 'activity') {
       <div id="dpanel-send" style="display:none;padding:16px 20px;border-top:1px solid var(--border)"></div>
     </div>
     <div class="pd-footer" style="display:flex;gap:8px;padding:14px 20px;border-top:1px solid var(--border);flex-shrink:0;">
-      <button class="btn-primary" style="flex:1;justify-content:center" onclick="_pdToggleCompose(true)">Generate message</button>
-      <button class="btn-secondary" onclick="_pdOpenEditDetails('ed-stage')">Move stage</button>
-      <button class="btn-secondary" onclick="archiveProspect('${prospectId}')">Archive</button>
+      <button class="btn-primary" style="flex:1;justify-content:center" onclick="_pdToggleCompose(true)">${currentLang==='fr'?'Générer un message':'Generate message'}</button>
+      <button class="btn-secondary" onclick="_pdOpenEditDetails('ed-stage')">${currentLang==='fr'?"Changer d'étape":'Move stage'}</button>
+      <button class="btn-secondary" onclick="archiveProspect('${prospectId}')">${currentLang==='fr'?'Archiver':'Archive'}</button>
     </div>`;
 
   const _dEl = document.getElementById('drawer');
@@ -13989,8 +13993,8 @@ function _renderBreakdownPanel(scores, targetId, weights) {
     </div>`;
   }).join('');
   const html = `<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius-panel);padding:14px 16px;margin-top:4px;">
-    <p style="font-size:var(--fs-xs);font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:0 0 10px;">Explainable ICP Score</p>
-    ${rows || '<p style="font-size:var(--fs-sm);color:var(--muted);margin:0">No breakdown available</p>'}
+    <p style="font-size:var(--fs-xs);font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:0 0 10px;">${currentLang==='fr'?'Score ICP explicable':'Explainable ICP Score'}</p>
+    ${rows || `<p style="font-size:var(--fs-sm);color:var(--muted);margin:0">${currentLang==='fr'?'Aucun détail disponible':'No breakdown available'}</p>`}
   </div>`;
   if (targetId !== null) {
     const panel = document.getElementById(targetId || 'breakdown-panel');
