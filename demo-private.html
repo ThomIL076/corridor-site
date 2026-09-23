@@ -4684,7 +4684,7 @@ function _mscDecisionCardHTML(d, live) {
   const cleanText = s => String(s).replace(/<[^>]*>/g, '').trim();
   const signalSrc = (live && live.signal) || (isEntry && d.signal && d.signal.text) || '';
   const signal = signalSrc ? cleanText(signalSrc) : '';
-  const interpSrc = (isEntry && d.interpretation) || (live && live.signal_interpretation) || '';
+  const interpSrc = (isEntry && d.interpretation) || (live && _bilingualReasonText(live, 'signal_interpretation', 'signal_interpretation_en')) || '';
   const signalInterp = interpSrc ? cleanText(interpSrc) : '';
   const nextActionHtml = live && live.next_action_cache ? _renderNextActionHTML(live.next_action_cache, 'var(--text-secondary)') : null;
   const scanAction = isEntry && d.action ? cleanText(d.action) : '';
@@ -4727,7 +4727,7 @@ function _mscDecisionCardHTML(d, live) {
   // Infobulle uniquement quand une fiche live existe (icpScore != null n'est possible que dans ce
   // cas) ; carte sans enrichissement (id null) = ni badge ni infobulle, rien a montrer.
   const icpChip = icpScore != null
-    ? _icpBadgeWithTooltipHTML(`<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:var(--radius-pill);background:var(--chip-bg);color:var(--indigo);">ICP ${_esc(String(icpScore))}</span>`, icpScore, live.icp_reason, 'left')
+    ? _icpBadgeWithTooltipHTML(`<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:var(--radius-pill);background:var(--chip-bg);color:var(--indigo);">ICP ${_esc(String(icpScore))}</span>`, icpScore, _bilingualReasonText(live, 'icp_reason', 'icp_reason_en'), 'left')
     : '';
   const colon = fr ? ' :' : ':';
   const signalLabel = `<strong>Signal${colon}</strong>`;
@@ -4795,7 +4795,10 @@ const _MSC_V1_DEDUPE_PRIORITY = { today_action: 0, opportunistic_connection: 1, 
 // sector/email (affiches par la carte) + company_verified/identity_confidence/identity_verdict (garde d'identite : _scoreReliabilityBadge,
 // badge « contredit ») + hard_criteria_met/score_completeness (lus par _qualificationNote et par le tiroir via _prospectsById, que cette
 // ligne partielle peuple : sans ces colonnes le tiroir perdrait ses indicateurs de fiabilite).
-const _MSC_LIVE_COLS = 'id, name, company, stage, icp_score, icp_reason, archived, signal, signal_type, signal_date, signal_url, signal_interpretation, next_action_cache, linkedin, sector, email, company_verified, identity_confidence, identity_verdict, hard_criteria_met, score_completeness';
+// icp_reason_en/signal_interpretation_en/hard_criteria_met_en ajoutes (chantier bilingue Corridor,
+// 23/09, GO Thomas) : colonnes EN paralleles, perimetre client_id='thomas' uniquement (voir
+// _bilingualReasonText). Toujours NULL pour les autres clients -- select sans risque partout.
+const _MSC_LIVE_COLS = 'id, name, company, stage, icp_score, icp_reason, icp_reason_en, archived, signal, signal_type, signal_date, signal_url, signal_interpretation, signal_interpretation_en, next_action_cache, linkedin, sector, email, company_verified, identity_confidence, identity_verdict, hard_criteria_met, hard_criteria_met_en, score_completeness';
 // scan_entries valide (objet v:1, entries tableau, au moins une entree exploitable) -> tableau
 // d'entrees, sinon null : l'appelant retombe alors sur la chaine existante (decisions_json, iframe).
 function _mscValidScanEntries(se) {
@@ -8422,6 +8425,16 @@ function showToast(msg){
   _toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
 }
 function _esc(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+// Chantier bilingue Corridor (23/09, GO Thomas) : icp_reason_en/signal_interpretation_en/
+// hard_criteria_met_en n'existent (et ne sont ecrits par ICP Score Batch) que pour client_id='thomas'
+// -- perimetre BILINGUAL_CLIENTS cote n8n, jamais Wominds/Kaizenology. Repli sur la colonne de base
+// des que la colonne _en est vide (beaucoup de fiches historiques ne l'auront jamais) : ne jamais
+// casser l'affichage pour elles plutot que d'exiger une traduction qui n'existe pas.
+function _bilingualReasonText(p, baseField, enField) {
+  if (!p) return '';
+  if (CLIENT_ID === 'thomas' && currentLang === 'en' && p[enField]) return p[enField];
+  return p[baseField] || '';
+}
 function _sanitizeSignal(str) {
   if (!str) return '';
   str = str.replace(/\s*\(mot-cl[ée]:\s*[^)]*\)/gi, '').trim();
@@ -10430,7 +10443,8 @@ async function openDrawer(card, initialTab = 'activity') {
   // meme strip+escape que icp_reason/signal_interpretation dans Edit details (_drawerProfileHTML,
   // L.12262) pour ne pas laisser passer de balises brutes.
   const _stripHtmlPd = s => (s || '').replace(/<a\s[^>]*>([^<]*)<\/a>/gi, '$1').replace(/<[^>]*>/g, '').trim();
-  const _sigInterp = _p.signal_interpretation ? _esc(_stripHtmlPd(_p.signal_interpretation)) : '';
+  const _sigInterpText = _bilingualReasonText(_p, 'signal_interpretation', 'signal_interpretation_en');
+  const _sigInterp = _sigInterpText ? _esc(_stripHtmlPd(_sigInterpText)) : '';
   // F03 : "date not specified" explicite plutot que rien quand le signal existe sans signal_date --
   // jamais de repli sur created_at/updated_at (date d'import, pas la date reelle de l'evenement).
   const whyNowHTML = _sigText ? `
@@ -10446,7 +10460,8 @@ async function openDrawer(card, initialTab = 'activity') {
   // "Raison de la priorite" (F16, nouvelle section) : icp_reason existe en base, jamais rendu
   // dans le tiroir jusqu'ici (seulement dans Edit details, L.12263). Le badge de fiabilite du
   // header (_scoreReliabilityBadge, F01) n'est pas duplique ici.
-  const _icpReasonHTML = _p.icp_reason ? _esc(_stripHtmlPd(_p.icp_reason)) : '';
+  const _icpReasonText = _bilingualReasonText(_p, 'icp_reason', 'icp_reason_en');
+  const _icpReasonHTML = _icpReasonText ? _esc(_stripHtmlPd(_icpReasonText)) : '';
   // Derniere verification : le plus recent de identity_verdict_checked_at/company_checked_at,
   // meme convention _relDate() que le reste du fichier (anglais, pas de variante FR -- aucune des
   // autres dates relatives du tiroir n'en a, cf. "Signal timeline" ci-dessus). Rien affiche si
@@ -16756,7 +16771,9 @@ async function loadKanban(force){
         // identity_verdict/hard_criteria_met ajoutes (F01, 2026-09-17), meme raison que
         // loadDailyPriorities ci-dessus. identity_verdict_checked_at/company_checked_at ajoutes
         // (F16, meme soir) pour la ligne "Derniere verification" du tiroir.
-        .select('id, name, company, title, sector, region, country, stage, linkedin, email, phone, deal_value, deal_currency, deal_structure, deal_weighted, notes, last_contact, reminder_date, icp_score, icp_reason, archived, client_id, linkedin_tag, origin, signal, signal_type, signal_interpretation, signal_date, created_at, draft_invite_note, company_size, next_action, next_action_date, score_signal_strength, score_growth, score_role, score_size, score_recency, score_mandate_fit, score_completeness, signal_url, website_url, funding_stage, last_funding_date, total_funding, additional_contacts, import_source, next_action_cache, next_action_generated_at, company_verified, identity_confidence, identity_verdict, identity_verdict_checked_at, company_checked_at, hard_criteria_met')
+        // icp_reason_en/signal_interpretation_en/hard_criteria_met_en ajoutes (chantier bilingue
+        // Corridor, 23/09, GO Thomas) : voir _bilingualReasonText.
+        .select('id, name, company, title, sector, region, country, stage, linkedin, email, phone, deal_value, deal_currency, deal_structure, deal_weighted, notes, last_contact, reminder_date, icp_score, icp_reason, icp_reason_en, archived, client_id, linkedin_tag, origin, signal, signal_type, signal_interpretation, signal_interpretation_en, signal_date, created_at, draft_invite_note, company_size, next_action, next_action_date, score_signal_strength, score_growth, score_role, score_size, score_recency, score_mandate_fit, score_completeness, signal_url, website_url, funding_stage, last_funding_date, total_funding, additional_contacts, import_source, next_action_cache, next_action_generated_at, company_verified, identity_confidence, identity_verdict, identity_verdict_checked_at, company_checked_at, hard_criteria_met, hard_criteria_met_en')
         .eq('client_id', CLIENT_ID);
       _kQuery = _applyMandateFilter(_kQuery);
       const { data: chunk, error } = await _kQuery
