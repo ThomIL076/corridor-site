@@ -13976,15 +13976,28 @@ async function _startEmailSeq(id) {
 // juste le HTML (tiroir prospect, section ICP score breakdown, port wominds.html 2026-09-18) --
 // meme convention que demo-private.html:13966, pour ne pas reutiliser le meme id partage que le
 // Scanner (deux instances independantes du panneau).
+// FIX 23/09 (chantier langue tiroir, point 5, GO Thomas) : table de correspondance dediee pour les
+// 6 cles de ventilation ICP (jamais de simples chaines statiques -- generees algorithmiquement,
+// aucun point d'accroche data-fr possible ici). Reprend TELLES QUELLES les traductions deja
+// etablies et deployees sur wominds.html (_ICP_BREAKDOWN_LABELS_FR) pour rester coherent entre les
+// 3 dashboards plutot que d'inventer une 2e formulation.
+const _ICP_BREAKDOWN_LABELS_FR = {
+  role_fit: 'Adéquation du poste', company_size_fit: "Adéquation taille d'entreprise",
+  signal_strength: 'Force du signal', mandate_fit: 'Adéquation mandat',
+  recency: 'Récence', completeness: 'Complétude',
+};
 function _renderBreakdownPanel(scores, targetId, weights) {
+  const _fr = typeof currentLang !== 'undefined' && currentLang === 'fr';
   const rows = Object.entries(scores || {}).map(([k, v]) => {
-    const label = k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    // Repli defensif : cle inconnue de la table FR (ne devrait pas arriver, les 6 cles sont fixes)
+    // -> generation algorithmique EN telle quelle, jamais une traduction devinee a tort.
+    const label = _fr ? (_ICP_BREAKDOWN_LABELS_FR[k] || k) : k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
     const pct = Math.min(100, Math.max(0, Number(v) || 0));
     const color = pct >= 75 ? '#1a7a4a' : pct >= 50 ? 'var(--amber)' : '#9b1c1c';
     const wPct = weights && weights[k] != null ? Math.round(weights[k] * 100) : null;
     return `<div style="margin-bottom:6px;">
       <div style="display:flex;justify-content:space-between;font-size:var(--fs-xs);margin-bottom:2px;">
-        <span style="color:var(--muted)">${label}${wPct != null ? ` <span style="opacity:.6">(${wPct}% weight)</span>` : ''}</span>
+        <span style="color:var(--muted)">${_esc(label)}${wPct != null ? ` <span style="opacity:.6">(${wPct}% ${_fr ? 'du poids' : 'weight'})</span>` : ''}</span>
         <span style="font-weight:600;color:${color}">${pct}</span>
       </div>
       <div style="height:4px;background:var(--border);border-radius:2px;">
