@@ -1002,6 +1002,30 @@ h1, h2, .k-card-name, .k-card-company { overflow-wrap:break-word; word-break:bre
     grid-column: 1 / -1;
     width: 100%;
     box-sizing: border-box;
+    /* ROUND 5 : select + 4 boutons en flex non-wrap debordaient du conteneur (meme defaut que
+       demo-private.html/wominds.html, verifie identique). Meme principe que .toolbar-actions
+       juste au-dessus (grille 2 colonnes pleine largeur, boutons 44px) plutot qu'un nouveau
+       pattern : la barre passe sur plusieurs lignes, rien ne sort du viewport ni ne devient
+       inatteignable. */
+    flex-wrap: wrap;
+  }
+  #bulk-bar > #bulk-count {
+    flex: 1 1 100%;
+  }
+  #bulk-bar > select,
+  #bulk-bar > button {
+    flex: 1 1 calc(50% - 4px);
+    min-width: 0;
+    height: 44px;
+    box-sizing: border-box;
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: center;
+  }
+  #bulk-bar > button {
+    justify-content: center;
   }
 }
 /* ══ MOBILE NAV : avatar+badge centrés, hamburger/logo gauche, Sign out droite (≤480px) ══ */
