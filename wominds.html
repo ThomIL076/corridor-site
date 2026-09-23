@@ -4426,6 +4426,35 @@ function _renderPipelineStatsCard({ counts, total, inConv, highPrio, france, unk
     `<div class="pipe-funnel-leg-item" style="flex:${Math.max(counts[s], 0.02)}"><span class="pfl-name">${_esc(STAGE_LABEL_FR[s])}</span><span class="pfl-sep"> · </span><span class="pfl-num">${counts[s]}</span></div>`
   ).join('');
 }
+// Table ISO alpha-2 -> libelle FR pour le dropdown "Tous les pays" (correctif 2026-09-23, go
+// Thomas). Codes reellement presents en base wominds au 23/09 (SQL : SELECT country_code, count(*)
+// FROM prospects WHERE client_id='wominds' GROUP BY country_code), pas une supposition -- 36 codes
+// non-NULL couverts (la liste initiale du diagnostic en citait ~21, incomplete). Un code qui
+// apparaitrait plus tard et serait absent d'ici retombe sur le code brut comme libelle (cf.
+// _countryFilterLabel) -- jamais une erreur, juste un libelle moins joli le temps de completer.
+const COUNTRY_CODE_LABELS_FR = {
+  FR: 'France', US: 'États-Unis', GB: 'Royaume-Uni', DE: 'Allemagne', ES: 'Espagne',
+  CH: 'Suisse', IT: 'Italie', SE: 'Suède', NL: 'Pays-Bas', DK: 'Danemark', BE: 'Belgique',
+  FI: 'Finlande', IE: 'Irlande', PL: 'Pologne', RO: 'Roumanie', AT: 'Autriche', HU: 'Hongrie',
+  GR: 'Grèce', PT: 'Portugal', UA: 'Ukraine', LU: 'Luxembourg', HR: 'Croatie', IS: 'Islande',
+  NO: 'Norvège', JP: 'Japon', MT: 'Malte', SK: 'Slovaquie', LV: 'Lettonie', RS: 'Serbie',
+  BG: 'Bulgarie', EE: 'Estonie', AE: 'Émirats arabes unis', TN: 'Tunisie', ME: 'Monténégro',
+  LT: 'Lituanie', MC: 'Monaco',
+};
+// Valeur de filtrage pays d'une fiche : country_code (ISO) prioritaire, fallback sur le texte libre
+// `country` uniquement si country_code est NULL (fiches "Inconnu", ~420 chez wominds -- sans ce
+// fallback elles disparaitraient purement et simplement du dropdown et du filtre). Utilisee a la
+// fois pour peupler le select (ci-dessous) et pour l'attribut data-country-filter de la carte
+// (_prospectCardHTML) lu par _applyKanbanFilters -- jamais deux valeurs qui divergent entre ce que
+// le select propose et ce qui filtre reellement les cartes.
+function _countryFilterValue(p) {
+  const cc = (p.country_code || '').trim().toUpperCase();
+  return cc || (p.country || '').trim();
+}
+function _countryFilterLabel(value) {
+  if (!value) return '';
+  return COUNTRY_CODE_LABELS_FR[value] || value;
+}
 function _populateKanbanFilterOptions(prospects) {
   const fillSelect = (id, values, placeholder) => {
     const sel = document.getElementById(id);
@@ -4436,7 +4465,22 @@ function _populateKanbanFilterOptions(prospects) {
     if (opts.includes(current)) sel.value = current;
   };
   fillSelect('kanban-filter-sector', prospects.map(p => p.sector), 'Tous les secteurs');
-  fillSelect('kanban-filter-country', prospects.map(p => p.country), 'Tous les pays');
+  // Fix 2026-09-23 (go Thomas) : le dropdown lisait `country` (texte libre LinkedIn, ex. "Greater
+  // Paris Area", "Île-de-France, France", casse et formats disparates -- une longue liste sale de
+  // variantes du meme pays). Bascule sur _countryFilterValue()/_countryFilterLabel() : country_code
+  // (ISO propre, deja utilise par _countryBucket) mappe vers un libellé FR lisible, fallback sur le
+  // texte brut uniquement si country_code est NULL (~420 fiches "Inconnu" sinon perdues). Meme
+  // fonction _countryFilterValue() utilisee cote carte (data-country-filter, _prospectCardHTML) --
+  // une seule source de verite entre ce qui remplit le select et ce qui filtre reellement.
+  const countrySel = document.getElementById('kanban-filter-country');
+  if (countrySel) {
+    const current = countrySel.value;
+    const values = [...new Set(prospects.map(_countryFilterValue).filter(Boolean))]
+      .sort((a, b) => _countryFilterLabel(a).localeCompare(_countryFilterLabel(b), 'fr'));
+    countrySel.innerHTML = '<option value="">Tous les pays</option>' +
+      values.map(v => `<option value="${_esc(v)}">${_esc(_countryFilterLabel(v))}</option>`).join('');
+    if (values.includes(current)) countrySel.value = current;
+  }
   const sigSel = document.getElementById('kanban-filter-signal');
   if (sigSel) {
     const current = sigSel.value;
@@ -4601,7 +4645,11 @@ function _applyKanbanFilters() {
     const cardSector  = card.dataset.sector   || '';
     const cardStage   = card.dataset.stage    || '';
     const cardScore   = Number(card.dataset.icpScore || 0);
-    const cardCountry = card.dataset.country  || '';
+    // Fix 2026-09-23 : filtre sur data-country-filter (valeur ISO/fallback alignee sur le select,
+    // cf. _countryFilterValue), pas data-country (texte brut LinkedIn, conserve tel quel pour
+    // l'export CSV et l'affichage "· Paris, France" sous le nom -- deux usages distincts, deux
+    // attributs distincts, jamais fusionnes).
+    const cardCountry = card.dataset.countryFilter || '';
     const cardSignal  = card.dataset.signalType || '';
     const cardOrigin  = card.dataset.origin   || '';
     const cardDeal    = Number(card.dataset.deal || 0);
@@ -4789,6 +4837,7 @@ async function importCSV(e) {
     const firstLine = lines[0].toLowerCase();
     if (colMap || (/name/.test(firstLine) && /(company|soci)/.test(firstLine))) start = 1;
     const rows = [];
+    let skippedInvalidFormat = 0;
     for (let i = start; i < lines.length; i++) {
       const f = _parseCsvLine(lines[i], sep);
       const g = idx => (idx >= 0 ? (f[idx] || '').trim() : '');
@@ -4811,6 +4860,24 @@ async function importCSV(e) {
         title    = '';
       }
       if (!name) continue;
+      // Correctif 2026-09-23 (go Thomas) : validation legere post-mapping, avant l'upsert -- le
+      // meme decalage de colonnes que la fiche Nathaniel Amsellem/OneClinic (corrigee en base ce
+      // soir, cf. backup_wominds_single_fiche_fix_20260923) peut se reproduire sur n'importe quel
+      // import CSV mal mappe (en-tetes non reconnus -> repli positionnel, ou en-tetes reconnus
+      // mais colonnes source deja decalees). Meme pattern que "if (!name) continue" juste au-dessus :
+      // ligne entierement rejetee (jamais un champ vide insere en silence a la place d'une valeur
+      // clairement fausse), comptee a part (skippedInvalidFormat) et signalee dans le toast final --
+      // reutilise le mecanisme d'agregation existant (skippedDup/skippedParse/chunkErrors), pas un
+      // nouveau pattern de validation.
+      const invalidReason =
+        /@/.test(sector) ? 'email dans le champ secteur' :
+        (linkedin && !/^https?:\/\//i.test(linkedin)) ? 'LinkedIn non conforme (pas une URL)' :
+        (email && !/@/.test(email)) ? 'email non conforme' : null;
+      if (invalidReason) {
+        skippedInvalidFormat++;
+        console.warn('[importCSV] ligne rejetée (' + invalidReason + ') :', { name, company, sector, country, linkedin, email });
+        continue;
+      }
       const external_id = linkedin
         ? 'li:' + linkedin.replace(/^https?:\/\/(www\.)?linkedin\.com\/in\//, '').replace(/\/$/, '')
         : 'nc:' + name.toLowerCase().replace(/\s+/g, '') + '|' + company.toLowerCase().replace(/\s+/g, '');
@@ -4822,8 +4889,10 @@ async function importCSV(e) {
       });
     }
     // Lignes de donnees presentes mais ignorees au parsing (pas de nom exploitable, cf. "if
-    // (!name) continue" ci-dessus) -- compte reel, pas suppose.
-    const skippedParse = (lines.length - start) - rows.length;
+    // (!name) continue" ci-dessus) -- compte reel, pas suppose. skippedInvalidFormat (validation
+    // post-mapping ci-dessus) est soustrait ici pour ne jamais compter une meme ligne deux fois
+    // entre les deux compteurs -- chacun reste un compte exact de sa propre cause de rejet.
+    const skippedParse = (lines.length - start) - rows.length - skippedInvalidFormat;
     if (!rows.length) { showToast('Aucune ligne valide'); e.target.value = ''; return; }
     // Compte reel (2026-09-17) : .select('id') ajoute -- upsert(..., {ignoreDuplicates:true})
     // sans .select() ne renvoie aucune ligne, donc "inserted += chunk.length" supposait que tout
@@ -4867,6 +4936,11 @@ async function importCSV(e) {
     const _parts = [];
     if (skippedDup) _parts.push(skippedDup + (skippedDup === 1 ? ' doublon ignoré' : ' doublons ignorés'));
     if (skippedParse) _parts.push(skippedParse + (skippedParse === 1 ? ' ligne invalide ignorée' : ' lignes invalides ignorées'));
+    // Correctif 2026-09-23 : distinct de skippedParse -- ici la ligne avait un nom exploitable
+    // mais un champ clairement incoherent (email dans secteur, LinkedIn non-URL, email non
+    // conforme -- cf. validation post-mapping ci-dessus), donc un message dedie plutot que noye
+    // dans "lignes invalides".
+    if (skippedInvalidFormat) _parts.push(skippedInvalidFormat + (skippedInvalidFormat === 1 ? ' ligne rejetée (champ incohérent)' : ' lignes rejetées (champs incohérents)'));
     if (chunkErrors) _parts.push(chunkErrors + (chunkErrors === 1 ? ' lot en erreur' : ' lots en erreur'));
     if (_parts.length) msg += ' · ' + _parts.join(', ');
     showToast(msg);
@@ -5117,7 +5191,7 @@ function _prospectCardHTML(p){
   // kaizenology.html) : meme ton amber que le reste du site pour un etat "archivee" -- visible
   // uniquement quand le toggle est actif (data-archived lu par _applyKanbanFilters()).
   const warnArchived = p.archived === true ? `<span class="k-badge k-badge-archived" style="color:var(--amber);background:var(--amber-bg);border:1px solid var(--amber-border);" title="Fiche archivée">Archivé</span>` : '';
-  return `<div class="k-card" data-id="${_esc(p.id)}" data-name="${_esc(p.name || '')}" data-company="${_esc(p.company || '')}" data-sector="${_esc(p.sector || '')}" data-stage="${_esc(p.stage || 'Identified')}" data-icp-score="${p.icp_score != null ? _esc(p.icp_score) : ''}" data-country="${_esc(p.country || '')}" data-signal-type="${_esc((p.signal_type || '').toUpperCase())}" data-has-signal="${!!p.signal}" data-origin="${_esc(p.origin || '')}" data-deal="${Number(p.deal_value) || 0}" data-confidence="${_calcConfidence(p)}" data-job-title="${_esc(p.title || '')}" data-next-action="${p.next_action ? '1' : '0'}" data-next-action-date="${_esc(p.next_action_date || '')}" data-archived="${p.archived === true ? 'true' : 'false'}" onclick="openProspectDetail('${p.id}')">
+  return `<div class="k-card" data-id="${_esc(p.id)}" data-name="${_esc(p.name || '')}" data-company="${_esc(p.company || '')}" data-sector="${_esc(p.sector || '')}" data-stage="${_esc(p.stage || 'Identified')}" data-icp-score="${p.icp_score != null ? _esc(p.icp_score) : ''}" data-country="${_esc(p.country || '')}" data-country-filter="${_esc(_countryFilterValue(p))}" data-signal-type="${_esc((p.signal_type || '').toUpperCase())}" data-has-signal="${!!p.signal}" data-origin="${_esc(p.origin || '')}" data-deal="${Number(p.deal_value) || 0}" data-confidence="${_calcConfidence(p)}" data-job-title="${_esc(p.title || '')}" data-next-action="${p.next_action ? '1' : '0'}" data-next-action-date="${_esc(p.next_action_date || '')}" data-archived="${p.archived === true ? 'true' : 'false'}" onclick="openProspectDetail('${p.id}')">
     <input type="checkbox" class="k-card-select" data-pid="${_esc(p.id)}" onchange="_onCardSelect(this)" onclick="event.stopPropagation()" style="position:absolute;top:10px;left:8px;width:14px;height:14px;cursor:pointer;z-index:2;accent-color:var(--ink);">
     <div class="k-card-name">${_esc(p.name || 'Sans nom')}</div>
     <div class="k-card-company">${_esc(p.company || 'N/D')}${place ? ' · ' + _esc(place) : ''}</div>
@@ -7861,14 +7935,80 @@ function _renderProposalCard(prop, prospect) {
       <span class="card-badge badge-auto" style="margin-left:auto;">${_esc(label.toUpperCase())}</span>
     </div>
     ${variantsHtml}
-    <div style="display:flex;gap:8px;margin-top:12px;">
-      <button onclick="_proposalReject('${prop.id}')" style="padding:7px 16px;border-radius:var(--radius-pill);background:none;border:1px solid var(--border);color:var(--text);font-size:var(--fs-sm);cursor:pointer;">Rejeter</button>
+    <div style="display:flex;gap:8px;margin-top:12px;" id="proposal-actions-${prop.id}">
+      <button onclick="_proposalRejectStart('${prop.id}')" style="padding:7px 16px;border-radius:var(--radius-pill);background:none;border:1px solid var(--border);color:var(--text);font-size:var(--fs-sm);cursor:pointer;">Rejeter</button>
+    </div>
+    <!-- Chantier "apprentissage sur les rejets" (23/09, go Thomas) : formulaire inline, PAS de modale
+         -- meme pattern que demo-private.html/kaizenology.html (aucun pattern modale reel dans ce
+         fichier). Raison TOUJOURS optionnelle : "Confirmer le rejet" fonctionne meme textarea vide. -->
+    <div id="proposal-reject-form-${prop.id}" style="display:none;margin-top:12px;border-top:1px solid var(--border);padding-top:12px;">
+      <textarea id="proposal-reject-reason-${prop.id}" placeholder="Raison (facultative) — aide le copywriter à apprendre ce qu'il faut éviter"
+        style="width:100%;min-height:64px;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:var(--fs-sm);font-family:inherit;color:var(--text);background:var(--card-bg);resize:vertical;box-sizing:border-box;"></textarea>
+      <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
+        <button id="proposal-reject-confirm-${prop.id}" onclick="_proposalRejectConfirm('${prop.id}')" style="padding:7px 16px;border-radius:var(--radius-pill);background:var(--navy);color:#fff;border:none;font-size:var(--fs-sm);font-weight:600;cursor:pointer;">Confirmer le rejet</button>
+        <button onclick="_proposalRejectCancel('${prop.id}')" style="padding:7px 16px;border-radius:var(--radius-pill);background:none;border:1px solid var(--border);color:var(--text);font-size:var(--fs-sm);cursor:pointer;">Annuler</button>
+      </div>
     </div>
   </div>`;
 }
-async function _proposalReject(id) {
+
+function _proposalRejectStart(id) {
+  const actions = document.getElementById('proposal-actions-' + id);
+  const form = document.getElementById('proposal-reject-form-' + id);
+  if (actions) actions.style.display = 'none';
+  if (form) {
+    form.style.display = 'block';
+    const ta = document.getElementById('proposal-reject-reason-' + id);
+    if (ta) ta.focus();
+  }
+}
+
+function _proposalRejectCancel(id) {
+  const actions = document.getElementById('proposal-actions-' + id);
+  const form = document.getElementById('proposal-reject-form-' + id);
+  const ta = document.getElementById('proposal-reject-reason-' + id);
+  if (ta) ta.value = '';
+  if (form) form.style.display = 'none';
+  if (actions) actions.style.display = 'flex';
+}
+
+// Chantier "apprentissage sur les rejets de brouillons/variantes" (23/09, go Thomas) : meme UPDATE
+// agent_proposals qu'avant, PLUS un insert dans agent_feedback (table existante, meme forme que
+// demo-private.html/kaizenology.html). Raison texte libre TOUJOURS optionnelle. agent_name = celui
+// de LA PROPOSITION (prop.agent_name, re-fetch a l'instant du clic). item_text = toutes les
+// variantes jointes (angle + texte) -- wominds.html n'a pas _cleanVariantText (garde-fou em-dash
+// absent de ce fichier a ce jour, hors scope de ce chantier) : texte brut v.text, comme le reste du
+// rendu des variantes ici (variantsHtml plus haut ne l'appelle pas non plus).
+async function _proposalRejectConfirm(id) {
+  const confirmBtn = document.getElementById('proposal-reject-confirm-' + id);
+  const reasonTa = document.getElementById('proposal-reject-reason-' + id);
+  if (confirmBtn) confirmBtn.disabled = true;
+  const reason = reasonTa ? reasonTa.value.trim() : '';
+  const { data: prop, error: fetchErr } = await sbClient.from('agent_proposals')
+    .select('agent_name, variants, mandate_id')
+    .eq('id', id).eq('client_id', CLIENT_ID).single();
+  if (fetchErr || !prop) {
+    console.error('[_proposalRejectConfirm] fetch failed:', fetchErr);
+    showToast('Erreur lors du chargement de la proposition');
+    if (confirmBtn) confirmBtn.disabled = false;
+    return;
+  }
   const { error } = await sbClient.from('agent_proposals').update({ status: 'rejected' }).eq('id', id);
-  if (error) { showToast('Erreur lors du rejet'); return; }
+  if (error) {
+    console.error('[_proposalRejectConfirm] agent_proposals update failed:', error);
+    showToast('Erreur lors du rejet');
+    if (confirmBtn) confirmBtn.disabled = false;
+    return;
+  }
+  const variantsJoined = (Array.isArray(prop.variants) ? prop.variants : [])
+    .map((v, idx) => `[${v.angle || 'Variante ' + (idx + 1)}] ${v.text || ''}`)
+    .join('\n\n');
+  const { error: afErr } = await sbClient.from('agent_feedback').insert({
+    agent_name: prop.agent_name, client_id: CLIENT_ID, mandate_id: prop.mandate_id ?? null,
+    item_id: id, item_type: 'proposal_variant', item_text: variantsJoined,
+    vote: 'unlike', comment: reason || null
+  });
+  if (afErr) console.error('[_proposalRejectConfirm] agent_feedback insert failed:', afErr);
   _proposalCardRemove(id);
 }
 function _proposalCardRemove(id) {
