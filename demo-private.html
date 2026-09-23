@@ -1679,6 +1679,16 @@ body.new-nav { padding-left: 220px; }
       <span style="width:6px;height:6px;border-radius:50%;background:var(--success);display:inline-block;flex-shrink:0;animation:pulseDot 2.4s ease-in-out infinite;"></span>
     </button>
     <div style="width:1px;height:22px;background:var(--border);flex-shrink:0;"></div>
+    <!-- FIX 22/09 (chantier langue tiroir, changement de direction GO Thomas) : bascule EN/FR
+         visible directement dans la nav, sans passer par My Profile -- decouvrabilite pour une
+         demo devant un interlocuteur anglophone ou francophone. .lang-btn (classe et etat .active
+         partages avec les boutons de My Profile) -- setLang() met deja a jour TOUS les .lang-btn
+         de la page, aucun changement necessaire cote setLang() pour que ceux-ci suivent. -->
+    <div style="display:flex;gap:4px;flex-shrink:0;" title="Language / Langue">
+      <button class="lang-btn" onclick="setLang('en')" style="padding:3px 9px;">EN</button>
+      <button class="lang-btn" onclick="setLang('fr')" style="padding:3px 9px;">FR</button>
+    </div>
+    <div style="width:1px;height:22px;background:var(--border);flex-shrink:0;"></div>
     <div class="user-profile" id="user-profile-btn" style="display:none" onclick="openProfileModal()">
       <div class="user-avatar" id="nav-avatar"></div>
       <div class="user-info">
@@ -5252,17 +5262,25 @@ window.addEventListener('popstate', async () => {
 // FIX 22/09 (bug reel confirme par Thomas, captures + view-source) : currentLang demarrait
 // toujours a 'en' sans aucune initialisation automatique ni persistance (pas de localStorage) --
 // la SEULE facon de passer en francais etait un clic manuel sur le bouton FR de la modale profil
-// (setLang('fr'), ligne ~17080), perdu a chaque rechargement de page. Ca expliquait a la fois le
-// chantier Today et le chantier Reports de ce soir (les deux geres par applyLang()/data-fr, tous
-// deux corrects en HTML mais jamais appliques faute de currentLang='fr') -- et un 3e cas
-// preexistant non signale (le libelle "Today" de la barre laterale, snav-section-label, deja en
-// place depuis un chantier anterieur, jamais fonctionnel pour la meme raison). Corridor est
-// mono-client (ce fichier ne sert que 'thomas') et doit etre en francais par defaut (Corridor +
-// Wominds -> francais, Kaizenology -> anglais) -- pas besoin de logique conditionnelle par
-// client_id ici, juste le bon defaut. Le bouton EN (setLang('en')) reste fonctionnel pour basculer
-// manuellement si besoin, verifie en conditions reelles (Chromium headless, aucun clic requis pour
-// obtenir le francais au chargement, bascule manuelle EN toujours operationnelle).
-let currentLang = 'fr';
+// (setLang('fr')), perdu a chaque rechargement de page. Ca expliquait a la fois le chantier Today
+// et le chantier Reports de ce soir (les deux geres par applyLang()/data-fr, tous deux corrects en
+// HTML mais jamais appliques faute de currentLang='fr') -- et un 3e cas preexistant non signale (le
+// libelle "Today" de la barre laterale, snav-section-label, deja en place depuis un chantier
+// anterieur, jamais fonctionnel pour la meme raison). Un premier correctif ce soir avait fige
+// currentLang='fr' en dur (plus de bascule reelle) -- revu (chantier langue tiroir, GO Thomas,
+// changement de direction) : Thomas demontre Corridor a des interlocuteurs anglophones ET
+// francophones, une vraie bascule EN/FR fonctionnelle est necessaire, pas un figeage. Defaut FR au
+// premier chargement (coherent avec l'usage principal de Thomas), persiste ensuite via
+// localStorage des qu'un choix explicite est fait (setLang()) -- jamais reperdu au rechargement,
+// contrairement au mecanisme de Kaizenology (meme defaut corrige la-bas, meme soir). Le bouton
+// EN/FR est desormais aussi visible directement dans la barre de nav (en plus de celui, conserve,
+// dans My Profile) -- plus besoin d'ouvrir une modale pour basculer.
+let currentLang = (function () {
+  try {
+    const saved = localStorage.getItem('corridor_lang');
+    return (saved === 'en' || saved === 'fr') ? saved : 'fr';
+  } catch (e) { return 'fr'; } // localStorage indisponible (navigation privee stricte, etc.) -- repli sur le defaut, jamais de plantage
+})();
 const agentWelcome = {
   en: {
     cmo: "CMO Orchestrator here. Tell me what is on your plate this week - campaigns, launches, pipeline pressure, or positioning questions - and I will help you prioritise and coordinate across channels.",
@@ -5323,6 +5341,11 @@ function renderWelcome() {
 }
 function setLang(lang) {
   currentLang = lang;
+  // FIX 22/09 (chantier langue tiroir, changement de direction GO Thomas) : persiste le choix
+  // explicite -- ne retombe plus jamais sur le defaut a chaque rechargement une fois qu'un choix
+  // reel a ete fait. try/catch : localStorage indisponible ne doit jamais bloquer la bascule
+  // elle-meme, juste ne pas persister pour cette session.
+  try { localStorage.setItem('corridor_lang', lang); } catch (e) { /* pas de persistance possible, bascule quand meme */ }
   document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.textContent.trim().toLowerCase() === lang));
   applyLang();
   renderWelcome();
@@ -16231,6 +16254,11 @@ async function loadClientProfile() {
     document.getElementById('nav-company').textContent = data.company_name;
     document.getElementById('nav-avatar').innerHTML = _navAvatarHTML(data.avatar_url, name);
     document.getElementById('user-profile-btn').style.display = 'flex';
+    // FIX 22/09 (chantier langue tiroir) : synchronise l'etat visuel .active des boutons EN/FR (nav
+    // + My Profile) sur currentLang des que la chrome authentifiee s'affiche -- currentLang peut
+    // deja valoir 'en' ici (choix persiste via localStorage, lu au tout debut du script), sans
+    // qu'aucun clic sur setLang() n'ait eu lieu cette session pour poser la classe .active.
+    document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.textContent.trim().toLowerCase() === currentLang));
     return true;
   } catch(e) {
     _lastProfileErrorInfo = { at: new Date(), status: (e && e.message) || 'network error' };

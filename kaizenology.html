@@ -1351,6 +1351,14 @@ body.new-nav { padding-left: 220px; }
   </div>
 
   <div style="display:flex;align-items:center;gap:14px;margin-left:auto;padding-right:8px;">
+    <!-- FIX 22/09 (chantier langue tiroir, changement de direction GO Thomas) : bascule EN/FR
+         visible directement dans la nav, sans passer par My Profile. .lang-btn (classe et etat
+         .active partages avec les boutons de My Profile) -- setLang() met deja a jour TOUS les
+         .lang-btn de la page, aucun changement necessaire cote setLang() pour que ceux-ci suivent. -->
+    <div style="display:flex;gap:4px;flex-shrink:0;" title="Language / Langue">
+      <button class="lang-btn" onclick="setLang('en')" style="padding:3px 9px;">EN</button>
+      <button class="lang-btn" onclick="setLang('fr')" style="padding:3px 9px;">FR</button>
+    </div>
     <div class="user-profile" id="user-profile-btn" style="display:none" onclick="openProfileModal()">
       <div class="user-avatar" id="nav-avatar"></div>
       <div class="user-info">
@@ -3407,7 +3415,17 @@ window.addEventListener('popstate', async () => {
 });
 
 // ── BILINGUE (EN / FR) ──
-let currentLang = 'en';
+// FIX 22/09 (chantier langue tiroir, changement de direction GO Thomas) : meme mecanisme que
+// demo-private.html cette nuit -- Kaizenology reste anglais par defaut au premier chargement (client
+// EN, inchange), mais un choix explicite (setLang()) persiste desormais via localStorage au lieu
+// d'etre reperdu a chaque rechargement, et le bouton EN/FR est aussi visible directement dans la nav
+// (en plus de celui, conserve, dans My Profile) -- plus besoin d'ouvrir une modale pour basculer.
+let currentLang = (function () {
+  try {
+    const saved = localStorage.getItem('kaizenology_lang');
+    return (saved === 'en' || saved === 'fr') ? saved : 'en';
+  } catch (e) { return 'en'; } // localStorage indisponible -- repli sur le defaut, jamais de plantage
+})();
 const agentWelcome = {
   en: {
     cmo: "CMO Orchestrator here. Tell me what is on your plate this week - campaigns, launches, pipeline pressure, or positioning questions - and I will help you prioritise and coordinate across channels.",
@@ -3454,6 +3472,9 @@ function renderWelcome() {
 }
 function setLang(lang) {
   currentLang = lang;
+  // FIX 22/09 (chantier langue tiroir, changement de direction GO Thomas) : persiste le choix
+  // explicite -- try/catch : localStorage indisponible ne doit jamais bloquer la bascule elle-meme.
+  try { localStorage.setItem('kaizenology_lang', lang); } catch (e) { /* pas de persistance possible, bascule quand meme */ }
   document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.textContent.trim().toLowerCase() === lang));
   applyLang();
   renderWelcome();
@@ -14618,6 +14639,11 @@ async function loadClientProfile() {
     document.getElementById('nav-company').textContent = data.company_name;
     document.getElementById('nav-avatar').innerHTML = _navAvatarHTML(data.avatar_url, name);
     document.getElementById('user-profile-btn').style.display = 'flex';
+    // FIX 22/09 (chantier langue tiroir) : synchronise l'etat visuel .active des boutons EN/FR (nav
+    // + My Profile) sur currentLang des que la chrome authentifiee s'affiche -- currentLang peut
+    // deja valoir 'fr' ici (choix persiste via localStorage) sans qu'aucun clic sur setLang() n'ait
+    // eu lieu cette session pour poser la classe .active.
+    document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.textContent.trim().toLowerCase() === currentLang));
     return true;
   } catch(e) { console.warn('loadClientProfile:', e); return false; }
 }
