@@ -5060,16 +5060,20 @@ function _mscRenderScanEntries(decisions, liveById, emailHtml) {
   secs.forEach((x, i) => { if (i >= cut && !x.key) html += narrative(x); });
   return html;
 }
-async function _loadLastMorningScanEmail() {
+// Fix 2026-09-23 (demande Thomas, suite directe du correctif etat vide) : parametre scanDate
+// optionnel -- absent (comportement historique, tous les appelants existants), charge le dernier
+// scan comme avant. Fourni (nouveaux liens de la liste "Derniere activite" ci-dessous), recharge le
+// meme panneau avec CE scan precis -- reutilise integralement le meme rendu (cartes/iframe), aucune
+// duplication de logique d'affichage.
+async function _loadLastMorningScanEmail(scanDate) {
   const el = document.getElementById('last-morning-scan-body');
   if (!el) return;
   try {
-    const { data, error } = await sbClient.from('morning_scan_email_cache')
+    let q = sbClient.from('morning_scan_email_cache')
       .select('subject, email_html, scan_date, generated_at, decisions_json, scan_entries')
-      .eq('client_id', CLIENT_ID)
-      .order('scan_date', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .eq('client_id', CLIENT_ID);
+    q = scanDate ? q.eq('scan_date', scanDate) : q.order('scan_date', { ascending: false }).limit(1);
+    const { data, error } = await q.maybeSingle();
     if (error) throw error;
     if (!data) {
       el.innerHTML = `<div style="color:var(--text-secondary);font-size:var(--fs-sm);">${currentLang === 'fr' ? 'Aucun Morning Scan envoyé pour l’instant.' : 'No Morning Scan sent yet.'}</div>`;
@@ -5087,8 +5091,20 @@ async function _loadLastMorningScanEmail() {
     const fullEmailLabel = currentLang === 'fr' ? 'Voir l’email complet' : 'Show full email';
 
     let sectionsHtml = '';
-    let collapsedHeight = '140px';
+    // Fix 2026-09-23 (demande Thomas, repli visuel juge casse/vieux -- pas un bug de logique, le
+    // repli reste le comportement intentionnel du 19-20/09) : l'apercu iframe ne s'affiche plus par
+    // defaut a 140px, meme comportement replie (0) que le cas scan_entries/decisions_json rempli --
+    // seule la fenetre de peek visuelle disparait, la logique de repli elle-meme reste inchangee.
+    let collapsedHeight = '0';
     let toggleLabel = fullEmailLabel;
+
+    // Fix 2026-09-23 (demande Thomas, suite du correctif etat vide) : un jour sans decision ne doit
+    // pas etre une impasse visuelle -- jusqu'a 3 liens vers les derniers scans ayant reellement
+    // produit une decision, sous le message d'etat vide. Requete legere (3 colonnes, 10 lignes max),
+    // purement decorative : une erreur ici ne casse jamais le repli principal (fallback silencieux).
+    // Verifie APRES le calcul de v1Html/decisions plus bas (nativePanel) -- declare ici, rempli juste
+    // avant le rendu final pour rester au plus pres du point d'usage.
+    let recentActivityHtml = '';
 
     // Fix 2026-09-20 (chantier "panneau natif complet", demande Thomas -- la version du 19/09 ne
     // redessinait que la section priorite en cartes, gardant tout le reste en apercu iframe brut,
@@ -5192,15 +5208,42 @@ async function _loadLastMorningScanEmail() {
     // Panneau natif (cartes) : rendu v1 valide ou repli decisions_json non vide -- sinon apercu
     // iframe seul (ancien comportement).
     const nativePanel = v1Html != null || decisions.length > 0;
+
+    if (!nativePanel) {
+      try {
+        const { data: recentRows } = await sbClient.from('morning_scan_email_cache')
+          .select('scan_date, decisions_json, scan_entries')
+          .eq('client_id', CLIENT_ID)
+          .neq('scan_date', data.scan_date)
+          .order('scan_date', { ascending: false })
+          .limit(10);
+        const withDecisions = (recentRows || []).filter(r => {
+          const se = _mscValidScanEntries(r.scan_entries);
+          const dj = Array.isArray(r.decisions_json) ? r.decisions_json : [];
+          return (se && se.length > 0) || dj.length > 0;
+        }).slice(0, 3);
+        if (withDecisions.length > 0) {
+          const recentLabel = currentLang === 'fr' ? 'Dernière activité :' : 'Recent activity:';
+          const viewLabel = currentLang === 'fr' ? 'voir ce scan' : 'view this scan';
+          recentActivityHtml = `<div style="margin-top:10px;font-size:var(--fs-xs);color:var(--text-secondary);text-align:center;">
+            <div style="margin-bottom:4px;">${recentLabel}</div>
+            ${withDecisions.map(r => {
+              const lbl = (typeof _relDate === 'function' && _relDate(r.scan_date)) || r.scan_date;
+              return `<div style="margin-bottom:2px;"><a href="#" onclick="_loadLastMorningScanEmail('${r.scan_date}');return false;" style="color:var(--ink);text-decoration:underline;">${_esc(lbl)} — ${viewLabel}</a></div>`;
+            }).join('')}
+          </div>`;
+        }
+      } catch (e) { /* purement decoratif -- n'affecte jamais le repli principal si indisponible */ }
+    }
+
+    const emptyStateHtml = `<div class="kanban-empty" style="padding:14px 8px;">${currentLang === 'fr' ? 'Aucune décision aujourd’hui.' : 'No decisions today.'}</div>${recentActivityHtml}`;
     el.innerHTML = `
       <div style="font-size:var(--fs-xs);color:var(--text-secondary);margin-bottom:8px;">${_esc(data.subject || '')} · ${_esc(dateLabel)}</div>
-      ${nativePanel
-        ? sectionsHtml
-        : `<div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-secondary);opacity:.6;margin-bottom:6px;">${currentLang === 'fr' ? 'Aperçu de l’email envoyé' : 'Email preview'}</div>`}
+      ${nativePanel ? sectionsHtml : emptyStateHtml}
       <div id="last-morning-scan-frame-wrap" style="max-height:${collapsedHeight};overflow:hidden;position:relative;transition:max-height .25s ease;border:1px solid var(--border);border-radius:var(--radius-sm);">
-        <div id="last-morning-scan-fade" style="position:absolute;bottom:0;left:0;right:0;height:40px;background:linear-gradient(transparent, var(--bg));pointer-events:none;${nativePanel ? 'display:none;' : ''}"></div>
+        <div id="last-morning-scan-fade" style="position:absolute;bottom:0;left:0;right:0;height:40px;background:linear-gradient(transparent, var(--bg));pointer-events:none;display:none;"></div>
       </div>
-      <button id="last-morning-scan-toggle" style="margin-top:6px;background:none;border:none;color:var(--ink);text-decoration:underline;font-weight:600;font-size:var(--fs-xs);cursor:pointer;padding:0;">${toggleLabel}</button>
+      <button id="last-morning-scan-toggle" style="margin-top:6px;background:none;border:none;text-decoration:underline;cursor:pointer;padding:0;${nativePanel ? 'color:var(--ink);font-weight:600;font-size:var(--fs-xs);' : 'color:var(--text-secondary);font-weight:500;font-size:var(--fs-xs);display:block;margin-left:auto;margin-right:auto;'}">${toggleLabel}</button>
     `;
     const wrap = document.getElementById('last-morning-scan-frame-wrap');
     const fade = document.getElementById('last-morning-scan-fade');
@@ -5214,7 +5257,7 @@ async function _loadLastMorningScanEmail() {
     toggleBtn.addEventListener('click', () => {
       expanded = !expanded;
       wrap.style.maxHeight = expanded ? '420px' : collapsedHeight;
-      fade.style.display = (expanded || nativePanel) ? 'none' : 'block';
+      fade.style.display = 'none'; // fade n'a plus de role : plus de peek partiel a 140px, toujours 0 ou 420px
       toggleBtn.textContent = expanded
         ? (currentLang === 'fr' ? 'Réduire' : 'Collapse')
         : toggleLabel;
