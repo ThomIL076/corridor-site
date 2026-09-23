@@ -232,9 +232,23 @@ nav {
   color: var(--muted);
 }
 @media (max-width:480px) {
-  .mandate-bar { min-width: 0; flex: 1 1 0; }
+  /* BUG 1 (captures iPhone Thomas, 23/09) : flex:1 1 0 + min-width:0 suffit a retrecir le select
+     sous Chromium (verifie headless : 35px de large a 390px, 73px a 428px, aucun chevauchement),
+     mais pas de facon fiable sous WebKit/Safari mobile -- <select> y calcule sa largeur minimale
+     sur le texte de l'option affichee ("Consolidated view (all)", ~187px mesures) plutot que
+     d'honorer min-width:0, et deborde par-dessus le bouton Ask Corridor (chevauchement visible sur
+     l'icone de fleche native, exactement le symptome des captures). overflow:hidden sur le
+     conteneur .mandate-bar (pas seulement sur #mandate-select) garantit qu'aucun rendu ne depasse
+     la boite allouee, quel que soit le comportement de shrink du moteur -- ne depend plus du tout
+     de la largeur que WebKit decide de donner au select. #mandate-select garde overflow/ellipsis
+     pour une troncature propre du texte visible, meme idiome deja utilise pour #bulk-bar > select
+     (ligne ~1264) plutot qu'un nouveau pattern. */
+  .mandate-bar { min-width: 0; flex: 1 1 0; overflow: hidden; }
   .mandate-bar-label { display: none; }
-  #mandate-select { min-width: 0; max-width: 100%; flex: 1 1 0; }
+  #mandate-select {
+    min-width: 0; max-width: 100%; flex: 1 1 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
 }
 #mandate-select {
   background: white;
@@ -1274,6 +1288,32 @@ h1, h2, .k-card-name, .k-card-company { overflow-wrap:break-word; word-break:bre
     text-align: center;
   }
   #bulk-bar > button {
+    justify-content: center;
+  }
+}
+/* BUG 2 (captures iPhone Thomas, 23/09) : .pd-footer (pied du tiroir prospect) est display:flex
+   sans wrap -- "Générer un message"/"Changer d'étape" ont flex:1 en inline style (HTML), "Archive"
+   n'a aucune contrainte de largeur (defaut flex:0 1 auto, borne par son texte, white-space normal
+   sans nowrap). Les 2 premiers boutons se partagent tout l'espace disponible, ne laissant aucune
+   place au 3e, qui deborde hors du drawer (#drawer a overflow:hidden -- le bouton est purement
+   tronque au bord de l'ecran, pas seulement visuellement compresse). Meme famille de defaut que
+   #bulk-bar juste au-dessus (ROUND 5) -- meme correctif reutilise a l'identique (grille 2 colonnes
+   qui passe a la ligne, boutons 44px) plutot qu'un nouveau pattern. !important necessaire : les 2
+   premiers boutons portent deja flex:1 en style inline (HTML), qu'aucune regle externe sans
+   !important ne peut jamais l'emporter sur elle. */
+@media (max-width:480px) {
+  .pd-footer {
+    flex-wrap: wrap;
+  }
+  .pd-footer > button {
+    flex: 1 1 calc(50% - 4px) !important;
+    min-width: 0;
+    height: 44px;
+    box-sizing: border-box;
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     justify-content: center;
   }
 }
@@ -5444,6 +5484,11 @@ function setLang(lang) {
   renderWelcome();
   paintBlocked();      // écran "essai terminé" / "accès refusé" suit la langue
   _renderSystemActiveLabel(); // F13 -- re-traduit depuis le cache, pas de nouvel appel reseau
+  // BUG 3 (23/09) : meme principe que renderWelcome() juste au-dessus (deja etabli pour les agents
+  // chat) applique au panneau Ask Corridor -- si le panneau est ouvert (ou sera rouvert) SANS
+  // conversation reelle en cours, son accueil + ses pills suivent la bascule immediatement au lieu
+  // d'attendre une fermeture/reouverture.
+  if (typeof _askRefreshLangIfIdle === 'function') _askRefreshLangIfIdle();
 }
 
 function _relTimeShort(iso) {
@@ -7030,14 +7075,23 @@ function handleEnter(e, agentName) {
 let _askHistory = [];
 let _askCtx = null;
 let _askCtxKey = null;
+let _askWelcomeLang = null; // BUG 3 (23/09), cf. commentaire dans _openAskPanel juste en dessous
 
 function _openAskPanel(ctx) {
   const newKey = ctx ? JSON.stringify(ctx) : '__global__';
-  if (newKey !== _askCtxKey) {
+  // BUG 3 (23/09) : rouvrir le panneau sur le MEME contexte (cle inchangee) apres une bascule de
+  // langue laissait le message d'accueil + les pills "Suggested" figes dans l'ancienne langue --
+  // _askRenderWelcome()/_askBuildSuggestedPills() suivent deja correctement currentLang, mais
+  // n'etaient jamais rappeles tant que la cle de contexte ne changeait pas. Re-rendu desormais
+  // aussi si currentLang a change depuis le dernier rendu -- mais UNIQUEMENT si aucune vraie
+  // conversation n'a commence (_askHistory vide) : ne jamais ecraser un echange reel en cours,
+  // meme principe de protection du contenu dynamique que applyLang() (cf. commentaire ~ligne 5408).
+  if (newKey !== _askCtxKey || (currentLang !== _askWelcomeLang && _askHistory.length === 0)) {
     _askHistory = [];
     _askCtxKey = newKey;
     _askCtx = ctx;
     _askRenderWelcome(ctx);
+    _askWelcomeLang = currentLang;
   }
   document.getElementById('ask-overlay').classList.add('open');
   document.getElementById('ask-panel').classList.add('open');
@@ -7051,6 +7105,18 @@ function _closeAskPanel() {
   document.body.classList.remove('ask-open');
 }
 
+// BUG 3 (23/09) : appele depuis setLang() -- re-rend l'accueil + les pills dans la langue courante
+// tant qu'aucune vraie conversation n'a commence (meme garde que dans _openAskPanel plus haut).
+// Ne fait rien si le panneau n'a jamais ete initialise (_askCtxKey encore null ET pas de #ask-
+// messages) -- inoffensif a appeler avant la premiere ouverture, _askRenderWelcome(null) gere ce cas.
+function _askRefreshLangIfIdle() {
+  if (!document.getElementById('ask-messages')) return;
+  if (_askHistory.length === 0 && currentLang !== _askWelcomeLang) {
+    _askRenderWelcome(_askCtx);
+    _askWelcomeLang = currentLang;
+  }
+}
+
 function _askRenderWelcome(ctx) {
   const fr = (typeof currentLang !== 'undefined' && currentLang === 'fr');
   const msgs = document.getElementById('ask-messages');
@@ -7058,7 +7124,11 @@ function _askRenderWelcome(ctx) {
   const welcome = fr
     ? 'Posez-moi une question sur votre pipeline, un prospect ou un signal de marché.'
     : 'Ask me anything about your pipeline, a prospect, or a market signal.';
-  msgs.innerHTML = '<div class="chat-msg assistant"><div class="chat-avatar">C</div><div class="chat-bubble">' + _esc(welcome) + '<div class="ask-provenance">ASK CORRIDOR</div></div></div>';
+  // BUG 3 (23/09) : provenance figee en anglais dans les deux branches -- incoherent avec les
+  // autres tags .ask-provenance du fichier (Weekly Report/Daily Digest, ECRIT LE/WRITTEN...), qui
+  // suivent tous fr. Meme variable fr deja calculee ci-dessus, pas de nouvelle logique.
+  const welcomeProvenance = fr ? 'DEMANDER À CORRIDOR' : 'ASK CORRIDOR';
+  msgs.innerHTML = '<div class="chat-msg assistant"><div class="chat-avatar">C</div><div class="chat-bubble">' + _esc(welcome) + '<div class="ask-provenance">' + welcomeProvenance + '</div></div></div>';
   _askRenderSuggestedPills(ctx);
   const pill = document.getElementById('ask-ctx-label');
   if (!pill) return;
@@ -12325,11 +12395,48 @@ function _renderProposalCard(prop, prospect) {
       <span class="card-badge badge-auto" style="margin-left:auto;">${_esc(contentTypeLbl.toUpperCase())}</span>
     </div>
     ${variantsHtml}
-    <div style="display:flex;gap:8px;margin-top:12px;">
-      <button onclick="_proposalReject('${prop.id}')"
+    <div style="display:flex;gap:8px;margin-top:12px;" id="proposal-actions-${prop.id}">
+      <button onclick="_proposalRejectStart('${prop.id}')"
         style="padding:7px 16px;border-radius:var(--radius-pill);background:none;border:1px solid var(--border);color:var(--text);font-size:var(--fs-sm);cursor:pointer;">Reject</button>
     </div>
+    <!-- Chantier "apprentissage sur les rejets" (23/09, go Thomas) : formulaire inline, PAS de modale
+         -- aucun pattern modale reel n'existe dans ce fichier (verifie), un formulaire inline replie
+         est plus coherent avec le reste (memes boutons pilule, memes variables --border/--navy/--fs-sm).
+         Raison TOUJOURS optionnelle : "Confirm rejection" fonctionne meme textarea vide, jamais de
+         friction forcee sur un rejet. -->
+    <div id="proposal-reject-form-${prop.id}" style="display:none;margin-top:12px;border-top:1px solid var(--border);padding-top:12px;">
+      <textarea id="proposal-reject-reason-${prop.id}" placeholder="Reason (optional) — helps the copywriter learn what to avoid"
+        style="width:100%;min-height:64px;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:var(--fs-sm);font-family:inherit;color:var(--text);background:var(--card-bg);resize:vertical;box-sizing:border-box;"></textarea>
+      <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
+        <button id="proposal-reject-confirm-${prop.id}" onclick="_proposalRejectConfirm('${prop.id}')"
+          style="padding:7px 16px;border-radius:var(--radius-pill);background:var(--navy);color:#fff;border:none;font-size:var(--fs-sm);font-weight:600;cursor:pointer;">Confirm rejection</button>
+        <button onclick="_proposalRejectCancel('${prop.id}')"
+          style="padding:7px 16px;border-radius:var(--radius-pill);background:none;border:1px solid var(--border);color:var(--text);font-size:var(--fs-sm);cursor:pointer;">Cancel</button>
+      </div>
+    </div>
   </div>`;
+}
+
+// Ouvre le formulaire inline (raison optionnelle) sans encore rien ecrire en base -- le clic sur
+// "Reject" seul ne rejette plus rien directement (chantier apprentissage rejets, 23/09, go Thomas).
+function _proposalRejectStart(id) {
+  const actions = document.getElementById('proposal-actions-' + id);
+  const form = document.getElementById('proposal-reject-form-' + id);
+  if (actions) actions.style.display = 'none';
+  if (form) {
+    form.style.display = 'block';
+    const ta = document.getElementById('proposal-reject-reason-' + id);
+    if (ta) ta.focus();
+  }
+}
+
+function _proposalRejectCancel(id) {
+  const actions = document.getElementById('proposal-actions-' + id);
+  const form = document.getElementById('proposal-reject-form-' + id);
+  const ta = document.getElementById('proposal-reject-reason-' + id);
+  if (ta) ta.value = '';
+  if (form) form.style.display = 'none';
+  if (actions) actions.style.display = 'flex';
 }
 
 // "Use this" (par variante) : approuve la proposition entiere sur cette variante -- une seule
@@ -12406,11 +12513,47 @@ async function _proposalUseVariant(id, variantIndex) {
 
 // Reject porte sur la proposition entiere, pas sur une variante individuelle (contrairement a
 // "Use this") -- demande explicite : un seul niveau de rejet possible.
-async function _proposalReject(id) {
+// Chantier "apprentissage sur les rejets de brouillons/variantes" (23/09, go Thomas) : meme UPDATE
+// agent_proposals qu'avant, PLUS un insert dans agent_feedback (table existante, forme deja utilisee
+// en prod par _inboxDismiss/_inboxSend -- meme technique reutilisee, aucune nouvelle table). Raison
+// texte libre TOUJOURS optionnelle (comment: reason || null) -- le rejet n'est jamais bloque par un
+// champ vide. agent_name = celui de LA PROPOSITION (prop.agent_name, re-fetch a l'instant du clic,
+// meme discipline que _proposalUseVariant plus haut -- jamais suppose depuis le render initial qui
+// peut dater). item_text = toutes les variantes jointes (angle + texte), pour que la synthese
+// hebdomadaire (workflow "Learn From Proposal Rejections") puisse citer fidelement ce qui a ete
+// rejete, pas seulement la raison donnee.
+async function _proposalRejectConfirm(id) {
+  const confirmBtn = document.getElementById('proposal-reject-confirm-' + id);
+  const reasonTa = document.getElementById('proposal-reject-reason-' + id);
+  if (confirmBtn) confirmBtn.disabled = true;
+  const reason = reasonTa ? reasonTa.value.trim() : '';
+  const { data: prop, error: fetchErr } = await sbClient.from('agent_proposals')
+    .select('agent_name, variants, mandate_id')
+    .eq('id', id).eq('client_id', CLIENT_ID).single();
+  if (fetchErr || !prop) {
+    console.error('[_proposalRejectConfirm] fetch failed:', fetchErr);
+    showToast('Error loading proposal');
+    if (confirmBtn) confirmBtn.disabled = false;
+    return;
+  }
   const { error } = await sbClient.from('agent_proposals')
     .update({ status: 'rejected' })
     .eq('id', id);
-  if (error) { console.error('[_proposalReject]', error); showToast('Error rejecting proposal'); return; }
+  if (error) {
+    console.error('[_proposalRejectConfirm] agent_proposals update failed:', error);
+    showToast('Error rejecting proposal');
+    if (confirmBtn) confirmBtn.disabled = false;
+    return;
+  }
+  const variantsJoined = (Array.isArray(prop.variants) ? prop.variants : [])
+    .map((v, idx) => `[${v.angle || 'Variant ' + (idx + 1)}] ${_cleanVariantText(v.text || '')}`)
+    .join('\n\n');
+  const { error: afErr } = await sbClient.from('agent_feedback').insert({
+    agent_name: prop.agent_name, client_id: CLIENT_ID, mandate_id: prop.mandate_id ?? null,
+    item_id: id, item_type: 'proposal_variant', item_text: variantsJoined,
+    vote: 'unlike', comment: reason || null
+  });
+  if (afErr) console.error('[_proposalRejectConfirm] agent_feedback insert failed:', afErr);
   _removeProposalCard(id);
 }
 
@@ -17822,16 +17965,27 @@ if ('serviceWorker' in navigator) {
   </div>
 </div>
 
-<!-- ── Ask Corridor panel (pass visuel, cf. CSS ci-dessus) ── -->
+<!-- ── Ask Corridor panel (pass visuel, cf. CSS ci-dessus) ──
+     BUG 3 (23/09) : ce panneau (cree 16/08, commit 8fce524) est anterieur au sweep i18n
+     (commits 79c0d07/69d16fb, 31/08) qui a rendu bilingue tout le texte francais code en dur --
+     ce panneau n'a jamais ete francais, donc ce sweep (cible sur du texte FR a traduire) ne
+     l'a jamais repere. Le seul passage ulterieur dessus (94d3146, 05/09) etait un pass visuel
+     pur (tokens --ink/--accent), pas de langue. Resultat : aucun data-en/data-fr ici, donc
+     jamais touche par applyLang() (qui n'agit que sur [data-en]) -- ni dans un sens ni dans
+     l'autre, exactement le symptome remonte. Le contenu vraiment dynamique (message d'accueil,
+     pills "Suggested") suit deja currentLang correctement cote JS (_askRenderWelcome/
+     _askBuildSuggestedPills, cf. plus bas) -- seul le chrome statique (titre, sous-titre,
+     en-tete Suggested, placeholder) etait fige en anglais. Meme mecanisme data-en/data-fr +
+     data-en-ph/data-fr-ph que partout ailleurs dans ce fichier, aucun nouveau systeme. -->
 <div id="ask-overlay" onclick="_closeAskPanel()"></div>
 <div id="ask-panel">
   <div class="ask-panel-head">
     <div style="display:flex;flex-direction:column;min-width:0;flex:1;">
       <div class="ask-panel-title-row">
         <span class="snav-live-dot" aria-hidden="true"></span>
-        <span class="ask-panel-title">Ask Corridor</span>
+        <span class="ask-panel-title" data-en="Ask Corridor" data-fr="Demander à Corridor">Ask Corridor</span>
       </div>
-      <span class="ask-panel-sub">Reads your live pipeline</span>
+      <span class="ask-panel-sub" data-en="Reads your live pipeline" data-fr="Lit votre pipeline en direct">Reads your live pipeline</span>
       <span class="ask-ctx-pill" id="ask-ctx-label" style="display:none;"></span>
     </div>
     <button class="pd-close" onclick="_closeAskPanel()" aria-label="Close">✕</button>
@@ -17839,17 +17993,23 @@ if ('serviceWorker' in navigator) {
   <div id="ask-messages">
     <div class="chat-msg assistant">
       <div class="chat-avatar">C</div>
+      <!-- Ce message initial est purement inerte : _openAskPanel() appelle toujours
+           _askRenderWelcome() avant que le panneau ne devienne visible (premiere ouverture d'un
+           contexte), qui remplace entierement #ask-messages par un rendu deja bilingue (cf. plus
+           bas, fr ? ... : ...) -- jamais vu par un utilisateur reel. Pas de data-en/data-fr ici :
+           le HTML imbrique (ask-provenance) serait ecrase par applyLang() en mode data-html
+           (innerHTML = texte seul, sans la div enfant) a chaque bascule de langue. -->
       <div class="chat-bubble">Ask me anything about your pipeline, a prospect, or a market signal.<div class="ask-provenance">ASK CORRIDOR</div></div>
     </div>
   </div>
   <!-- Composer suggere (volet cablage) : structure prete, reste cachee tant qu'aucune vraie
        suggestion basee sur les donnees de l'utilisateur n'est calculee -- rien d'invente ici. -->
   <div class="ask-suggested" id="ask-suggested-wrap" style="display:none;">
-    <div class="ask-suggested-label">Suggested</div>
+    <div class="ask-suggested-label" data-en="Suggested" data-fr="Suggestions">Suggested</div>
     <div class="ask-pills" id="ask-suggested-pills"></div>
   </div>
   <div class="ask-input-row">
-    <textarea id="ask-input" rows="2" placeholder="Ask Corridor&#8230;" onkeydown="_askOnEnter(event)"></textarea>
+    <textarea id="ask-input" rows="2" placeholder="Ask Corridor&#8230;" data-en-ph="Ask Corridor&#8230;" data-fr-ph="Demander à Corridor&#8230;" onkeydown="_askOnEnter(event)"></textarea>
     <button class="btn-accent" id="ask-send-btn" onclick="_sendAskMessage()" style="height:44px;flex-shrink:0;">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 2L11 13"/><path d="M22 2L15 22 11 13 2 9l20-7z"/></svg>
     </button>
