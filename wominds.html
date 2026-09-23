@@ -1690,7 +1690,7 @@ body.new-nav { padding-left: 220px; }
           </div>
           <div class="pipe-stat">
             <span class="pipe-stat-val" id="pipe-intlna" style="color:var(--dim)">N/D</span>
-            <span class="pipe-stat-label">France / Intl</span>
+            <span class="pipe-stat-label">France / Inconnu</span>
           </div>
         </div>
         <div class="pipe-funnel-bar" id="pipe-funnel-bar"></div>
@@ -1707,6 +1707,12 @@ body.new-nav { padding-left: 220px; }
         <button class="sig-btn btn-sm active" onclick="_setSigFilter('all')" id="sig-btn-all">Tous</button>
         <button class="sig-btn btn-sm" onclick="_setSigFilter('signal')" id="sig-btn-signal">Signal</button>
         <button class="sig-btn btn-sm" onclick="_setSigFilter('queue')" id="sig-btn-queue">File</button>
+        <span style="width:1px;height:18px;background:var(--border);margin:0 2px;"></span>
+        <!-- Toggle "Voir les archivés" (GO Thomas 23/09, parite demo-private.html/kaizenology.html) :
+             meme composant .hp-btn que Chaud/Tiède/Neutre/Froid/Signal juste a gauche -- pas de nouveau
+             style. Off par defaut (archived=false uniquement, comportement inchange) ; on = les cartes
+             archivees, deja construites par renderKanban() mais cachees, deviennent visibles. -->
+        <button class="hp-btn btn-sm" onclick="_toggleShowArchived()" id="archived-toggle-btn" title="Inclure les prospects archivés dans la liste">Voir les archivés</button>
       </div>
 
       <div id="pipeline-empty-banner" style="display:none;background:var(--navy-light);border:1px solid var(--blue-light);border-radius:var(--radius-md);padding:14px 16px;margin-bottom:16px;color:var(--navy);font-size:var(--fs-sm);line-height:1.5;">
@@ -2295,6 +2301,14 @@ let CLIENT_ID = 'wominds'; // résolu dynamiquement dans loadClientProfile()
 // necessaire ailleurs dans le fichier. AUCUNE donnee modifiee en base -- affichage seulement, les
 // prospects non filtres restent lisibles/modifiables via requete directe (drawer sur lien direct,
 // exports, etc.), simplement absents des listes/kanban/stats qui passent par _passesCountryFilter.
+// Clarification 2026-09-23 (go Thomas) : ce filtre retire les internationaux du COMPTAGE aussi,
+// pas seulement de l'affichage-liste -- c'etait deja l'intention documentee ci-dessus ("...et
+// stats"), pas un comportement accidentel. Consequence directe : la tuile pipeline "France / Intl"
+// affichait un chiffre Intl structurellement fige a 0 (cf. _countryBucket/_renderPipelineStatsCard)
+// puisque tout prospect international est deja ecarte avant que la tuile ne compte quoi que ce
+// soit -- trompeur car ca laissait croire a "0 international" plutot qu'a "filtre". Tuile corrigee
+// pour ne plus afficher que France / Inconnu, les deux seules categories reellement presentes dans
+// le pipeline d'Elodie une fois ce filtre applique.
 const DISPLAY_COUNTRY_FILTER = 'FR';
 // Fix regression 2026-09-15 (meme soir) : la premiere version masquait tout country_code absent
 // sauf si le texte libre `country` mentionnait "France" -- casse net les 130 contacts Gmail
@@ -3497,6 +3511,12 @@ async function _changePassword() {
 // ── PIPELINE / KANBAN (drag-and-drop actif depuis le 12/09, cf. initKanbanDnD/persistStage) ──
 const KANBAN_STAGES = ['Identified', '1st Contact', 'Engaged', 'Replied', 'Proposal', 'Negotiation', 'Closed'];
 let _allProspects = [];
+// Toggle "Voir les archivés" (GO Thomas 23/09) : _allProspects reste STRICTEMENT le contrat existant
+// (actifs uniquement -- runPipelineIntel et d'autres lecteurs en dependent sans re-filtrer archived
+// eux-memes). _kanbanAllRows est le seul ajout : memes lignes + les archivees, pour le rendu du
+// Pipeline uniquement (renderKanban). Mis a jour au meme endroit que _allProspects (loadKanban),
+// jamais une deuxieme requete.
+let _kanbanAllRows = [];
 // Cache cross-ecran (Aujourd'hui/Envoyer/Boite de reception/detail prospect) -- declaration
 // manquante trouvee et corrigee ici : plusieurs fonctions y ecrivaient/lisaient deja sans
 // jamais l'initialiser, ce qui aurait plante au premier clic hors Pipeline.
@@ -4104,7 +4124,7 @@ async function _addStakeholderToPipeline(idx, btn) {
   }
 }
 async function loadKanban(force){
-  if (_allProspects.length && !force) { renderKanban(_allProspects); return; }
+  if (_allProspects.length && !force) { renderKanban(_kanbanAllRows); return; }
   const btn = document.getElementById('kanban-refresh-btn');
   if (btn) btn.disabled = true;
   try {
@@ -4125,8 +4145,11 @@ async function loadKanban(force){
       if (!chunk || chunk.length < 1000) break;
       _kFrom += 1000;
     }
+    // Toggle "Voir les archivés" (GO Thomas 23/09) : _allProspects garde son contrat existant
+    // (actifs uniquement, inchange) ; _kanbanAllRows ajoute les archivees, pour le Pipeline seul.
     _allProspects = _kAll.filter(p => !p.archived && _passesCountryFilter(p));
-    renderKanban(_allProspects);
+    _kanbanAllRows = _kAll.filter(p => _passesCountryFilter(p));
+    renderKanban(_kanbanAllRows);
   } catch(e) {
     console.error('[loadKanban]', e);
     showToast('Impossible de charger le pipeline pour le moment');
@@ -4144,40 +4167,67 @@ const STAGE_LABEL_FR = { 'Identified':'Identifiés', '1st Contact':'Connecté', 
 // (donnee source manquante -- 0 cas reel chez Wominds aujourd'hui, mais l'ajout manuel de
 // prospect ne collecte pas ce champ) : bucket "unknown" distinct, jamais fondu dans
 // International -- ce serait une variante du meme bug.
+// Fix 2026-09-23 : fallback narrow, sûr -- ne reclasse que si le texte libre `country` vaut
+// littéralement "France" (dernier segment après virgule, ex. "Paris, France"). Aucune heuristique
+// de déduction -- laisse tout le reste en 'unknown', y compris les formats "Greater X Area" que la
+// logique du 2026-09-14 a explicitement exclus pour cause de faux positifs. Gain confirmé sur les
+// donnees reelles (SQL) : France 174->184, Inconnu 1501->1491, Intl inchange (363). Go de Thomas.
 function _countryBucket(p) {
   const cc = (p.country_code || '').trim().toUpperCase();
-  if (!cc) return 'unknown';
-  return cc === 'FR' ? 'france' : 'intl';
+  if (cc) return cc === 'FR' ? 'france' : 'intl';
+  const raw = (p.country || '').trim();
+  const parts = raw.split(',');
+  const derived = parts[parts.length - 1].trim();
+  if (derived === 'France') return 'france';
+  return 'unknown';
 }
 function renderKanban(prospects){
   const banner = document.getElementById('pipeline-empty-banner');
-  if (banner) banner.style.display = prospects.length ? 'none' : 'block';
+  // Toggle "Voir les archivés" (GO Thomas 23/09) : prospects (= _kanbanAllRows, cf. loadKanban)
+  // peut desormais contenir les fiches archivees -- toujours construites en cartes, cachees par
+  // defaut via data-archived (cf. _applyKanbanFilters), jamais un second rendu au clic sur le
+  // toggle. activeRows sert uniquement aux KPI/stats/options de filtre ci-dessous (comportement
+  // par defaut inchange -- wominds n'a pas de recalcul post-filtre type _updateKpiCards(), ces
+  // chiffres restent donc fixes quel que soit le toggle).
+  const activeRows = (prospects || []).filter(p => !p.archived);
+  if (banner) banner.style.display = activeRows.length ? 'none' : 'block';
   prospects.forEach(p => { if (p.id != null) _prospectsById[p.id] = p; });
   KANBAN_STAGES.forEach(stage => {
     const col = document.querySelector('.kanban-col[data-stage="' + stage + '"]');
     if (!col) return;
     const head = col.querySelector('.kanban-col-head');
-    const rows = prospects.filter(p => (p.stage || 'Identified') === stage);
+    // Stage inconnu/absent (notamment stage='Archived') : repli sur Identified, meme convention
+    // que _stageKey() dans demo-private.html/kaizenology.html -- sans ce repli une fiche archivee
+    // affichee via le toggle n'atterrirait dans AUCUNE colonne.
+    const rows = prospects.filter(p => (KANBAN_STAGES.includes(p.stage) ? p.stage : 'Identified') === stage);
     col.querySelectorAll('.k-card').forEach(el => el.remove());
     const countEl = head.querySelector('.kanban-count');
     if (countEl) countEl.textContent = rows.length;
     rows.forEach(p => col.insertAdjacentHTML('beforeend', _prospectCardHTML(p)));
   });
   const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-  const total = prospects.length;
+  const total = activeRows.length;
   setTxt('pipeline-total-count', total);
-  setTxt('spine-count-qualify', prospects.filter(p => (p.stage || 'Identified') === 'Identified').length);
-  setTxt('spine-count-indeal', prospects.filter(p => (_stageRank[p.stage] || 0) >= _stageRank['Engaged'] && p.stage !== 'Closed').length);
-  const inConv = prospects.filter(p => (_stageRank[p.stage] || 0) >= _stageRank['1st Contact']).length;
-  const highPrio = prospects.filter(p => Number(p.icp_score) >= 8).length;
-  const france = prospects.filter(p => _countryBucket(p) === 'france').length;
-  const intl = prospects.filter(p => _countryBucket(p) === 'intl').length;
-  const unknownCountry = prospects.filter(p => _countryBucket(p) === 'unknown').length;
+  setTxt('spine-count-qualify', activeRows.filter(p => (p.stage || 'Identified') === 'Identified').length);
+  setTxt('spine-count-indeal', activeRows.filter(p => (_stageRank[p.stage] || 0) >= _stageRank['Engaged'] && p.stage !== 'Closed').length);
+  const inConv = activeRows.filter(p => (_stageRank[p.stage] || 0) >= _stageRank['1st Contact']).length;
+  const highPrio = activeRows.filter(p => Number(p.icp_score) >= 8).length;
+  // Fix 2026-09-23 : bucket 'intl' retire de la tuile pipeline -- structurellement toujours 0 ici,
+  // puisque activeRows a deja traverse _passesCountryFilter (DISPLAY_COUNTRY_FILTER='FR', cf. plus
+  // haut) qui exclut tout country_code renseigne != 'FR' AVANT que _countryBucket ne s'execute.
+  // Afficher "Intl" a cote d'un vrai chiffre aurait ete trompeur dans un sens (toujours 0 alors que
+  // 363 fiches internationales existent en base, juste invisibles partout ailleurs dans ce
+  // dashboard) ; afficher le vrai 363 l'aurait ete dans l'autre (un chiffre qui ne correspond a
+  // aucune carte visible nulle part -- ni kanban, ni liste, ni file d'envoi). Coherent avec
+  // l'intention du 15/09 elle-meme : "absents des listes/kanban/stats". 'unknown' reste affiche :
+  // ces fiches, elles, sont bien presentes dans le pipeline reel d'Elodie.
+  const france = activeRows.filter(p => _countryBucket(p) === 'france').length;
+  const unknownCountry = activeRows.filter(p => _countryBucket(p) === 'unknown').length;
   const counts = {};
   KANBAN_STAGES.forEach(s => counts[s] = 0);
-  prospects.forEach(p => { const k = (p.stage || 'Identified'); counts[k] = (counts[k] || 0) + 1; });
-  _renderPipelineStatsCard({ counts, total, inConv, highPrio, france, intl, unknownCountry });
-  _populateKanbanFilterOptions(prospects);
+  activeRows.forEach(p => { const k = (p.stage || 'Identified'); counts[k] = (counts[k] || 0) + 1; });
+  _renderPipelineStatsCard({ counts, total, inConv, highPrio, france, unknownCountry });
+  _populateKanbanFilterOptions(activeRows);
   if (typeof _applyKanbanFilters === 'function') {
     try { _applyKanbanFilters(); } catch(e) { console.warn('[renderKanban] _applyKanbanFilters failed:', e); }
   }
@@ -4252,9 +4302,20 @@ function initKanbanDnD() {
 async function persistStage(id, stage, previousStage, prospect) {
   if (!id) return;
   try {
-    const { error } = await sbClient.from('prospects').update({ stage }).eq('client_id', CLIENT_ID).eq('id', id);
+    // Toggle "Voir les archivés" (GO Thomas 23/09) : deplacer une fiche archivee par drag-and-drop
+    // (visible dans le board uniquement quand le toggle est actif) est une reactivation explicite --
+    // symetrique de archiveProspect() qui pose archived+stage ensemble, sinon la fiche resterait
+    // invisible par defaut malgre le deplacement explicite.
+    const wasArchived = prospect && prospect.archived === true;
+    const updates = wasArchived ? { stage, archived: false } : { stage };
+    const { error } = await sbClient.from('prospects').update(updates).eq('client_id', CLIENT_ID).eq('id', id);
     if (error) throw error;
-    showToast('Étape mise à jour');
+    if (wasArchived) {
+      prospect.archived = false;
+      const cardEl = document.querySelector('.k-card[data-id="' + id + '"]');
+      if (cardEl) { cardEl.dataset.archived = 'false'; cardEl.querySelector('.k-badge-archived')?.remove(); }
+    }
+    showToast(wasArchived ? 'Prospect réactivé' : 'Étape mise à jour');
     // Notifications Slack (parite demo-private.html:11479-11484) : seulement sur une vraie
     // transition, fire-and-forget, _slkNotify() no-op si Slack n'est pas configure pour Wominds.
     if (stage !== previousStage && prospect) {
@@ -4266,18 +4327,22 @@ async function persistStage(id, stage, previousStage, prospect) {
     showToast('Échec de la sauvegarde, réessaie.');
   }
 }
-function _renderPipelineStatsCard({ counts, total, inConv, highPrio, france, intl, unknownCountry }) {
+function _renderPipelineStatsCard({ counts, total, inConv, highPrio, france, unknownCountry }) {
   const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
   const conversion = total > 0 ? (counts['Closed'] / total * 100) : 0;
   setTxt('pipe-conversion', conversion.toFixed(1) + '%');
   setTxt('pipe-inconv', inConv);
   setTxt('pipe-highprio', highPrio);
   const elFi = document.getElementById('pipe-intlna');
-  // Fix 2026-09-14 : 3e nombre "Inconnu" affiche uniquement si au moins un prospect n'a pas de
-  // country_code -- jamais fondu dans France ni dans International (cf. _countryBucket ci-dessus).
-  if (elFi) elFi.innerHTML = france + '<span class="numsplit"> / </span>' + intl + (unknownCountry > 0 ? '<span class="numsplit"> / </span>' + unknownCountry : '');
+  // Fix 2026-09-23 : tuile "Intl" retiree (go Thomas -- cf. commentaire dans renderKanban).
+  // DISPLAY_COUNTRY_FILTER='FR' (15/09, "ciblage marche francais uniquement") fait qu'aucun
+  // prospect international ne traverse jamais jusqu'ici -- la tuile n'affiche plus que France et
+  // Inconnu, les deux seuls buckets que _countryBucket peut effectivement produire sur ce jeu de
+  // donnees deja filtre. Remplace le fix 2026-09-14 (3e nombre conditionnel) : desormais 2 nombres
+  // fixes, toujours les memes deux categories.
+  if (elFi) elFi.innerHTML = france + '<span class="numsplit"> / </span>' + unknownCountry;
   const lblFi = document.querySelector('#pipe-intlna + .pipe-stat-label');
-  if (lblFi) lblFi.textContent = unknownCountry > 0 ? 'France / Intl / Inconnu' : 'France / Intl';
+  if (lblFi) lblFi.textContent = 'France / Inconnu';
   const RAMP = [0.30, 0.42, 0.53, 0.65, 0.77, 0.88, 1];
   const barEl = document.getElementById('pipe-funnel-bar');
   if (barEl) barEl.innerHTML = KANBAN_STAGES.map((s, i) =>
@@ -4416,6 +4481,22 @@ function _resetSigFilter() {
   const all = document.getElementById('sig-btn-all');
   if (all) all.classList.add('active');
 }
+// Toggle "Voir les archivés" (GO Thomas 23/09, parite demo-private.html/kaizenology.html) : off
+// par defaut (archived=false uniquement, comportement inchange) -- on affiche en plus les fiches
+// archivees, deja rendues en cartes par renderKanban() mais cachees via data-archived (cf.
+// _applyKanbanFilters).
+let _showArchived = false;
+function _toggleShowArchived() {
+  _showArchived = !_showArchived;
+  const btn = document.getElementById('archived-toggle-btn');
+  if (btn) btn.classList.toggle('active', _showArchived);
+  _applyKanbanFilters();
+}
+function _resetArchivedFilter() {
+  _showArchived = false;
+  const btn = document.getElementById('archived-toggle-btn');
+  if (btn) btn.classList.remove('active');
+}
 function _toggleFiltersPanel() {
   const panel = document.getElementById('kanban-filters-panel');
   if (panel) panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
@@ -4457,7 +4538,10 @@ function _applyKanbanFilters() {
     let matchSig = true;
     if (_sigFilter === 'signal')      matchSig = cardHasSig;
     else if (_sigFilter === 'queue')  matchSig = !cardHasSig;
-    card.style.display = (matchSearch && matchSector && matchStage && matchCountry && matchSignal && matchHp && matchSig) ? '' : 'none';
+    // Toggle "Voir les archivés" (parite demo-private.html/kaizenology.html) : une carte archivee
+    // ne passe que si le toggle est actif -- une carte active n'est jamais concernee.
+    const matchArchived = _showArchived || card.dataset.archived !== 'true';
+    card.style.display = (matchSearch && matchSector && matchStage && matchCountry && matchSignal && matchHp && matchSig && matchArchived) ? '' : 'none';
   });
   document.querySelectorAll('.kanban-col').forEach(col => {
     const visible = col.querySelectorAll('.k-card:not([style*="display: none"])').length;
@@ -4471,6 +4555,7 @@ function _resetKanbanFilters() {
     .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   _resetHpFilter();
   _resetSigFilter();
+  _resetArchivedFilter();
   _applyKanbanFilters();
 }
 // ── Ajout manuel de prospect (ecrit reellement dans prospects, client_id=CLIENT_ID) ───────────
@@ -4724,11 +4809,15 @@ function _prospectCardHTML(p){
   const warnVerif = p.company_verified === false ? `<span class="k-badge" style="color:#b45309;background:#fef3c7;border-color:#fde68a;" title="Entreprise non confirmée">⚠ Entreprise</span>` : '';
   const warnIdent = (!warnContra && p.identity_confidence === 'low') ? `<span class="k-badge" style="color:#6b7280;" title="Identité à vérifier">? Identité</span>` : '';
   const place = (p.country || '').trim();
-  return `<div class="k-card" data-id="${_esc(p.id)}" data-name="${_esc(p.name || '')}" data-company="${_esc(p.company || '')}" data-sector="${_esc(p.sector || '')}" data-stage="${_esc(p.stage || 'Identified')}" data-icp-score="${p.icp_score != null ? _esc(p.icp_score) : ''}" data-country="${_esc(p.country || '')}" data-signal-type="${_esc((p.signal_type || '').toUpperCase())}" data-has-signal="${!!p.signal}" onclick="openProspectDetail('${p.id}')">
+  // Badge "Archivé" (toggle "Voir les archivés", GO Thomas 23/09, parite demo-private.html/
+  // kaizenology.html) : meme ton amber que le reste du site pour un etat "archivee" -- visible
+  // uniquement quand le toggle est actif (data-archived lu par _applyKanbanFilters()).
+  const warnArchived = p.archived === true ? `<span class="k-badge k-badge-archived" style="color:var(--amber);background:var(--amber-bg);border:1px solid var(--amber-border);" title="Fiche archivée">Archivé</span>` : '';
+  return `<div class="k-card" data-id="${_esc(p.id)}" data-name="${_esc(p.name || '')}" data-company="${_esc(p.company || '')}" data-sector="${_esc(p.sector || '')}" data-stage="${_esc(p.stage || 'Identified')}" data-icp-score="${p.icp_score != null ? _esc(p.icp_score) : ''}" data-country="${_esc(p.country || '')}" data-signal-type="${_esc((p.signal_type || '').toUpperCase())}" data-has-signal="${!!p.signal}" data-archived="${p.archived === true ? 'true' : 'false'}" onclick="openProspectDetail('${p.id}')">
     <div class="k-card-name">${_esc(p.name || 'Sans nom')}</div>
     <div class="k-card-company">${_esc(p.company || 'N/D')}${place ? ' · ' + _esc(place) : ''}</div>
     ${p.signal ? `<div class="k-card-signal">${sig}</div>` : ''}
-    <div class="k-card-badges">${icp}${regionTag}${sectorBadge}${warnContra}${warnVerif}${warnIdent}</div>
+    <div class="k-card-badges">${icp}${regionTag}${sectorBadge}${warnContra}${warnVerif}${warnIdent}${warnArchived}</div>
   </div>`;
 }
 // F01 (port wominds, 2026-09-17) : equivalent de _scoreReliabilityBadge (demo-private.html/
@@ -6068,11 +6157,18 @@ async function saveProspectEdit(id) {
     deal_currency: _dvCurSel !== null ? _dvCurSel : (p.deal_currency || null),
     updated_at: new Date().toISOString(),
   };
+  // Toggle "Voir les archivés" (GO Thomas 23/09, parite demo-private.html/kaizenology.html) :
+  // Edit details est une action disponible sur une fiche archivee affichee via le toggle -- sans
+  // ceci, sauvegarder l'edition laisserait archived=true (archiveProspect() ne pose ici QUE
+  // archived, pas de stage synthetique, mais la fiche resterait invisible par defaut malgre
+  // l'edition explicite). Toute sauvegarde explicite sur une fiche archivee la reactive.
+  const _wasArchived = p.archived === true;
+  if (_wasArchived) row.archived = false;
   try {
     const { error } = await sbClient.from('prospects').update(row).eq('client_id', CLIENT_ID).eq('id', id);
     if (error) throw error;
     _patchProspectCaches(id, row);
-    showToast('Prospect mis à jour');
+    showToast(_wasArchived ? 'Prospect réactivé' : 'Prospect mis à jour');
     closeProspectDetail();
     loadKanban(true);
   } catch(e) {

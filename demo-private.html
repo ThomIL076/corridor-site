@@ -2373,6 +2373,12 @@ body.new-nav { padding-left: 220px; }
       <button class="sig-btn btn-sm active" onclick="_setSigFilter('all')" id="sig-btn-all">All</button>
       <button class="sig-btn btn-sm" onclick="_setSigFilter('signal')" id="sig-btn-signal">Signal</button>
       <button class="sig-btn btn-sm" onclick="_setSigFilter('queue')" id="sig-btn-queue">Queue</button>
+      <span style="width:1px;height:18px;background:var(--border);margin:0 2px;"></span>
+      <!-- Toggle "Voir les archivés" (GO Thomas 23/09) : meme composant .hp-btn que Hot/Warm/Cold/Signal
+           juste a gauche -- pas de nouveau style. Off par defaut (comportement inchange, archived=false
+           uniquement) ; on = les cartes archivees, deja construites par renderKanban() mais cachees, deviennent
+           visibles (meme mecanisme show/hide que tous les autres filtres Pipeline, cf. _applyKanbanFilters). -->
+      <button class="hp-btn btn-sm" onclick="_toggleShowArchived()" id="archived-toggle-btn" title="Include archived prospects in the list"><span data-en="Show archived" data-fr="Voir les archivés">Show archived</span></button>
     </div>
 
     <div class="kanban-scroll">
@@ -13651,8 +13657,20 @@ async function persistStage(id, stage){
     if (advancedStages.includes(stage) && p.linkedin_tag === 'invite-sent') {
       updates.linkedin_tag = 'connection-accepted';
     }
+    // Toggle "Voir les archivés" (GO Thomas 23/09) : deplacer une fiche archivee par drag-and-drop
+    // (visible dans le board uniquement quand le toggle est actif) est une reactivation explicite --
+    // meme symetrie que saveProspectEdit (archiveProspect() pose bien archived+stage ensemble, ce
+    // chemin doit lever archived a son tour, sinon la fiche redeviendrait invisible par defaut malgre
+    // le deplacement explicite).
+    const wasArchived = p.archived === true;
+    if (wasArchived) updates.archived = false;
     const { error } = await sbClient.from('prospects').update(updates).eq('client_id', CLIENT_ID).eq('id', id);
     if (error) throw error;
+    if (wasArchived) {
+      p.archived = false;
+      const cardEl = document.querySelector('.k-card[data-id="' + id + '"]');
+      if (cardEl) { cardEl.dataset.archived = 'false'; cardEl.querySelector('.k-badge-archived')?.remove(); }
+    }
     // Notifications Slack (Integrations, 2026-09-10) : seulement sur une vraie transition
     // (pas un re-drop dans la meme colonne), fire-and-forget, _slkNotify() no-op si Slack
     // n'est pas configure/active pour ce client -- jamais bloquant sur l'action utilisateur.
@@ -13660,7 +13678,7 @@ async function persistStage(id, stage){
       if (stage === 'Engaged') _slkNotify('stageEngaged', 'stage_change', { ...p, stage });
       else if (stage === 'Proposal') _slkNotify('stageProposal', 'proposal', { ...p, stage });
     }
-    showToast(currentLang === 'fr' ? 'Étape mise à jour' : 'Stage updated');
+    showToast(wasArchived ? (currentLang === 'fr' ? 'Prospect réactivé' : 'Prospect reactivated') : (currentLang === 'fr' ? 'Étape mise à jour' : 'Stage updated'));
   } catch(e){
     console.warn('persistStage failed:', e && e.message ? e.message : e);
     showToast(currentLang === 'fr' ? 'Échec de la sauvegarde — réessaie' : 'Save failed — try again');
@@ -14261,6 +14279,14 @@ async function saveProspectEdit(id){
   if (advancedStages.includes(newStage) && p.linkedin_tag === 'invite-sent') {
     row.linkedin_tag = 'connection-accepted';
   }
+  // Toggle "Voir les archivés" (GO Thomas 23/09) : Edit details est desormais la seule action
+  // disponible sur une fiche archivee affichee via le toggle -- sans ceci, changer l'etape ne
+  // ferait que remplacer stage='Archived' par un autre stage SANS lever archived=true (symetrique
+  // manquant de archiveProspect() ci-dessous, qui pose bien les deux ensemble), et la fiche resterait
+  // invisible par defaut malgre l'edition explicite : piege silencieux. Toute sauvegarde explicite
+  // sur une fiche archivee la reactive.
+  const _wasArchived = p.archived === true;
+  if (_wasArchived) row.archived = false;
   try {
     const signalChanged = signalVal !== ((p.signal && p.signal.replace(/<[^>]*>/g,'').trim()) || null);
     if (signalChanged) {
@@ -14274,7 +14300,7 @@ async function saveProspectEdit(id){
     // avant meme le round-trip async de loadKanban(true), pour que Send/Today's run/Inbox/le
     // tiroir lisent tous la meme valeur fraiche des la fermeture de ce formulaire.
     _patchProspectCaches(id, row);
-    showToast(currentLang === 'fr' ? 'Prospect mis à jour' : 'Prospect updated');
+    showToast(_wasArchived ? (currentLang === 'fr' ? 'Prospect réactivé' : 'Prospect reactivated') : (currentLang === 'fr' ? 'Prospect mis à jour' : 'Prospect updated'));
     closeDrawer(); loadKanban(true);
   } catch(e){ console.error('[saveProspectEdit]', e); showToast(currentLang === 'fr' ? 'Échec de la sauvegarde' : 'Save failed'); }
 }
@@ -14823,7 +14849,11 @@ function buildCard(p){
   // a verifier visuellement, c'est le placement le plus incertain des 3 ecrans sans rendu reel.
   const _relB = _scoreReliabilityBadge(p);
   const _relDot = _relB ? `<span style="position:absolute;top:29px;right:6px;width:9px;height:9px;border-radius:50%;background:${_relB.color};border:1.5px solid #fff;z-index:1;" title="${_esc(_relB.title)}"></span>` : '';
-  return `<div class="k-card" role="button" tabindex="0" data-id="${_esc(id)}" data-last-contact="${_esc(p.last_contact || '')}" data-reminder-date="${_esc(p.reminder_date || '')}" data-client-id="${CLIENT_ID}" data-linkedin-tag="${_esc(p.linkedin_tag || '')}" data-name="${_esc(p.name || '')}" data-company="${_esc(p.company || '')}" data-sector="${_esc(p.sector || '')}" data-region="${_esc(p.region || '')}" data-stage="${_esc(p.stage || '')}" data-icp-score="${score}" data-country="${_esc(p.country || '')}" data-signal-type="${_esc(p.signal_type || '')}" data-origin="${_esc(p.origin || '')}" data-deal="${Number(p.deal_value) || 0}" data-confidence="${_calcConfidence(p)}" data-job-title="${_esc(p.title || '')}" data-next-action="${p.next_action ? '1' : '0'}" data-next-action-date="${_esc(p.next_action_date || '')}" data-has-signal="${!!(p.signal_type) && !!(p.signal) && !_GENERIC_SIGNAL_TYPES.has(p.signal_type) ? 'true' : 'false'}" data-company-verified="${p.company_verified === false ? 'false' : 'true'}" data-identity-confidence="${_esc(p.identity_confidence || '')}" data-identity-verdict="${_esc(p.identity_verdict || '')}">`
+  // Toggle "Voir les archivés" (GO Thomas 23/09) : data-archived lu par _applyKanbanFilters() pour
+  // cacher/afficher la carte selon _showArchived -- meme mecanisme show/hide que tous les autres
+  // filtres Pipeline (dataset + display:none), aucune logique de rendu parallele.
+  const _fr = currentLang === 'fr';
+  return `<div class="k-card" role="button" tabindex="0" data-id="${_esc(id)}" data-last-contact="${_esc(p.last_contact || '')}" data-reminder-date="${_esc(p.reminder_date || '')}" data-client-id="${CLIENT_ID}" data-linkedin-tag="${_esc(p.linkedin_tag || '')}" data-name="${_esc(p.name || '')}" data-company="${_esc(p.company || '')}" data-sector="${_esc(p.sector || '')}" data-region="${_esc(p.region || '')}" data-stage="${_esc(p.stage || '')}" data-icp-score="${score}" data-country="${_esc(p.country || '')}" data-signal-type="${_esc(p.signal_type || '')}" data-origin="${_esc(p.origin || '')}" data-deal="${Number(p.deal_value) || 0}" data-confidence="${_calcConfidence(p)}" data-job-title="${_esc(p.title || '')}" data-next-action="${p.next_action ? '1' : '0'}" data-next-action-date="${_esc(p.next_action_date || '')}" data-has-signal="${!!(p.signal_type) && !!(p.signal) && !_GENERIC_SIGNAL_TYPES.has(p.signal_type) ? 'true' : 'false'}" data-company-verified="${p.company_verified === false ? 'false' : 'true'}" data-identity-confidence="${_esc(p.identity_confidence || '')}" data-identity-verdict="${_esc(p.identity_verdict || '')}" data-archived="${p.archived === true ? 'true' : 'false'}">`
     + `<input type="checkbox" class="k-card-select" data-pid="${_esc(id)}" onchange="_onCardSelect(this)" onclick="event.stopPropagation()" style="position:absolute;top:10px;left:8px;width:14px;height:14px;cursor:pointer;z-index:2;accent-color:var(--ink);">`
     + _dial
     + _relDot
@@ -14843,6 +14873,10 @@ function buildCard(p){
     // ici car elle ne distingue pas "company seul" de "identity seul" (icon unique), alors que ces
     // 2 badges texte independants peuvent s'afficher ensemble (comportement existant preserve).
     +   (_relB && _relB.contradicted ? _contradictedBadgeHTML(currentLang === 'fr') : (p.identity_confidence === 'low' || p.identity_verdict === 'UNVERIFIABLE') ? `<span class="k-badge" style="color:#6b7280;" title="${p.identity_verdict === 'UNVERIFIABLE' ? 'Identity unverifiable' : 'Identity to verify'}">? Identity</span>` : '')
+    // Badge "Archivé" (meme ton amber que _mscIcpStateChipHTML kind:'archived' -- pas une nouvelle
+    // couleur inventee) : visible uniquement quand le toggle "Voir les archivés" est actif, pour ne
+    // jamais confondre une fiche archivee avec une fiche active dans la meme colonne.
+    +   (p.archived === true ? `<span class="k-badge k-badge-archived" style="color:var(--amber);background:var(--amber-bg);border:1px solid var(--amber-border);" title="${_fr ? 'Fiche archivée' : 'Archived prospect'}">${_fr ? 'Archivé' : 'Archived'}</span>` : '')
     + `</div>`
     + (p.linkedin_tag === 'connection-accepted' && p.stage === 'Engaged' && parseFloat(p.icp_score) >= 8 && p.last_contact
         ? `<div class="k-j5-badge" onclick="_j5BadgeClick(event,'${_esc(id)}')">J+5</div>`
@@ -14916,12 +14950,20 @@ function addKanbanLegends(){
 }
 function renderKanban(rows){
   _clearKanban();
-  rows = (rows || []).filter(p => !p.archived);
+  // Toggle "Voir les archivés" (GO Thomas 23/09) : les fiches archivees sont desormais TOUJOURS
+  // construites en cartes (allRows, pas seulement activeRows) -- _applyKanbanFilters() les cache par
+  // defaut via data-archived (meme mecanisme show/hide que tous les autres filtres Pipeline), donc
+  // aucun re-render complet n'est necessaire au clic sur le toggle. Les KPI/stats ci-dessous restent
+  // calcules sur activeRows (comportement par defaut inchange) ; ils sont de toute facon recalcules
+  // juste apres par _applyKanbanFilters()/_updateKpiCards() sur le sous-ensemble reellement visible
+  // (meme logique deja en place pour Hot/Warm/Cold/Signal, cf. fix audit 2026-09-11).
+  const allRows = rows || [];
+  const activeRows = allRows.filter(p => !p.archived);
   _prospectsById = {};
-  rows.forEach(p => { if (p.id != null) _prospectsById[p.id] = p; });
+  allRows.forEach(p => { if (p.id != null) _prospectsById[p.id] = p; });
   const colByStage = {};
   _kanbanCols().forEach(col => { colByStage[col.dataset.stage] = col; });
-  rows.forEach(p => {
+  allRows.forEach(p => {
     const col = colByStage[_stageKey(p.stage)] || colByStage['Identified'];
     if (col) {
       col.insertAdjacentHTML('beforeend', buildCard(p));
@@ -14931,10 +14973,10 @@ function renderKanban(rows){
   addKanbanLegends();
   applyDealBadges();
   // KPIs dynamiques
-  const total = rows.length;
-  const emea = rows.filter(p => _regionTag(p.region) === 'EMEA').length;
+  const total = activeRows.length;
+  const emea = activeRows.filter(p => _regionTag(p.region) === 'EMEA').length;
   const na = total - emea;
-  const inConv = rows.filter(p => (_stageRank[_stageKey(p.stage)] || 0) >= _stageRank['1st Contact']).length;
+  const inConv = activeRows.filter(p => (_stageRank[_stageKey(p.stage)] || 0) >= _stageRank['1st Contact']).length;
   const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
   // Header Pipeline (section-sub) : meme rows/total deja calcules ci-dessus pour les KPIs,
   // aucune requete ni recalcul supplementaire -- jamais un chiffre fige (cf. spine counts).
@@ -14942,19 +14984,19 @@ function renderKanban(rows){
   // Spine (Phase 1) : file d'attente par etape, jamais la population -- QUALIFY = uniquement
   // la colonne Kanban Identified, IN DEAL = Engaged ou au-dela hors Closed. Meme rows deja
   // chargees pour Pipeline, aucune requete supplementaire.
-  setTxt('spine-count-qualify', rows.filter(p => _stageKey(p.stage) === 'Identified').length);
-  setTxt('spine-count-indeal', rows.filter(p => {
+  setTxt('spine-count-qualify', activeRows.filter(p => _stageKey(p.stage) === 'Identified').length);
+  setTxt('spine-count-indeal', activeRows.filter(p => {
     const r = _stageRank[_stageKey(p.stage)] || 0;
     return r >= _stageRank['Engaged'] && _stageKey(p.stage) !== 'Closed';
   }).length);
   // High Priority : priorityScore >= 7 OU reminder en retard
   const nowMs = Date.now();
-  const highPrio = rows.filter(p => parseFloat(_priorityScore(p)) >= 8 || (p.reminder_date && new Date(p.reminder_date).getTime() < nowMs && (p.last_contact || p.stage !== 'Identified'))).length;
+  const highPrio = activeRows.filter(p => parseFloat(_priorityScore(p)) >= 8 || (p.reminder_date && new Date(p.reminder_date).getTime() < nowMs && (p.last_contact || p.stage !== 'Identified'))).length;
   // Comptes par stage (README funnel, Phase 4) : meme repartition que renderStats() utilisait
   // pour tab-stats -- migree ici, une seule source (rows deja chargees, aucune requete de plus).
   const counts = {};
   KANBAN_STAGES.forEach(s => counts[s] = 0);
-  rows.forEach(p => { const k = _stageKey(p.stage); counts[k] = (counts[k] || 0) + 1; });
+  activeRows.forEach(p => { const k = _stageKey(p.stage); counts[k] = (counts[k] || 0) + 1; });
   _renderPipelineStatsCard({ counts, total, inConv, highPrio, emea, na });
   if (typeof _applyKanbanFilters === 'function') {
     try { _applyKanbanFilters(); } catch (e) { console.warn('[renderKanban] _applyKanbanFilters failed:', e); }
@@ -15434,7 +15476,10 @@ function _applyKanbanFilters() {
     let matchSig = true;
     if (_sigFilter === 'signal')      matchSig = cardHasSig;
     else if (_sigFilter === 'queue')  matchSig = !cardHasSig;
-    card.style.display = (matchSearch && matchSector && matchStage && matchCountry && matchSignal && matchOrigin && matchDeal && matchConf && matchNA && matchNADate && matchHp && matchSig) ? '' : 'none';
+    // Toggle "Voir les archivés" : une carte archivee ne passe que si le toggle est actif -- une
+    // carte active n'est jamais concernee (matchArchived toujours vrai pour elle).
+    const matchArchived = _showArchived || card.dataset.archived !== 'true';
+    card.style.display = (matchSearch && matchSector && matchStage && matchCountry && matchSignal && matchOrigin && matchDeal && matchConf && matchNA && matchNADate && matchHp && matchSig && matchArchived) ? '' : 'none';
   });
   document.querySelectorAll('.kanban-col').forEach(col => {
     if (col.closest('#crm-board')) return;
@@ -15452,6 +15497,7 @@ function _resetKanbanFilters() {
     .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   _resetHpFilter();
   _resetSigFilter();
+  _resetArchivedFilter();
   _applyKanbanFilters();
 }
 function _updateKpiCards() {
@@ -15524,6 +15570,21 @@ function _resetSigFilter() {
   document.querySelectorAll('.sig-btn').forEach(b => b.classList.remove('active'));
   const all = document.getElementById('sig-btn-all');
   if (all) all.classList.add('active');
+}
+// Toggle "Voir les archivés" (GO Thomas 23/09) : off par defaut (archived=false uniquement, comportement
+// inchange) -- on affiche en plus les fiches archivees, deja rendues en cartes par renderKanban() mais
+// cachees via data-archived (cf. _applyKanbanFilters). Pas de re-fetch, pas de re-render complet.
+let _showArchived = false;
+function _toggleShowArchived() {
+  _showArchived = !_showArchived;
+  const btn = document.getElementById('archived-toggle-btn');
+  if (btn) btn.classList.toggle('active', _showArchived);
+  _applyKanbanFilters();
+}
+function _resetArchivedFilter() {
+  _showArchived = false;
+  const btn = document.getElementById('archived-toggle-btn');
+  if (btn) btn.classList.remove('active');
 }
 function _toggleFiltersPanel() {
   const panel = document.getElementById('kanban-filters-panel');
