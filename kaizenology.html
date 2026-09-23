@@ -6400,12 +6400,17 @@ async function loadProposalsView() {
     const prospectsById = {};
     if (prospectIds.length) {
       // identity_verdict ajoute (garde d'identite elargie, 22/09) : Proposals etait une surface INVISIBLE -- la carte et "Use this" en ont besoin.
+      // linkedin/linkedin_tag ajoutes (23/09, bouton par variante "Send via LinkedIn") :
+      // _sendViaLinkedIn() en a besoin. _cacheProspectRow() alimente EN PLUS le cache global
+      // _prospectsById (meme fix que demo-private.html/wominds.html le meme soir) -- sans ca, une
+      // carte Proposals ouverte avant tout autre onglet n'aurait trouve aucune fiche dans
+      // _prospectsById et _sendViaLinkedIn() aurait echoue silencieusement (if (!p) return;).
       const { data: pRows, error: pErr } = await sbClient.from('prospects')
-        .select('id,name,company,identity_verdict')
+        .select('id,name,company,identity_verdict,linkedin,linkedin_tag')
         .eq('client_id', CLIENT_ID)
         .in('id', prospectIds);
       if (pErr) console.error('[proposals] prospects batch-fetch error:', pErr);
-      (pRows || []).forEach(p => { prospectsById[p.id] = p; });
+      (pRows || []).forEach(p => { prospectsById[p.id] = p; _cacheProspectRow(p, true); });
     }
     container.innerHTML = proposals.map(p => _renderProposalCard(p, prospectsById[p.prospect_id])).join('');
     _setProposalsBadge(proposals.length);
@@ -6429,14 +6434,29 @@ function _renderProposalCard(prop, prospect) {
   const variants = Array.isArray(prop.variants) ? prop.variants : [];
   // _cleanVariantText() : garde-fou em-dash/double-tiret partage (definition unique, section
   // INBOX plus haut) -- reutilise ici, plus de duplication locale.
-  const variantsHtml = variants.map((v, idx) => `
-    <div style="border:1px solid var(--border);border-radius:var(--radius-md);padding:12px 14px;margin-top:10px;">
+  // "Send via LinkedIn" (23/09, brief Sam Heymans/Lizy port Wominds->3 dashboards) : uniquement
+  // pour outreach_opener avec un prospect_id connu, a cote de "Use this" (conserve tel quel --
+  // stage seulement, pour qui veut relire/editer dans Send avant d'envoyer). elPrefix unique par
+  // PROPOSITION+VARIANTE (so-/sc-/sli-, meme convention que _sendCardHTML) : plusieurs variantes du
+  // meme prospect ne doivent pas collisionner sur les memes ids DOM.
+  const variantsHtml = variants.map((v, idx) => {
+    const pid = prop.prospect_id;
+    const canSend = prop.content_type === 'outreach_opener' && !!pid;
+    const elPrefix = `pv-${prop.id}-${idx}-`;
+    const wrapAttrs = canSend ? ` id="${elPrefix}sc-${pid}" data-touch="invite" data-seq-id=""` : '';
+    const textIdAttr = canSend ? ` id="${elPrefix}so-${pid}"` : '';
+    const sendBtn = canSend
+      ? `<button id="${elPrefix}sli-${pid}" onclick="_proposalSendViaLinkedIn('${prop.id}', ${idx}, '${pid}', '${elPrefix}')"
+        style="margin-top:8px;margin-left:8px;padding:6px 14px;border-radius:var(--radius-pill);background:none;border:1px solid var(--navy);color:var(--navy);font-size:var(--fs-sm);font-weight:600;cursor:pointer;">Send via LinkedIn</button>`
+      : '';
+    return `
+    <div${wrapAttrs} style="border:1px solid var(--border);border-radius:var(--radius-md);padding:12px 14px;margin-top:10px;">
       <div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px;">${_esc(v.angle || 'Variant ' + (idx + 1))}</div>
-      <div style="font-size:var(--fs-sm);color:var(--text);line-height:1.5;white-space:pre-wrap;">${_esc(_cleanVariantText(v.text))}</div>
+      <div${textIdAttr} style="font-size:var(--fs-sm);color:var(--text);line-height:1.5;white-space:pre-wrap;">${_esc(_cleanVariantText(v.text))}</div>
       <button onclick="_proposalUseVariant('${prop.id}', ${idx})"
-        style="margin-top:8px;padding:6px 14px;border-radius:var(--radius-pill);background:var(--navy);color:#fff;border:none;font-size:var(--fs-sm);font-weight:600;cursor:pointer;">Use this</button>
-    </div>`
-  ).join('');
+        style="margin-top:8px;padding:6px 14px;border-radius:var(--radius-pill);background:var(--navy);color:#fff;border:none;font-size:var(--fs-sm);font-weight:600;cursor:pointer;">Use this</button>${sendBtn}
+    </div>`;
+  }).join('');
   return `<div class="priority-card proposal-card" id="proposal-card-${prop.id}"
       style="background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius-md);padding:18px 20px;margin-bottom:12px;">
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
@@ -6545,6 +6565,108 @@ function _removeProposalCard(id) {
   const card = document.getElementById('proposal-card-' + id);
   if (card) card.remove();
   _setProposalsBadge(document.querySelectorAll('.proposal-card').length);
+}
+
+// Direct send of one variant from "Drafts & approvals" (23/09, brief Sam Heymans/Lizy, ported from
+// Wominds where this need surfaced first) -- REUSES the existing LinkedIn send mechanism EXACTLY,
+// no new send path:
+//   1) stages the chosen variant into sequences (same write, same mandate resolution as
+//      _proposalUseVariant() above -- prop.mandate_id first, never activeMandateId, same
+//      deliberate divergence vs demo-private.html) ;
+//   2) calls _markReady(pid, elPrefix) AS-IS (same function as the Send queue's "Mark ready") ;
+//   3) calls _sendViaLinkedIn(pid, 'invite', elPrefix) AS-IS (same function as the Send queue's
+//      "Send" button) -- this unmodified function already contains every real guard: connection
+//      guard (skipped here on purpose since touch==='invite'), literal-brace block, CONTRADICTED
+//      identity guard (_confirmIfContradicted), the call to /api/linkedin-send, then _markSent()
+//      AS-IS on success.
+// _markReady/_sendViaLinkedIn read/write their state via the elPrefix+pid ids already placed on
+// this card (so-/sc-/sli- -- see _renderProposalCard), so they are called BEFORE the card is
+// removed from the DOM.
+// Deliberately NO 2nd identity confirmation here before calling _sendViaLinkedIn (house rule:
+// never duplicate existing logic) -- _sendViaLinkedIn() already runs that check itself right
+// before the real send; adding it here too would show the same warning twice for one action.
+async function _proposalSendViaLinkedIn(propId, variantIndex, pid, elPrefix) {
+  const btn = document.getElementById(elPrefix + 'sli-' + pid);
+  const btnLabel = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
+  try {
+    const { data: prop, error: fetchErr } = await sbClient.from('agent_proposals')
+      .select('content_type, prospect_id, variants, mandate_id')
+      .eq('id', propId).eq('client_id', CLIENT_ID).single();
+    if (fetchErr || !prop || prop.content_type !== 'outreach_opener' || prop.prospect_id !== pid) {
+      console.error('[_proposalSendViaLinkedIn] fetch failed:', fetchErr);
+      showToast('Error loading proposal');
+      return;
+    }
+    const _sendP = pid
+      ? (_prospectsById[pid] || (await sbClient.from('prospects').select('name, company, identity_verdict').eq('id', pid).eq('client_id', CLIENT_ID).maybeSingle()).data)
+      : null;
+    if (!_confirmIfContradicted(_sendP)) return;
+    const variantText = (Array.isArray(prop.variants) && prop.variants[variantIndex]) ? (prop.variants[variantIndex].text || '') : '';
+    if (!variantText) { showToast('Variant not found'); return; }
+
+    // Divergence deliberee vs demo-private.html (meme regle que _proposalUseVariant ci-dessus) :
+    // TOUJOURS prop.mandate_id en priorite -- chaque proposition Kaizenology porte deja le mandat
+    // reel du prospect. Filtre aussi sur mandate_id (pas seulement prospect_id) : un meme prospect
+    // peut exister sur plusieurs mandats Kaizenology.
+    const seqMandateId = prop.mandate_id ?? null;
+    let _seqSelQ = sbClient.from('sequences')
+      .select('id, status').eq('prospect_id', pid).eq('touch', 'invite').eq('client_id', CLIENT_ID);
+    _seqSelQ = seqMandateId ? _seqSelQ.eq('mandate_id', seqMandateId) : _seqSelQ.is('mandate_id', null);
+    const { data: existingSeq, error: seqSelErr } = await _seqSelQ.maybeSingle();
+    if (seqSelErr) { console.error('[_proposalSendViaLinkedIn] sequences select failed:', seqSelErr); showToast('Error checking send queue'); return; }
+
+    // Same guard as _proposalUseVariant: a prospect already invited (sequences.status='sent') must
+    // never see their sent text overwritten nor get a 2nd invite -- write nothing, just open their
+    // profile to show the real state. The proposal is still marked approved: a variant was chosen.
+    if (existingSeq && existingSeq.status === 'sent') {
+      showToast('This prospect already received an invite — opening their profile');
+      _openDrawerFromPriority(pid, 'send');
+      const { error: apErr } = await sbClient.from('agent_proposals')
+        .update({ status: 'approved', chosen_variant_index: variantIndex }).eq('id', propId);
+      if (apErr) console.error('[_proposalSendViaLinkedIn]', apErr);
+      _removeProposalCard(propId);
+      return;
+    }
+
+    let seqId;
+    if (existingSeq) {
+      const { error: updErr } = await sbClient.from('sequences').update({ body: variantText, status: 'draft' }).eq('id', existingSeq.id);
+      if (updErr) { console.error('[_proposalSendViaLinkedIn] sequences update failed:', updErr); showToast('Error updating send queue'); return; }
+      seqId = existingSeq.id;
+    } else {
+      const { data: newSeq, error: insErr } = await sbClient.from('sequences')
+        .insert({ prospect_id: pid, client_id: CLIENT_ID, mandate_id: seqMandateId, touch: 'invite', body: variantText, status: 'draft' })
+        .select('id').single();
+      if (insErr) { console.error('[_proposalSendViaLinkedIn] sequences insert failed:', insErr); showToast('Error adding to send queue'); return; }
+      seqId = newSeq.id;
+    }
+    _sendSequences[pid] = _sendSequences[pid] || [];
+    const existingEntry = _sendSequences[pid].find(s => s.id === seqId);
+    if (existingEntry) { existingEntry.body = variantText; existingEntry.status = 'draft'; }
+    else _sendSequences[pid].push({ id: seqId, touch: 'invite', body: variantText, status: 'draft' });
+
+    const card = document.getElementById(elPrefix + 'sc-' + pid);
+    if (card) card.dataset.seqId = seqId;
+
+    // Marked approved as soon as the sequences write above succeeds -- same rule as
+    // _proposalUseVariant. The send that follows reuses _markReady/_sendViaLinkedIn and can still
+    // fail/be cancelled (identity guard, LinkedIn not connected, network error) without
+    // invalidating the variant choice already made -- the draft stays visible and ready in Send,
+    // never lost.
+    const { error: apErr } = await sbClient.from('agent_proposals')
+      .update({ status: 'approved', chosen_variant_index: variantIndex }).eq('id', propId);
+    if (apErr) { console.error('[_proposalSendViaLinkedIn]', apErr); showToast('Error approving proposal'); return; }
+
+    await _markReady(pid, elPrefix);
+    await _sendViaLinkedIn(pid, 'invite', elPrefix);
+
+    _removeProposalCard(propId);
+  } finally {
+    // btn may already be gone with the card (normal removal on success) -- nothing to restore in
+    // that case; on an early return before removal (error), re-enable it.
+    if (btn && document.body.contains(btn)) { btn.disabled = false; btn.textContent = btnLabel; }
+  }
 }
 
 // ── PENDING ACTIONS (autonomie "approve", chantier n8n 12/09 -- adaptation demo-private.html,

@@ -7401,8 +7401,18 @@ async function loadProposalsView() {
     const prospectIds = [...new Set(proposals.map(p => p.prospect_id).filter(Boolean))];
     const prospectsById = {};
     if (prospectIds.length) {
-      const { data: pRows } = await sbClient.from('prospects').select('id,name,company').eq('client_id', CLIENT_ID).in('id', prospectIds);
-      (pRows || []).forEach(p => { prospectsById[p.id] = p; });
+      // linkedin/linkedin_tag/identity_verdict ajoutes (23/09, bouton "Envoyer cette variante via
+      // LinkedIn" par carte de variante) : _sendViaLinkedIn()/_confirmIfContradicted() en ont
+      // besoin. _cacheProspectRow() (cache partage cross-ecran, deja utilise par Pipeline/Envoyer/
+      // Boite de reception -- cf. sa doc en tete de fichier) alimente EN PLUS le cache global
+      // _prospectsById, jamais ecrase par la liste locale prospectsById ci-dessous qui ne sert
+      // qu'a l'affichage nom/entreprise de cette vue. Sans ce fix, une carte Propositions ouverte
+      // avant tout autre onglet n'aurait trouve aucune fiche dans _prospectsById et
+      // _sendViaLinkedIn() aurait echoue silencieusement (if (!p) return;).
+      const { data: pRows } = await sbClient.from('prospects')
+        .select('id,name,company,linkedin,linkedin_tag,identity_verdict')
+        .eq('client_id', CLIENT_ID).in('id', prospectIds);
+      (pRows || []).forEach(p => { prospectsById[p.id] = p; _cacheProspectRow(p, true); });
     }
     container.innerHTML = proposals.map(p => _renderProposalCard(p, prospectsById[p.prospect_id])).join('');
   } catch(e) {
@@ -7415,12 +7425,34 @@ function _renderProposalCard(prop, prospect) {
   const company = (prospect && prospect.company) || '';
   const label = _PROPOSAL_CONTENT_TYPE_LABELS[prop.content_type] || prop.content_type || 'N/D';
   const variants = Array.isArray(prop.variants) ? prop.variants : [];
-  const variantsHtml = variants.map((v, idx) => `
-    <div style="border:1px solid var(--border);border-radius:var(--radius-md);padding:12px 14px;margin-top:10px;">
+  // Bouton d'envoi direct (23/09, brief Sam Heymans/Lizy) : uniquement pour outreach_opener avec
+  // un prospect_id connu -- seul type qui se traduit en touch='invite' dans sequences (voir
+  // _proposalSendViaLinkedIn ci-dessous, meme regle que _proposalUseVariant sur demo-private.html/
+  // kaizenology.html). Pas de bouton equivalent ici pour linkedin_post/content_idea/
+  // repurposed_content : aucun mecanisme d'envoi/usage direct n'existe pour ces types cote
+  // Wominds (contrairement a linkedin_post -> presse-papier sur les 2 autres dashboards, absent de
+  // wominds.html a ce jour, hors scope de ce chantier) -- pas de bouton qui mentirait sur son effet
+  // (regle "pas d'UI placeholder sans donnee/logique reelle").
+  const variantsHtml = variants.map((v, idx) => {
+    const pid = prop.prospect_id;
+    const canSend = prop.content_type === 'outreach_opener' && !!pid;
+    // elPrefix unique par PROPOSITION+VARIANTE (pas juste par prospect) : plusieurs variantes d'un
+    // meme prospect partagent le meme pid mais doivent avoir chacune leurs propres ids so-/sc-/
+    // sli- (meme convention elPrefix que _sendCardHTML/_renderManualSection 'm-'/_renderDrawerSendPanel
+    // 'd-'), sinon les 3 variantes de Sam Heymans/Lizy collisionneraient sur les memes ids DOM.
+    const elPrefix = `pv-${prop.id}-${idx}-`;
+    const wrapAttrs = canSend ? ` id="${elPrefix}sc-${pid}" data-touch="invite" data-seq-id=""` : '';
+    const textIdAttr = canSend ? ` id="${elPrefix}so-${pid}"` : '';
+    const sendBtn = canSend
+      ? `<button id="${elPrefix}sli-${pid}" onclick="_proposalSendViaLinkedIn('${prop.id}', ${idx}, '${pid}', '${elPrefix}')" style="margin-top:8px;padding:7px 16px;border-radius:var(--radius-pill);background:var(--navy);color:#fff;border:none;font-size:var(--fs-sm);font-weight:600;cursor:pointer;">Envoyer cette variante via LinkedIn</button>`
+      : '';
+    return `
+    <div${wrapAttrs} style="border:1px solid var(--border);border-radius:var(--radius-md);padding:12px 14px;margin-top:10px;">
       <div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px;">${_esc(v.angle || 'Variante ' + (idx + 1))}</div>
-      <div style="font-size:var(--fs-sm);color:var(--text);line-height:1.5;white-space:pre-wrap;">${_esc(v.text)}</div>
-    </div>`
-  ).join('');
+      <div${textIdAttr} style="font-size:var(--fs-sm);color:var(--text);line-height:1.5;white-space:pre-wrap;">${_esc(v.text)}</div>
+      ${sendBtn}
+    </div>`;
+  }).join('');
   return `<div id="proposal-card-${prop.id}" style="background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius-md);padding:18px 20px;margin-bottom:12px;">
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
       <span style="font-weight:700;font-size:var(--fs-base);color:var(--navy);">${_esc(name)}</span>
@@ -7436,8 +7468,107 @@ function _renderProposalCard(prop, prospect) {
 async function _proposalReject(id) {
   const { error } = await sbClient.from('agent_proposals').update({ status: 'rejected' }).eq('id', id);
   if (error) { showToast('Erreur lors du rejet'); return; }
+  _proposalCardRemove(id);
+}
+function _proposalCardRemove(id) {
   const card = document.getElementById('proposal-card-' + id);
   if (card) card.remove();
+}
+
+// Envoi direct d'une variante depuis "Brouillons et validations" (23/09, brief Sam Heymans/Lizy) --
+// REUTILISE EXACTEMENT le mecanisme d'envoi LinkedIn existant, aucun nouveau chemin :
+//   1) fige la variante choisie dans sequences (meme ecriture, memes colonnes, meme touch='invite'/
+//      mandate_id:null que _saveSequenceDraft() et que le "Use this" de demo-private.html/
+//      kaizenology.html -- _proposalUseVariant() -- absent de wominds.html a ce jour) ;
+//   2) appelle _markReady(pid, elPrefix) TEL QUEL (meme fonction que le bouton "Marquer pret" de la
+//      file Envoyer) pour passer le brouillon en 'ready' ;
+//   3) appelle _sendViaLinkedIn(pid, 'invite', elPrefix) TEL QUEL (meme fonction que le bouton
+//      "Envoyer" de la file Envoyer) -- c'est cette fonction, non modifiee, qui contient deja TOUTES
+//      les gardes reelles : garde de connexion LinkedIn (sautee ici a dessein car touch==='invite',
+//      exactement comme pour un envoi depuis la file Envoyer), blocage accolades litterales, garde
+//      d'identite CONTRADICTED (_confirmIfContradicted), l'appel a /api/linkedin-send, puis
+//      _markSent() TEL QUEL en cas de succes.
+// _markReady/_sendViaLinkedIn lisent/ecrivent leur etat via les ids elPrefix+pid deja poses sur
+// cette carte (so-/sc-/sli- -- voir _renderProposalCard) : elles sont donc appelees AVANT de retirer
+// la carte du DOM.
+// Volontairement AUCUNE 2e confirmation d'identite ici avant l'appel a _sendViaLinkedIn (regle
+// memoire "ne jamais dupliquer une logique existante") : _sendViaLinkedIn() fait deja ce controle
+// lui-meme juste avant l'envoi reel -- l'ajouter aussi ici aurait affiche le meme avertissement deux
+// fois pour la meme action. L'ecriture sequences (etape 1) reste elle non gardee par ce controle,
+// exactement comme le brouillon pose par "Marquer pret"/"Enregistrer" dans la file Envoyer :
+// aucun message ne part reellement tant que _sendViaLinkedIn() n'a pas lui-meme confirme.
+async function _proposalSendViaLinkedIn(propId, variantIndex, pid, elPrefix) {
+  const btn = document.getElementById(elPrefix + 'sli-' + pid);
+  const btnLabel = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Envoi…'; }
+  try {
+    const { data: prop, error: fetchErr } = await sbClient.from('agent_proposals')
+      .select('content_type, prospect_id, variants')
+      .eq('id', propId).eq('client_id', CLIENT_ID).single();
+    if (fetchErr || !prop || prop.content_type !== 'outreach_opener' || prop.prospect_id !== pid) {
+      console.error('[_proposalSendViaLinkedIn] fetch failed:', fetchErr);
+      showToast('Erreur lors du chargement de la proposition');
+      return;
+    }
+    const variantText = (Array.isArray(prop.variants) && prop.variants[variantIndex]) ? (prop.variants[variantIndex].text || '') : '';
+    if (!variantText) { showToast('Variante introuvable'); return; }
+
+    const { data: existingSeq, error: seqSelErr } = await sbClient.from('sequences')
+      .select('id, status').eq('prospect_id', pid).eq('touch', 'invite').eq('client_id', CLIENT_ID).maybeSingle();
+    if (seqSelErr) { console.error('[_proposalSendViaLinkedIn] sequences select failed:', seqSelErr); showToast('Erreur de vérification de la file d\'envoi'); return; }
+
+    // Meme garde que _proposalUseVariant (demo-private.html/kaizenology.html) : un prospect deja
+    // invite (sequences.status='sent') ne doit jamais revoir son texte envoye ecrase ni recevoir une
+    // 2e invitation -- on n'ecrit rien, on ouvre juste sa fiche pour montrer l'etat reel. La
+    // proposition est quand meme marquee approved : un choix de variante a ete fait.
+    if (existingSeq && existingSeq.status === 'sent') {
+      showToast('Ce prospect a déjà reçu une invitation — ouverture de sa fiche');
+      openProspectDetail(pid);
+      const { error: apErr } = await sbClient.from('agent_proposals')
+        .update({ status: 'approved', chosen_variant_index: variantIndex }).eq('id', propId);
+      if (apErr) console.error('[_proposalSendViaLinkedIn]', apErr);
+      _proposalCardRemove(propId);
+      return;
+    }
+
+    let seqId;
+    if (existingSeq) {
+      const { error: updErr } = await sbClient.from('sequences').update({ body: variantText, status: 'draft' }).eq('id', existingSeq.id);
+      if (updErr) { console.error('[_proposalSendViaLinkedIn] sequences update failed:', updErr); showToast('Erreur lors de l\'enregistrement du brouillon'); return; }
+      seqId = existingSeq.id;
+    } else {
+      const { data: newSeq, error: insErr } = await sbClient.from('sequences')
+        .insert({ prospect_id: pid, client_id: CLIENT_ID, mandate_id: null, touch: 'invite', body: variantText, status: 'draft' })
+        .select('id').single();
+      if (insErr) { console.error('[_proposalSendViaLinkedIn] sequences insert failed:', insErr); showToast('Erreur lors de l\'enregistrement du brouillon'); return; }
+      seqId = newSeq.id;
+    }
+    _sendSequences[pid] = _sendSequences[pid] || [];
+    const existingEntry = _sendSequences[pid].find(s => s.id === seqId);
+    if (existingEntry) { existingEntry.body = variantText; existingEntry.status = 'draft'; }
+    else _sendSequences[pid].push({ id: seqId, touch: 'invite', body: variantText, status: 'draft' });
+
+    const card = document.getElementById(elPrefix + 'sc-' + pid);
+    if (card) card.dataset.seqId = seqId;
+
+    // Marquee approuvee des que l'ecriture sequences ci-dessus a reussi -- meme regle que
+    // _proposalUseVariant ("l'effet reel doit reussir avant d'etre marque approved"). L'envoi qui
+    // suit reutilise _markReady/_sendViaLinkedIn et peut encore echouer/etre annule (garde
+    // d'identite, LinkedIn non connecte, erreur reseau) sans invalider le choix de variante deja
+    // fait -- le brouillon reste alors visible et pret dans Envoyer, jamais perdu.
+    const { error: apErr } = await sbClient.from('agent_proposals')
+      .update({ status: 'approved', chosen_variant_index: variantIndex }).eq('id', propId);
+    if (apErr) { console.error('[_proposalSendViaLinkedIn]', apErr); showToast('Erreur lors de l\'approbation'); return; }
+
+    await _markReady(pid, elPrefix);
+    await _sendViaLinkedIn(pid, 'invite', elPrefix);
+
+    _proposalCardRemove(propId);
+  } finally {
+    // btn peut avoir disparu avec la carte (retrait normal en cas de succes) -- rien a restaurer
+    // dans ce cas ; sur un retour anticipe avant le retrait (erreur), on le reactive.
+    if (btn && document.body.contains(btn)) { btn.disabled = false; btn.textContent = btnLabel; }
+  }
 }
 
 // ── AGENTS (brief 2026-09-14, Élodie) ───────────────────────────────────────
