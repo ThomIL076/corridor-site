@@ -4631,7 +4631,14 @@ function _mscDecisionCardHTML(d, live) {
   const linksHtml = links.length ? `<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px 12px;font-size:var(--fs-xs);">${links.join('')}</div>` : '';
 
   const structured = isEntry && (d.facts || d.action);
-  const summary = d.summary && !structured ? `<div style="margin-top:4px;font-size:var(--fs-sm);color:var(--text-secondary);line-height:1.4;">${_esc(d.summary)}</div>` : '';
+  // FIX 23/09 (mecanisme bilingue, Morning Scan Corridor : decisions_json[].summary -> summary_fr/summary_en,
+  // un seul appel Claude produit les deux langues) : prefere le champ de la langue active (currentLang),
+  // repli sur l'ancien champ "summary" (fiches deja en base avant ce FIX, jamais retraduites tant que le
+  // backfill du stock n'est pas fait -- separement chiffre, pas dans ce perimetre) puis, en dernier
+  // recours, sur l'AUTRE langue plutot que de n'afficher aucun resume. market_mention garde "summary"
+  // seul (perimetre non touche par ce FIX) : couvert par le meme repli.
+  const summaryText = fr ? (d.summary_fr || d.summary || d.summary_en) : (d.summary_en || d.summary || d.summary_fr);
+  const summary = summaryText && !structured ? `<div style="margin-top:4px;font-size:var(--fs-sm);color:var(--text-secondary);line-height:1.4;">${_esc(summaryText)}</div>` : '';
   const factsBlock = isEntry && d.facts
     ? `<div style="margin-top:4px;font-size:var(--fs-sm);color:var(--text-secondary);line-height:1.4;"><span style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;opacity:.6;">${fr ? 'Faits' : 'Facts'}</span><div>${_esc(cleanText(d.facts))}</div></div>`
     : '';
@@ -9966,8 +9973,37 @@ const _VERDICT_COLORS = {
   neutral:  { bg: '#FFFBEB', border: '#FCD34D', text: 'var(--amber)' },
   negative: { bg: '#FEF2F2', border: '#FECACA', text: '#DC2626' },
 };
+// Compose le texte lisible affiche (pied de tiroir + historique) a partir des 3 sections
+// KEY DECISIONS / NEXT STEPS / OPEN QUESTIONS -- factorise (chantier langue, 2026-09-23) pour que
+// _parseDebrief et _runPostCallWorkflow ne dupliquent jamais cette mise en forme (regle Thomas :
+// ne jamais recalculer une logique existante ailleurs). En-tetes de section volontairement laisses
+// en anglais fixe, meme convention que les labels "Why now"/"Channel" de _renderNextActionHTML --
+// seul le contenu genere par le modele change de langue, pas les libelles structurels.
+function _composeDebriefBody(obj, fr) {
+  const kd = (fr ? obj.key_decisions_fr : obj.key_decisions_en) || obj.key_decisions_en || obj.key_decisions_fr || '';
+  const ns = (fr ? obj.next_steps_fr : obj.next_steps_en) || obj.next_steps_en || obj.next_steps_fr || '';
+  const oq = (fr ? obj.open_questions_fr : obj.open_questions_en) || obj.open_questions_en || obj.open_questions_fr || '';
+  return [
+    kd ? 'KEY DECISIONS: ' + kd : '',
+    ns ? 'NEXT STEPS: ' + ns : '',
+    oq ? 'OPEN QUESTIONS: ' + oq : '',
+  ].filter(Boolean).join('\n\n');
+}
 function _parseDebrief(note) {
   if (!note) return null;
+  const trimmed = note.trim();
+  // v2 (chantier langue, 2026-09-23) : JSON bilingue {verdict, key_decisions_fr/en, ...} --
+  // distingue du format legacy (texte brut commencant par "VERDICT:") par un simple test "commence
+  // par {", jamais les deux formats a la fois. Le format legacy reste lisible tel quel (repli plus
+  // bas), jamais migre retroactivement -- meme principe que _parseNextActionJSON/_discoveryBriefHTML.
+  if (trimmed.startsWith('{')) {
+    try {
+      const obj = JSON.parse(trimmed);
+      if (obj && typeof obj === 'object' && /^(positive|neutral|negative)$/i.test(obj.verdict || '')) {
+        return { verdict: String(obj.verdict).toLowerCase(), fullText: _composeDebriefBody(obj, currentLang === 'fr') };
+      }
+    } catch(_) {}
+  }
   const m = note.match(/^VERDICT:\s*(positive|neutral|negative)/i);
   if (!m) return null;
   return { verdict: m[1].toLowerCase(), fullText: note };
@@ -10474,7 +10510,7 @@ async function openDrawer(card, initialTab = 'activity') {
       ${_p.stage !== 'Identified' ? `
       <div class="pd-section">
         <div class="pd-section-label">Call prep brief</div>
-        <div class="pd-brief-card" id="pd-brief-card">${discoveryBrief ? discoveryBrief.note : '<span style="opacity:.6">No brief prepared yet — generate one below.</span>'}</div>
+        <div class="pd-brief-card" id="pd-brief-card">${discoveryBrief ? _discoveryBriefHTML(discoveryBrief.note) : '<span style="opacity:.6">No brief prepared yet — generate one below.</span>'}</div>
         <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
           <button class="btn-secondary btn-sm" onclick="_pdCopyBrief()"${discoveryBrief ? '' : ' disabled'}>Copy brief</button>
           <button class="btn-secondary btn-sm" onclick="_openAskFromDrawer()">Ask a follow-up</button>
@@ -11110,6 +11146,27 @@ function _parseNextActionJSON(raw) {
   try {
     const obj = JSON.parse(trimmed);
     if (!obj || typeof obj !== 'object') return null;
+    // v3 (chantier langue navigateur, 2026-09-23) : chaque angle de raisonnement porte desormais
+    // deux champs _fr/_en (meme appel, meme principe que le format v2 ci-dessous mais bilingue) --
+    // cles distinctes de v2, jamais les deux formats dans le meme JSON. v2/v1 restent en base tels
+    // quels pour tout le cache existant (repli plus bas), jamais migres retroactivement.
+    const hasV3Fields = obj.why_now_fr != null || obj.why_now_en != null || obj.why_this_person_fr != null
+      || obj.why_this_person_en != null || obj.why_this_action_fr != null || obj.why_this_action_en != null
+      || obj.what_not_to_say_fr != null || obj.what_not_to_say_en != null;
+    if (hasV3Fields) {
+      return {
+        format: 'v3',
+        channel: String(obj.channel || ''),
+        why_now_fr: obj.why_now_fr ? String(obj.why_now_fr) : null,
+        why_now_en: obj.why_now_en ? String(obj.why_now_en) : null,
+        why_this_person_fr: obj.why_this_person_fr ? String(obj.why_this_person_fr) : null,
+        why_this_person_en: obj.why_this_person_en ? String(obj.why_this_person_en) : null,
+        why_this_action_fr: obj.why_this_action_fr ? String(obj.why_this_action_fr) : null,
+        why_this_action_en: obj.why_this_action_en ? String(obj.why_this_action_en) : null,
+        what_not_to_say_fr: obj.what_not_to_say_fr ? String(obj.what_not_to_say_fr) : null,
+        what_not_to_say_en: obj.what_not_to_say_en ? String(obj.what_not_to_say_en) : null,
+      };
+    }
     const hasV2Fields = obj.why_now != null || obj.why_this_person != null || obj.why_this_action != null || obj.what_not_to_say != null;
     if (hasV2Fields) {
       return {
@@ -11136,6 +11193,25 @@ function _renderNextActionHTML(raw, linkColor) {
   );
   const parsed = _parseNextActionJSON(raw);
   const channelHTML = ch => ch ? '<div style="display:flex;align-items:center;gap:8px;"><span style="font-family:\'IBM Plex Mono\',monospace;font-size:10.5px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);">Channel</span><span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:var(--radius-pill);background:var(--chip-bg);color:var(--indigo);">' + _esc(ch) + '</span></div>' : '';
+  if (parsed && parsed.format === 'v3') {
+    // Choix de langue au RENDU (pas a la generation) : currentLang peut changer entre deux
+    // affichages du meme cache -- repli sur l'autre langue si le champ choisi est absent (garde
+    // contre un JSON partiel ou un champ que le modele aurait laisse a null dans une seule langue).
+    const pick = (frVal, enVal) => (currentLang === 'fr' ? frVal : enVal) || enVal || frVal;
+    const fields = [
+      ['Why now', pick(parsed.why_now_fr, parsed.why_now_en)],
+      ['Why this person', pick(parsed.why_this_person_fr, parsed.why_this_person_en)],
+      ['Why this action', pick(parsed.why_this_action_fr, parsed.why_this_action_en)],
+      ['What not to say', pick(parsed.what_not_to_say_fr, parsed.what_not_to_say_en)],
+    ].filter(([, v]) => v);
+    return '<div style="display:flex;flex-direction:column;gap:6px;">'
+      + channelHTML(parsed.channel)
+      + fields.map(([label, v]) =>
+          '<div><span style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted);">' + label + '</span>'
+          + '<div style="font-size:var(--fs-xs);line-height:1.5;color:' + linkColor + ';">' + linkify(_esc(v)) + '</div></div>'
+        ).join('')
+      + '</div>';
+  }
   if (parsed && parsed.format === 'v2') {
     const fields = [
       ['Why now', parsed.why_now],
@@ -11196,7 +11272,8 @@ ANTI-HALLUCINATION RULES — strictly enforced:
 4. If SIGNAL INTERPRETATION is provided below, it has already been analyzed and verified — use it as given, do not re-derive or contradict it.
 5. If EMPLOYER UNCONFIRMED is flagged below, mention in "what_not_to_say" that the employer is unconfirmed and should not be stated as certain.
 6. If IDENTITY UNCONFIRMED is flagged below, mention in "what_not_to_say" that this contact's identity is not reliably confirmed.
-7. If IDENTITY CONTRADICTED is flagged below, treat this with extra caution: mention in "what_not_to_say" that this contact's role/identity has been contradicted by more recent signals and should not be stated as certain.`;
+7. If IDENTITY CONTRADICTED is flagged below, treat this with extra caution: mention in "what_not_to_say" that this contact's role/identity has been contradicted by more recent signals and should not be stated as certain.
+8. Bilingual output (chantier langue, 2026-09-23): write every reasoning field in BOTH French and English in this same response, as a "_fr"/"_en" pair each. French is a first-class output, not a translation pass over the English — reason about it with the same rigor. Keep the exact same substance in both languages for a given field.`;
 
   const userMsg = `Prospect: ${p.name} at ${p.company||'unknown'} (${p.sector||'unknown sector'}). Stage: ${p.stage||'unknown'}. Score: ${p.score||'not set'}.${p.email ? ' Email: ' + p.email + '.' : ''}
 ${(_signalType || _signal) ? 'Signal: ' + (_signalType ? '[' + _signalType + '] ' : '') + (_signal ? _signal.replace(/<[^>]*>/g,'').slice(0, 200) : '') : ''}
@@ -11210,12 +11287,11 @@ ${_drMemory ? '\nPROSPECT MEMORY:\n' + _drMemory : ''}
 ${contextBlock}
 Recommend the single best next action, broken into explicit reasoning angles (explainability, 2026-09-11 — same discipline as the buying committee prompt: null rather than a generic filler when there isn't enough real signal to answer specifically). Respond with ONLY a strict JSON object — no markdown, no code fences, no text before or after:
 
-{"channel": "${p.email ? 'LinkedIn | Email | Call' : 'LinkedIn | Call'}", "why_now": "one sentence, max 15 words — why this specific moment/stage/signal makes this timely, or null if no real timing signal exists", "why_this_person": "one sentence, max 15 words — why this specific contact (role, seniority, behavior) matters here, or null if nothing specific is known about them beyond their title", "why_this_action": "one sentence, max 20 words — what to do and why this exact action fits now; do not include the prospect's email address in this text, or null if insufficient context", "what_not_to_say": "one short phrase, max 12 words — a specific claim or angle to avoid given known facts, or null if nothing specific to avoid"}
+{"channel": "${p.email ? 'LinkedIn | Email | Call' : 'LinkedIn | Call'}", "why_now_fr": "same as why_now_en, in French", "why_now_en": "one sentence, max 15 words — why this specific moment/stage/signal makes this timely, or null if no real timing signal exists", "why_this_person_fr": "same as why_this_person_en, in French", "why_this_person_en": "one sentence, max 15 words — why this specific contact (role, seniority, behavior) matters here, or null if nothing specific is known about them beyond their title", "why_this_action_fr": "same as why_this_action_en, in French", "why_this_action_en": "one sentence, max 20 words — what to do and why this exact action fits now; do not include the prospect's email address in this text, or null if insufficient context", "what_not_to_say_fr": "same as what_not_to_say_en, in French", "what_not_to_say_en": "one short phrase, max 12 words — a specific claim or angle to avoid given known facts, or null if nothing specific to avoid"}
 
-For each of the four why_now/why_this_person/why_this_action/what_not_to_say fields, if you do not have enough real signal to answer specifically, respond with null rather than a generic statement. Never invent a fact not present in the context above.
+For each of the four angles, if you do not have enough real signal to answer specifically, respond with null in BOTH the _fr and _en field — never null in one language and real text in the other. Never invent a fact not present in the context above.
 
-No em-dashes.
-${typeof _langLine === 'function' ? _langLine() : ''}`;
+No em-dashes.`;
 
   const res = await _authFetch(API_URL, {
     method: 'POST',
@@ -11228,7 +11304,15 @@ ${typeof _langLine === 'function' ? _langLine() : ''}`;
       // reponse en plein milieu (stop_reason:"max_tokens", JSON imparsable). 1500 valide sur 2 cas
       // reels (dont un avec EMPLOYER/IDENTITY UNCONFIRMED), stop_reason:"end_turn" les deux fois,
       // usage observe 291-414 tokens de sortie totale.
-      max_tokens: 1500,
+      // 1500 -> 2600 (chantier langue, 2026-09-23) : format v3 double la sortie narrative visible
+      // (4 champs x 2 langues au lieu de 4) -- output observe en v2 allait jusqu'a 414 tokens pour
+      // UNE langue, donc ~830 tokens de sortie visible attendus au pire pour les deux + le meme
+      // ordre de grandeur de thinking interne (~200-370). 2600 garde une marge comparable a celle
+      // validee le 11/09 (1500 pour un pire cas observe de ~700 = ~2x) plutot qu'un chiffre au
+      // plus juste. ESTIMATION non testee en conditions reelles (pas d'appel Anthropic possible
+      // depuis cet environnement) -- a valider sur 1-2 cas reels avant deploiement, meme discipline
+      // que le 11/09 ci-dessus.
+      max_tokens: 2600,
       system: systemPrompt,
       messages: [{ role: 'user', content: userMsg }]
     })
@@ -12489,6 +12573,23 @@ async function _prioritiesSkip() {
   await loadDailyPriorities();
 }
 
+// Repli meme mecanisme que _parseNextActionJSON (chantier langue, 2026-09-23) : une note deja en
+// base avant ce changement est du HTML brut (l'ancien format, jamais migre retroactivement) --
+// un JSON {"brief_fr":...,"brief_en":...} est le nouveau format, distingue par un simple test
+// "commence par {" (un brief HTML legacy commence toujours par <h3> ou similaire, jamais par {).
+function _discoveryBriefHTML(note) {
+  const s = (note || '').trim();
+  if (s.startsWith('{')) {
+    try {
+      const obj = JSON.parse(s);
+      if (obj && typeof obj === 'object' && (obj.brief_fr || obj.brief_en)) {
+        return (currentLang === 'fr' ? obj.brief_fr : obj.brief_en) || obj.brief_en || obj.brief_fr || '';
+      }
+    } catch(_) {}
+  }
+  return note || '';
+}
+
 async function _sendDiscoveryBrief() {
   if (!_drawerProspect) return;
   const p = _drawerProspect;
@@ -12521,28 +12622,47 @@ async function _sendDiscoveryBrief() {
     const loggedNotes = _drawerInteractions.filter(i => i.type === 'note' && i.note)
       .slice(0, 3).map(i => i.note).join(' | ');
     const notesCombined = [p.notes, loggedNotes].filter(Boolean).join(' | ') || 'None';
-    const systemPrompt = `You are a B2B sales prep assistant. Generate a discovery call brief. Output valid HTML using only <h3>, <p>, <ul>, <li> tags. No inline styles, no markdown fences. Anti-hallucination rule: only state company facts that appear verbatim in LIVE CONTEXT. If no context is available, omit speculative company claims entirely.`;
+    const systemPrompt = `You are a B2B sales prep assistant. Generate a discovery call brief. Output valid HTML using only <h3>, <p>, <ul>, <li> tags. No inline styles, no markdown fences. Anti-hallucination rule: only state company facts that appear verbatim in LIVE CONTEXT. If no context is available, omit speculative company claims entirely.
+Bilingual output (chantier langue, 2026-09-23): produce the ENTIRE brief in both French and English in this same response, as two separate HTML strings, "brief_fr" and "brief_en". French is a first-class version, not a translation pass over the English — same facts, same structure, same four sections, written natively in each language. Respond with ONLY a strict JSON object — no markdown, no code fences, no text before or after: {"brief_fr": "<h3>...full HTML brief in French...</h3>...", "brief_en": "<h3>...full HTML brief in English...</h3>..."}`;
     const userMsg = `Prospect: ${p.name}, ${p.title || 'unknown title'} at ${p.company || 'unknown company'}.
 Sector: ${p.sector || '-'} | Country: ${p.country || '-'} | Stage: ${p.stage || '-'} | ICP Score: ${p.score || '-'}
 Signal: ${p.signal || 'None'} | Notes: ${notesCombined}
 ${ctx ? '\nInteraction history:\n' + ctx : 'No interactions logged.'}
 ${liveCtx || '\nNo verified web context available. Do not state any company-specific facts.'}
 
-Generate a discovery call brief with exactly these four sections:
+Generate a discovery call brief with exactly these four sections, in both brief_fr and brief_en:
 1. Company context (2-3 sentences max, verified facts only - omit section if no web context)
 2. Why now (why this call makes sense at this exact stage and signal)
 3. Qualification angle (what to validate in this first call)
 4. Questions to ask (4-5 specific questions as a bulleted list)
 
-Output the HTML content only. No preamble, no doctype, no wrapper div.`;
+Each of brief_fr/brief_en must contain the HTML content only for that language. No preamble, no doctype, no wrapper div.`;
     const res = await _authFetch(API_URL, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 900, system: systemPrompt, messages: [{ role: 'user', content: userMsg }] })
+      // 900 -> 1600 -> 2300 (chantier langue, 2026-09-23) : la sortie double (meme brief HTML
+      // complet dans les deux langues au lieu d'une). Test reel du 23/09 avec 1600 : end_turn,
+      // 1521/1600 tokens consommes (~5% de marge seulement, trop serre). Releve a 2300
+      // (~1.5x les 1521 tokens observes) pour absorber la variance naturelle d'un LLM sur des
+      // cas reels differents du cas de test, marge desormais coherente avec les 3 autres points.
+      body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 2300, system: systemPrompt, messages: [{ role: 'user', content: userMsg }] })
     });
     if (!res.ok) throw new Error('Claude API ' + res.status);
     const data = await res.json();
-    const briefHtml = Array.isArray(data.content) ? data.content.filter(b => b.type === 'text').map(b => b.text).join('').trim() : '';
-    if (!briefHtml) throw new Error('Empty response from Claude');
+    const rawBrief = Array.isArray(data.content) ? data.content.filter(b => b.type === 'text').map(b => b.text).join('').trim() : '';
+    if (!rawBrief) throw new Error('Empty response from Claude');
+    let briefObj;
+    try { briefObj = JSON.parse(rawBrief); } catch(_) {
+      const m = rawBrief.match(/\{[\s\S]*\}/);
+      if (!m) throw new Error('Unparsable response from Claude');
+      briefObj = JSON.parse(m[0]);
+    }
+    const briefFr = String(briefObj.brief_fr || briefObj.brief_en || '');
+    const briefEn = String(briefObj.brief_en || briefObj.brief_fr || '');
+    if (!briefFr && !briefEn) throw new Error('Empty response from Claude');
+    // Email envoye maintenant, dans la langue affichee au moment de l'envoi (artefact ponctuel,
+    // pas re-rendu plus tard -- contrairement a la note persistee ci-dessous, qui garde les deux
+    // langues pour que le tiroir "Call prep brief" suive currentLang meme apres coup).
+    const briefHtml = currentLang === 'fr' ? briefFr : briefEn;
     const badgeRow = [
       p.sector  ? `<span style="font-size:var(--fs-xs);font-weight:600;padding:3px 10px;background:var(--chip-bg);border-radius:var(--radius-pill);color:var(--indigo)">${_esc(p.sector)}</span>` : '',
       p.stage   ? `<span style="font-size:var(--fs-xs);font-weight:600;padding:3px 10px;background:var(--chip-bg);border-radius:var(--radius-pill);color:var(--muted)">${_esc(p.stage)}</span>` : '',
@@ -12560,7 +12680,7 @@ Output the HTML content only. No preamble, no doctype, no wrapper div.`;
     // l'envoi email reste en plus, mais n'est plus la seule trace du contenu genere.
     await sbClient.from('interactions').insert({
       client_id: CLIENT_ID, prospect_id: p.id, mandate_id: p.mandate_id ?? null,
-      type: 'discovery_brief', note: briefHtml
+      type: 'discovery_brief', note: JSON.stringify({ brief_fr: briefFr, brief_en: briefEn })
     });
     showToast('Brief sent to your inbox');
   } catch(e) {
@@ -12586,54 +12706,57 @@ async function _runPostCallWorkflow(pid, note) {
     if (data?.length) intCtx = data.map(i => `${i.type}${i.note ? ': ' + i.note.slice(0, 80) : ''}`).join(' | ');
   } catch(e) {}
 
-  const systemPrompt = `You are a GTM advisor analyzing a sales call. Generate a post-call debrief in this exact format:
-VERDICT: [positive/neutral/negative]
-KEY DECISIONS: [bullet points]
-NEXT STEPS: [bullet points with owner and deadline]
-OPEN QUESTIONS: [if any]
-FOLLOW-UP EMAIL:
-Subject: [subject line]
-Body: [email body, under 150 words, professional, references specific points from the call]
+  const systemPrompt = `You are a GTM advisor analyzing a sales call. Generate a post-call debrief. Respond with ONLY a strict JSON object — no markdown, no code fences, no text before or after:
+{"verdict": "positive|neutral|negative", "key_decisions_fr": "...", "key_decisions_en": "bullet points, plain text with line breaks", "next_steps_fr": "...", "next_steps_en": "bullet points with owner and deadline", "open_questions_fr": "... or null", "open_questions_en": "bullet points, or null if none", "email_subject_fr": "...", "email_subject_en": "subject line", "email_body_fr": "...", "email_body_en": "email body, under 150 words, professional, references specific points from the call"}
 
+Bilingual output (chantier langue, 2026-09-23): fill every "_fr"/"_en" pair in both French and English, same substance — French is not a translation pass over the English. "verdict" itself stays a single language-independent value (positive/neutral/negative only, never translated).
 Rules: no em-dashes, no markdown headers, factual only, base everything on the note provided.`;
 
   const userMsg = `Prospect: ${p.name || 'Unknown'} / ${p.title || ''} / ${p.company || ''}.${intCtx ? ' Recent history: ' + intCtx + '.' : ''} Call notes: ${note || '(no notes provided)'}`;
 
-  let responseText = '';
+  let debriefObj = null;
   try {
     const res = await _authFetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      // 4000 -> 6000 (chantier langue, 2026-09-23) : la sortie double (chaque section + l'email de
+      // relance dans les deux langues au lieu d'une). ESTIMATION non testee en conditions reelles
+      // (pas d'appel Anthropic possible depuis cet environnement) -- a valider sur 1-2 cas reels
+      // avant deploiement, meme discipline que le 11/09 sur _generateNextAction.
       body: JSON.stringify({
         model: 'claude-sonnet-5',
-        max_tokens: 4000,
+        max_tokens: 6000,
         system: systemPrompt,
         messages: [{ role: 'user', content: userMsg }]
       })
     });
     if (!res.ok) throw new Error('API error ' + res.status);
     const data = await res.json();
-    responseText = Array.isArray(data.content)
+    const responseText = Array.isArray(data.content)
       ? data.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim()
       : '';
+    if (!responseText) throw new Error('empty response');
+    try { debriefObj = JSON.parse(responseText); } catch(_) {
+      const m = responseText.match(/\{[\s\S]*\}/);
+      if (!m) throw new Error('unparsable response');
+      debriefObj = JSON.parse(m[0]);
+    }
   } catch(e) {
     pcBox.innerHTML = '<div class="post-call-box" style="color:var(--red);font-size:var(--fs-sm);">Error generating post-call debrief.</div>';
     return;
   }
-  if (!responseText) {
+  if (!debriefObj || !/^(positive|neutral|negative)$/i.test(debriefObj.verdict || '')) {
     pcBox.innerHTML = '<div class="post-call-box" style="color:var(--red);font-size:var(--fs-sm);">Empty response from AI — try again.</div>';
     return;
   }
 
-  // Parse VERDICT
-  const verdictMatch = responseText.match(/VERDICT:\s*(positive|neutral|negative)/i);
-  const verdict = verdictMatch ? verdictMatch[1].toLowerCase() : 'neutral';
-
-  // Parse follow-up email subject + body
-  const subjectMatch = responseText.match(/Subject:\s*(.+)/i);
-  const bodyMatch = responseText.match(/Body:\s*([\s\S]+?)(?:\n\nVERDICT|\n\nKEY|$)/i);
-  const emailSubject = subjectMatch ? subjectMatch[1].trim() : 'Follow-up from our call';
-  const emailBody = bodyMatch ? bodyMatch[1].trim() : '';
+  const verdict = String(debriefObj.verdict).toLowerCase();
+  const _fr = currentLang === 'fr';
+  // Texte affiche immediatement dans currentLang -- meme fonction partagee que la relecture depuis
+  // l'historique (_parseDebrief), pas une 2e mise en forme.
+  const responseText = _composeDebriefBody(debriefObj, _fr);
+  const emailSubject = String((_fr ? debriefObj.email_subject_fr : debriefObj.email_subject_en) || debriefObj.email_subject_en || debriefObj.email_subject_fr || 'Follow-up from our call');
+  const emailBody = String((_fr ? debriefObj.email_body_fr : debriefObj.email_body_en) || debriefObj.email_body_en || debriefObj.email_body_fr || '');
 
   // Stage order for advancement check
   const STAGE_ORDER = ['Identified','1st Contact','Engaged','Replied','Proposal','Negotiation','Closed'];
@@ -12666,14 +12789,10 @@ Rules: no em-dashes, no markdown headers, factual only, base everything on the n
   const verdictColor = verdict === 'positive' ? '#15803d' : verdict === 'negative' ? 'var(--red)' : 'var(--amber)';
   const verdictBg   = verdict === 'positive' ? '#dcfce7' : verdict === 'negative' ? 'var(--red-bg)' : '#fef3c7';
 
-  const formatted = responseText
-    .replace(/^VERDICT:\s*.+$/m, '')
-    .replace(/^FOLLOW-UP EMAIL:\s*$/m, '')
-    .replace(/^Subject:\s*.+$/m, '')
-    .replace(/^Body:/m, '')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
-
+  // responseText est deja la sortie composee (_composeDebriefBody) -- plus de VERDICT:/FOLLOW-UP
+  // EMAIL:/Subject:/Body: a retirer par regex (ces libelles n'existent plus dans le texte affiche
+  // depuis le passage au JSON structure, chantier langue 2026-09-23) : ancien `formatted` retire,
+  // affichage direct de responseText.
   const gmailHref = `mailto:?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`;
 
   pcBox.innerHTML = `<div class="post-call-box">
@@ -12682,14 +12801,16 @@ Rules: no em-dashes, no markdown headers, factual only, base everything on the n
       <span style="background:${verdictBg};color:${verdictColor};border-radius:var(--radius-panel);font-size:var(--fs-xs);font-weight:700;padding:2px 8px;text-transform:uppercase;">${verdict}</span>
     </div>
     ${verdictActions}
-    <pre style="font-size:var(--fs-sm);line-height:1.6;white-space:pre-wrap;margin:0 0 10px;font-family:inherit;">${_esc(formatted)}</pre>
+    <pre style="font-size:var(--fs-sm);line-height:1.6;white-space:pre-wrap;margin:0 0 10px;font-family:inherit;">${_esc(responseText)}</pre>
     ${emailBody ? `<a href="${gmailHref}" target="_blank" rel="noopener" style="display:inline-block;font-size:var(--fs-sm);padding:6px 14px;background:var(--ink);color:#fff;border-radius:var(--radius-sm);text-decoration:none;font-weight:600;">Open Gmail compose</a>` : ''}
   </div>`;
 
-  // Persist debrief to interactions table
+  // Persist debrief to interactions table -- le JSON complet (verdict + les 2 langues), pas juste
+  // le texte de la langue affichee : _parseDebrief() doit pouvoir re-rendre dans l'autre langue si
+  // currentLang change avant la prochaine ouverture du tiroir (chantier langue, 2026-09-23).
   try {
     const { data: intData } = await sbClient.from('interactions')
-      .insert({ prospect_id: pid, client_id: _drawerClientId(), mandate_id: p?.mandate_id ?? null, type: 'call', note: responseText })
+      .insert({ prospect_id: pid, client_id: _drawerClientId(), mandate_id: p?.mandate_id ?? null, type: 'call', note: JSON.stringify(debriefObj) })
       .select('id,type,note,created_at').single();
     if (intData) {
       _drawerInteractions = [intData, ..._drawerInteractions];
@@ -15656,6 +15777,22 @@ const _CRM_COLS = {
   dormant:            { cards: 'crm-cards-dormant',  count: 'crm-count-dormant' },
 };
 
+// Repli meme mecanisme que _parseNextActionJSON/_discoveryBriefHTML (chantier langue, 2026-09-23) :
+// un label genere par _autoGenerateCsSteps est stocke en JSON {"fr":...,"en":...} (pas de migration
+// de colonne), un label saisi a la main (_crmSaveStep) reste une chaine simple -- distingue par un
+// simple test "commence par {", jamais les deux formes a la fois.
+function _crmStepLabelText(raw) {
+  const s = (raw || '').trim();
+  if (s.startsWith('{')) {
+    try {
+      const obj = JSON.parse(s);
+      if (obj && typeof obj === 'object' && (obj.fr || obj.en)) {
+        return (currentLang === 'fr' ? obj.fr : obj.en) || obj.en || obj.fr || '';
+      }
+    } catch(_) {}
+  }
+  return raw || '';
+}
 function _buildCrmCard(row, status) {
   const prospect = Array.isArray(row.prospects) ? row.prospects[0] : row.prospects;
   const name    = _esc((prospect && prospect.name)    || row.name    || '—');
@@ -15665,7 +15802,7 @@ function _buildCrmCard(row, status) {
   if (steps.length > 0) {
     roadmapHtml = '<div class="crm-roadmap-preview">'
       + steps.slice(0, 2).map(s => {
-          const lbl  = _esc(s.label || '');
+          const lbl  = _esc(_crmStepLabelText(s.label));
           const date = s.step_date ? ' · ' + _esc(String(s.step_date).slice(0, 10)) : '';
           return `<div class="crm-roadmap-step">${lbl}${date}</div>`;
         }).join('')
@@ -15745,7 +15882,10 @@ async function _autoGenerateCsSteps(row) {
     } catch (e) {}
   }
   const signal   = (prospect && prospect.signal_type)  || '';
-  const systemPrompt = `You are a customer success specialist. Generate 3-5 tailored onboarding roadmap steps for a new B2B client's first 90 days. Output ONLY a valid JSON array — no markdown, no preamble. Each element: {"label":"string up to 60 chars","note":"optional context up to 120 chars"}. If context is too sparse, return [].`;
+  // "note" retire du schema (chantier langue, 2026-09-23) : genere par le modele mais jamais lu ni
+  // insere plus bas (inserts ne reprenait que s.label) -- champ mort depuis toujours, retire plutot
+  // que traduit en double pour rien (economise des tokens de sortie sans rien perdre de reel).
+  const systemPrompt = `You are a customer success specialist. Generate 3-5 tailored onboarding roadmap steps for a new B2B client's first 90 days. Output ONLY a valid JSON array — no markdown, no preamble. Each element: {"label_fr":"string up to 60 chars (French)","label_en":"string up to 60 chars (English), same step as label_fr"}. Both language fields must describe the exact same step, written natively in each language (not a translation pass). If context is too sparse, return [].`;
   const userMsg = `New client: ${name}${company ? ' at ' + company : ''}\nSector: ${sector || '-'} | Deal: ${dealVal > 0 ? '€' + dealVal : '-'} | Signal: ${signal || '-'}\nNotes: ${notes || 'None'}\nGenerate 3-5 specific, actionable CS roadmap steps for the first 90 days.`;
   try {
     const res = await _authFetch(API_URL, {
@@ -15755,6 +15895,9 @@ async function _autoGenerateCsSteps(row) {
       // appel facture (97 tokens de sortie) mais thinking="" et text="" vides, rien genere.
       // Meme cause racine et meme correctif que le bug deja documente sur ICP Score Batch
       // (workflow n8n) : 4000 tokens alloues la-bas, meme budget repris ici.
+      // 4000 conserve tel quel malgre le passage a 2 langues (chantier langue, 2026-09-23) : le
+      // champ "note" retire ci-dessus compense l'essentiel du cout du 2e champ label_fr -- 5 labels
+      // courts (<=60 caracteres) x2 langues restent tres en-dessous de 4000, marge deja large.
       body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 4000, system: systemPrompt, messages: [{ role: 'user', content: userMsg }] })
     });
     if (!res.ok) return;
@@ -15768,9 +15911,17 @@ async function _autoGenerateCsSteps(row) {
       try { steps = JSON.parse(m[0]); } catch(_) { console.error('[_autoGenerateCsSteps] fallback parse failed:', _); return; }
     }
     if (!Array.isArray(steps) || steps.length === 0) return;
-    const inserts = steps.filter(s => s && s.label).map(s => ({
+    // label stocke en JSON {"fr":...,"en":...} (chantier langue, 2026-09-23) -- pas de migration de
+    // colonne (client_roadmap_steps.label reste une seule colonne texte) : meme mecanisme defensif
+    // que _parseNextActionJSON/_parseDebrief, detecte a l'affichage par _crmStepLabelText(). Une
+    // etape ajoutee/editee a la main (_crmSaveStep) continue d'ecrire une chaine simple, jamais du
+    // JSON -- les deux formes coexistent dans la meme colonne sans se marcher dessus.
+    const inserts = steps.filter(s => s && (s.label_fr || s.label_en)).map(s => ({
       crm_client_id: row.id,
-      label: String(s.label).slice(0, 200),
+      label: JSON.stringify({
+        fr: String(s.label_fr || s.label_en || '').slice(0, 200),
+        en: String(s.label_en || s.label_fr || '').slice(0, 200),
+      }),
       status: 'Suggested'
     }));
     if (inserts.length === 0) return;
@@ -16014,7 +16165,7 @@ function _renderCrmDrawerContent(crmId) {
     stepsHtml = '<div class="crm-roadmap-list">'
       + steps.map(s => {
           const sid         = _esc(String(s.id || ''));
-          const lbl         = _esc(s.label || '');
+          const lbl         = _esc(_crmStepLabelText(s.label));
           const isSuggested = s.status === 'Suggested';
           const statusChip  = s.status
             ? `<span class="crm-step-status-chip${isSuggested ? ' crm-step-chip-suggested' : ''}">${_esc(isSuggested ? 'AI suggested' : s.status)}</span>` : '';
@@ -16066,7 +16217,7 @@ function _crmShowStepForm(stepId) {
   const steps = Array.isArray(row.client_roadmap_steps) ? row.client_roadmap_steps : [];
   const existing = stepId ? steps.find(s => String(s.id) === String(stepId)) : null;
 
-  const lbl    = existing ? _esc(existing.label    || '') : '';
+  const lbl    = existing ? _esc(_crmStepLabelText(existing.label)) : '';
   const status = existing ? _esc(existing.status   || '') : '';
   const date   = existing && existing.step_date ? String(existing.step_date).slice(0, 10) : '';
   const sidVal = stepId ? `'${_esc(String(stepId))}'` : 'null';
