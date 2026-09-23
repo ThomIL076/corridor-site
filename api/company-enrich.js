@@ -77,7 +77,8 @@ export default async function handler(req) {
     employees:     org.estimated_num_employees || null,
     funding_stage: latest?.type               || null,
     funding_date:  latest?.date ? String(latest.date).slice(0, 10) : null,
-    total_funding: org.total_funding_printed  || null
+    total_funding: org.total_funding_printed  || null,
+    industry:      org.industry               || null
   }), {
     status: 200,
     headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }

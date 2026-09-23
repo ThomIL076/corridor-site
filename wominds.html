@@ -6482,7 +6482,7 @@ async function _enrichCompanyDrawer(id) {
     if (emailDomOk) qp.set('emailDomain', emailDomain);
     const r = await _authFetch('/api/company-enrich?' + qp.toString());
     const d = await r.json();
-    if (!d.employees && !d.funding_stage && !d.funding_date && !d.total_funding) {
+    if (!d.employees && !d.funding_stage && !d.funding_date && !d.total_funding && !d.industry) {
       if (status) status.textContent = 'Introuvable';
       if (btn) btn.disabled = false;
       return;
@@ -6491,12 +6491,17 @@ async function _enrichCompanyDrawer(id) {
     if (d.funding_stage) { const el = document.getElementById('ed-funding-stage'); if (el) el.value = d.funding_stage; }
     if (d.funding_date) { const el = document.getElementById('ed-last-funding-date'); if (el) el.value = d.funding_date; }
     if (d.total_funding) { const el = document.getElementById('ed-total-funding'); if (el) el.value = d.total_funding; }
+    // Ecrit dans prospects.sector (colonne reellement lue par le dashboard -- dropdown filtre,
+    // badge carte, CSV import), pas company_industry (colonne existante mais jamais referencee
+    // par aucun code de ce fichier, diagnostic 23/09).
+    if (d.industry) { const el = document.getElementById('ed-sector'); if (el) el.value = d.industry; }
 
     const update = { updated_at: new Date().toISOString() };
     if (d.employees != null) update.company_size = d.employees;
     if (d.funding_stage) update.funding_stage = d.funding_stage;
     if (d.funding_date) update.last_funding_date = d.funding_date;
     if (d.total_funding) update.total_funding = d.total_funding;
+    if (d.industry) update.sector = d.industry;
 
     const { error } = await sbClient.from('prospects').update(update).eq('client_id', CLIENT_ID).eq('id', id);
     if (!error) {
