@@ -1,4 +1,5 @@
 import { resolveClient, supabase } from './_auth.js';
+import { Sentry } from './_sentry.js';
 
 // Fix securite 2026-09-21 : cette route ajoutait n'importe quel email a une campagne Smartlead (donc un envoi reel
 // depuis les boites de Thomas) sans authentification, avec un campaign_id libre. Desormais : jeton de session
@@ -76,6 +77,8 @@ export default async function handler(req, res) {
     res.status(200).json(data);
   } catch(e) {
     console.error('Smartlead error:', e.message);
+    Sentry.captureException(e);
+    await Sentry.flush(1000).catch(() => {});
     res.status(500).json({ success: false, error: e.message });
   }
 }

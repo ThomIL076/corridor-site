@@ -244,18 +244,18 @@ nav {
 .problem-text .section-label { margin-bottom: 16px; }
 .solution-section { background: var(--navy); padding: 88px 0; width: 100%; }
 .solution-inner { max-width: 1200px; margin: 0 auto; padding: 0 48px; }
-.solution-inner .section-label { color: #C7D3EE; }
+.solution-inner .section-label { color: rgba(147,168,212,0.5); }
 .solution-header { display: grid; grid-template-columns: 1fr 1fr; gap: 72px; margin-bottom: 64px; }
 .solution-header h2 { font-size: clamp(32px, 3vw, 48px); font-weight: 700; line-height: 1.1; letter-spacing: -1px; color: var(--white); }
-.solution-header p { font-size: 15px; color: rgba(255,255,255,0.85); line-height: 1.8; font-weight: 300; padding-top: 6px; }
+.solution-header p { font-size: 15px; color: rgba(147,168,212,0.7); line-height: 1.8; font-weight: 300; padding-top: 6px; }
 
 .steps-flow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .step-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(147,168,212,0.15); border-radius: 10px; padding: 28px; transition: background 0.3s, border-color 0.3s; position: relative; overflow: hidden; }
 .step-card:hover { background: rgba(255,255,255,0.07); border-color: rgba(147,168,212,0.35); }
-.step-card-num { font-family: 'Geist Mono', monospace; font-size: 12px; color: #C7D3EE; letter-spacing: 1.5px; margin-bottom: 16px; }
-.step-card-tag { position: absolute; top: 16px; right: 16px; font-family: 'Geist Mono', monospace; font-size: 11px; color: #C7D3EE; letter-spacing: 1px; text-transform: uppercase; border: 1px solid rgba(147,168,212,0.3); padding: 3px 8px; border-radius: 3px; }
+.step-card-num { font-family: 'Geist Mono', monospace; font-size: 12px; color: var(--blue); letter-spacing: 1.5px; margin-bottom: 16px; }
+.step-card-tag { position: absolute; top: 16px; right: 16px; font-family: 'Geist Mono', monospace; font-size: 11px; color: rgba(147,168,212,0.3); letter-spacing: 1px; text-transform: uppercase; border: 1px solid rgba(147,168,212,0.1); padding: 3px 8px; border-radius: 3px; }
 .step-card h3 { font-size: 17px; font-weight: 700; color: var(--white); margin-bottom: 10px; line-height: 1.2; }
-.step-card p { font-size: 13px; color: rgba(255,255,255,0.85); line-height: 1.7; font-weight: 300; }
+.step-card p { font-size: 13px; color: rgba(147,168,212,0.55); line-height: 1.7; font-weight: 300; }
 
 .pricing-section { padding: 88px 48px; max-width: 1200px; margin: 0 auto; }
 .pricing-toggle { display: flex; gap: 4px; background: var(--surf); border: 1px solid var(--border); border-radius: 8px; padding: 4px; width: fit-content; margin: 40px 0 32px; }
@@ -267,20 +267,20 @@ nav {
 .price-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(26,43,94,0.08); }
 .price-card.featured { background: var(--navy); border-color: var(--navy); }
 .price-card-label { font-family: 'Geist Mono', monospace; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: var(--dim); margin-bottom: 20px; }
-.price-card.featured .price-card-label { color: #C7D3EE; }
+.price-card.featured .price-card-label { color: rgba(147,168,212,0.5); }
 .price-card-badge { display: inline-block; font-family: 'Geist Mono', monospace; font-size: 11px; background: var(--navy-light); color: var(--navy); padding: 4px 10px; border-radius: 20px; letter-spacing: 1px; text-transform: uppercase; font-weight: 600; border: 1px solid var(--blue); margin-bottom: 12px; }
 .price-card.featured .price-card-badge { background: rgba(147,168,212,0.15); color: var(--white); border-color: rgba(147,168,212,0.3); }
 .price-amount { font-size: 48px; font-weight: 800; letter-spacing: -2px; color: var(--navy); line-height: 1; margin-bottom: 4px; }
 .price-card.featured .price-amount { color: var(--white); }
 .price-period { font-family: 'Geist Mono', monospace; font-size: 13px; color: var(--dim); margin-bottom: 28px; }
-.price-card.featured .price-period { color: #C7D3EE; }
+.price-card.featured .price-period { color: rgba(147,168,212,0.4); }
 .price-divider { border: none; border-top: 1px solid var(--border); margin-bottom: 24px; }
 .price-card.featured .price-divider { border-color: rgba(147,168,212,0.15); }
 .price-features { list-style: none; margin-bottom: 32px; }
 .price-features li { font-size: 13px; color: var(--muted); padding: 7px 0; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; gap: 10px; line-height: 1.5; }
 .price-card.featured .price-features li { color: rgba(147,168,212,0.65); border-bottom-color: rgba(147,168,212,0.1); }
 .price-features li:last-child { border-bottom: none; }
-.price-features li::before { content: '→'; font-family: 'Geist Mono', monospace; font-size: 13px; color: #C7D3EE; flex-shrink: 0; margin-top: 1px; }
+.price-features li::before { content: '→'; font-family: 'Geist Mono', monospace; font-size: 13px; color: var(--blue); flex-shrink: 0; margin-top: 1px; }
 .price-cta { display: block; font-family: 'Geist Mono', monospace; font-size: 13px; font-weight: 500; text-align: center; padding: 12px; border-radius: 6px; text-decoration: none; transition: all 0.2s; letter-spacing: 0.3px; }
 .price-cta-outline { border: 1px solid var(--border-mid); color: var(--navy); background: transparent; }
 .price-cta-outline:hover { border-color: var(--navy); background: var(--navy-light); }
@@ -307,7 +307,7 @@ nav {
 .timeline-item { display: grid; grid-template-columns: 180px 1fr; gap: 40px; padding: 28px 0; border-bottom: 1px solid var(--border); position: relative; }
 .timeline-item::before { content: ''; position: absolute; left: 85px; top: 36px; width: 10px; height: 10px; background: var(--bg); border: 2px solid var(--border-mid); border-radius: 50%; z-index: 1; }
 .timeline-item.active::before { background: var(--navy); border-color: var(--navy); }
-.timeline-week { font-family: 'Geist Mono', monospace; font-size: 12px; color: #C7D3EE; letter-spacing: 1.5px; text-transform: uppercase; padding-top: 4px; text-align: right; }
+.timeline-week { font-family: 'Geist Mono', monospace; font-size: 12px; color: var(--blue); letter-spacing: 1.5px; text-transform: uppercase; padding-top: 4px; text-align: right; }
 .timeline-content h3 { font-size: 18px; font-weight: 700; color: var(--navy); margin-bottom: 8px; }
 .timeline-content p { font-size: 13px; color: var(--muted); line-height: 1.7; font-weight: 300; }
 .timeline-deliverables { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 6px; }
@@ -318,7 +318,7 @@ nav {
 .founder-quote { font-size: clamp(18px, 2vw, 26px); font-weight: 300; font-style: italic; line-height: 1.6; color: rgba(255,255,255,0.8); letter-spacing: -0.3px; margin-bottom: 40px; }
 .founder-quote strong { font-weight: 600; color: var(--white); font-style: normal; }
 .founder-sig { display: flex; align-items: center; gap: 16px; justify-content: center; }
-.founder-avatar { width: 44px; height: 44px; border-radius: 50%; background: rgba(147,168,212,0.15); border: 1px solid rgba(147,168,212,0.3); display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; color: #C7D3EE; }
+.founder-avatar { width: 44px; height: 44px; border-radius: 50%; background: rgba(147,168,212,0.15); border: 1px solid rgba(147,168,212,0.3); display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; color: var(--blue); }
 .founder-name strong { display: block; font-size: 14px; font-weight: 600; color: var(--white); text-align: center; }
 .founder-name span { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 13px; font-weight: 300; color: rgba(147,168,212,0.85); letter-spacing: 0; text-align: center; }
 
@@ -432,12 +432,6 @@ footer { border-top: 1px solid var(--border); padding: 32px 48px; max-width: 120
 .wyo-list li:last-child {
   border-bottom: none;
 }
-.wyo-license-label {
-  color: rgba(255,255,255,0.5);
-  font-size: 11px;
-  letter-spacing: 0.15em;
-  margin: 24px 0 16px;
-}
 /* News feed */
 .news-feed-header { display:flex; align-items:center; gap:8px; margin-bottom:14px; }
 .news-live-dot { width:8px; height:8px; border-radius:50%; background:#00c9a7; flex-shrink:0; animation:pulse-dot 2s ease-in-out infinite; }
@@ -452,57 +446,6 @@ footer { border-top: 1px solid var(--border); padding: 32px 48px; max-width: 120
 .news-skel-line { background:var(--border); border-radius:4px; margin-bottom:6px; animation:skel-pulse 1.5s ease-in-out infinite; }
 @keyframes skel-pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
 @media (max-width:600px) { .news-grid { grid-template-columns:1fr; } }
-/* ── FAQ ── */
-.faq-section {
-  padding: 80px 40px;
-  background: var(--surf);
-}
-.faq-inner {
-  max-width: 720px;
-  margin: 0 auto;
-}
-.faq-section .section-label {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-  color: var(--blue);
-  margin-bottom: 12px;
-}
-.faq-section h2 {
-  font-size: 1.75rem;
-  font-weight: 700;
-  color: var(--navy);
-  margin-bottom: 48px;
-  line-height: 1.2;
-}
-.faq-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-.faq-item {
-  padding: 24px 0;
-  border-bottom: 1px solid var(--border);
-}
-.faq-item:first-child { border-top: 1px solid var(--border); }
-.faq-q {
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--navy);
-  margin-bottom: 10px;
-  line-height: 1.4;
-}
-.faq-a {
-  font-size: 0.9375rem;
-  color: var(--text, #2d3748);
-  line-height: 1.7;
-  margin: 0;
-}
-@media (max-width: 600px) {
-  .faq-section { padding: 64px 20px; }
-  .faq-section h2 { font-size: 1.4rem; }
-}
 </style>
 <!-- RB2B Visitor Tracking (consent-gated; visible in source for RB2B validation) -->
 <script>
@@ -522,78 +465,6 @@ footer { border-top: 1px solid var(--border); padding: 32px 48px; max-width: 120
     }("0NW1GHZ0GWO4");
   }
 })();
-</script>
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "FAQPage",
-  "mainEntity": [
-    {
-      "@type": "Question",
-      "name": "Dois-je abandonner mon CRM actuel pour utiliser Corridor ?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "Non. Corridor exporte automatiquement vers Salesforce, Pipedrive et HubSpot. Si vous avez déjà un pipeline dans l'un de ces outils, il peut être intégré à Corridor plutôt que remplacé."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "Combien de temps faut-il pour démarrer ?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "3 à 4 semaines du lancement au premier message envoyé, selon le calendrier d'onboarding standard. Comparez cela avec le recrutement d'un directeur commercial ou la construction d'un système en interne."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "Qu'est-ce que je possède réellement une fois Corridor en place ?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "Votre base de prospects et de signaux, votre modèle ICP et vos règles de scoring, vos séquences d'outreach, votre base de connaissance de marque, votre historique de pipeline, et les agents IA configurés pour votre marque. Le système vous appartient dès le premier jour. Ce n'est pas un accès sous licence à quelque chose qui appartient à quelqu'un d'autre."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "Corridor envoie-t-il les messages depuis ses propres comptes ou depuis les miens ?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "Les vôtres. Chaque message sort par vos comptes LinkedIn et email, que vous possédez et contrôlez. Corridor n'initie jamais d'outreach de façon autonome et ne maintient pas d'infrastructure d'envoi mutualisée entre clients."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "Corridor est-il réservé à un secteur spécifique ?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "Non. Corridor fonctionne dans tous les secteurs, pour des entreprises d'environ 11 à 200 employés où un fondateur ou une petite équipe ne pilote pas encore un outbound structuré et systématique."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "Et si j'ai déjà une équipe commerciale ?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "Corridor est conçu pour les fondateurs et petites équipes sans fonction GTM dédiée, pas pour remplacer une équipe commerciale existante. La plupart des clients l'intègrent avant ou pendant la construction de cette équipe, pour établir un pipeline opérationnel plus rapidement."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "En quoi est-ce différent d'outils comme Clay ou Apollo ?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "Ce sont des composants : enrichissement, ou base de contacts. Corridor est la boucle fermée autour d'eux : intelligence signaux, ciblage, outreach LinkedIn et email, et gestion du pipeline qui suit et améliore le système dans le temps, et pas seulement une seule couche."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "À quoi ressemble la tarification ?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "Cela dépend du périmètre, discuté directement lors de l'appel découverte. Pas de deck, pas de forfait imposé avant de comprendre ce dont vous avez réellement besoin."
-      }
-    }
-  ]
-}
 </script>
 </head>
 <body>
@@ -643,9 +514,9 @@ footer { border-top: 1px solid var(--border); padding: 32px 48px; max-width: 120
       </div>
       <div class="hero-dash-body">
         <div class="hero-dash-stats">
-          <div class="hero-dash-stat" id="hero-prospects-stat">
+          <div class="hero-dash-stat">
             <div class="hero-dash-stat-label">Prospects</div>
-            <div class="hero-dash-stat-val" id="hero-prospects-val">—</div>
+            <div class="hero-dash-stat-val">1&nbsp;693</div>
           </div>
           <div class="hero-dash-stat">
             <div class="hero-dash-stat-label">Agents IA</div>
@@ -750,7 +621,7 @@ footer { border-top: 1px solid var(--border); padding: 32px 48px; max-width: 120
     <div class="section-label">Ce que fait Corridor</div>
     <div class="solution-header reveal">
       <h2>Un système GTM complet. Installé, configuré, opérationnel.</h2>
-      <p>Corridor est un système outbound en temps réel, une machine à contenu IA et un dashboard pipeline, installés et configurés pour votre entreprise. Construit sur la même infrastructure. Opérationnel en 3 à 4 semaines.</p>
+      <p>Corridor combine conseil GTM stratégique, système outbound en temps réel et machine à contenu IA. Construit sur la même infrastructure. Opérationnel en 3 à 4 semaines.</p>
     </div>
     <div class="steps-flow reveal">
       <div class="step-card">
@@ -780,14 +651,14 @@ footer { border-top: 1px solid var(--border); padding: 32px 48px; max-width: 120
       <div class="step-card">
         <div class="step-card-num">05</div>
         <div class="step-card-tag">Semaines 3–4</div>
-        <h3>Onboarding & Go-Live</h3>
-        <p>Deux sessions d'onboarding pour configurer et valider la plateforme. Vous repartez avec le système en marche et une vision claire de ce qui s'automatise. Les 20 premières invitations sont envoyées avant la fin de l'implémentation.</p>
+        <h3>Formation & Go-Live</h3>
+        <p>Deux sessions de 60 minutes. Vous repartez en sachant exactement ce qui s'automatise et ce que vous faites chaque jour. Les 20 premières invitations sont envoyées avant la fin de l'implémentation.</p>
       </div>
       <div class="step-card">
         <div class="step-card-num">06</div>
         <div class="step-card-tag">En continu</div>
-        <h3>Mises à jour mensuelles du système</h3>
-        <p>Séquences actualisées, scores ICP recalibrés, nouvelles fonctionnalités déployées. La plateforme évolue chaque mois à partir de vos données. Inclus dans votre abonnement. Sans prestation séparée.</p>
+        <h3>Advisor mensuel + Évolution du système</h3>
+        <p>Revue pipeline, actualisation des séquences, affinage de l'ICP, nouvelles fonctionnalités. Le système s'améliore chaque mois à partir de vos données. Pas un retainer qu'on oublie de payer.</p>
       </div>
     </div>
   </div>
@@ -825,14 +696,14 @@ footer { border-top: 1px solid var(--border); padding: 32px 48px; max-width: 120
           <td>3–6 mois</td>
         </tr>
         <tr>
-          <td>Système installé et géré pour vous</td>
+          <td>Système que vous possédez</td>
           <td class="highlight check">✓</td>
           <td class="cross">✗</td>
           <td class="cross">✗</td>
           <td class="check">✓</td>
         </tr>
         <tr>
-          <td>Configuration & déploiement expert</td>
+          <td>Conseil stratégique</td>
           <td class="highlight check">✓</td>
           <td class="check">✓</td>
           <td class="cross">✗</td>
@@ -860,18 +731,16 @@ footer { border-top: 1px solid var(--border); padding: 32px 48px; max-width: 120
 <!-- CE QUE VOUS POSSEDEZ -->
 <section class="what-you-own">
   <div class="wyo-inner">
-    <p class="section-label">CE QUI VOUS APPARTIENT</p>
-    <h2>Vos donn&eacute;es restent les v&ocirc;tres.<br>Le syst&egrave;me fonctionne sous licence.</h2>
+    <p class="section-label">CE QUE VOUS POSS&Eacute;DEZ</p>
+    <h2>Le syst&egrave;me vous appartient.<br>D&egrave;s le premier jour.</h2>
     <ul class="wyo-list">
-      <li>&#10003; Votre base de prospects et de signaux, exportable sur demande, &agrave; tout moment</li>
-      <li>&#10003; Votre historique pipeline et journal d&apos;activit&eacute;, exportable sur demande, &agrave; tout moment</li>
-      <li>&#10003; Votre mod&egrave;le ICP et vos donn&eacute;es de messaging</li>
-    </ul>
-    <p class="wyo-license-label">Sous licence pendant la dur&eacute;e de votre contrat :</p>
-    <ul class="wyo-list">
-      <li>Vos s&eacute;quences d&apos;outreach et votre logique de campagne</li>
-      <li>Vos 15 agents IA, configur&eacute;s pour votre marque</li>
-      <li>Les workflows qui font tourner votre pipeline</li>
+      <li>&#10003; Votre base de prospects et de signaux</li>
+      <li>&#10003; Votre mod&egrave;le ICP et vos r&egrave;gles de scoring</li>
+      <li>&#10003; Vos s&eacute;quences d&apos;outreach et votre logique de campagne</li>
+      <li>&#10003; Votre base de connaissance marque et messaging</li>
+      <li>&#10003; Votre historique pipeline et journal d&apos;activit&eacute;</li>
+      <li>&#10003; Vos 15 agents IA, configur&eacute;s pour votre marque</li>
+      <li>&#10003; Vos workflows, qui tournent sans vous</li>
     </ul>
   </div>
 </section>
@@ -909,12 +778,12 @@ footer { border-top: 1px solid var(--border); padding: 32px 48px; max-width: 120
     <div class="timeline-item">
       <div class="timeline-week">Semaine 3</div>
       <div class="timeline-content">
-        <h3>CMO IA + Onboarding</h3>
-        <p>15 agents IA configurés pour votre marque. Calendrier éditorial LinkedIn sur 30 jours. Session d'onboarding 1. 50+ contacts importés, scores ICP validés.</p>
+        <h3>CMO IA + Formation</h3>
+        <p>15 agents IA configurés pour votre marque. Calendrier éditorial LinkedIn sur 30 jours. Session de formation 1. 50+ contacts importés, scores ICP validés.</p>
         <div class="timeline-deliverables">
           <span class="deliverable-tag">CMO IA Actif</span>
           <span class="deliverable-tag">Plan Contenu 30J</span>
-          <span class="deliverable-tag">Onboarding 1</span>
+          <span class="deliverable-tag">Formation 1</span>
           <span class="deliverable-tag">50+ Contacts</span>
         </div>
       </div>
@@ -923,9 +792,9 @@ footer { border-top: 1px solid var(--border); padding: 32px 48px; max-width: 120
       <div class="timeline-week">Semaine 4</div>
       <div class="timeline-content">
         <h3>Go-Live</h3>
-        <p>Session d'onboarding 2. Les 20 premières invitations LinkedIn envoyées. Système validé de bout en bout. Contrat de retainer signé si applicable.</p>
+        <p>Session de formation 2. Les 20 premières invitations LinkedIn envoyées. Système validé de bout en bout. Contrat de retainer signé si applicable.</p>
         <div class="timeline-deliverables">
-          <span class="deliverable-tag">Onboarding 2</span>
+          <span class="deliverable-tag">Formation 2</span>
           <span class="deliverable-tag">Premier Outreach</span>
           <span class="deliverable-tag">Checklist Go-Live</span>
           <span class="deliverable-tag">Retainer Signé</span>
@@ -946,48 +815,6 @@ footer { border-top: 1px solid var(--border); padding: 32px 48px; max-width: 120
         <span>Fondateur, Corridor · 20+ ans GTM EMEA</span>
       </div>
     </div>
-  </div>
-</section>
-
-<!-- FAQ -->
-<section class="faq-section" id="faq">
-  <div class="faq-inner">
-    <p class="section-label">Questions fréquentes</p>
-    <h2>Ce que les prospects demandent vraiment.</h2>
-    <ul class="faq-list">
-      <li class="faq-item">
-        <p class="faq-q">Dois-je abandonner mon CRM actuel pour utiliser Corridor ?</p>
-        <p class="faq-a">Non. Corridor exporte automatiquement vers Salesforce, Pipedrive et HubSpot. Si vous avez déjà un pipeline dans l'un de ces outils, il peut être intégré à Corridor plutôt que remplacé.</p>
-      </li>
-      <li class="faq-item">
-        <p class="faq-q">Combien de temps faut-il pour démarrer ?</p>
-        <p class="faq-a">3 à 4 semaines du lancement au premier message envoyé, selon le calendrier d'onboarding standard. Comparez cela avec le recrutement d'un directeur commercial ou la construction d'un système en interne.</p>
-      </li>
-      <li class="faq-item">
-        <p class="faq-q">Qu'est-ce que je possède réellement une fois Corridor en place ?</p>
-        <p class="faq-a">Votre base de prospects et de signaux, votre modèle ICP et vos règles de scoring, vos séquences d'outreach, votre base de connaissance de marque, votre historique de pipeline, et les agents IA configurés pour votre marque. Le système vous appartient dès le premier jour. Ce n'est pas un accès sous licence à quelque chose qui appartient à quelqu'un d'autre.</p>
-      </li>
-      <li class="faq-item">
-        <p class="faq-q">Corridor envoie-t-il les messages depuis ses propres comptes ou depuis les miens ?</p>
-        <p class="faq-a">Les vôtres. Chaque message sort par vos comptes LinkedIn et email, que vous possédez et contrôlez. Corridor n'initie jamais d'outreach de façon autonome et ne maintient pas d'infrastructure d'envoi mutualisée entre clients.</p>
-      </li>
-      <li class="faq-item">
-        <p class="faq-q">Corridor est-il réservé à un secteur spécifique ?</p>
-        <p class="faq-a">Non. Corridor fonctionne dans tous les secteurs, pour des entreprises d'environ 11 à 200 employés où un fondateur ou une petite équipe ne pilote pas encore un outbound structuré et systématique.</p>
-      </li>
-      <li class="faq-item">
-        <p class="faq-q">Et si j'ai déjà une équipe commerciale ?</p>
-        <p class="faq-a">Corridor est conçu pour les fondateurs et petites équipes sans fonction GTM dédiée, pas pour remplacer une équipe commerciale existante. La plupart des clients l'intègrent avant ou pendant la construction de cette équipe, pour établir un pipeline opérationnel plus rapidement.</p>
-      </li>
-      <li class="faq-item">
-        <p class="faq-q">En quoi est-ce différent d'outils comme Clay ou Apollo ?</p>
-        <p class="faq-a">Ce sont des composants : enrichissement, ou base de contacts. Corridor est la boucle fermée autour d'eux : intelligence signaux, ciblage, outreach LinkedIn et email, et gestion du pipeline qui suit et améliore le système dans le temps, et pas seulement une seule couche.</p>
-      </li>
-      <li class="faq-item">
-        <p class="faq-q">À quoi ressemble la tarification ?</p>
-        <p class="faq-a">Cela dépend du périmètre, discuté directement lors de l'appel découverte. Pas de deck, pas de forfait imposé avant de comprendre ce dont vous avez réellement besoin.</p>
-      </li>
-    </ul>
   </div>
 </section>
 
@@ -1031,8 +858,6 @@ footer { border-top: 1px solid var(--border); padding: 32px 48px; max-width: 120
     <li><a href="mailto:contact@corridor.systems">contact@corridor.systems</a></li>
     <li><a href="https://www.linkedin.com/company/corridor-gtm-system" target="_blank" rel="noopener">LinkedIn</a></li>
     <li><a href="/privacy-fr.html">Confidentialité</a></li>
-    <li><a href="/legal/terms.html">Conditions</a></li>
-    <li><a href="/legal/refunds.html">Remboursements</a></li>
     <li><a href="/legal/sub-processors?lang=fr">Sous-traitants</a></li>
     <li><a href="#" onclick="manageCookies();return false;">Gérer mes cookies</a></li>
     <li><a href="/">Version EN</a></li>
@@ -1112,24 +937,6 @@ const observer = new IntersectionObserver((entries) => {
 }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
 
 document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
-
-(function loadProspectsCount() {
-  var valEl = document.getElementById('hero-prospects-val');
-  var statEl = document.getElementById('hero-prospects-stat');
-  if (!valEl) return;
-  fetch('/api/public-stats')
-    .then(function(res) { return res.ok ? res.json() : Promise.reject(res.status); })
-    .then(function(data) {
-      if (typeof data.count === 'number') {
-        valEl.textContent = data.count.toLocaleString('fr-FR');
-      } else {
-        if (statEl) statEl.style.display = 'none';
-      }
-    })
-    .catch(function() {
-      if (statEl) statEl.style.display = 'none';
-    });
-})();
 
 document.querySelectorAll('a[href^="#"]').forEach(a => {
   a.addEventListener('click', e => {

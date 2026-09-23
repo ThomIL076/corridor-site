@@ -1,4 +1,5 @@
 import { resolveClient } from './_auth.js';
+import './_sentry.js';
 
 // Fix securite 2026-09-11 (point 2 de l'audit demo-private.html) : loadClientProfile() faisait
 // jusqu'ici un select direct Supabase DEPUIS LE NAVIGATEUR incluant ces 6 colonnes -- le plaintext

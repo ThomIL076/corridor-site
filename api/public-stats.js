@@ -1,6 +1,7 @@
 export const config = { runtime: 'nodejs' };
 
 import { createClient } from '@supabase/supabase-js';
+import { Sentry } from './_sentry.js';
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SECRET_KEY
@@ -19,6 +20,8 @@ export default async function handler(req, res) {
     return res.status(200).json({ count });
   } catch (err) {
     console.error(err);
+    Sentry.captureException(err);
+    await Sentry.flush(1000).catch(() => {});
     return res.status(500).json({ error: 'Internal server error' });
   }
 }

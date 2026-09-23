@@ -6,6 +6,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { resolveClientId } from './_auth.js';
+import { Sentry } from './_sentry.js';
 
 export const config = { maxDuration: 15 };
 
@@ -52,6 +53,10 @@ export default async function handler(req, res) {
       ? (process.env.HEYREACH_CAMPAIGN_CONNECTIONS || process.env.HEYREACH_CAMPAIGN_ID || '523265')
       : ''));
   } catch(e) {
+    Sentry.captureException(e);
+    // Ce catch ne "return" pas toujours (repli env pour isThomas, execution qui continue) : le flush est
+    // bloquant ici aussi (erreur fiable a capturer), pas seulement avant la reponse d'erreur du cas !isThomas.
+    await Sentry.flush(1000).catch(() => {});
     if (isThomas) {
       // DB may not have the columns yet — fall back to env vars for Thomas
       apiKey     = clean(process.env.HEYREACH_API_KEY);
@@ -88,6 +93,8 @@ export default async function handler(req, res) {
 
     return res.status(200).json({ success: r.ok, detail: data });
   } catch(e) {
+    Sentry.captureException(e);
+    await Sentry.flush(1000).catch(() => {});
     return res.status(200).json({ success: false, error: String(e && e.message ? e.message : e) });
   }
 }

@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual, randomBytes } from 'crypto';
 import { supabase } from './_auth.js';
+import './_sentry.js';
 
 // Fix securite 2026-09-21 (lot 3). Route publique PAR CONCEPTION (lien cliquable dans un email ou un message Slack :
 // pas de jeton de session). Avant : un simple GET enregistrait le vote (un scanner d'email, un apercu Slack ou un

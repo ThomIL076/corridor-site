@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { Sentry } from './_sentry.js';
 
 const GRANOLA_BASE = 'https://public-api.granola.ai/v1';
 
@@ -93,6 +94,8 @@ export default async function handler(req, res) {
       return res.status(200).json({ meetings, hasMore, cursor: nextCursor });
     } catch (e) {
       console.error('[granola] list_meetings exception:', e.message);
+      Sentry.captureException(e);
+      await Sentry.flush(1000).catch(() => {});
       return res.status(500).json({ error: e.message, meetings: [] });
     }
   }
@@ -121,6 +124,8 @@ export default async function handler(req, res) {
       return res.status(200).json({ note: data });
     } catch (e) {
       console.error('[granola] get_transcript exception:', e.message);
+      Sentry.captureException(e);
+      await Sentry.flush(1000).catch(() => {});
       return res.status(500).json({ error: e.message });
     }
   }

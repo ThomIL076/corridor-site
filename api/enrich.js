@@ -1,4 +1,5 @@
 import { resolveClientId } from './_auth.js';
+import { Sentry } from './_sentry.js';
 
 const FE_BASE = 'https://app.fullenrich.com/api/v1/contact/enrich/bulk';
 
@@ -82,6 +83,8 @@ export default async function handler(req, res) {
       const phone = contact.most_probable_phone || null;
       return res.status(200).json({ status: 'done', email, phone });
     } catch (e) {
+      Sentry.captureException(e);
+      await Sentry.flush(1000).catch(() => {});
       return res.status(500).json({ error: e.message });
     }
   }
@@ -119,6 +122,8 @@ export default async function handler(req, res) {
     if (!enrichment_id) return res.status(200).json({ error: 'No enrichment_id', raw: data });
     return res.status(200).json({ enrichment_id });
   } catch (e) {
+    Sentry.captureException(e);
+    await Sentry.flush(1000).catch(() => {});
     return res.status(500).json({ error: e.message });
   }
 }

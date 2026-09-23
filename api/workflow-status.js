@@ -7,6 +7,7 @@
 // Fix securite 2026-09-21 (lot 3) : la verification du jeton passe par le helper commun api/_auth.js (getUser + ligne clients
 // obligatoire) : un compte Supabase valide SANS ligne clients recoit 401 au lieu de lire workflow_health.
 import { resolveClientId, supabase } from './_auth.js';
+import './_sentry.js';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');

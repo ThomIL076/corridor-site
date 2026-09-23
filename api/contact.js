@@ -1,4 +1,5 @@
 import { Resend } from 'resend';
+import { Sentry } from './_sentry.js';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -61,6 +62,8 @@ export default async function handler(req, res) {
     return res.status(200).json({ success: true });
   } catch (err) {
     console.error('Contact form error:', err);
+    Sentry.captureException(err);
+    await Sentry.flush(1000).catch(() => {});
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }

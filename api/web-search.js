@@ -1,4 +1,5 @@
 import { resolveClientId } from './_auth.js';
+import { Sentry } from './_sentry.js';
 
 // Fix securite 2026-09-21 : la route relayait un corps LIBRE vers Perplexity (compte facture) sans
 // authentification. Desormais : jeton de session Supabase + client resolu (helper commun api/_auth.js) AVANT
@@ -55,6 +56,8 @@ export default async function handler(req, res) {
     const data = await response.json();
     res.status(200).json(data);
   } catch (e) {
+    Sentry.captureException(e);
+    await Sentry.flush(1000).catch(() => {});
     res.status(500).json({ error: e.message });
   }
 }

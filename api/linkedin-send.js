@@ -14,6 +14,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { resolveClientId } from './_auth.js';
+import { Sentry } from './_sentry.js';
 
 export const config = { maxDuration: 30 };
 
@@ -64,6 +65,11 @@ async function resolveConfig(clientId, touch) {
     dbMessages    = data?.heyreach_campaign_messages    || null;
     dbAccountId   = data?.heyreach_linkedin_account_id  || null;
   } catch(e) {
+    Sentry.captureException(e);
+    // Ce catch ne relance pas toujours (repli env pour isThomas, execution qui continue) : le flush est
+    // bloquant ici aussi (erreur fiable a capturer), pas seulement avant le throw du cas !isThomas (qui sera
+    // de toute facon recapture par l'appelant a la ligne resolveConfig() ci-dessous).
+    await Sentry.flush(1000).catch(() => {});
     // Columns may not exist yet — Thomas still works via env vars below
     if (!isThomas) throw new Error('HeyReach config lookup failed: ' + e.message);
   }
@@ -135,6 +141,8 @@ export default async function handler(req, res) {
   try {
     ({ apiKey, campaignId, accountId } = await resolveConfig(client_id, touch));
   } catch(e) {
+    Sentry.captureException(e);
+    await Sentry.flush(1000).catch(() => {});
     return res.status(200).json({ success: false, error: e.message });
   }
 
@@ -162,6 +170,14 @@ export default async function handler(req, res) {
       // don't let a broken verification call silently prevent all sends.
     } catch(e) {
       console.error('[heyreach-send] IsConnection check failed, proceeding without it:', e.message);
+      Sentry.captureException(e);
+      // Ce catch ne precede aucune reponse HTTP -- l'execution continue vers l'envoi reel (AddLeadsToCampaignV2)
+      // plus bas. Flush bloquant retenu quand meme (pas fire-and-forget) : l'appel qui suit fait deja 1-2
+      // requetes HTTP sortantes de plusieurs centaines de ms chacune, donc 1000ms de flush ici est une part
+      // marginale du temps total de la fonction -- et un echec de verification IsConnection est justement le
+      // genre de signal (degradation HeyReach) qu'on veut capturer de facon fiable, pas perdre si la fonction
+      // se termine vite juste apres.
+      await Sentry.flush(1000).catch(() => {});
     }
   }
 
@@ -205,6 +221,8 @@ export default async function handler(req, res) {
     }
     return res.status(200).json({ success: true, messageId, detail: data });
   } catch(e) {
+    Sentry.captureException(e);
+    await Sentry.flush(1000).catch(() => {});
     return res.status(200).json({ success: false, error: String(e && e.message ? e.message : e) });
   }
 }

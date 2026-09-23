@@ -1,4 +1,5 @@
 import { resolveClient, supabase } from './_auth.js';
+import './_sentry.js';
 
 // Fix securite 2026-09-21 (lot 3) : cette route ecrivait dans signal_feedback en service_role avec un client_id, un
 // prospect_id et un mandate_id LIBRES fournis par l'appelant, sans authentification (empoisonnement des Learned

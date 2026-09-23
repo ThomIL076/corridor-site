@@ -6,6 +6,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { resolveClientId } from './_auth.js';
+import { Sentry } from './_sentry.js';
 
 export const config = { maxDuration: 30 };
 
@@ -43,6 +44,10 @@ export default async function handler(req, res) {
     apiKey    = data?.heyreach_api_key             || null;
     accountId = data?.heyreach_linkedin_account_id || null;
   } catch(e) {
+    Sentry.captureException(e);
+    // Ce catch ne "return" pas toujours (repli env pour isThomas, execution qui continue) : le flush est
+    // bloquant ici aussi (erreur fiable a capturer), pas seulement avant la reponse d'erreur du cas !isThomas.
+    await Sentry.flush(1000).catch(() => {});
     if (!isThomas) return res.status(200).json({ success: false, error: 'HeyReach config lookup failed: ' + e.message });
   }
 
@@ -90,6 +95,8 @@ export default async function handler(req, res) {
 
     return res.status(200).json({ success: true, detail: data });
   } catch(e) {
+    Sentry.captureException(e);
+    await Sentry.flush(1000).catch(() => {});
     return res.status(200).json({ success: false, error: String(e?.message || e) });
   }
 }

@@ -2,6 +2,7 @@ import { NodeSDK } from '@opentelemetry/sdk-node';
 import { LangfuseSpanProcessor } from '@langfuse/otel';
 import { startObservation } from '@langfuse/tracing';
 import { resolveClientId } from './_auth.js';
+import { Sentry } from './_sentry.js';
 
 // exportMode: 'immediate' -- this is a short-lived serverless function, so spans
 // are flushed explicitly (forceFlush calls below) rather than relying on the
@@ -217,6 +218,8 @@ export default async function handler(req, res) {
       trace.update({ output: outputText, ...(!seenMessageStop && stopReason === null ? { statusMessage: 'truncated' } : stopReason === 'max_tokens' ? { statusMessage: 'max_tokens' } : {}) }).end();
       await safeFlushLangfuse();
     } catch (e) {
+      Sentry.captureException(e);
+      await Sentry.flush(1000).catch(() => {});
       if (!res.headersSent) {
         res.status(500).json({ type: 'error', error: { message: e.message } });
       } else {
@@ -328,6 +331,8 @@ export default async function handler(req, res) {
     res.status(200).json(wasTruncated ? { ...data, truncated: true } : data);
   } catch (e) {
     console.error('[generate] exception:', e.message);
+    Sentry.captureException(e);
+    await Sentry.flush(1000).catch(() => {});
     generation.update({ level: 'ERROR', statusMessage: e.message }).end();
     trace.update({ output: { error: e.message } }).end();
     await safeFlushLangfuse();
