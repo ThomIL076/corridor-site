@@ -1652,12 +1652,43 @@ body.new-nav { padding-left: 220px; }
           <button id="kanban-filters-btn" onclick="_toggleFiltersPanel()" style="height:29px;padding:0 10px;border:1px solid var(--ink);border-radius:var(--radius-sm);font-size:var(--fs-sm);font-family:inherit;color:#fff;background:var(--ink);cursor:pointer;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;">&#8862; Filtres <span id="kanban-filters-count" style="display:none;background:var(--accent);color:#fff;border-radius:var(--radius-panel);padding:1px 5px;font-size:var(--fs-micro);font-weight:700;line-height:1.4;"></span></button>
         </div>
         <div id="kanban-filters-panel" style="display:none;background:var(--white);border:1.5px solid var(--ink);border-radius:var(--radius-panel);padding:14px 14px 10px;margin-top:6px;">
-          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;">
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
             <select id="kanban-filter-country" onchange="_applyKanbanFilters()" style="font-size:var(--fs-sm);padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--white);color:var(--text);cursor:pointer;width:100%;">
               <option value="">Tous les pays</option>
             </select>
             <select id="kanban-filter-signal" onchange="_applyKanbanFilters()" style="font-size:var(--fs-sm);padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--white);color:var(--text);cursor:pointer;width:100%;">
               <option value="">Tous les signaux</option>
+            </select>
+            <select id="kanban-filter-origin" onchange="_applyKanbanFilters()" style="font-size:var(--fs-sm);padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--white);color:var(--text);cursor:pointer;width:100%;">
+              <option value="">All origins</option>
+              <option value="network">Network</option>
+              <option value="outbound">Outbound</option>
+              <option value="csv_import">CSV Import</option>
+              <option value="signal_monitoring">Intent Signal</option>
+              <option value="morning_scan">Morning Scan</option>
+            </select>
+            <select id="kanban-filter-deal" onchange="_applyKanbanFilters()" style="font-size:var(--fs-sm);padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--white);color:var(--text);cursor:pointer;width:100%;">
+              <option value="">Toutes les valeurs</option>
+              <option value="lt25">&lt; &euro;25k</option>
+              <option value="25to100">&euro;25k&ndash;&euro;100k</option>
+              <option value="100to500">&euro;100k&ndash;&euro;500k</option>
+              <option value="gt500">&gt; &euro;500k</option>
+            </select>
+            <select id="kanban-filter-confidence" title="Dérivé du fit ICP, de l'email vérifié et du signal détecté" onchange="_applyKanbanFilters()" style="font-size:var(--fs-sm);padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--white);color:var(--text);cursor:pointer;width:100%;">
+              <option value="">Toute confiance</option>
+              <option value="high">Élevée</option>
+              <option value="medium">Moyenne</option>
+              <option value="low">Faible</option>
+            </select>
+            <select id="kanban-filter-next-action" onchange="_applyKanbanFilters()" style="font-size:var(--fs-sm);padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--white);color:var(--text);cursor:pointer;width:100%;">
+              <option value="">Prochaine action</option>
+              <option value="has">A une prochaine action</option>
+              <option value="none">Sans prochaine action</option>
+            </select>
+            <select id="kanban-filter-na-date" onchange="_applyKanbanFilters()" style="font-size:var(--fs-sm);padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--white);color:var(--text);cursor:pointer;width:100%;">
+              <option value="">Échéance</option>
+              <option value="overdue">En retard</option>
+              <option value="upcoming">À venir</option>
             </select>
           </div>
           <div style="border-top:1px solid var(--border);margin-top:12px;padding-top:8px;display:flex;justify-content:flex-end;">
@@ -1665,6 +1696,23 @@ body.new-nav { padding-left: 220px; }
           </div>
         </div>
         <div class="toolbar-actions" style="display:flex;gap:8px;align-items:center;justify-content:flex-end;flex-wrap:wrap;">
+          <div id="bulk-bar" style="display:none;align-items:center;gap:8px;background:var(--navy-light);border:1px solid var(--border-mid);border-radius:var(--radius-md);padding:6px 12px;">
+            <span id="bulk-count" style="font-size:var(--fs-sm);font-weight:600;color:var(--ink);">0 sélectionné(s)</span>
+            <select id="bulk-stage-select" style="font-size:var(--fs-sm);padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--white);color:var(--text);">
+              <option value="">Déplacer vers l'étape...</option>
+              <option value="Identified">Identifiés</option>
+              <option value="1st Contact">Connecté</option>
+              <option value="Engaged">Engagés</option>
+              <option value="Replied">Répondu</option>
+              <option value="Proposal">Proposition</option>
+              <option value="Negotiation">Négociation</option>
+              <option value="Closed">Clôturé</option>
+            </select>
+            <button class="btn-sm" onclick="_bulkChangeStage()" style="background:var(--ink);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer;">Appliquer</button>
+            <button class="btn-sm" onclick="_bulkArchive()" style="background:#fef2f2;color:var(--red);border:1px solid #fecaca;border-radius:var(--radius-sm);cursor:pointer;">Archiver</button>
+            <button id="bulk-email-seq-btn" class="btn-sm" disabled title="Séquence email pas encore disponible — campagne pas encore configurée" onclick="_bulkStartEmailSeq()" style="background:var(--green-brand);color:#fff;border:none;border-radius:var(--radius-sm);cursor:not-allowed;opacity:0.5;">Séquence email</button>
+            <button class="btn-sm" onclick="_bulkClear()" style="background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;">Annuler</button>
+          </div>
           <button class="btn-secondary btn-md" onclick="openAddProspect()"><span>+ Ajouter</span></button>
           <button class="kanban-refresh btn-md" id="kanban-refresh-btn" onclick="loadKanban(true)" title="Actualiser le pipeline"><span>↻ Actualiser</span></button>
           <label id="import-csv-label" class="btn-secondary btn-md" style="cursor:pointer">
@@ -3425,6 +3473,7 @@ async function loadClientProfile() {
     document.getElementById('nav-company').textContent = data.company_name || 'Wominds';
     document.getElementById('nav-avatar').innerHTML = _navAvatarHTML(data.avatar_url, name);
     document.getElementById('user-profile-btn').style.display = 'flex';
+    _syncBulkEmailSeqBtnState();
     return true;
   } catch(e) {
     _lastProfileErrorInfo = { at: new Date(), status: (e && e.message) || 'network error' };
@@ -4502,9 +4551,9 @@ function _toggleFiltersPanel() {
   if (panel) panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
 }
 function _updateKanbanFiltersBadge() {
-  const country = document.getElementById('kanban-filter-country')?.value || '';
-  const signal = document.getElementById('kanban-filter-signal')?.value || '';
-  const n = [country, signal].filter(Boolean).length;
+  const ids = ['kanban-filter-country','kanban-filter-signal','kanban-filter-origin',
+               'kanban-filter-deal','kanban-filter-confidence','kanban-filter-next-action','kanban-filter-na-date'];
+  const n = ids.filter(id => { const el = document.getElementById(id); return el && el.value; }).length;
   const badge = document.getElementById('kanban-filters-count');
   if (!badge) return;
   if (n > 0) { badge.textContent = n; badge.style.display = 'inline-block'; }
@@ -4516,6 +4565,12 @@ function _applyKanbanFilters() {
   const stage   = document.getElementById('kanban-filter-stage')?.value   || '';
   const country = document.getElementById('kanban-filter-country')?.value || '';
   const signal  = document.getElementById('kanban-filter-signal')?.value  || '';
+  const origin      = document.getElementById('kanban-filter-origin')?.value    || '';
+  const deal        = document.getElementById('kanban-filter-deal')?.value      || '';
+  const confidence  = document.getElementById('kanban-filter-confidence')?.value || '';
+  const nextAction  = document.getElementById('kanban-filter-next-action')?.value || '';
+  const naDate      = document.getElementById('kanban-filter-na-date')?.value   || '';
+  const todayStr    = new Date().toISOString().slice(0, 10);
   document.querySelectorAll('.k-card').forEach(card => {
     const name        = (card.dataset.name    || '').toLowerCase();
     const company     = (card.dataset.company || '').toLowerCase();
@@ -4524,11 +4579,29 @@ function _applyKanbanFilters() {
     const cardScore   = Number(card.dataset.icpScore || 0);
     const cardCountry = card.dataset.country  || '';
     const cardSignal  = card.dataset.signalType || '';
+    const cardOrigin  = card.dataset.origin   || '';
+    const cardDeal    = Number(card.dataset.deal || 0);
+    const cardConf    = card.dataset.confidence || '';
+    const cardNA      = card.dataset.nextAction || '0';
+    const cardNADate  = card.dataset.nextActionDate || '';
     const matchSearch  = !search  || name.includes(search) || company.includes(search);
     const matchSector  = !sector  || cardSector  === sector;
     const matchStage   = !stage   || cardStage   === stage;
     const matchCountry = !country || cardCountry === country;
     const matchSignal  = !signal  || cardSignal  === signal;
+    const matchOrigin  = !origin  || cardOrigin  === origin;
+    let matchDeal = true;
+    if (deal === 'lt25')          matchDeal = cardDeal < 25000;
+    else if (deal === '25to100')  matchDeal = cardDeal >= 25000  && cardDeal < 100000;
+    else if (deal === '100to500') matchDeal = cardDeal >= 100000 && cardDeal < 500000;
+    else if (deal === 'gt500')    matchDeal = cardDeal >= 500000;
+    const matchConf = !confidence || cardConf === confidence;
+    let matchNA = true;
+    if (nextAction === 'has')       matchNA = cardNA === '1';
+    else if (nextAction === 'none') matchNA = cardNA !== '1';
+    let matchNADate = true;
+    if (naDate === 'overdue')       matchNADate = !!cardNADate && cardNADate < todayStr;
+    else if (naDate === 'upcoming') matchNADate = !!cardNADate && cardNADate >= todayStr;
     let matchHp = true;
     if (_hpFilter === 'hot')          matchHp = cardScore >= 8;
     else if (_hpFilter === 'warm')    matchHp = cardScore >= 6 && cardScore < 8;
@@ -4541,7 +4614,7 @@ function _applyKanbanFilters() {
     // Toggle "Voir les archivés" (parite demo-private.html/kaizenology.html) : une carte archivee
     // ne passe que si le toggle est actif -- une carte active n'est jamais concernee.
     const matchArchived = _showArchived || card.dataset.archived !== 'true';
-    card.style.display = (matchSearch && matchSector && matchStage && matchCountry && matchSignal && matchHp && matchSig && matchArchived) ? '' : 'none';
+    card.style.display = (matchSearch && matchSector && matchStage && matchCountry && matchSignal && matchOrigin && matchDeal && matchConf && matchNA && matchNADate && matchHp && matchSig && matchArchived) ? '' : 'none';
   });
   document.querySelectorAll('.kanban-col').forEach(col => {
     const visible = col.querySelectorAll('.k-card:not([style*="display: none"])').length;
@@ -4551,7 +4624,8 @@ function _applyKanbanFilters() {
   _updateKanbanFiltersBadge();
 }
 function _resetKanbanFilters() {
-  ['kanban-search','kanban-filter-sector','kanban-filter-stage','kanban-filter-country','kanban-filter-signal']
+  ['kanban-search','kanban-filter-sector','kanban-filter-stage','kanban-filter-country','kanban-filter-signal',
+   'kanban-filter-origin','kanban-filter-deal','kanban-filter-confidence','kanban-filter-next-action','kanban-filter-na-date']
     .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   _resetHpFilter();
   _resetSigFilter();
@@ -4799,6 +4873,212 @@ function exportCSV(){
   URL.revokeObjectURL(url);
   showToast('Pipeline exporté');
 }
+// Derive High/Medium/Low confidence depuis icp_score/email/signal_type (port demo-private.html:14558-14567
+// et kaizenology.html, identiques) -- adapte : Wominds n'a pas de fonction _calcICP() (le score ICP est
+// calcule cote n8n et stocke tel quel dans p.icp_score, pas recalcule client-side comme sur Corridor/
+// Kaizenology), donc lecture directe de p.icp_score au lieu d'un appel a _calcICP(p).
+function _calcConfidence(p) {
+  const icp = parseFloat(p.icp_score);
+  let pts = 0;
+  if (!isNaN(icp)) { if (icp >= 7) pts += 2; else if (icp >= 4) pts += 1; }
+  if (p.email) pts += 1;
+  if (p.signal_type) pts += 1;
+  if (pts >= 3) return 'high';
+  if (pts >= 2) return 'medium';
+  return 'low';
+}
+// ── Selection multiple + bulk actions pipeline (port demo-private.html:14629-14795/kaizenology.html,
+// 23/09, GO Thomas). _bulkArchive et _bulkChangeStage reutilisent la meme forme de mise a jour que les
+// fonctions unitaires deja en place (archiveProspect() ligne ~6083 : {archived:true, updated_at:...}, pas
+// de stage:'Archived' -- Wominds n'a pas ce concept, KANBAN_STAGES ne le liste pas). _bulkStartEmailSeq
+// adapte le calcul de campaign_id : Wominds n'a ni _activeMandate ni constante EMAIL_CAMPAIGN_ID
+// (contrairement a Corridor/Kaizenology), seul _clientProfile?.email_campaign_id existe cote Wominds.
+const _selectedPids = new Set();
+function _onCardSelect(el) {
+  const pid = el.dataset.pid;
+  if (el.checked) _selectedPids.add(pid);
+  else _selectedPids.delete(pid);
+  _updateBulkBar();
+}
+function _updateBulkBar() {
+  const bar = document.getElementById('bulk-bar');
+  const count = document.getElementById('bulk-count');
+  if (!bar) return;
+  if (_selectedPids.size === 0) {
+    bar.style.display = 'none';
+  } else {
+    bar.style.display = 'flex';
+    if (count) count.textContent = _selectedPids.size + ' sélectionné(s)';
+  }
+}
+function _bulkClear() {
+  _selectedPids.clear();
+  document.querySelectorAll('.k-card-select').forEach(cb => { cb.checked = false; });
+  _updateBulkBar();
+}
+async function _bulkChangeStage() {
+  const stage = document.getElementById('bulk-stage-select')?.value;
+  if (!stage || _selectedPids.size === 0) return;
+  const pids = Array.from(_selectedPids);
+  showToast('Mise à jour de ' + pids.length + ' prospects...');
+  const { error } = await sbClient.from('prospects')
+    .update({ stage }).in('id', pids).eq('client_id', CLIENT_ID);
+  if (error) { showToast('Erreur : ' + error.message); return; }
+  const advancedStages = ['1st Contact','Engaged','Replied','Proposal','Closed'];
+  if (advancedStages.includes(stage)) {
+    const toUpgrade = pids.filter(id => (_prospectsById[id] || {}).linkedin_tag === 'invite-sent');
+    if (toUpgrade.length > 0) {
+      await sbClient.from('prospects').update({ linkedin_tag: 'connection-accepted' }).in('id', toUpgrade).eq('client_id', CLIENT_ID);
+    }
+  }
+  showToast(pids.length + ' prospects déplacés vers ' + (STAGE_LABEL_FR[stage] || stage));
+  _bulkClear();
+  await loadKanban(true);
+}
+async function _bulkArchive() {
+  if (_selectedPids.size === 0) return;
+  const pids = Array.from(_selectedPids);
+  if (!confirm('Archiver ' + pids.length + ' prospects ? Ils ne seront plus visibles dans le pipeline actif.')) return;
+  const { error } = await sbClient.from('prospects')
+    .update({ archived: true, updated_at: new Date().toISOString() }).in('id', pids).eq('client_id', CLIENT_ID);
+  if (error) { showToast('Erreur : ' + error.message); return; }
+  showToast(pids.length + ' prospects archivés');
+  _bulkClear();
+  await loadKanban(true);
+}
+// Garde config campagne (verif GO Thomas 23/09) : email_campaign_id est NULL en base pour Wominds
+// (table clients, colonne lue par /api/client-profile -> _clientProfile.email_campaign_id) au moment
+// du chantier. Meme situation, meme libelle que le bouton unitaire deja desactive plus bas
+// (_pdEmailSequenceButtonHTML, "Séquence email pas encore disponible — campagne pas encore
+// configurée") -- pas de nouveau pattern, juste applique ici au bouton de la bulk-bar, en dynamique
+// (des que email_campaign_id sera peuple en base, le bouton se reactive sans redeploiement).
+function _syncBulkEmailSeqBtnState() {
+  const btn = document.getElementById('bulk-email-seq-btn');
+  if (!btn) return;
+  const configured = !!_clientProfile?.email_campaign_id;
+  btn.disabled = !configured;
+  btn.title = configured ? '' : 'Séquence email pas encore disponible — campagne pas encore configurée';
+  btn.style.opacity = configured ? '1' : '0.5';
+  btn.style.cursor = configured ? 'pointer' : 'not-allowed';
+}
+async function _bulkStartEmailSeq() {
+  // Meme garde qu'au niveau du bouton (defense en profondeur, cf. _syncBulkEmailSeqBtnState) :
+  // empeche tout appel a /api/email-send avec un campaign_id vide qui echouerait cote serveur sans
+  // que l'utilisateur ne le voie (plutot qu'un echec silencieux).
+  if (!_clientProfile?.email_campaign_id) {
+    showToast('Séquence email pas encore disponible — campagne pas encore configurée');
+    return;
+  }
+  const _emailRemaining = Math.max(0, EMAIL_DAILY_LIMIT - _todaySendCounts.emailsSent);
+  if (_selectedPids.size === 0) return;
+
+  const btn = document.getElementById('bulk-email-seq-btn');
+  const countEl = document.getElementById('bulk-count');
+  if (btn) { btn.disabled = true; btn.textContent = 'Vérification...'; }
+
+  const pids = Array.from(_selectedPids);
+
+  // Filtre : a un email
+  const withEmail = pids.filter(pid => {
+    const p = _prospectsById[pid] || _prospectsById[parseInt(pid)];
+    return p && p.email;
+  });
+  const noEmail = pids.length - withEmail.length;
+
+  if (withEmail.length === 0) {
+    showToast('Aucun prospect avec email dans la sélection');
+    if (btn) { btn.disabled = false; btn.textContent = 'Séquence email'; }
+    return;
+  }
+
+  // Filtre : pas deja en sequence (email_j5)
+  const { data: existingSeqs } = await sbClient
+    .from('interactions')
+    .select('prospect_id')
+    .in('prospect_id', withEmail)
+    .eq('type', 'email_j5')
+    .eq('client_id', CLIENT_ID);
+  const alreadySentSet = new Set((existingSeqs || []).map(i => String(i.prospect_id)));
+
+  let toSend = withEmail.filter(pid => !alreadySentSet.has(String(pid)));
+  const alreadyCount = withEmail.length - toSend.length;
+
+  // Garde quota email restant
+  let capped = 0;
+  if (toSend.length > _emailRemaining) {
+    capped = toSend.length - _emailRemaining;
+    toSend = toSend.slice(0, _emailRemaining);
+  }
+
+  if (toSend.length === 0) {
+    showToast(`0 à envoyer — ${alreadyCount} déjà en séquence, ${noEmail} sans email`);
+    if (btn) { btn.disabled = false; btn.textContent = 'Séquence email'; }
+    return;
+  }
+
+  // Garde d'identite elargie (meme texte que le point d'envoi unitaire, cf. _contradictedWarningText).
+  const _bulkP = toSend.map(pid => _prospectsById[pid] || _prospectsById[parseInt(pid)]).filter(Boolean);
+  if (!confirm(`Démarrer la séquence email pour ${toSend.length} prospect(s) ?\nLe premier email sera envoyé immédiatement à chacun.` + _contradictedWarningText(_bulkP))) {
+    if (btn) { btn.disabled = false; btn.textContent = 'Séquence email'; }
+    return;
+  }
+
+  if (capped > 0) showToast(`Limite ${EMAIL_DAILY_LIMIT}/jour : ${capped} prospects non envoyés aujourd'hui`);
+
+  // Envois sequentiels avec delai 700ms
+  const successRows = [];
+  let failed = 0;
+
+  for (let i = 0; i < toSend.length; i++) {
+    const pid = toSend[i];
+    const p = _prospectsById[pid] || _prospectsById[parseInt(pid)];
+    if (countEl) countEl.textContent = `Envoi ${i + 1}/${toSend.length}...`;
+    try {
+      const nameParts = (p.name || '').trim().split(/\s+/);
+      const r = await _authFetch('/api/email-send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: p.email,
+          first_name: nameParts[0] || '',
+          last_name: nameParts.slice(1).join(' ') || '',
+          company_name: p.company || '',
+          campaign_id: _clientProfile?.email_campaign_id
+        })
+      });
+      const d = await r.json();
+      if (r.ok && !d.error) {
+        successRows.push({ prospect_id: p.id, client_id: p.client_id || CLIENT_ID, mandate_id: null, type: 'email_j5', note: 'Email de relance envoyé' });
+      } else { failed++; }
+    } catch(e) { failed++; }
+    if (i < toSend.length - 1) await new Promise(res => setTimeout(res, 700));
+  }
+
+  // Insert groupe
+  if (successRows.length > 0) {
+    const { error: _bulkInsErr } = await sbClient.from('interactions').insert(successRows);
+    if (_bulkInsErr) {
+      console.error('[_bulkStartEmailSeq] Supabase insert failed:', _bulkInsErr);
+      showToast('⚠ Séquences envoyées mais non tracées — ' + _bulkInsErr.message);
+      _bulkClear();
+      await loadKanban(true);
+      return;
+    }
+    _todaySendCounts.emailsSent += successRows.length;
+    _updateSentCounter();
+  }
+
+  // Resume
+  const parts = [`${successRows.length} séquences démarrées`];
+  if (alreadyCount > 0) parts.push(`${alreadyCount} ignorés (déjà envoyé)`);
+  if (noEmail > 0) parts.push(`${noEmail} sans email`);
+  if (failed > 0) parts.push(`${failed} échoués`);
+  if (capped > 0) parts.push(`${capped} non envoyés (quota)`);
+  showToast(parts.join(', '));
+
+  _bulkClear();
+  await loadKanban(true);
+}
 // ── Parite fiche/carte prospect (brief 2026-09-12, reference demo-private.html:12565/11792) ──
 function _prospectCardHTML(p){
   const icp = (p.icp_score != null && p.icp_score !== '') ? `<span style="font-size:var(--fs-xs);font-weight:700;background:var(--navy-light);color:var(--navy);border:1px solid var(--blue);border-radius:var(--radius-pill);padding:1px 8px;white-space:nowrap;">ICP ${_esc(p.icp_score)}</span>` : '';
@@ -4813,7 +5093,8 @@ function _prospectCardHTML(p){
   // kaizenology.html) : meme ton amber que le reste du site pour un etat "archivee" -- visible
   // uniquement quand le toggle est actif (data-archived lu par _applyKanbanFilters()).
   const warnArchived = p.archived === true ? `<span class="k-badge k-badge-archived" style="color:var(--amber);background:var(--amber-bg);border:1px solid var(--amber-border);" title="Fiche archivée">Archivé</span>` : '';
-  return `<div class="k-card" data-id="${_esc(p.id)}" data-name="${_esc(p.name || '')}" data-company="${_esc(p.company || '')}" data-sector="${_esc(p.sector || '')}" data-stage="${_esc(p.stage || 'Identified')}" data-icp-score="${p.icp_score != null ? _esc(p.icp_score) : ''}" data-country="${_esc(p.country || '')}" data-signal-type="${_esc((p.signal_type || '').toUpperCase())}" data-has-signal="${!!p.signal}" data-archived="${p.archived === true ? 'true' : 'false'}" onclick="openProspectDetail('${p.id}')">
+  return `<div class="k-card" data-id="${_esc(p.id)}" data-name="${_esc(p.name || '')}" data-company="${_esc(p.company || '')}" data-sector="${_esc(p.sector || '')}" data-stage="${_esc(p.stage || 'Identified')}" data-icp-score="${p.icp_score != null ? _esc(p.icp_score) : ''}" data-country="${_esc(p.country || '')}" data-signal-type="${_esc((p.signal_type || '').toUpperCase())}" data-has-signal="${!!p.signal}" data-origin="${_esc(p.origin || '')}" data-deal="${Number(p.deal_value) || 0}" data-confidence="${_calcConfidence(p)}" data-job-title="${_esc(p.title || '')}" data-next-action="${p.next_action ? '1' : '0'}" data-next-action-date="${_esc(p.next_action_date || '')}" data-archived="${p.archived === true ? 'true' : 'false'}" onclick="openProspectDetail('${p.id}')">
+    <input type="checkbox" class="k-card-select" data-pid="${_esc(p.id)}" onchange="_onCardSelect(this)" onclick="event.stopPropagation()" style="position:absolute;top:10px;left:8px;width:14px;height:14px;cursor:pointer;z-index:2;accent-color:var(--ink);">
     <div class="k-card-name">${_esc(p.name || 'Sans nom')}</div>
     <div class="k-card-company">${_esc(p.company || 'N/D')}${place ? ' · ' + _esc(place) : ''}</div>
     ${p.signal ? `<div class="k-card-signal">${sig}</div>` : ''}
