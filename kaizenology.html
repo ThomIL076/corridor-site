@@ -1027,6 +1027,28 @@ h1, h2, .k-card-name, .k-card-company { overflow-wrap:break-word; word-break:bre
   #bulk-bar > button {
     justify-content: center;
   }
+  /* ROUND 6 (23/09, port demo-private.html BUG 2) : .pd-footer (pied du tiroir prospect) est
+     display:flex sans wrap -- "Générer un message" a flex:1 en style inline (HTML), "Changer
+     d'étape"/"Archiver" n'ont aucune contrainte de largeur (defaut flex:0 1 auto, borne par leur
+     texte). Verifie par mesure reelle (Playwright, 390 et 428px) : le 3e bouton ("Archiver")
+     deborde hors du viewport aux deux largeurs avant ce fix. Meme correctif que demo-private.html
+     et #bulk-bar juste au-dessus (grille 2 colonnes qui passe a la ligne, boutons 44px).
+     !important necessaire : le premier bouton porte deja flex:1 en style inline, qu'aucune regle
+     externe sans !important ne peut jamais l'emporter sur elle. */
+  .pd-footer {
+    flex-wrap: wrap;
+  }
+  .pd-footer > button {
+    flex: 1 1 calc(50% - 4px) !important;
+    min-width: 0;
+    height: 44px;
+    box-sizing: border-box;
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    justify-content: center;
+  }
 }
 /* ══ MOBILE NAV : avatar+badge centrés, hamburger/logo gauche, Sign out droite (≤480px) ══ */
 @media (max-width:480px) {
@@ -3509,6 +3531,9 @@ function setLang(lang) {
   applyLang();
   renderWelcome();
   paintBlocked();      // écran "essai terminé" / "accès refusé" suit la langue
+  // BUG 3 (23/09, port demo-private.html) : panneau Ask Corridor ouvert (ou a rouvrir) sans
+  // conversation reelle en cours suit la bascule immediatement.
+  if (typeof _askRefreshLangIfIdle === 'function') _askRefreshLangIfIdle();
 }
 
 function _relTimeShort(iso) {
@@ -5017,14 +5042,20 @@ function handleEnter(e, agentName) {
 let _askHistory = [];
 let _askCtx = null;
 let _askCtxKey = null;
+let _askWelcomeLang = null; // BUG 3 (23/09, porte depuis demo-private.html), cf. commentaire ci-dessous
 
 function _openAskPanel(ctx) {
   const newKey = ctx ? JSON.stringify(ctx) : '__global__';
-  if (newKey !== _askCtxKey) {
+  // BUG 3 (23/09, port demo-private.html) : rouvrir le panneau sur le MEME contexte apres une
+  // bascule de langue laissait l'accueil + les pills figes dans l'ancienne langue -- re-rendu
+  // desormais aussi si currentLang a change depuis le dernier rendu, mais uniquement si aucune
+  // vraie conversation n'a commence (_askHistory vide), meme garde que applyLang().
+  if (newKey !== _askCtxKey || (currentLang !== _askWelcomeLang && _askHistory.length === 0)) {
     _askHistory = [];
     _askCtxKey = newKey;
     _askCtx = ctx;
     _askRenderWelcome(ctx);
+    _askWelcomeLang = currentLang;
   }
   document.getElementById('ask-overlay').classList.add('open');
   document.getElementById('ask-panel').classList.add('open');
@@ -5038,6 +5069,16 @@ function _closeAskPanel() {
   document.body.classList.remove('ask-open');
 }
 
+// BUG 3 (23/09, port demo-private.html) : appele depuis setLang() -- re-rend l'accueil + les pills
+// dans la langue courante tant qu'aucune vraie conversation n'a commence.
+function _askRefreshLangIfIdle() {
+  if (!document.getElementById('ask-messages')) return;
+  if (_askHistory.length === 0 && currentLang !== _askWelcomeLang) {
+    _askRenderWelcome(_askCtx);
+    _askWelcomeLang = currentLang;
+  }
+}
+
 function _askRenderWelcome(ctx) {
   const fr = (typeof currentLang !== 'undefined' && currentLang === 'fr');
   const msgs = document.getElementById('ask-messages');
@@ -5045,7 +5086,9 @@ function _askRenderWelcome(ctx) {
   const welcome = fr
     ? 'Posez-moi une question sur votre pipeline, un prospect ou un signal de marché.'
     : 'Ask me anything about your pipeline, a prospect, or a market signal.';
-  msgs.innerHTML = '<div class="chat-msg assistant"><div class="chat-avatar">C</div><div class="chat-bubble">' + _esc(welcome) + '<div class="ask-provenance">ASK CORRIDOR</div></div></div>';
+  // BUG 3 (23/09, port demo-private.html) : provenance suit fr desormais (deja calcule ci-dessus).
+  const welcomeProvenance = fr ? 'DEMANDER À CORRIDOR' : 'ASK CORRIDOR';
+  msgs.innerHTML = '<div class="chat-msg assistant"><div class="chat-avatar">C</div><div class="chat-bubble">' + _esc(welcome) + '<div class="ask-provenance">' + welcomeProvenance + '</div></div></div>';
   _askRenderSuggestedPills(ctx);
   const pill = document.getElementById('ask-ctx-label');
   if (!pill) return;
@@ -6497,11 +6540,44 @@ function _renderProposalCard(prop, prospect) {
     </div>
     ${_propNoteHtml}
     ${variantsHtml}
-    <div style="display:flex;gap:8px;margin-top:12px;">
-      <button onclick="_proposalReject('${prop.id}')"
+    <div style="display:flex;gap:8px;margin-top:12px;" id="proposal-actions-${prop.id}">
+      <button onclick="_proposalRejectStart('${prop.id}')"
         style="padding:7px 16px;border-radius:var(--radius-pill);background:none;border:1px solid var(--border);color:var(--text);font-size:var(--fs-sm);cursor:pointer;">Reject</button>
     </div>
+    <!-- Chantier "apprentissage sur les rejets" (23/09, go Thomas) : formulaire inline, PAS de modale
+         -- meme pattern que demo-private.html (aucun pattern modale reel n'existe dans ce fichier).
+         Raison TOUJOURS optionnelle : "Confirm rejection" fonctionne meme textarea vide. -->
+    <div id="proposal-reject-form-${prop.id}" style="display:none;margin-top:12px;border-top:1px solid var(--border);padding-top:12px;">
+      <textarea id="proposal-reject-reason-${prop.id}" placeholder="Reason (optional) — helps the copywriter learn what to avoid"
+        style="width:100%;min-height:64px;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:var(--fs-sm);font-family:inherit;color:var(--text);background:var(--card-bg);resize:vertical;box-sizing:border-box;"></textarea>
+      <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
+        <button id="proposal-reject-confirm-${prop.id}" onclick="_proposalRejectConfirm('${prop.id}')"
+          style="padding:7px 16px;border-radius:var(--radius-pill);background:var(--navy);color:#fff;border:none;font-size:var(--fs-sm);font-weight:600;cursor:pointer;">Confirm rejection</button>
+        <button onclick="_proposalRejectCancel('${prop.id}')"
+          style="padding:7px 16px;border-radius:var(--radius-pill);background:none;border:1px solid var(--border);color:var(--text);font-size:var(--fs-sm);cursor:pointer;">Cancel</button>
+      </div>
+    </div>
   </div>`;
+}
+
+function _proposalRejectStart(id) {
+  const actions = document.getElementById('proposal-actions-' + id);
+  const form = document.getElementById('proposal-reject-form-' + id);
+  if (actions) actions.style.display = 'none';
+  if (form) {
+    form.style.display = 'block';
+    const ta = document.getElementById('proposal-reject-reason-' + id);
+    if (ta) ta.focus();
+  }
+}
+
+function _proposalRejectCancel(id) {
+  const actions = document.getElementById('proposal-actions-' + id);
+  const form = document.getElementById('proposal-reject-form-' + id);
+  const ta = document.getElementById('proposal-reject-reason-' + id);
+  if (ta) ta.value = '';
+  if (form) form.style.display = 'none';
+  if (actions) actions.style.display = 'flex';
 }
 
 // "Use this" (par variante) : approuve la proposition entiere sur cette variante -- meme regle
@@ -6583,11 +6659,43 @@ async function _proposalUseVariant(id, variantIndex) {
 
 // Reject porte sur la proposition entiere, pas sur une variante individuelle -- meme regle que
 // demo-private.html.
-async function _proposalReject(id) {
+// Chantier "apprentissage sur les rejets de brouillons/variantes" (23/09, go Thomas) : meme UPDATE
+// agent_proposals qu'avant, PLUS un insert dans agent_feedback (table existante, meme forme que
+// _inboxDismiss/_inboxSend). Raison texte libre TOUJOURS optionnelle. agent_name = celui de LA
+// PROPOSITION (prop.agent_name, re-fetch a l'instant du clic -- meme discipline que
+// _proposalUseVariant). item_text = toutes les variantes jointes (angle + texte).
+async function _proposalRejectConfirm(id) {
+  const confirmBtn = document.getElementById('proposal-reject-confirm-' + id);
+  const reasonTa = document.getElementById('proposal-reject-reason-' + id);
+  if (confirmBtn) confirmBtn.disabled = true;
+  const reason = reasonTa ? reasonTa.value.trim() : '';
+  const { data: prop, error: fetchErr } = await sbClient.from('agent_proposals')
+    .select('agent_name, variants, mandate_id')
+    .eq('id', id).eq('client_id', CLIENT_ID).single();
+  if (fetchErr || !prop) {
+    console.error('[_proposalRejectConfirm] fetch failed:', fetchErr);
+    showToast('Error loading proposal');
+    if (confirmBtn) confirmBtn.disabled = false;
+    return;
+  }
   const { error } = await sbClient.from('agent_proposals')
     .update({ status: 'rejected' })
     .eq('id', id);
-  if (error) { console.error('[_proposalReject]', error); showToast('Error rejecting proposal'); return; }
+  if (error) {
+    console.error('[_proposalRejectConfirm] agent_proposals update failed:', error);
+    showToast('Error rejecting proposal');
+    if (confirmBtn) confirmBtn.disabled = false;
+    return;
+  }
+  const variantsJoined = (Array.isArray(prop.variants) ? prop.variants : [])
+    .map((v, idx) => `[${v.angle || 'Variant ' + (idx + 1)}] ${_cleanVariantText(v.text || '')}`)
+    .join('\n\n');
+  const { error: afErr } = await sbClient.from('agent_feedback').insert({
+    agent_name: prop.agent_name, client_id: CLIENT_ID, mandate_id: prop.mandate_id ?? null,
+    item_id: id, item_type: 'proposal_variant', item_text: variantsJoined,
+    vote: 'unlike', comment: reason || null
+  });
+  if (afErr) console.error('[_proposalRejectConfirm] agent_feedback insert failed:', afErr);
   _removeProposalCard(id);
 }
 
@@ -15524,17 +15632,24 @@ if ('serviceWorker' in navigator) {
   </div>
 </div>
 
-<!-- ── Ask Corridor panel ── -->
+<!-- ── Ask Corridor panel ──
+     BUG 3 (23/09, porte depuis demo-private.html) : panneau anterieur au sweep i18n, jamais
+     raccorde a currentLang -- meme cause et meme correctif qu'expliques dans demo-private.html
+     (chercher "BUG 3 (23/09)"). Ce fichier n'a pas de .ask-panel-sub (jamais eu de sous-titre
+     "Reads your live pipeline" ici), rien a ajouter de ce cote. -->
 <div id="ask-overlay" onclick="_closeAskPanel()"></div>
 <div id="ask-panel">
   <div class="ask-panel-head">
     <div style="display:flex;flex-direction:column;gap:2px;min-width:0;flex:1;">
-      <span class="ask-panel-title">Ask Corridor</span>
+      <span class="ask-panel-title" data-en="Ask Corridor" data-fr="Demander à Corridor">Ask Corridor</span>
       <span class="ask-ctx-pill" id="ask-ctx-label" style="display:none;"></span>
     </div>
     <button class="drawer-close" onclick="_closeAskPanel()" aria-label="Close">&#10005;</button>
   </div>
   <div id="ask-messages">
+    <!-- Message initial purement inerte (_askRenderWelcome() le remplace toujours avant que le
+         panneau ne devienne visible) -- pas de data-en/data-fr ici, cf. meme remarque dans
+         demo-private.html. -->
     <div class="chat-msg assistant">
       <div class="chat-avatar">C</div>
       <div class="chat-bubble">Ask me anything about your pipeline, a prospect, or a market signal.<div class="ask-provenance">ASK CORRIDOR</div></div>
@@ -15543,11 +15658,11 @@ if ('serviceWorker' in navigator) {
   <!-- Composer suggere (port demo-private.html) : structure prete, reste cachee tant qu'aucune
        vraie suggestion basee sur les donnees de l'utilisateur n'est calculee -- rien d'invente ici. -->
   <div class="ask-suggested" id="ask-suggested-wrap" style="display:none;">
-    <div class="ask-suggested-label">Suggested</div>
+    <div class="ask-suggested-label" data-en="Suggested" data-fr="Suggestions">Suggested</div>
     <div class="ask-pills" id="ask-suggested-pills"></div>
   </div>
   <div class="ask-input-row">
-    <textarea id="ask-input" rows="2" placeholder="Ask Corridor&#8230;" onkeydown="_askOnEnter(event)"></textarea>
+    <textarea id="ask-input" rows="2" placeholder="Ask Corridor&#8230;" data-en-ph="Ask Corridor&#8230;" data-fr-ph="Demander à Corridor&#8230;" onkeydown="_askOnEnter(event)"></textarea>
     <button class="btn-accent" id="ask-send-btn" onclick="_sendAskMessage()" style="height:44px;flex-shrink:0;">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 2L11 13"/><path d="M22 2L15 22 11 13 2 9l20-7z"/></svg>
     </button>
