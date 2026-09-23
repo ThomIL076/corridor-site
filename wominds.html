@@ -3259,29 +3259,42 @@ async function _loadLastMorningScanEmail(scanDate) {
     // seulement pour ce cas ; le bouton "Voir le scan complet" (decisions.length>0) garde son style
     // existant inchange.
     const emptyStateHtml = `<div class="kanban-empty" style="padding:14px 8px;">Aucune décision aujourd’hui.</div>${recentActivityHtml}`;
+    // Fix 2026-09-23 (ajustement demande Thomas apres verification visuelle) : lien "Retour" affiche
+    // uniquement quand ce panneau montre un scan PASSE (scanDate fourni explicitement par un clic sur
+    // la liste "Derniere activite") -- ramene a l'etat par defaut (scan du jour) via un appel sans
+    // argument, reutilise integralement le meme chargement (aucune duplication).
+    const backLinkHtml = scanDate ? `<div style="margin-bottom:8px;"><a href="#" onclick="_loadLastMorningScanEmail();return false;" style="font-size:var(--fs-xs);color:var(--muted);text-decoration:underline;">← Retour</a></div>` : '';
     el.innerHTML = `
+      ${backLinkHtml}
       <div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:8px;">${_esc(data.subject || '')} · ${_esc(dateLabel)}</div>
       ${decisions.length > 0 ? sectionsHtml : emptyStateHtml}
+      ${decisions.length > 0 ? `
       <div id="last-morning-scan-frame-wrap" style="max-height:${collapsedHeight};overflow:hidden;position:relative;transition:max-height .25s ease;border:1px solid var(--border);border-radius:var(--radius-sm);">
         <div id="last-morning-scan-fade" style="position:absolute;bottom:0;left:0;right:0;height:40px;background:linear-gradient(transparent, var(--bg));pointer-events:none;display:none;"></div>
       </div>
-      <button id="last-morning-scan-toggle" style="margin-top:6px;background:none;border:none;text-decoration:underline;cursor:pointer;padding:0;${decisions.length > 0 ? 'color:var(--ink);font-weight:600;font-size:var(--fs-xs);' : 'color:var(--dim);font-weight:500;font-size:var(--fs-xs);display:block;margin-left:auto;margin-right:auto;'}">${toggleLabel}</button>
+      <button id="last-morning-scan-toggle" style="margin-top:6px;background:none;border:none;text-decoration:underline;cursor:pointer;padding:0;color:var(--ink);font-weight:600;font-size:var(--fs-xs);">${toggleLabel}</button>` : ''}
     `;
+    // Fix 2026-09-23 (demande Thomas) : sur un jour vide, pas de vrai email substantiel a montrer en
+    // plus de l'etat vide -- le bloc iframe/bouton n'est plus rendu du tout (voir ternaire ci-dessus),
+    // wrap/fade/toggleBtn valent alors null. Garde explicite : la logique d'expansion ne s'attache
+    // jamais dans ce cas, rien a garder synchronise avec un bouton absent.
     const wrap = document.getElementById('last-morning-scan-frame-wrap');
     const fade = document.getElementById('last-morning-scan-fade');
     const toggleBtn = document.getElementById('last-morning-scan-toggle');
-    const frame = document.createElement('iframe');
-    frame.setAttribute('sandbox', '');
-    frame.style.cssText = 'width:100%;height:420px;border:none;background:#fff;display:block;';
-    frame.srcdoc = data.email_html;
-    wrap.insertBefore(frame, fade);
-    let expanded = false;
-    toggleBtn.addEventListener('click', () => {
-      expanded = !expanded;
-      wrap.style.maxHeight = expanded ? '420px' : collapsedHeight;
-      fade.style.display = 'none'; // fade n'a plus de role : plus de peek partiel a 140px, toujours 0 ou 420px
-      toggleBtn.textContent = expanded ? 'Réduire' : toggleLabel;
-    });
+    if (wrap && fade && toggleBtn) {
+      const frame = document.createElement('iframe');
+      frame.setAttribute('sandbox', '');
+      frame.style.cssText = 'width:100%;height:420px;border:none;background:#fff;display:block;';
+      frame.srcdoc = data.email_html;
+      wrap.insertBefore(frame, fade);
+      let expanded = false;
+      toggleBtn.addEventListener('click', () => {
+        expanded = !expanded;
+        wrap.style.maxHeight = expanded ? '420px' : collapsedHeight;
+        fade.style.display = 'none'; // fade n'a plus de role : plus de peek partiel a 140px, toujours 0 ou 420px
+        toggleBtn.textContent = expanded ? 'Réduire' : toggleLabel;
+      });
+    }
   } catch(e) {
     console.error('[_loadLastMorningScanEmail]', e);
     el.innerHTML = '<div style="color:var(--muted);font-size:var(--fs-sm);">Impossible de charger le dernier Morning Scan.</div>';
