@@ -1676,7 +1676,7 @@ body.new-nav { padding-left: 220px; }
       <span class="snav-meta">15</span>
     </button>
     <button class="snav-item" data-nav="integrations" onclick="_switchNewNav('integrations')">
-      <span>Integrations</span>
+      <span data-en="Integrations" data-fr="Intégrations">Integrations</span>
     </button>
     <button class="snav-item" data-nav="mandate" onclick="_switchNewNav('mandate')">
       <span data-en="Mandate &amp; ICP" data-fr="Mandat &amp; ICP">Mandate &amp; ICP</span>
@@ -1713,12 +1713,12 @@ body.new-nav { padding-left: 220px; }
   <button class="mtab-item" data-nav="priorities" onclick="_switchNewNav('priorities')"><span data-en="Today" data-fr="Aujourd'hui">Today</span></button>
   <button class="mtab-item" data-nav="pipeline" onclick="_switchNewNav('pipeline')">Pipeline</button>
   <button class="mtab-item" data-nav="send" onclick="_switchNewNav('send')">
-    <span>Send</span><span class="mtab-badge" id="mtab-badge-send"></span>
+    <span data-en="Send" data-fr="Envoyer">Send</span><span class="mtab-badge" id="mtab-badge-send"></span>
   </button>
   <button class="mtab-item" data-nav="inbox" onclick="_switchNewNav('inbox')">
-    <span>Inbox</span><span class="mtab-badge" id="mtab-badge-inbox"></span>
+    <span data-en="Inbox" data-fr="Boîte de réception">Inbox</span><span class="mtab-badge" id="mtab-badge-inbox"></span>
   </button>
-  <button class="mtab-item" id="mtab-more-btn" onclick="_switchNewNav('more')">More</button>
+  <button class="mtab-item" id="mtab-more-btn" onclick="_switchNewNav('more')" data-en="More" data-fr="Plus">More</button>
 </nav>
 
 <!-- NAV + MANDATE BAR (fusionnes, cleanup) : logo retire (doublon .snav-logo), badge ACTIVE
@@ -1824,8 +1824,8 @@ body.new-nav { padding-left: 220px; }
         <line x1="44" y1="44" x2="62" y2="28" stroke="var(--blue)" stroke-width="2.5" stroke-linecap="round"/>
         <circle cx="44" cy="44" r="3" fill="var(--navy)" opacity="0.5"/>
       </svg>
-      <div style="font-size:var(--fs-lg);font-weight:800;color:var(--navy);letter-spacing:-0.3px;margin-bottom:10px;">No scan results yet</div>
-      <div style="font-size:var(--fs-base);color:var(--muted);line-height:1.7;max-width:340px;margin:0 auto;">Prospect scanning results will appear here. Run a scan from the Pipeline view to populate this panel.</div>
+      <div style="font-size:var(--fs-lg);font-weight:800;color:var(--navy);letter-spacing:-0.3px;margin-bottom:10px;" data-en="No scan results yet" data-fr="Aucun résultat de scan pour le moment">No scan results yet</div>
+      <div style="font-size:var(--fs-base);color:var(--muted);line-height:1.7;max-width:340px;margin:0 auto;" data-en="Prospect scanning results will appear here. Run a scan from the Pipeline view to populate this panel." data-fr="Les résultats de scan des prospects apparaîtront ici. Lancez un scan depuis la vue Pipeline pour remplir ce panneau.">Prospect scanning results will appear here. Run a scan from the Pipeline view to populate this panel.</div>
     </div>
   </div>
 
@@ -1840,99 +1840,99 @@ body.new-nav { padding-left: 220px; }
       <!-- CMO Orchestrator hero -->
       <div class="agent-hero">
         <div>
-          <div class="agent-hero-status"><span class="agent-hero-dot"></span>CMO ORCHESTRATOR &middot; RUNNING</div>
-          <div class="agent-hero-desc">GTM strategy coordination — weekly priorities, brand positioning, channel mix. Start here.</div>
+          <div class="agent-hero-status"><span class="agent-hero-dot"></span><span data-en="CMO ORCHESTRATOR &middot; RUNNING" data-fr="CMO ORCHESTRATOR &middot; EN COURS" data-html>CMO ORCHESTRATOR &middot; RUNNING</span></div>
+          <div class="agent-hero-desc" data-en="GTM strategy coordination — weekly priorities, brand positioning, channel mix. Start here." data-fr="Coordination de la stratégie GTM — priorités hebdomadaires, positionnement de marque, mix des canaux. Commencez ici.">GTM strategy coordination — weekly priorities, brand positioning, channel mix. Start here.</div>
         </div>
         <div class="agent-hero-right">
           <div class="agent-hero-stats">
-            <div class="agent-hero-stat"><span id="agent-hero-run24h">—</span><label>Agents run 24h</label></div>
-            <div class="agent-hero-stat"><span id="agent-hero-actions24h">—</span><label>Actions produced</label></div>
-            <div class="agent-hero-stat"><span id="agent-hero-awaiting">—</span><label>Awaiting you</label></div>
+            <div class="agent-hero-stat"><span id="agent-hero-run24h">—</span><label data-en="Agents run 24h" data-fr="Agents exécutés 24h">Agents run 24h</label></div>
+            <div class="agent-hero-stat"><span id="agent-hero-actions24h">—</span><label data-en="Actions produced" data-fr="Actions produites">Actions produced</label></div>
+            <div class="agent-hero-stat"><span id="agent-hero-awaiting">—</span><label data-en="Awaiting you" data-fr="En attente de vous">Awaiting you</label></div>
           </div>
-          <button class="agent-hero-btn" onclick="_activateAgent('cmo')">Open session</button>
+          <button class="agent-hero-btn" onclick="_activateAgent('cmo')" data-en="Open session" data-fr="Ouvrir la session">Open session</button>
         </div>
       </div>
 
       <!-- Content Group -->
       <div class="agent-group">
-        <div class="agent-group-label" style="color:#1D9E75;">Content</div>
+        <div class="agent-group-label" style="color:#1D9E75;" data-en="Content" data-fr="Contenu">Content</div>
         <div class="agent-grid">
           <button class="agent-card" style="--accent-color:#1D9E75" onclick="_activateAgent('positioning')">
             <span class="agent-status-dot" id="dot-positioning"></span>
             <span class="ac-icon">🧭</span>
-            <span class="ac-name">Positioning Analyst</span>
-            <span class="ac-desc">Value proposition and differentiation</span>
-            <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-positioning">—</span><span class="agent-card-footer-action">Open</span></div>
+            <span class="ac-name" data-en="Positioning Analyst" data-fr="Analyste Positionnement">Positioning Analyst</span>
+            <span class="ac-desc" data-en="Value proposition and differentiation" data-fr="Proposition de valeur et différenciation">Value proposition and differentiation</span>
+            <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-positioning">—</span><span class="agent-card-footer-action" data-en="Open" data-fr="Ouvrir">Open</span></div>
           </button>
           <button class="agent-card" style="--accent-color:#1D9E75" onclick="_activateAgent('content')">
             <span class="agent-status-dot" id="dot-content"></span>
             <span class="ac-icon">✍️</span>
-            <span class="ac-name">Content Strategist</span>
-            <span class="ac-desc">Thought leadership calendar and content mix</span>
-            <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-content">—</span><span class="agent-card-footer-action">Open</span></div>
+            <span class="ac-name" data-en="Content Strategist" data-fr="Stratège Contenu">Content Strategist</span>
+            <span class="ac-desc" data-en="Thought leadership calendar and content mix" data-fr="Calendrier de leadership éclairé et mix de contenu">Thought leadership calendar and content mix</span>
+            <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-content">—</span><span class="agent-card-footer-action" data-en="Open" data-fr="Ouvrir">Open</span></div>
           </button>
           <button class="agent-card" style="--accent-color:#1D9E75" onclick="_activateAgent('copywriter')">
             <span class="agent-status-dot" id="dot-copywriter"></span>
             <span class="ac-icon">✏️</span>
-            <span class="ac-name">Copywriter</span>
-            <span class="ac-desc">LinkedIn posts, emails, landing page copy</span>
-            <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-copywriter">—</span><span class="agent-card-footer-action">Open</span></div>
+            <span class="ac-name" data-en="Copywriter" data-fr="Copywriter">Copywriter</span>
+            <span class="ac-desc" data-en="LinkedIn posts, emails, landing page copy" data-fr="Posts LinkedIn, emails, textes de landing page">LinkedIn posts, emails, landing page copy</span>
+            <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-copywriter">—</span><span class="agent-card-footer-action" data-en="Open" data-fr="Ouvrir">Open</span></div>
           </button>
           <button class="agent-card" style="--accent-color:#1D9E75" onclick="_activateAgent('repurposing')">
             <span class="agent-status-dot" id="dot-repurposing"></span>
             <span class="ac-icon">♻️</span>
-            <span class="ac-name">Repurposing Engine</span>
-            <span class="ac-desc">Turn one piece of content into ten formats</span>
-            <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-repurposing">—</span><span class="agent-card-footer-action">Open</span></div>
+            <span class="ac-name" data-en="Repurposing Engine" data-fr="Moteur de Repurposing">Repurposing Engine</span>
+            <span class="ac-desc" data-en="Turn one piece of content into ten formats" data-fr="Transforme un contenu en dix formats">Turn one piece of content into ten formats</span>
+            <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-repurposing">—</span><span class="agent-card-footer-action" data-en="Open" data-fr="Ouvrir">Open</span></div>
           </button>
           <button class="agent-card" style="--accent-color:#1D9E75" onclick="_activateAgent('seo')">
             <span class="agent-status-dot" id="dot-seo"></span>
             <span class="ac-icon">🔎</span>
-            <span class="ac-name">SEO &amp; AEO</span>
-            <span class="ac-desc">Rank on search engines, get cited by AI</span>
-            <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-seo">—</span><span class="agent-card-footer-action">Open</span></div>
+            <span class="ac-name" data-en="SEO &amp; AEO" data-fr="SEO et AEO" data-html>SEO &amp; AEO</span>
+            <span class="ac-desc" data-en="Rank on search engines, get cited by AI" data-fr="Se classer sur les moteurs de recherche, être cité par l'IA">Rank on search engines, get cited by AI</span>
+            <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-seo">—</span><span class="agent-card-footer-action" data-en="Open" data-fr="Ouvrir">Open</span></div>
           </button>
           <button class="agent-card" style="--accent-color:#1D9E75" onclick="_activateAgent('distribution')">
             <span class="agent-status-dot" id="dot-distribution"></span>
             <span class="ac-icon">📡</span>
-            <span class="ac-name">Distribution</span>
-            <span class="ac-desc">Right channel, right timing for each piece</span>
-            <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-distribution">—</span><span class="agent-card-footer-action">Open</span></div>
+            <span class="ac-name" data-en="Distribution" data-fr="Distribution">Distribution</span>
+            <span class="ac-desc" data-en="Right channel, right timing for each piece" data-fr="Le bon canal, le bon moment pour chaque contenu">Right channel, right timing for each piece</span>
+            <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-distribution">—</span><span class="agent-card-footer-action" data-en="Open" data-fr="Ouvrir">Open</span></div>
           </button>
           <button class="agent-card" style="--accent-color:#1D9E75" onclick="_activateAgent('performance')">
             <span class="agent-status-dot" id="dot-performance"></span>
             <span class="ac-icon">📊</span>
-            <span class="ac-name">Performance Analyst</span>
-            <span class="ac-desc">Pre-publication checklist and diagnostics</span>
-            <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-performance">—</span><span class="agent-card-footer-action">Open</span></div>
+            <span class="ac-name" data-en="Performance Analyst" data-fr="Analyste Performance">Performance Analyst</span>
+            <span class="ac-desc" data-en="Pre-publication checklist and diagnostics" data-fr="Check-list et diagnostics avant publication">Pre-publication checklist and diagnostics</span>
+            <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-performance">—</span><span class="agent-card-footer-action" data-en="Open" data-fr="Ouvrir">Open</span></div>
           </button>
         </div>
       </div>
 
       <!-- GTM Group (3 agents exist; extensible for more) -->
       <div class="agent-group">
-        <div class="agent-group-label" style="color:#2568B5;">GTM</div>
+        <div class="agent-group-label" style="color:#2568B5;" data-en="GTM" data-fr="GTM">GTM</div>
         <div class="agent-grid">
           <button class="agent-card" style="--accent-color:#2568B5" onclick="_activateAgent('competitive')">
             <span class="agent-status-dot" id="dot-competitive"></span>
             <span class="ac-icon">⚔️</span>
-            <span class="ac-name">Competitive Intel</span>
-            <span class="ac-desc">Landscape mapping and differentiated messaging</span>
-            <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-competitive">—</span><span class="agent-card-footer-action">Open</span></div>
+            <span class="ac-name" data-en="Competitive Intel" data-fr="Intel Concurrentielle">Competitive Intel</span>
+            <span class="ac-desc" data-en="Landscape mapping and differentiated messaging" data-fr="Cartographie concurrentielle et messages différenciants">Landscape mapping and differentiated messaging</span>
+            <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-competitive">—</span><span class="agent-card-footer-action" data-en="Open" data-fr="Ouvrir">Open</span></div>
           </button>
           <button class="agent-card" style="--accent-color:#2568B5" onclick="_activateAgent('prospect')">
             <span class="agent-status-dot" id="dot-prospect"></span>
             <span class="ac-icon">🔍</span>
-            <span class="ac-name">Prospect Agent</span>
-            <span class="ac-desc">Deep-dive on any prospect before the call</span>
-            <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-prospect">—</span><span class="agent-card-footer-action">Open</span></div>
+            <span class="ac-name" data-en="Prospect Agent" data-fr="Agent Prospect">Prospect Agent</span>
+            <span class="ac-desc" data-en="Deep-dive on any prospect before the call" data-fr="Analyse approfondie de tout prospect avant l'appel">Deep-dive on any prospect before the call</span>
+            <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-prospect">—</span><span class="agent-card-footer-action" data-en="Open" data-fr="Ouvrir">Open</span></div>
           </button>
           <button class="agent-card" style="--accent-color:#2568B5" onclick="_activateAgent('objection')">
             <span class="agent-status-dot" id="dot-objection"></span>
             <span class="ac-icon">🛡️</span>
-            <span class="ac-name">Objection Handler</span>
-            <span class="ac-desc">3 ready-to-send responses for any objection</span>
-            <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-objection">—</span><span class="agent-card-footer-action">Open</span></div>
+            <span class="ac-name" data-en="Objection Handler" data-fr="Gestionnaire d'objections">Objection Handler</span>
+            <span class="ac-desc" data-en="3 ready-to-send responses for any objection" data-fr="3 réponses prêtes à envoyer pour toute objection">3 ready-to-send responses for any objection</span>
+            <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-objection">—</span><span class="agent-card-footer-action" data-en="Open" data-fr="Ouvrir">Open</span></div>
           </button>
         </div>
       </div>
@@ -1940,61 +1940,61 @@ body.new-nav { padding-left: 220px; }
       <!-- Pipeline Group (4 automatisations reelles, pas des agents de chat -- clic navigue
            vers leur ecran reel, README 8. Agents, arbitrage confirme) -->
       <div class="agent-group">
-        <div class="agent-group-label" style="color:#9F3FBF;">Pipeline</div>
+        <div class="agent-group-label" style="color:#9F3FBF;" data-en="Pipeline" data-fr="Pipeline">Pipeline</div>
         <div class="agent-grid">
           <button class="agent-card" style="--accent-color:#9F3FBF" onclick="_switchNewNav('system','signals')">
             <span class="agent-status-dot" id="dot-morningscan"></span>
             <span class="ac-icon">🌅</span>
-            <span class="ac-name">Morning Scan</span>
-            <span class="ac-desc">Daily prospect signals and pipeline highlights</span>
-            <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-morningscan">—</span><span class="agent-card-footer-action">Open</span></div>
+            <span class="ac-name" data-en="Morning Scan" data-fr="Morning Scan">Morning Scan</span>
+            <span class="ac-desc" data-en="Daily prospect signals and pipeline highlights" data-fr="Signaux prospects quotidiens et temps forts du pipeline">Daily prospect signals and pipeline highlights</span>
+            <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-morningscan">—</span><span class="agent-card-footer-action" data-en="Open" data-fr="Ouvrir">Open</span></div>
           </button>
           <button class="agent-card" style="--accent-color:#9F3FBF" onclick="_switchNewNav('system','pipeintel')">
             <span class="agent-status-dot" id="dot-pipelinereviewer"></span>
             <span class="ac-icon">📊</span>
-            <span class="ac-name">Pipeline Reviewer</span>
-            <span class="ac-desc">Classifies every active deal red/amber/green</span>
-            <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-pipelinereviewer">—</span><span class="agent-card-footer-action">Open</span></div>
+            <span class="ac-name" data-en="Pipeline Reviewer" data-fr="Pipeline Reviewer">Pipeline Reviewer</span>
+            <span class="ac-desc" data-en="Classifies every active deal red/amber/green" data-fr="Classe chaque deal actif en rouge/orange/vert">Classifies every active deal red/amber/green</span>
+            <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-pipelinereviewer">—</span><span class="agent-card-footer-action" data-en="Open" data-fr="Ouvrir">Open</span></div>
           </button>
           <button class="agent-card" style="--accent-color:#9F3FBF" onclick="_switchNewNav('system','weekly');_switchRptTab('daily')">
             <span class="agent-status-dot" id="dot-dailydigest"></span>
             <span class="ac-icon">📰</span>
-            <span class="ac-name">Daily Digest</span>
-            <span class="ac-desc">One-sentence factual summary of today's activity</span>
-            <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-dailydigest">—</span><span class="agent-card-footer-action">Open</span></div>
+            <span class="ac-name" data-en="Daily Digest" data-fr="Daily Digest">Daily Digest</span>
+            <span class="ac-desc" data-en="One-sentence factual summary of today's activity" data-fr="Résumé factuel en une phrase de l'activité du jour">One-sentence factual summary of today's activity</span>
+            <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-dailydigest">—</span><span class="agent-card-footer-action" data-en="Open" data-fr="Ouvrir">Open</span></div>
           </button>
           <button class="agent-card" style="--accent-color:#9F3FBF" onclick="_switchNewNav('system','weekly')">
             <span class="agent-status-dot" id="dot-weeklyreport"></span>
             <span class="ac-icon">🗒️</span>
-            <span class="ac-name">Weekly Report</span>
-            <span class="ac-desc">Weekly pipeline narrative and recommendations</span>
-            <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-weeklyreport">—</span><span class="agent-card-footer-action">Open</span></div>
+            <span class="ac-name" data-en="Weekly Report" data-fr="Weekly Report">Weekly Report</span>
+            <span class="ac-desc" data-en="Weekly pipeline narrative and recommendations" data-fr="Récit hebdomadaire du pipeline et recommandations">Weekly pipeline narrative and recommendations</span>
+            <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-weeklyreport">—</span><span class="agent-card-footer-action" data-en="Open" data-fr="Ouvrir">Open</span></div>
           </button>
         </div>
       </div>
 
       <!-- Activity -->
       <div class="agent-group">
-        <div class="agent-group-label" style="color:var(--ink);">Activity</div>
+        <div class="agent-group-label" style="color:var(--ink);" data-en="Activity" data-fr="Activité">Activity</div>
         <div class="agent-grid">
           <button class="agent-card" style="--accent-color:var(--ink)" onclick="_switchNewNav('inbox')">
             <span class="ac-icon">📩</span>
-            <span class="ac-name">Inbox<span class="badge-new">New</span></span>
-            <span class="ac-desc">LinkedIn reply drafts from active prospects</span>
+            <span class="ac-name" data-html data-en='Inbox<span class="badge-new">New</span>' data-fr='Boîte de réception<span class="badge-new">Nouveau</span>'>Inbox<span class="badge-new">New</span></span>
+            <span class="ac-desc" data-en="LinkedIn reply drafts from active prospects" data-fr="Brouillons de réponses LinkedIn des prospects actifs">LinkedIn reply drafts from active prospects</span>
             <div class="ac-bar"></div>
           </button>
         </div>
       </div>
     </div>
     <div id="agents-back-bar" class="agent-back-bar" style="display:none;">
-      <button class="agent-back-btn" onclick="_showAgentsMap()">← All agents</button>
+      <button class="agent-back-btn" onclick="_showAgentsMap()" data-en="← All agents" data-fr="← Tous les agents">← All agents</button>
     </div>
 
     <!-- CMO Orchestrator -->
     <div class="agent-panel" id="agent-cmo">
       <div class="card" style="padding:16px 20px">
         <div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:12px;line-height:1.6">
-          <strong style="color:var(--ink)">CMO Orchestrator</strong> - Coordinates your full GTM strategy. Weekly planning, brand positioning, channel mix, and cross-agent priorities. Start here when you need to think at the CMO level.
+          <strong style="color:var(--ink)" data-en="CMO Orchestrator" data-fr="CMO Orchestrator">CMO Orchestrator</strong> - <span data-en="Coordinates your full GTM strategy. Weekly planning, brand positioning, channel mix, and cross-agent priorities. Start here when you need to think at the CMO level." data-fr="Coordonne l'ensemble de votre stratégie GTM. Planification hebdomadaire, positionnement de marque, mix des canaux et priorités inter-agents. Commencez ici quand vous devez raisonner au niveau CMO.">Coordinates your full GTM strategy. Weekly planning, brand positioning, channel mix, and cross-agent priorities. Start here when you need to think at the CMO level.</span>
         </div>
         <div class="chat-messages" id="chat-cmo">
           <div class="chat-msg assistant">
@@ -2004,8 +2004,8 @@ body.new-nav { padding-left: 220px; }
         </div>
         <div class="chat-input-row">
           <textarea class="chat-input" id="input-cmo" rows="2" data-en-ph="What do you need to orchestrate this week?" data-fr-ph="De quoi avez-vous besoin d'orchestrer cette semaine ?" placeholder="What do you need to orchestrate this week?" onkeydown="handleEnter(event,'cmo')"></textarea>
-          <button class="btn-primary btn-lg" onclick="sendAgent('cmo')" id="btn-cmo">Send</button>
-        </div><button onclick="clearAgent('cmo')" style="font-size:var(--fs-micro);color:var(--muted);background:none;border:none;cursor:pointer;text-decoration:underline;margin:6px 0 0 2px">Clear conversation</button>
+          <button class="btn-primary btn-lg" onclick="sendAgent('cmo')" id="btn-cmo" data-en="Send" data-fr="Envoyer">Send</button>
+        </div><button onclick="clearAgent('cmo')" style="font-size:var(--fs-micro);color:var(--muted);background:none;border:none;cursor:pointer;text-decoration:underline;margin:6px 0 0 2px" data-en="Clear conversation" data-fr="Effacer la conversation">Clear conversation</button>
       </div>
     </div>
 
@@ -2013,7 +2013,7 @@ body.new-nav { padding-left: 220px; }
     <div class="agent-panel" id="agent-positioning">
       <div class="card" style="padding:16px 20px">
         <div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:12px;line-height:1.6">
-          <strong style="color:var(--ink)">Positioning Analyst</strong> - Sharpens your value proposition, messaging hierarchy, and differentiation for specific markets and buyer personas.
+          <strong style="color:var(--ink)" data-en="Positioning Analyst" data-fr="Analyste Positionnement">Positioning Analyst</strong> - <span data-en="Sharpens your value proposition, messaging hierarchy, and differentiation for specific markets and buyer personas." data-fr="Affine votre proposition de valeur, votre hiérarchie de messages et votre différenciation pour des marchés et personas spécifiques.">Sharpens your value proposition, messaging hierarchy, and differentiation for specific markets and buyer personas.</span>
         </div>
         <div class="chat-messages" id="chat-positioning">
           <div class="chat-msg assistant">
@@ -2022,9 +2022,9 @@ body.new-nav { padding-left: 220px; }
           </div>
         </div>
         <div class="chat-input-row">
-          <textarea class="chat-input" id="input-positioning" rows="2" placeholder="Ask about positioning..." onkeydown="handleEnter(event,'positioning')"></textarea>
-          <button class="btn-primary btn-lg" onclick="sendAgent('positioning')" id="btn-positioning">Send</button>
-        </div><button onclick="clearAgent('positioning')" style="font-size:var(--fs-micro);color:var(--muted);background:none;border:none;cursor:pointer;text-decoration:underline;margin:6px 0 0 2px">Clear conversation</button>
+          <textarea class="chat-input" id="input-positioning" rows="2" data-en-ph="Ask about positioning..." data-fr-ph="Posez une question sur le positionnement..." placeholder="Ask about positioning..." onkeydown="handleEnter(event,'positioning')"></textarea>
+          <button class="btn-primary btn-lg" onclick="sendAgent('positioning')" id="btn-positioning" data-en="Send" data-fr="Envoyer">Send</button>
+        </div><button onclick="clearAgent('positioning')" style="font-size:var(--fs-micro);color:var(--muted);background:none;border:none;cursor:pointer;text-decoration:underline;margin:6px 0 0 2px" data-en="Clear conversation" data-fr="Effacer la conversation">Clear conversation</button>
       </div>
     </div>
 
@@ -2032,7 +2032,7 @@ body.new-nav { padding-left: 220px; }
     <div class="agent-panel" id="agent-content">
       <div class="card" style="padding:16px 20px">
         <div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:12px;line-height:1.6">
-          <strong style="color:var(--ink)">Content Strategist</strong> - Builds your thought leadership calendar, identifies topics that attract your ICP, and designs the content mix across formats and channels.
+          <strong style="color:var(--ink)" data-en="Content Strategist" data-fr="Stratège Contenu">Content Strategist</strong> - <span data-en="Builds your thought leadership calendar, identifies topics that attract your ICP, and designs the content mix across formats and channels." data-fr="Construit votre calendrier de leadership éclairé, identifie les sujets qui attirent votre ICP et conçoit le mix de contenu entre formats et canaux.">Builds your thought leadership calendar, identifies topics that attract your ICP, and designs the content mix across formats and channels.</span>
         </div>
         <div class="chat-messages" id="chat-content">
           <div class="chat-msg assistant">
@@ -2041,9 +2041,9 @@ body.new-nav { padding-left: 220px; }
           </div>
         </div>
         <div class="chat-input-row">
-          <textarea class="chat-input" id="input-content" rows="2" placeholder="Ask for content strategy..." onkeydown="handleEnter(event,'content')"></textarea>
-          <button class="btn-primary btn-lg" onclick="sendAgent('content')" id="btn-content">Send</button>
-        </div><button onclick="clearAgent('content')" style="font-size:var(--fs-micro);color:var(--muted);background:none;border:none;cursor:pointer;text-decoration:underline;margin:6px 0 0 2px">Clear conversation</button>
+          <textarea class="chat-input" id="input-content" rows="2" data-en-ph="Ask for content strategy..." data-fr-ph="Demandez une stratégie de contenu..." placeholder="Ask for content strategy..." onkeydown="handleEnter(event,'content')"></textarea>
+          <button class="btn-primary btn-lg" onclick="sendAgent('content')" id="btn-content" data-en="Send" data-fr="Envoyer">Send</button>
+        </div><button onclick="clearAgent('content')" style="font-size:var(--fs-micro);color:var(--muted);background:none;border:none;cursor:pointer;text-decoration:underline;margin:6px 0 0 2px" data-en="Clear conversation" data-fr="Effacer la conversation">Clear conversation</button>
       </div>
     </div>
 
@@ -2051,7 +2051,7 @@ body.new-nav { padding-left: 220px; }
     <div class="agent-panel" id="agent-copywriter">
       <div class="card" style="padding:16px 20px">
         <div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:12px;line-height:1.6">
-          <strong style="color:var(--ink)">Copywriter</strong> - Writes LinkedIn posts, email sequences, landing page copy, and ad headlines calibrated to your voice and your buyer's language. Drafts on demand, edits on feedback.
+          <strong style="color:var(--ink)" data-en="Copywriter" data-fr="Copywriter">Copywriter</strong> - <span data-en="Writes LinkedIn posts, email sequences, landing page copy, and ad headlines calibrated to your voice and your buyer's language. Drafts on demand, edits on feedback." data-fr="Rédige des posts LinkedIn, des séquences email, des textes de landing page et des accroches publicitaires calibrés sur votre voix et le langage de vos acheteurs. Rédige à la demande, corrige sur retour.">Writes LinkedIn posts, email sequences, landing page copy, and ad headlines calibrated to your voice and your buyer's language. Drafts on demand, edits on feedback.</span>
         </div>
         <div class="chat-messages" id="chat-copywriter">
           <div class="chat-msg assistant">
@@ -2060,9 +2060,9 @@ body.new-nav { padding-left: 220px; }
           </div>
         </div>
         <div class="chat-input-row">
-          <textarea class="chat-input" id="input-copywriter" rows="2" placeholder="What do you need written?" onkeydown="handleEnter(event,'copywriter')"></textarea>
-          <button class="btn-primary btn-lg" onclick="sendAgent('copywriter')" id="btn-copywriter">Send</button>
-        </div><button onclick="clearAgent('copywriter')" style="font-size:var(--fs-micro);color:var(--muted);background:none;border:none;cursor:pointer;text-decoration:underline;margin:6px 0 0 2px">Clear conversation</button>
+          <textarea class="chat-input" id="input-copywriter" rows="2" data-en-ph="What do you need written?" data-fr-ph="Qu'avez-vous besoin de rédiger ?" placeholder="What do you need written?" onkeydown="handleEnter(event,'copywriter')"></textarea>
+          <button class="btn-primary btn-lg" onclick="sendAgent('copywriter')" id="btn-copywriter" data-en="Send" data-fr="Envoyer">Send</button>
+        </div><button onclick="clearAgent('copywriter')" style="font-size:var(--fs-micro);color:var(--muted);background:none;border:none;cursor:pointer;text-decoration:underline;margin:6px 0 0 2px" data-en="Clear conversation" data-fr="Effacer la conversation">Clear conversation</button>
       </div>
     </div>
 
@@ -2070,7 +2070,7 @@ body.new-nav { padding-left: 220px; }
     <div class="agent-panel" id="agent-repurposing">
       <div class="card" style="padding:16px 20px">
         <div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:12px;line-height:1.6">
-          <strong style="color:var(--ink)">Repurposing Engine</strong> - Turns one piece of content into ten. Paste a post, article, or interview and get LinkedIn variants, email hooks, short-form clips, and slide ideas without losing the original voice.
+          <strong style="color:var(--ink)" data-en="Repurposing Engine" data-fr="Moteur de Repurposing">Repurposing Engine</strong> - <span data-en="Turns one piece of content into ten. Paste a post, article, or interview and get LinkedIn variants, email hooks, short-form clips, and slide ideas without losing the original voice." data-fr="Transforme un contenu en dix. Collez un post, un article ou une interview et obtenez des variantes LinkedIn, des accroches email, des idées de clips courts et de slides, sans perdre la voix d'origine.">Turns one piece of content into ten. Paste a post, article, or interview and get LinkedIn variants, email hooks, short-form clips, and slide ideas without losing the original voice.</span>
         </div>
         <div class="chat-messages" id="chat-repurposing">
           <div class="chat-msg assistant">
@@ -2079,9 +2079,9 @@ body.new-nav { padding-left: 220px; }
           </div>
         </div>
         <div class="chat-input-row">
-          <textarea class="chat-input" id="input-repurposing" rows="2" placeholder="Paste your content here..." onkeydown="handleEnter(event,'repurposing')"></textarea>
-          <button class="btn-primary btn-lg" onclick="sendAgent('repurposing')" id="btn-repurposing">Send</button>
-        </div><button onclick="clearAgent('repurposing')" style="font-size:var(--fs-micro);color:var(--muted);background:none;border:none;cursor:pointer;text-decoration:underline;margin:6px 0 0 2px">Clear conversation</button>
+          <textarea class="chat-input" id="input-repurposing" rows="2" data-en-ph="Paste your content here..." data-fr-ph="Collez votre contenu ici..." placeholder="Paste your content here..." onkeydown="handleEnter(event,'repurposing')"></textarea>
+          <button class="btn-primary btn-lg" onclick="sendAgent('repurposing')" id="btn-repurposing" data-en="Send" data-fr="Envoyer">Send</button>
+        </div><button onclick="clearAgent('repurposing')" style="font-size:var(--fs-micro);color:var(--muted);background:none;border:none;cursor:pointer;text-decoration:underline;margin:6px 0 0 2px" data-en="Clear conversation" data-fr="Effacer la conversation">Clear conversation</button>
       </div>
     </div>
 
@@ -2089,7 +2089,7 @@ body.new-nav { padding-left: 220px; }
     <div class="agent-panel" id="agent-seo">
       <div class="card" style="padding:16px 20px">
         <div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:12px;line-height:1.6">
-          <strong style="color:var(--ink)">SEO &amp; AEO Expert</strong> - Optimises your content for search engines and AI-generated answers. Identifies queries your ICP is asking, structures content to rank, and adapts copy for zero-click and featured-snippet formats.
+          <strong style="color:var(--ink)" data-en="SEO &amp;amp; AEO Expert" data-fr="Expert SEO et AEO">SEO &amp; AEO Expert</strong> - <span data-en="Optimises your content for search engines and AI-generated answers. Identifies queries your ICP is asking, structures content to rank, and adapts copy for zero-click and featured-snippet formats." data-fr="Optimise votre contenu pour les moteurs de recherche et les réponses générées par IA. Identifie les requêtes de votre ICP, structure le contenu pour se classer, et adapte les textes aux formats zero-click et featured-snippet.">Optimises your content for search engines and AI-generated answers. Identifies queries your ICP is asking, structures content to rank, and adapts copy for zero-click and featured-snippet formats.</span>
         </div>
         <div class="chat-messages" id="chat-seo">
           <div class="chat-msg assistant">
@@ -2098,9 +2098,9 @@ body.new-nav { padding-left: 220px; }
           </div>
         </div>
         <div class="chat-input-row">
-          <textarea class="chat-input" id="input-seo" rows="2" placeholder="What do you want to rank or be cited for?" onkeydown="handleEnter(event,'seo')"></textarea>
-          <button class="btn-primary btn-lg" onclick="sendAgent('seo')" id="btn-seo">Send</button>
-        </div><button onclick="clearAgent('seo')" style="font-size:var(--fs-micro);color:var(--muted);background:none;border:none;cursor:pointer;text-decoration:underline;margin:6px 0 0 2px">Clear conversation</button>
+          <textarea class="chat-input" id="input-seo" rows="2" data-en-ph="What do you want to rank or be cited for?" data-fr-ph="Pour quoi voulez-vous être classé ou cité ?" placeholder="What do you want to rank or be cited for?" onkeydown="handleEnter(event,'seo')"></textarea>
+          <button class="btn-primary btn-lg" onclick="sendAgent('seo')" id="btn-seo" data-en="Send" data-fr="Envoyer">Send</button>
+        </div><button onclick="clearAgent('seo')" style="font-size:var(--fs-micro);color:var(--muted);background:none;border:none;cursor:pointer;text-decoration:underline;margin:6px 0 0 2px" data-en="Clear conversation" data-fr="Effacer la conversation">Clear conversation</button>
       </div>
     </div>
 
@@ -2108,7 +2108,7 @@ body.new-nav { padding-left: 220px; }
     <div class="agent-panel" id="agent-distribution">
       <div class="card" style="padding:16px 20px">
         <div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:12px;line-height:1.6">
-          <strong style="color:var(--ink)">Distribution Manager</strong> - Selects the right channels, formats, and posting schedule for each piece of content based on your ICP's actual consumption habits. Gets content in front of the right people without wasted reach.
+          <strong style="color:var(--ink)" data-en="Distribution Manager" data-fr="Responsable Distribution">Distribution Manager</strong> - <span data-en="Selects the right channels, formats, and posting schedule for each piece of content based on your ICP's actual consumption habits. Gets content in front of the right people without wasted reach." data-fr="Sélectionne les bons canaux, formats et horaires de publication pour chaque contenu selon les habitudes de consommation réelles de votre ICP. Met le contenu devant les bonnes personnes sans portée gaspillée.">Selects the right channels, formats, and posting schedule for each piece of content based on your ICP's actual consumption habits. Gets content in front of the right people without wasted reach.</span>
         </div>
         <div class="chat-messages" id="chat-distribution">
           <div class="chat-msg assistant">
@@ -2117,9 +2117,9 @@ body.new-nav { padding-left: 220px; }
           </div>
         </div>
         <div class="chat-input-row">
-          <textarea class="chat-input" id="input-distribution" rows="2" placeholder="What are you publishing and for whom?" onkeydown="handleEnter(event,'distribution')"></textarea>
-          <button class="btn-primary btn-lg" onclick="sendAgent('distribution')" id="btn-distribution">Send</button>
-        </div><button onclick="clearAgent('distribution')" style="font-size:var(--fs-micro);color:var(--muted);background:none;border:none;cursor:pointer;text-decoration:underline;margin:6px 0 0 2px">Clear conversation</button>
+          <textarea class="chat-input" id="input-distribution" rows="2" data-en-ph="What are you publishing and for whom?" data-fr-ph="Que publiez-vous et pour qui ?" placeholder="What are you publishing and for whom?" onkeydown="handleEnter(event,'distribution')"></textarea>
+          <button class="btn-primary btn-lg" onclick="sendAgent('distribution')" id="btn-distribution" data-en="Send" data-fr="Envoyer">Send</button>
+        </div><button onclick="clearAgent('distribution')" style="font-size:var(--fs-micro);color:var(--muted);background:none;border:none;cursor:pointer;text-decoration:underline;margin:6px 0 0 2px" data-en="Clear conversation" data-fr="Effacer la conversation">Clear conversation</button>
       </div>
     </div>
 
@@ -2127,7 +2127,7 @@ body.new-nav { padding-left: 220px; }
     <div class="agent-panel" id="agent-performance">
       <div class="card" style="padding:16px 20px">
         <div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:12px;line-height:1.6">
-          <strong style="color:var(--ink)">Performance Analyst</strong> - Reviews your content and campaigns against a fixed pre-publication checklist. Flags what will underperform before it goes out, and surfaces what is working in retrospect.
+          <strong style="color:var(--ink)" data-en="Performance Analyst" data-fr="Analyste Performance">Performance Analyst</strong> - <span data-en="Reviews your content and campaigns against a fixed pre-publication checklist. Flags what will underperform before it goes out, and surfaces what is working in retrospect." data-fr="Passe votre contenu et vos campagnes sur une check-list fixe avant publication. Signale ce qui sous-performera avant la publication, et fait ressortir ce qui fonctionne a posteriori.">Reviews your content and campaigns against a fixed pre-publication checklist. Flags what will underperform before it goes out, and surfaces what is working in retrospect.</span>
         </div>
         <div class="chat-messages" id="chat-performance">
           <div class="chat-msg assistant">
@@ -2136,9 +2136,9 @@ body.new-nav { padding-left: 220px; }
           </div>
         </div>
         <div class="chat-input-row">
-          <textarea class="chat-input" id="input-performance" rows="2" placeholder="Paste a draft or share campaign results..." onkeydown="handleEnter(event,'performance')"></textarea>
-          <button class="btn-primary btn-lg" onclick="sendAgent('performance')" id="btn-performance">Send</button>
-        </div><button onclick="clearAgent('performance')" style="font-size:var(--fs-micro);color:var(--muted);background:none;border:none;cursor:pointer;text-decoration:underline;margin:6px 0 0 2px">Clear conversation</button>
+          <textarea class="chat-input" id="input-performance" rows="2" data-en-ph="Paste a draft or share campaign results..." data-fr-ph="Collez un brouillon ou partagez des résultats de campagne..." placeholder="Paste a draft or share campaign results..." onkeydown="handleEnter(event,'performance')"></textarea>
+          <button class="btn-primary btn-lg" onclick="sendAgent('performance')" id="btn-performance" data-en="Send" data-fr="Envoyer">Send</button>
+        </div><button onclick="clearAgent('performance')" style="font-size:var(--fs-micro);color:var(--muted);background:none;border:none;cursor:pointer;text-decoration:underline;margin:6px 0 0 2px" data-en="Clear conversation" data-fr="Effacer la conversation">Clear conversation</button>
       </div>
     </div>
 
@@ -2146,7 +2146,7 @@ body.new-nav { padding-left: 220px; }
     <div class="agent-panel" id="agent-competitive">
       <div class="card" style="padding:16px 20px">
         <div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:12px;line-height:1.6">
-          <strong style="color:var(--ink)">Competitive Intel</strong> - Maps your competitive landscape, identifies positioning gaps, and helps you build differentiated messaging against specific competitors.
+          <strong style="color:var(--ink)" data-en="Competitive Intel" data-fr="Intel Concurrentielle">Competitive Intel</strong> - <span data-en="Maps your competitive landscape, identifies positioning gaps, and helps you build differentiated messaging against specific competitors." data-fr="Cartographie votre paysage concurrentiel, identifie les angles morts de positionnement et vous aide à construire des messages différenciants face à des concurrents spécifiques.">Maps your competitive landscape, identifies positioning gaps, and helps you build differentiated messaging against specific competitors.</span>
         </div>
         <div class="chat-messages" id="chat-competitive">
           <div class="chat-msg assistant">
@@ -2155,9 +2155,9 @@ body.new-nav { padding-left: 220px; }
           </div>
         </div>
         <div class="chat-input-row">
-          <textarea class="chat-input" id="input-competitive" rows="2" placeholder="Ask about competitors..." onkeydown="handleEnter(event,'competitive')"></textarea>
-          <button class="btn-primary btn-lg" onclick="sendAgent('competitive')" id="btn-competitive">Send</button>
-        </div><button onclick="clearAgent('competitive')" style="font-size:var(--fs-micro);color:var(--muted);background:none;border:none;cursor:pointer;text-decoration:underline;margin:6px 0 0 2px">Clear conversation</button>
+          <textarea class="chat-input" id="input-competitive" rows="2" data-en-ph="Ask about competitors..." data-fr-ph="Posez une question sur des concurrents..." placeholder="Ask about competitors..." onkeydown="handleEnter(event,'competitive')"></textarea>
+          <button class="btn-primary btn-lg" onclick="sendAgent('competitive')" id="btn-competitive" data-en="Send" data-fr="Envoyer">Send</button>
+        </div><button onclick="clearAgent('competitive')" style="font-size:var(--fs-micro);color:var(--muted);background:none;border:none;cursor:pointer;text-decoration:underline;margin:6px 0 0 2px" data-en="Clear conversation" data-fr="Effacer la conversation">Clear conversation</button>
       </div>
     </div>
 
@@ -2165,7 +2165,7 @@ body.new-nav { padding-left: 220px; }
     <div class="agent-panel" id="agent-prospect">
       <div class="card" style="padding:16px 20px">
         <div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:12px;line-height:1.6">
-          <strong style="color:var(--ink)">Prospect Agent</strong> - Deep-dives on any specific prospect: company context, stakeholder mapping, objection handling, and the best entry point for your offer.
+          <strong style="color:var(--ink)" data-en="Prospect Agent" data-fr="Agent Prospect">Prospect Agent</strong> - <span data-en="Deep-dives on any specific prospect: company context, stakeholder mapping, objection handling, and the best entry point for your offer." data-fr="Analyse en profondeur n'importe quel prospect : contexte entreprise, cartographie des parties prenantes, gestion des objections et meilleur point d'entrée pour votre offre.">Deep-dives on any specific prospect: company context, stakeholder mapping, objection handling, and the best entry point for your offer.</span>
         </div>
         <div class="chat-messages" id="chat-prospect">
           <div class="chat-msg assistant">
@@ -2174,9 +2174,9 @@ body.new-nav { padding-left: 220px; }
           </div>
         </div>
         <div class="chat-input-row">
-          <textarea class="chat-input" id="input-prospect" rows="2" placeholder="Ask about a prospect..." onkeydown="handleEnter(event,'prospect')"></textarea>
-          <button class="btn-primary btn-lg" onclick="sendAgent('prospect')" id="btn-prospect">Send</button>
-        </div><button onclick="clearAgent('prospect')" style="font-size:var(--fs-micro);color:var(--muted);background:none;border:none;cursor:pointer;text-decoration:underline;margin:6px 0 0 2px">Clear conversation</button>
+          <textarea class="chat-input" id="input-prospect" rows="2" data-en-ph="Ask about a prospect..." data-fr-ph="Posez une question sur un prospect..." placeholder="Ask about a prospect..." onkeydown="handleEnter(event,'prospect')"></textarea>
+          <button class="btn-primary btn-lg" onclick="sendAgent('prospect')" id="btn-prospect" data-en="Send" data-fr="Envoyer">Send</button>
+        </div><button onclick="clearAgent('prospect')" style="font-size:var(--fs-micro);color:var(--muted);background:none;border:none;cursor:pointer;text-decoration:underline;margin:6px 0 0 2px" data-en="Clear conversation" data-fr="Effacer la conversation">Clear conversation</button>
       </div>
     </div>
 
@@ -2184,7 +2184,7 @@ body.new-nav { padding-left: 220px; }
     <div class="agent-panel" id="agent-objection">
       <div class="card" style="padding:16px 20px">
         <div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:12px;line-height:1.6">
-          <strong style="color:var(--ink)">Objection Handler</strong> - Paste a prospect's reply and get 3 ready-to-send responses, matched to their objection type and your pipeline stage.
+          <strong style="color:var(--ink)" data-en="Objection Handler" data-fr="Gestionnaire d'objections">Objection Handler</strong> - <span data-en="Paste a prospect's reply and get 3 ready-to-send responses, matched to their objection type and your pipeline stage." data-fr="Collez la réponse d'un prospect et obtenez 3 réponses prêtes à envoyer, adaptées au type d'objection et à votre étape de pipeline.">Paste a prospect's reply and get 3 ready-to-send responses, matched to their objection type and your pipeline stage.</span>
         </div>
         <div class="chat-messages" id="chat-objection">
           <div class="chat-msg assistant">
@@ -2193,9 +2193,9 @@ body.new-nav { padding-left: 220px; }
           </div>
         </div>
         <div class="chat-input-row">
-          <textarea class="chat-input" id="input-objection" rows="2" placeholder="Paste the prospect's reply..." onkeydown="handleEnter(event,'objection')"></textarea>
-          <button class="btn-primary btn-lg" onclick="sendAgent('objection')" id="btn-objection">Send</button>
-        </div><button onclick="clearAgent('objection')" style="font-size:var(--fs-micro);color:var(--muted);background:none;border:none;cursor:pointer;text-decoration:underline;margin:6px 0 0 2px">Clear conversation</button>
+          <textarea class="chat-input" id="input-objection" rows="2" data-en-ph="Paste the prospect's reply..." data-fr-ph="Collez la réponse du prospect..." placeholder="Paste the prospect's reply..." onkeydown="handleEnter(event,'objection')"></textarea>
+          <button class="btn-primary btn-lg" onclick="sendAgent('objection')" id="btn-objection" data-en="Send" data-fr="Envoyer">Send</button>
+        </div><button onclick="clearAgent('objection')" style="font-size:var(--fs-micro);color:var(--muted);background:none;border:none;cursor:pointer;text-decoration:underline;margin:6px 0 0 2px" data-en="Clear conversation" data-fr="Effacer la conversation">Clear conversation</button>
       </div>
     </div>
   </div>
@@ -2247,7 +2247,7 @@ body.new-nav { padding-left: 220px; }
           <div class="card" style="margin-bottom:16px;">
             <div class="card-header" style="display:flex;align-items:center;gap:8px;">
               <span class="card-title" data-en="Agents at work" data-fr="Agents en action">Agents at work</span>
-              <span class="card-badge badge-auto">LIVE</span>
+              <span class="card-badge badge-auto" data-en="LIVE" data-fr="EN DIRECT">LIVE</span>
             </div>
             <div id="agents-at-work-list" style="font-size:var(--fs-sm);color:var(--muted);overflow-wrap:anywhere;word-break:break-word;" data-en="Loading..." data-fr="Chargement…">Loading...</div>
           </div>
@@ -2265,12 +2265,12 @@ body.new-nav { padding-left: 220px; }
     <div style="padding:24px 16px 0;max-width:800px;margin:0 auto;">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
         <div class="module-header" style="margin-bottom:0;">
-          <div class="module-title">Inbox</div>
-          <div class="section-sub">Every reply classified and answered by an agent. You approve, edit, or dismiss.</div>
+          <div class="module-title" data-en="Inbox" data-fr="Boîte de réception">Inbox</div>
+          <div class="section-sub" data-en="Every reply classified and answered by an agent. You approve, edit, or dismiss." data-fr="Chaque réponse est classée et traitée par un agent. Vous approuvez, modifiez ou rejetez.">Every reply classified and answered by an agent. You approve, edit, or dismiss.</div>
         </div>
         <div style="display:flex;gap:6px;">
-          <button id="inbox-toggle-pending" class="toggle-pill active" onclick="loadInboxDrafts('pending')">Pending</button>
-          <button id="inbox-toggle-history" class="toggle-pill" onclick="loadInboxDrafts('history')">History</button>
+          <button id="inbox-toggle-pending" class="toggle-pill active" onclick="loadInboxDrafts('pending')" data-en="Pending" data-fr="En attente">Pending</button>
+          <button id="inbox-toggle-history" class="toggle-pill" onclick="loadInboxDrafts('history')" data-en="History" data-fr="Historique">History</button>
         </div>
       </div>
       <div id="inbox-container"></div>
@@ -2280,8 +2280,8 @@ body.new-nav { padding-left: 220px; }
   <!-- ══ TAB 5: PIPELINE VIEW ══ -->
   <div class="tab-panel" id="tab-pipeline">
     <div class="module-header" style="margin-bottom:20px;">
-      <div class="module-title">Pipeline</div>
-      <div class="section-sub"><span id="pipeline-total-count">0</span> prospects under management. Movement is written by agents, corrected by you.</div>
+      <div class="module-title" data-en="Pipeline" data-fr="Pipeline">Pipeline</div>
+      <div class="section-sub"><span id="pipeline-total-count">0</span> <span data-en="prospects under management. Movement is written by agents, corrected by you." data-fr="prospects sous gestion. Les mouvements sont écrits par les agents, corrigés par vous.">prospects under management. Movement is written by agents, corrected by you.</span></div>
     </div>
     <div class="csv-actions" style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px;">
       <div class="toolbar-filters" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
@@ -2293,105 +2293,105 @@ body.new-nav { padding-left: 220px; }
         <button class="btn-md" id="sort-icp-btn" onclick="_toggleSortICP()" style="border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;color:var(--text);background:#fff;cursor:pointer;white-space:nowrap;display:flex;align-items:center;justify-content:space-between;gap:6px;"><span>ICP</span><span id="icp-sort-arrow">⇅</span></button>
         <button class="btn-md" id="btn-rank-90d" onclick="_rank90d()" style="border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;color:var(--text);background:#fff;cursor:pointer;white-space:nowrap;"><span data-en="Rank 90d" data-fr="Score 90j">Rank 90d</span></button>
         <select id="kanban-filter-sector" onchange="_applyKanbanFilters()" style="font-size:var(--fs-sm);padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--white);color:var(--text);cursor:pointer;max-width:180px;">
-          <option value="">All sectors</option>
-          <option value="AdTech">AdTech</option>
-          <option value="Fintech/Payments">Fintech/Payments</option>
-          <option value="Data/eCommerce">Data/eCommerce</option>
-          <option value="Programmatic">Programmatic</option>
-          <option value="Performance Marketing">Performance Marketing</option>
-          <option value="B2B SaaS">B2B SaaS</option>
-          <option value="Retail Tech">Retail Tech</option>
-          <option value="Sales &amp; RevOps">Sales &amp; RevOps</option>
-          <option value="HR Tech">HR Tech</option>
-          <option value="Finance &amp; Accounting">Finance &amp; Accounting</option>
-          <option value="Cybersecurity">Cybersecurity</option>
-          <option value="LegalTech">LegalTech</option>
-          <option value="Productivity &amp; Collaboration">Productivity &amp; Collaboration</option>
-          <option value="Operations &amp; Supply Chain">Operations &amp; Supply Chain</option>
-          <option value="Gaming">Gaming</option>
-          <option value="Investment / Financial Services">Investment / Financial Services</option>
-          <option value="Real Estate &amp; Construction">Real Estate &amp; Construction</option>
-          <option value="Industrial &amp; Energy">Industrial &amp; Energy</option>
-          <option value="Other">Other</option>
-          <option value="Investor">Investor</option>
+          <option value="" data-en="All sectors" data-fr="Tous les secteurs">All sectors</option>
+          <option value="AdTech" data-en="AdTech" data-fr="AdTech">AdTech</option>
+          <option value="Fintech/Payments" data-en="Fintech/Payments" data-fr="Fintech/Paiements">Fintech/Payments</option>
+          <option value="Data/eCommerce" data-en="Data/eCommerce" data-fr="Data/eCommerce">Data/eCommerce</option>
+          <option value="Programmatic" data-en="Programmatic" data-fr="Programmatique">Programmatic</option>
+          <option value="Performance Marketing" data-en="Performance Marketing" data-fr="Marketing à la performance">Performance Marketing</option>
+          <option value="B2B SaaS" data-en="B2B SaaS" data-fr="B2B SaaS">B2B SaaS</option>
+          <option value="Retail Tech" data-en="Retail Tech" data-fr="Retail Tech">Retail Tech</option>
+          <option value="Sales &amp; RevOps" data-en="Sales &amp; RevOps" data-fr="Ventes &amp; RevOps">Sales &amp; RevOps</option>
+          <option value="HR Tech" data-en="HR Tech" data-fr="HR Tech">HR Tech</option>
+          <option value="Finance &amp; Accounting" data-en="Finance &amp; Accounting" data-fr="Finance &amp; Comptabilité">Finance &amp; Accounting</option>
+          <option value="Cybersecurity" data-en="Cybersecurity" data-fr="Cybersécurité">Cybersecurity</option>
+          <option value="LegalTech" data-en="LegalTech" data-fr="LegalTech">LegalTech</option>
+          <option value="Productivity &amp; Collaboration" data-en="Productivity &amp; Collaboration" data-fr="Productivité &amp; Collaboration">Productivity &amp; Collaboration</option>
+          <option value="Operations &amp; Supply Chain" data-en="Operations &amp; Supply Chain" data-fr="Opérations &amp; Supply Chain">Operations &amp; Supply Chain</option>
+          <option value="Gaming" data-en="Gaming" data-fr="Gaming">Gaming</option>
+          <option value="Investment / Financial Services" data-en="Investment / Financial Services" data-fr="Investissement / Services financiers">Investment / Financial Services</option>
+          <option value="Real Estate &amp; Construction" data-en="Real Estate &amp; Construction" data-fr="Immobilier &amp; Construction">Real Estate &amp; Construction</option>
+          <option value="Industrial &amp; Energy" data-en="Industrial &amp; Energy" data-fr="Industrie &amp; Énergie">Industrial &amp; Energy</option>
+          <option value="Other" data-en="Other" data-fr="Autre">Other</option>
+          <option value="Investor" data-en="Investor" data-fr="Investisseur">Investor</option>
         </select>
         <select id="kanban-filter-stage" onchange="_applyKanbanFilters()" style="font-size:var(--fs-sm);padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--white);color:var(--text);cursor:pointer;">
-          <option value="">All stages</option>
-          <option value="Identified">Identified</option>
-          <option value="1st Contact">Connected</option>
-          <option value="Engaged">Engaged</option>
-          <option value="Replied">Replied</option>
-          <option value="Proposal">Proposal</option>
-          <option value="Negotiation">Negotiation</option>
-          <option value="Closed">Closed</option>
+          <option value="" data-en="All stages" data-fr="Toutes les étapes">All stages</option>
+          <option value="Identified" data-en="Identified" data-fr="Identifiés">Identified</option>
+          <option value="1st Contact" data-en="Connected" data-fr="Connecté">Connected</option>
+          <option value="Engaged" data-en="Engaged" data-fr="Engagés">Engaged</option>
+          <option value="Replied" data-en="Replied" data-fr="Répondu">Replied</option>
+          <option value="Proposal" data-en="Proposal" data-fr="Proposition">Proposal</option>
+          <option value="Negotiation" data-en="Negotiation" data-fr="Négociation">Negotiation</option>
+          <option value="Closed" data-en="Closed" data-fr="Clôturé">Closed</option>
         </select>
-        <button class="btn-sm" onclick="_resetKanbanFilters()" style="background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;">Reset</button>
-        <button id="kanban-filters-btn" onclick="_toggleFiltersPanel()" style="height:29px;padding:0 10px;border:1px solid var(--ink);border-radius:var(--radius-sm);font-size:var(--fs-sm);font-family:inherit;color:#fff;background:var(--ink);cursor:pointer;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;">&#8862; Filters <span id="kanban-filters-count" style="display:none;background:var(--accent);color:#fff;border-radius:var(--radius-panel);padding:1px 5px;font-size:var(--fs-micro);font-weight:700;line-height:1.4;"></span></button>
+        <button class="btn-sm" onclick="_resetKanbanFilters()" style="background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;" data-en="Reset" data-fr="Réinitialiser">Reset</button>
+        <button id="kanban-filters-btn" onclick="_toggleFiltersPanel()" style="height:29px;padding:0 10px;border:1px solid var(--ink);border-radius:var(--radius-sm);font-size:var(--fs-sm);font-family:inherit;color:#fff;background:var(--ink);cursor:pointer;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;">&#8862; <span data-en="Filters" data-fr="Filtres">Filters</span> <span id="kanban-filters-count" style="display:none;background:var(--accent);color:#fff;border-radius:var(--radius-panel);padding:1px 5px;font-size:var(--fs-micro);font-weight:700;line-height:1.4;"></span></button>
       </div>
       <div id="kanban-filters-panel" style="display:none;background:var(--white);border:1.5px solid var(--ink);border-radius:var(--radius-panel);padding:14px 14px 10px;margin-top:6px;">
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
           <select id="kanban-filter-country" onchange="_applyKanbanFilters()" style="font-size:var(--fs-sm);padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--white);color:var(--text);cursor:pointer;width:100%;">
-            <option value="">All countries</option>
+            <option value="" data-en="All countries" data-fr="Tous les pays">All countries</option>
           </select>
           <select id="kanban-filter-signal" onchange="_applyKanbanFilters()" style="font-size:var(--fs-sm);padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--white);color:var(--text);cursor:pointer;width:100%;">
-            <option value="">All signals</option>
+            <option value="" data-en="All signals" data-fr="Tous les signaux">All signals</option>
           </select>
           <select id="kanban-filter-origin" onchange="_applyKanbanFilters()" style="font-size:var(--fs-sm);padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--white);color:var(--text);cursor:pointer;width:100%;">
-            <option value="">All origins</option>
-            <option value="network">Network</option>
-            <option value="outbound">Outbound</option>
-            <option value="csv_import">CSV Import</option>
-            <option value="signal_monitoring">Intent Signal</option>
-            <option value="morning_scan">Morning Scan</option>
+            <option value="" data-en="All origins" data-fr="Toutes les origines">All origins</option>
+            <option value="network" data-en="Network" data-fr="Réseau">Network</option>
+            <option value="outbound" data-en="Outbound" data-fr="Sortant">Outbound</option>
+            <option value="csv_import" data-en="CSV Import" data-fr="Import CSV">CSV Import</option>
+            <option value="signal_monitoring" data-en="Intent Signal" data-fr="Signal d'intention">Intent Signal</option>
+            <option value="morning_scan" data-en="Morning Scan" data-fr="Morning Scan">Morning Scan</option>
           </select>
           <select id="kanban-filter-deal" onchange="_applyKanbanFilters()" style="font-size:var(--fs-sm);padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--white);color:var(--text);cursor:pointer;width:100%;">
-            <option value="">All deal values</option>
+            <option value="" data-en="All deal values" data-fr="Toutes les valeurs de deal">All deal values</option>
             <option value="lt25">&lt; &euro;25k</option>
             <option value="25to100">&euro;25k&ndash;&euro;100k</option>
             <option value="100to500">&euro;100k&ndash;&euro;500k</option>
             <option value="gt500">&gt; &euro;500k</option>
           </select>
-          <select id="kanban-filter-confidence" title="Derived from ICP fit, verified email, and detected signal" onchange="_applyKanbanFilters()" style="font-size:var(--fs-sm);padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--white);color:var(--text);cursor:pointer;width:100%;">
-            <option value="">All confidence</option>
-            <option value="high">High</option>
-            <option value="medium">Medium</option>
-            <option value="low">Low</option>
+          <select id="kanban-filter-confidence" data-en-title="Derived from ICP fit, verified email, and detected signal" data-fr-title="Déduit de l'adéquation ICP, de l'email vérifié et du signal détecté" onchange="_applyKanbanFilters()" style="font-size:var(--fs-sm);padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--white);color:var(--text);cursor:pointer;width:100%;">
+            <option value="" data-en="All confidence" data-fr="Toute confiance">All confidence</option>
+            <option value="high" data-en="High" data-fr="Élevée">High</option>
+            <option value="medium" data-en="Medium" data-fr="Moyenne">Medium</option>
+            <option value="low" data-en="Low" data-fr="Faible">Low</option>
           </select>
           <select id="kanban-filter-next-action" onchange="_applyKanbanFilters()" style="font-size:var(--fs-sm);padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--white);color:var(--text);cursor:pointer;width:100%;">
-            <option value="">Next action</option>
-            <option value="has">Has next action</option>
-            <option value="none">No next action</option>
+            <option value="" data-en="Next action" data-fr="Prochaine action">Next action</option>
+            <option value="has" data-en="Has next action" data-fr="Action prévue">Has next action</option>
+            <option value="none" data-en="No next action" data-fr="Aucune action prévue">No next action</option>
           </select>
           <select id="kanban-filter-na-date" onchange="_applyKanbanFilters()" style="font-size:var(--fs-sm);padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--white);color:var(--text);cursor:pointer;width:100%;">
-            <option value="">Due date</option>
-            <option value="overdue">Overdue</option>
-            <option value="upcoming">Upcoming</option>
+            <option value="" data-en="Due date" data-fr="Échéance">Due date</option>
+            <option value="overdue" data-en="Overdue" data-fr="En retard">Overdue</option>
+            <option value="upcoming" data-en="Upcoming" data-fr="À venir">Upcoming</option>
           </select>
         </div>
         <div style="border-top:1px solid var(--border);margin-top:12px;padding-top:8px;display:flex;justify-content:flex-end;">
-          <button class="btn-sm" onclick="_resetKanbanFilters()" style="background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;">Clear filters</button>
+          <button class="btn-sm" onclick="_resetKanbanFilters()" style="background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;" data-en="Clear filters" data-fr="Effacer les filtres">Clear filters</button>
         </div>
       </div>
       <div class="toolbar-actions" style="display:flex;gap:8px;align-items:center;justify-content:flex-end;flex-wrap:wrap;">
         <div id="bulk-bar" style="display:none;align-items:center;gap:8px;background:var(--navy-light);border:1px solid var(--border-mid);border-radius:var(--radius-md);padding:6px 12px;">
           <span id="bulk-count" style="font-size:var(--fs-sm);font-weight:600;color:var(--ink);">0 selected</span>
           <select id="bulk-stage-select" style="font-size:var(--fs-sm);padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--white);color:var(--text);">
-            <option value="">Move to stage...</option>
-            <option value="Identified">Identified</option>
-            <option value="1st Contact">Connected</option>
-            <option value="Engaged">Engaged</option>
-            <option value="Replied">Replied</option>
-            <option value="Proposal">Proposal</option>
-            <option value="Negotiation">Negotiation</option>
-            <option value="Closed">Closed</option>
+            <option value="" data-en="Move to stage..." data-fr="Déplacer vers l'étape...">Move to stage...</option>
+            <option value="Identified" data-en="Identified" data-fr="Identifiés">Identified</option>
+            <option value="1st Contact" data-en="Connected" data-fr="Connecté">Connected</option>
+            <option value="Engaged" data-en="Engaged" data-fr="Engagés">Engaged</option>
+            <option value="Replied" data-en="Replied" data-fr="Répondu">Replied</option>
+            <option value="Proposal" data-en="Proposal" data-fr="Proposition">Proposal</option>
+            <option value="Negotiation" data-en="Negotiation" data-fr="Négociation">Negotiation</option>
+            <option value="Closed" data-en="Closed" data-fr="Clôturé">Closed</option>
           </select>
-          <button class="btn-sm" onclick="_bulkChangeStage()" style="background:var(--ink);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer;">Apply</button>
-          <button class="btn-sm" onclick="_bulkArchive()" style="background:#fef2f2;color:var(--red);border:1px solid #fecaca;border-radius:var(--radius-sm);cursor:pointer;">Archive</button>
-          <button id="bulk-email-seq-btn" class="btn-sm" onclick="_bulkStartEmailSeq()" style="background:var(--green-brand);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer;">Email Sequence</button>
-          <button class="btn-sm" onclick="_bulkClear()" style="background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;">Cancel</button>
+          <button class="btn-sm" onclick="_bulkChangeStage()" style="background:var(--ink);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer;" data-en="Apply" data-fr="Appliquer">Apply</button>
+          <button class="btn-sm" onclick="_bulkArchive()" style="background:#fef2f2;color:var(--red);border:1px solid #fecaca;border-radius:var(--radius-sm);cursor:pointer;" data-en="Archive" data-fr="Archiver">Archive</button>
+          <button id="bulk-email-seq-btn" class="btn-sm" onclick="_bulkStartEmailSeq()" style="background:var(--green-brand);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer;" data-en="Email Sequence" data-fr="Séquence email">Email Sequence</button>
+          <button class="btn-sm" onclick="_bulkClear()" style="background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;" data-en="Cancel" data-fr="Annuler">Cancel</button>
         </div>
         <button class="btn-secondary btn-md" onclick="openAddProspect()"><span data-en="+ Add" data-fr="+ Ajouter">+ Add</span></button>
-        <button class="kanban-refresh btn-md" id="kanban-refresh-btn" onclick="loadKanban(true)" title="Refresh pipeline"><span data-en="↻ Refresh" data-fr="↻ Actualiser">↻ Refresh</span></button>
+        <button class="kanban-refresh btn-md" id="kanban-refresh-btn" onclick="loadKanban(true)" data-en-title="Refresh pipeline" data-fr-title="Actualiser le pipeline"><span data-en="↻ Refresh" data-fr="↻ Actualiser">↻ Refresh</span></button>
         <label id="import-csv-label" class="btn-secondary btn-md" style="cursor:pointer">
           <span class="csv-full" data-en="↑ Import CSV" data-fr="↑ Importer CSV">↑ Import CSV</span><span class="csv-short" data-en="Import" data-fr="Import">Import</span> <input type="file" accept=".csv" style="display:none" onchange="importCSV(event)">
         </label>
@@ -2428,21 +2428,21 @@ body.new-nav { padding-left: 220px; }
     </div>
 
     <div id="hp-filter-bar" style="display:flex;gap:8px;padding:10px 0 4px;flex-wrap:wrap;align-items:center;">
-      <button class="hp-btn btn-sm active" onclick="_setHpFilter('all')" id="hp-btn-all">All</button>
-      <button class="hp-btn btn-sm" onclick="_setHpFilter('hot')" id="hp-btn-hot">Hot</button>
-      <button class="hp-btn btn-sm" onclick="_setHpFilter('warm')" id="hp-btn-warm">Warm</button>
-      <button class="hp-btn btn-sm" onclick="_setHpFilter('neutral')" id="hp-btn-neutral">Neutral</button>
-      <button class="hp-btn btn-sm" onclick="_setHpFilter('cold')" id="hp-btn-cold">Cold</button>
+      <button class="hp-btn btn-sm active" onclick="_setHpFilter('all')" id="hp-btn-all" data-en="All" data-fr="Tous">All</button>
+      <button class="hp-btn btn-sm" onclick="_setHpFilter('hot')" id="hp-btn-hot" data-en="Hot" data-fr="Chaud">Hot</button>
+      <button class="hp-btn btn-sm" onclick="_setHpFilter('warm')" id="hp-btn-warm" data-en="Warm" data-fr="Tiède">Warm</button>
+      <button class="hp-btn btn-sm" onclick="_setHpFilter('neutral')" id="hp-btn-neutral" data-en="Neutral" data-fr="Neutre">Neutral</button>
+      <button class="hp-btn btn-sm" onclick="_setHpFilter('cold')" id="hp-btn-cold" data-en="Cold" data-fr="Froid">Cold</button>
       <span style="width:1px;height:18px;background:var(--border);margin:0 2px;"></span>
-      <button class="sig-btn btn-sm active" onclick="_setSigFilter('all')" id="sig-btn-all">All</button>
-      <button class="sig-btn btn-sm" onclick="_setSigFilter('signal')" id="sig-btn-signal">Signal</button>
-      <button class="sig-btn btn-sm" onclick="_setSigFilter('queue')" id="sig-btn-queue">Queue</button>
+      <button class="sig-btn btn-sm active" onclick="_setSigFilter('all')" id="sig-btn-all" data-en="All" data-fr="Tous">All</button>
+      <button class="sig-btn btn-sm" onclick="_setSigFilter('signal')" id="sig-btn-signal" data-en="Signal" data-fr="Signal">Signal</button>
+      <button class="sig-btn btn-sm" onclick="_setSigFilter('queue')" id="sig-btn-queue" data-en="Queue" data-fr="File d'attente">Queue</button>
       <span style="width:1px;height:18px;background:var(--border);margin:0 2px;"></span>
       <!-- Toggle "Voir les archivés" (GO Thomas 23/09) : meme composant .hp-btn que Hot/Warm/Cold/Signal
            juste a gauche -- pas de nouveau style. Off par defaut (comportement inchange, archived=false
            uniquement) ; on = les cartes archivees, deja construites par renderKanban() mais cachees, deviennent
            visibles (meme mecanisme show/hide que tous les autres filtres Pipeline, cf. _applyKanbanFilters). -->
-      <button class="hp-btn btn-sm" onclick="_toggleShowArchived()" id="archived-toggle-btn" title="Include archived prospects in the list"><span data-en="Show archived" data-fr="Voir les archivés">Show archived</span></button>
+      <button class="hp-btn btn-sm" onclick="_toggleShowArchived()" id="archived-toggle-btn" data-en-title="Include archived prospects in the list" data-fr-title="Inclure les prospects archivés dans la liste"><span data-en="Show archived" data-fr="Voir les archivés">Show archived</span></button>
     </div>
 
     <div class="kanban-scroll">
@@ -2487,31 +2487,31 @@ body.new-nav { padding-left: 220px; }
          zero retouche a la fonction -- deuxieme containerId monte ici. Remplace le texte plat
          #sent-counter. -->
     <div class="card" style="margin-bottom:18px;max-width:460px;">
-      <div class="card-header" style="margin-bottom:10px;padding-bottom:10px;"><span class="card-title">Today's capacity</span></div>
-      <div id="send-capacity-bars" style="font-size:var(--fs-sm);color:var(--muted);">Loading...</div>
+      <div class="card-header" style="margin-bottom:10px;padding-bottom:10px;"><span class="card-title" data-en="Today's capacity" data-fr="Capacité du jour">Today's capacity</span></div>
+      <div id="send-capacity-bars" style="font-size:var(--fs-sm);color:var(--muted);" data-en="Loading..." data-fr="Chargement...">Loading...</div>
     </div>
     <div id="send-filters" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;align-items:center;">
       <select id="send-filter-region" onchange="_applySendFilters()" style="padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:var(--fs-sm);font-family:inherit;color:var(--text);background:#fff;">
-        <option value="">All regions</option>
+        <option value="" data-en="All regions" data-fr="Toutes les régions">All regions</option>
         <option value="EMEA">EMEA</option>
-        <option value="NA">North America</option>
+        <option value="NA" data-en="North America" data-fr="Amérique du Nord">North America</option>
         <option value="APAC">APAC</option>
         <option value="LATAM">LATAM</option>
       </select>
       <select id="send-filter-icp" onchange="_applySendFilters()" style="padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:var(--fs-sm);font-family:inherit;color:var(--text);background:#fff;">
-        <option value="0">All ICP</option>
+        <option value="0" data-en="All ICP" data-fr="Tous ICP">All ICP</option>
         <option value="7">ICP 7+</option>
         <option value="8">ICP 8+</option>
         <option value="9">ICP 9+</option>
       </select>
       <select id="send-filter-origin" onchange="_applySendFilters()" style="padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:var(--fs-sm);font-family:inherit;color:var(--text);background:#fff;">
-        <option value="all">All origins</option>
-        <option value="network">Network</option>
-        <option value="outbound">Outbound</option>
+        <option value="all" data-en="All origins" data-fr="Toutes les origines">All origins</option>
+        <option value="network" data-en="Network" data-fr="Réseau">Network</option>
+        <option value="outbound" data-en="Outbound" data-fr="Sortant">Outbound</option>
       </select>
       <select id="send-filter-touch" onchange="_applySendFilters()" style="padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:var(--fs-sm);font-family:inherit;color:var(--text);background:#fff;">
-        <option value="all">All touches</option>
-        <option value="invite">Invite</option>
+        <option value="all" data-en="All touches" data-fr="Tous les touches">All touches</option>
+        <option value="invite" data-en="Invite" data-fr="Invitation">Invite</option>
         <option value="j0">J+0</option>
         <option value="j5">J+5</option>
       </select>
@@ -2521,11 +2521,11 @@ body.new-nav { padding-left: 220px; }
       </select>
       <label style="display:flex;align-items:center;gap:6px;font-size:var(--fs-sm);color:var(--muted);cursor:pointer;">
         <input type="checkbox" id="send-filter-today" onchange="_applySendFilters()" checked>
-        Today only
+        <span data-en="Today only" data-fr="Aujourd'hui seulement">Today only</span>
       </label>
     </div>
     <div style="position:relative;margin-bottom:18px">
-      <input type="text" id="send-search" placeholder="Search any prospect to generate a message..." oninput="_runSendSearch()" onkeydown="if(event.key==='Escape'){const r=document.getElementById('send-search-results');if(r)r.style.display='none'}" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius-md);font-size:var(--fs-base);font-family:inherit;color:var(--text);background:#fff;box-sizing:border-box" autocomplete="off">
+      <input type="text" id="send-search" data-en-ph="Search any prospect to generate a message..." data-fr-ph="Rechercher un prospect pour générer un message..." placeholder="Search any prospect to generate a message..." oninput="_runSendSearch()" onkeydown="if(event.key==='Escape'){const r=document.getElementById('send-search-results');if(r)r.style.display='none'}" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius-md);font-size:var(--fs-base);font-family:inherit;color:var(--text);background:#fff;box-sizing:border-box" autocomplete="off">
       <div id="send-search-results" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--border);border-radius:var(--radius-md);box-shadow:0 4px 12px rgba(0,0,0,0.08);z-index:100;max-height:220px;overflow-y:auto;margin-top:4px"></div>
     </div>
     <div id="manual-send-section"></div>
@@ -2534,7 +2534,7 @@ body.new-nav { padding-left: 220px; }
          lecture seule, pas affecte par _applySendFilters(), peuple une seule fois par
          _loadRecentlySent() (pas sur chaque changement de filtre). -->
     <div class="today-step-divider" id="send-recently-divider" hidden>
-      <span class="today-step-label">Recently sent</span>
+      <span class="today-step-label" data-en="Recently sent" data-fr="Envoyés récemment">Recently sent</span>
       <span class="today-step-rule"></span>
     </div>
     <div id="send-recently-sent"></div>
@@ -2546,7 +2546,7 @@ body.new-nav { padding-left: 220px; }
     <div style="padding:24px 16px 0;max-width:800px;margin:0 auto;">
       <div class="module-header">
         <div class="module-title" data-en="Drafts &amp; approvals" data-fr="Brouillons et validations">Drafts &amp; approvals</div>
-        <div class="section-sub">Content drafted by agents, waiting for a variant to be approved or rejected.</div>
+        <div class="section-sub" data-en="Content drafted by agents, waiting for a variant to be approved or rejected." data-fr="Contenu rédigé par les agents, en attente qu'une variante soit approuvée ou rejetée.">Content drafted by agents, waiting for a variant to be approved or rejected.</div>
       </div>
       <div id="proposals-container"></div>
     </div>
@@ -2556,8 +2556,8 @@ body.new-nav { padding-left: 220px; }
   <div class="tab-panel" id="tab-pending-actions">
     <div style="padding:24px 16px 0;max-width:800px;margin:0 auto;">
       <div class="module-header">
-        <div class="module-title">Approvals</div>
-        <div class="section-sub">Drafts generated for clients on the "approve" autonomy level — nothing is sent until you approve or reject each one.</div>
+        <div class="module-title" data-en="Approvals" data-fr="Actions en attente">Approvals</div>
+        <div class="section-sub" data-en="Drafts generated for clients on the &quot;approve&quot; autonomy level — nothing is sent until you approve or reject each one." data-fr="Brouillons générés pour les clients au niveau d'autonomie « approbation » — rien n'est envoyé tant que vous n'avez pas approuvé ou rejeté chaque brouillon.">Drafts generated for clients on the "approve" autonomy level — nothing is sent until you approve or reject each one.</div>
       </div>
       <div id="pending-actions-container"></div>
     </div>
@@ -2584,25 +2584,25 @@ body.new-nav { padding-left: 220px; }
 
     <!-- Section D: Revenue — Closed Deals -->
     <div class="card stats-section">
-      <div class="card-header"><span class="card-title">Revenue — Closed Deals</span><span class="card-badge badge-auto">LIVE</span></div>
+      <div class="card-header"><span class="card-title" data-en="Revenue — Closed Deals" data-fr="Revenus — Deals clôturés">Revenue — Closed Deals</span><span class="card-badge badge-auto" data-en="LIVE" data-fr="EN DIRECT">LIVE</span></div>
       <div id="stats-revenue"></div>
     </div>
 
     <!-- Section E: Signal Attribution -->
     <div class="card stats-section">
-      <div class="card-header"><span class="card-title">Signal Attribution</span><span class="card-badge badge-auto">LIVE</span></div>
+      <div class="card-header"><span class="card-title" data-en="Signal Attribution" data-fr="Attribution des signaux">Signal Attribution</span><span class="card-badge badge-auto" data-en="LIVE" data-fr="EN DIRECT">LIVE</span></div>
       <div id="stats-signal-attr"></div>
     </div>
 
     <!-- Section F: Signal Learning -->
     <div class="card stats-section">
-      <div class="card-header"><span class="card-title">Signal Learning</span><span class="card-badge badge-auto">LIVE</span></div>
+      <div class="card-header"><span class="card-title" data-en="Signal Learning" data-fr="Apprentissage des signaux">Signal Learning</span><span class="card-badge badge-auto" data-en="LIVE" data-fr="EN DIRECT">LIVE</span></div>
       <div id="stats-signal-learning"></div>
     </div>
 
     <!-- Section G: Retainer Revenue (Corridor only) -->
     <div class="card stats-section">
-      <div class="card-header"><span class="card-title">Retainer Revenue</span><span class="card-badge badge-auto">LIVE</span></div>
+      <div class="card-header"><span class="card-title" data-en="Retainer Revenue" data-fr="Revenus récurrents">Retainer Revenue</span><span class="card-badge badge-auto" data-en="LIVE" data-fr="EN DIRECT">LIVE</span></div>
       <div id="stats-retainer"></div>
     </div>
   </div>
@@ -2610,76 +2610,76 @@ body.new-nav { padding-left: 220px; }
   <!-- ══ TAB 7: CLIENTS ══ -->
   <div class="tab-panel" id="tab-clients">
     <div class="module-header" style="margin-bottom:20px;">
-      <div class="module-title">Your clients. All relationships.</div>
-      <div style="font-size:var(--fs-sm);color:var(--muted);margin-top:4px;">Closed deals land here automatically. No manual entry.</div>
+      <div class="module-title" data-en="Your clients. All relationships." data-fr="Vos clients. Toutes les relations.">Your clients. All relationships.</div>
+      <div style="font-size:var(--fs-sm);color:var(--muted);margin-top:4px;" data-en="Closed deals land here automatically. No manual entry." data-fr="Les deals clôturés arrivent ici automatiquement. Aucune saisie manuelle.">Closed deals land here automatically. No manual entry.</div>
     </div>
     <div id="crm-filter-bar" style="display:none;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:16px;">
-      <input type="text" id="crm-search" placeholder="Search clients..."
+      <input type="text" id="crm-search" data-en-ph="Search clients..." data-fr-ph="Rechercher des clients..." placeholder="Search clients..."
         style="padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:var(--fs-sm);font-family:inherit;outline:none;color:var(--text);flex:2;min-width:140px;box-sizing:border-box;"
         oninput="_applyCrmFilters()"
         onfocus="this.style.borderColor='var(--accent)'"
         onblur="this.style.borderColor='var(--border)';_applyCrmFilters();">
       <select id="crm-filter-sector" onchange="_applyCrmFilters()" style="font-size:var(--fs-sm);padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--white);color:var(--text);cursor:pointer;">
-        <option value="">All sectors</option>
+        <option value="" data-en="All sectors" data-fr="Tous les secteurs">All sectors</option>
       </select>
       <select id="crm-filter-country" onchange="_applyCrmFilters()" style="font-size:var(--fs-sm);padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--white);color:var(--text);cursor:pointer;">
-        <option value="">All countries</option>
+        <option value="" data-en="All countries" data-fr="Tous les pays">All countries</option>
       </select>
       <select id="crm-filter-signal" onchange="_applyCrmFilters()" style="font-size:var(--fs-sm);padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--white);color:var(--text);cursor:pointer;">
-        <option value="">All signals</option>
+        <option value="" data-en="All signals" data-fr="Tous les signaux">All signals</option>
       </select>
       <select id="crm-filter-origin" onchange="_applyCrmFilters()" style="font-size:var(--fs-sm);padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--white);color:var(--text);cursor:pointer;">
-        <option value="">All origins</option>
-        <option value="network">Network</option>
-        <option value="outbound">Outbound</option>
-        <option value="csv_import">CSV Import</option>
-        <option value="signal_monitoring">Intent Signal</option>
-        <option value="morning_scan">Morning Scan</option>
+        <option value="" data-en="All origins" data-fr="Toutes les origines">All origins</option>
+        <option value="network" data-en="Network" data-fr="Réseau">Network</option>
+        <option value="outbound" data-en="Outbound" data-fr="Sortant">Outbound</option>
+        <option value="csv_import" data-en="CSV Import" data-fr="Import CSV">CSV Import</option>
+        <option value="signal_monitoring" data-en="Intent Signal" data-fr="Signal d'intention">Intent Signal</option>
+        <option value="morning_scan" data-en="Morning Scan" data-fr="Morning Scan">Morning Scan</option>
       </select>
       <select id="crm-filter-deal" onchange="_applyCrmFilters()" style="font-size:var(--fs-sm);padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--white);color:var(--text);cursor:pointer;">
-        <option value="">All deal values</option>
+        <option value="" data-en="All deal values" data-fr="Toutes les valeurs de deal">All deal values</option>
         <option value="lt25">&lt; &euro;25k</option>
         <option value="25to100">&euro;25k&ndash;&euro;100k</option>
         <option value="100to500">&euro;100k&ndash;&euro;500k</option>
         <option value="gt500">&gt; &euro;500k</option>
       </select>
       <select id="crm-filter-confidence" title="Derived from ICP fit, verified email, and detected signal" onchange="_applyCrmFilters()" style="font-size:var(--fs-sm);padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--white);color:var(--text);cursor:pointer;">
-        <option value="">All confidence</option>
-        <option value="high">High</option>
-        <option value="medium">Medium</option>
-        <option value="low">Low</option>
+        <option value="" data-en="All confidence" data-fr="Toute confiance">All confidence</option>
+        <option value="high" data-en="High" data-fr="Élevée">High</option>
+        <option value="medium" data-en="Medium" data-fr="Moyenne">Medium</option>
+        <option value="low" data-en="Low" data-fr="Faible">Low</option>
       </select>
-      <button class="btn-sm" onclick="_resetCrmFilters()" style="background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;">Reset</button>
+      <button class="btn-sm" onclick="_resetCrmFilters()" style="background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;" data-en="Reset" data-fr="Réinitialiser">Reset</button>
     </div>
     <div id="crm-empty-state" style="display:none;padding:40px 24px 48px;max-width:560px;margin:0 auto;">
       <!-- Zero-stat row : les 4 vraies colonnes de _CRM_COLS, forcement a 0 dans cette branche
            (le total est 0 <=> chaque sous-compte est 0) -- pas une donnee a aller chercher. -->
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:32px;text-align:center;">
-        <div><div style="font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:600;color:#7d8fa8;">0</div><div style="font-size:var(--fs-micro);font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:var(--muted);margin-top:4px;">Active</div></div>
-        <div><div style="font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:600;color:#7d8fa8;">0</div><div style="font-size:var(--fs-micro);font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:var(--muted);margin-top:4px;">Next step planned</div></div>
-        <div><div style="font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:600;color:#7d8fa8;">0</div><div style="font-size:var(--fs-micro);font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:var(--muted);margin-top:4px;">Next step to define</div></div>
-        <div><div style="font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:600;color:#7d8fa8;">0</div><div style="font-size:var(--fs-micro);font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:var(--muted);margin-top:4px;">Dormant</div></div>
+        <div><div style="font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:600;color:#7d8fa8;">0</div><div style="font-size:var(--fs-micro);font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:var(--muted);margin-top:4px;" data-en="Active" data-fr="Actif">Active</div></div>
+        <div><div style="font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:600;color:#7d8fa8;">0</div><div style="font-size:var(--fs-micro);font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:var(--muted);margin-top:4px;" data-en="Next step planned" data-fr="Prochaine étape planifiée">Next step planned</div></div>
+        <div><div style="font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:600;color:#7d8fa8;">0</div><div style="font-size:var(--fs-micro);font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:var(--muted);margin-top:4px;" data-en="Next step to define" data-fr="Prochaine étape à définir">Next step to define</div></div>
+        <div><div style="font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:600;color:#7d8fa8;">0</div><div style="font-size:var(--fs-micro);font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:var(--muted);margin-top:4px;" data-en="Dormant" data-fr="Dormant">Dormant</div></div>
       </div>
 
       <!-- Mouvement 1 : localiser l'etat dans le parcours (spine reelle : signal/qualify/send/
            reply/indeal/client = 6 etapes, Client est bien la 6e). -->
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
         <svg width="16" height="16" viewBox="0 0 16 16" style="flex-shrink:0;"><rect x="0" y="0" width="7" height="7" rx="1.5" fill="var(--border)"/><rect x="9" y="0" width="7" height="7" rx="1.5" fill="var(--border)"/><rect x="0" y="9" width="7" height="7" rx="1.5" fill="var(--border)"/><rect x="9" y="9" width="7" height="7" rx="1.5" fill="var(--border)"/></svg>
-        <span style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);">Stage 6 of 6 &middot; Not reached yet</span>
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);" data-en="Stage 6 of 6 &middot; Not reached yet" data-fr="Étape 6 sur 6 &middot; Pas encore atteinte" data-html>Stage 6 of 6 &middot; Not reached yet</span>
       </div>
 
       <!-- Mouvement 2 : nommer le mecanisme, pas l'absence. -->
-      <div style="font-size:21px;font-weight:600;color:var(--ink);letter-spacing:-0.2px;margin-bottom:10px;">Your first client will appear here on its own.</div>
-      <div style="font-size:var(--fs-base);color:var(--muted);line-height:1.7;margin-bottom:16px;">The moment a prospect moves to <strong style="color:var(--ink);">Closed</strong> in your pipeline, Corridor creates the client record, carries over the full signal and message history, and starts tracking the relationship.</div>
+      <div style="font-size:21px;font-weight:600;color:var(--ink);letter-spacing:-0.2px;margin-bottom:10px;" data-en="Your first client will appear here on its own." data-fr="Votre premier client apparaîtra ici automatiquement.">Your first client will appear here on its own.</div>
+      <div style="font-size:var(--fs-base);color:var(--muted);line-height:1.7;margin-bottom:16px;" data-html data-en='The moment a prospect moves to <strong style="color:var(--ink);">Closed</strong> in your pipeline, Corridor creates the client record, carries over the full signal and message history, and starts tracking the relationship.' data-fr='Dès qu&#39;un prospect passe à <strong style="color:var(--ink);">Clôturé</strong> dans votre pipeline, Corridor crée la fiche client, reprend tout l&#39;historique des signaux et des messages, et commence à suivre la relation.'>The moment a prospect moves to <strong style="color:var(--ink);">Closed</strong> in your pipeline, Corridor creates the client record, carries over the full signal and message history, and starts tracking the relationship.</div>
 
       <!-- Mouvement 3 : le chiffre reel adjacent (requete dediee, cf. _loadCrmEmptyStats()). -->
       <div id="crm-empty-adjacent" style="font-size:var(--fs-sm);color:var(--muted);margin-bottom:24px;"></div>
 
-      <button id="crm-empty-open-negotiation" onclick="_openPipelineStage('Negotiation')" style="display:none;background:var(--ink);color:#fff;border:none;border-radius:var(--radius-md);padding:10px 18px;font-size:var(--fs-sm);font-weight:600;cursor:pointer;font-family:inherit;margin-bottom:32px;">Open Negotiation stage &middot; <span id="crm-empty-negotiation-count">0</span></button>
+      <button id="crm-empty-open-negotiation" onclick="_openPipelineStage('Negotiation')" style="display:none;background:var(--ink);color:#fff;border:none;border-radius:var(--radius-md);padding:10px 18px;font-size:var(--fs-sm);font-weight:600;cursor:pointer;font-family:inherit;margin-bottom:32px;"><span data-en="Open Negotiation stage &middot; " data-fr="Ouvrir l&#39;étape Négociation &middot; " data-html>Open Negotiation stage &middot; </span><span id="crm-empty-negotiation-count">0</span></button>
 
       <!-- Mouvement 4 : montrer la forme a venir. -->
       <div style="background:var(--surface-1);border-radius:var(--radius-lg);padding:16px 18px;">
-        <div style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;">What a client record will look like</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;" data-en="What a client record will look like" data-fr="À quoi ressemblera une fiche client">What a client record will look like</div>
         <div style="display:flex;flex-direction:column;gap:10px;">
           <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px dashed var(--border-input);border-radius:var(--radius-md);">
             <div style="width:26px;height:26px;border-radius:6px;background:var(--border);flex-shrink:0;"></div>
@@ -2701,7 +2701,7 @@ body.new-nav { padding-left: 220px; }
 
         <div class="kanban-col" id="crm-col-active">
           <div class="kanban-col-head">
-            <span style="display:flex;align-items:center;"><span class="crm-status-dot" style="background:var(--positive);"></span>Active</span>
+            <span style="display:flex;align-items:center;"><span class="crm-status-dot" style="background:var(--positive);"></span><span data-en="Active" data-fr="Actif">Active</span></span>
             <div class="kanban-count" id="crm-count-active">0</div>
           </div>
           <div id="crm-cards-active"></div>
@@ -2709,7 +2709,7 @@ body.new-nav { padding-left: 220px; }
 
         <div class="kanban-col" id="crm-col-planned">
           <div class="kanban-col-head">
-            <span style="display:flex;align-items:center;"><span class="crm-status-dot" style="background:var(--accent);"></span>Next step planned</span>
+            <span style="display:flex;align-items:center;"><span class="crm-status-dot" style="background:var(--accent);"></span><span data-en="Next step planned" data-fr="Prochaine étape planifiée">Next step planned</span></span>
             <div class="kanban-count" id="crm-count-planned">0</div>
           </div>
           <div id="crm-cards-planned"></div>
@@ -2717,7 +2717,7 @@ body.new-nav { padding-left: 220px; }
 
         <div class="kanban-col" id="crm-col-tbd">
           <div class="kanban-col-head">
-            <span style="display:flex;align-items:center;"><span class="crm-status-dot" style="background:var(--objection);"></span>Next step to define</span>
+            <span style="display:flex;align-items:center;"><span class="crm-status-dot" style="background:var(--objection);"></span><span data-en="Next step to define" data-fr="Prochaine étape à définir">Next step to define</span></span>
             <div class="kanban-count" id="crm-count-tbd">0</div>
           </div>
           <div id="crm-cards-tbd"></div>
@@ -2725,7 +2725,7 @@ body.new-nav { padding-left: 220px; }
 
         <div class="kanban-col" id="crm-col-dormant">
           <div class="kanban-col-head">
-            <span style="display:flex;align-items:center;"><span class="crm-status-dot" style="background:var(--neutral-chip);"></span>Dormant</span>
+            <span style="display:flex;align-items:center;"><span class="crm-status-dot" style="background:var(--neutral-chip);"></span><span data-en="Dormant" data-fr="Dormant">Dormant</span></span>
             <div class="kanban-count" id="crm-count-dormant">0</div>
           </div>
           <div id="crm-cards-dormant"></div>
@@ -2803,7 +2803,7 @@ body.new-nav { padding-left: 220px; }
         </div>
       </div>
       <div class="card" id="learned-preferences-card" style="margin-top:16px;display:none;">
-        <div class="card-header"><span class="card-title">Learned Preferences</span></div>
+        <div class="card-header"><span class="card-title" data-en="Learned Preferences" data-fr="Préférences apprises">Learned Preferences</span></div>
         <div id="learned-preferences-body" style="font-size:var(--fs-sm);line-height:1.6;"></div>
         <div id="learned-preferences-meta" style="font-size:var(--fs-xs);color:var(--muted);margin-top:10px;"></div>
       </div>
@@ -2843,7 +2843,7 @@ body.new-nav { padding-left: 220px; }
   <!-- ══ TAB: INTEGRATIONS ══ -->
   <div class="tab-panel" id="tab-integrations">
     <div class="module-header" style="margin-bottom:20px;">
-      <div class="module-title">Integrations</div>
+      <div class="module-title" data-en="Integrations" data-fr="Intégrations">Integrations</div>
     </div>
 
     <!-- Grille de cartes (statut reel, rendu par loadIntegrationsTab()/_intRenderGrid() depuis
@@ -2860,26 +2860,26 @@ body.new-nav { padding-left: 220px; }
 
       <!-- 1. API key -->
       <div style="margin-bottom:16px;">
-        <label style="display:block;font-size:var(--fs-sm);font-weight:600;color:var(--navy);margin-bottom:6px;">API Key</label>
+        <label style="display:block;font-size:var(--fs-sm);font-weight:600;color:var(--navy);margin-bottom:6px;" data-en="API Key" data-fr="Clé API">API Key</label>
         <div style="display:flex;gap:8px;align-items:center;">
           <input type="password" id="hs-api-key" class="input-field"
             placeholder="pat-na1-••••••••"
             style="flex:1;font-family:monospace;font-size:var(--fs-sm);letter-spacing:0.04em;"
             oninput="_hsOnKeyInput()">
           <button class="btn-secondary btn-sm" onclick="_hsRevealKey()" id="hs-reveal-btn"
-            title="Reveal / hide" style="padding:7px 10px;font-size:15px;line-height:1;">👁</button>
-          <button class="btn-secondary btn-sm" onclick="_hsCopyKey()" id="hs-copy-btn" style="white-space:nowrap;">Copy</button>
+            data-en-title="Reveal / hide" data-fr-title="Afficher / masquer" title="Reveal / hide" style="padding:7px 10px;font-size:15px;line-height:1;">👁</button>
+          <button class="btn-secondary btn-sm" onclick="_hsCopyKey()" id="hs-copy-btn" style="white-space:nowrap;" data-en="Copy" data-fr="Copier">Copy</button>
         </div>
         <div id="hs-configured-row" style="display:none;margin-top:8px;font-size:var(--fs-sm);color:var(--muted);">
-          Connected — value hidden for security.
-          <button class="btn-secondary btn-sm" onclick="_reconnectPanel('hubspot')">Reconnect</button>
-          <button class="btn-secondary btn-sm" onclick="_disconnectIntegration('hubspot')">Disconnect</button>
+          <span data-en="Connected — value hidden for security." data-fr="Connecté — valeur masquée pour des raisons de sécurité.">Connected — value hidden for security.</span>
+          <button class="btn-secondary btn-sm" onclick="_reconnectPanel('hubspot')" data-en="Reconnect" data-fr="Reconnecter">Reconnect</button>
+          <button class="btn-secondary btn-sm" onclick="_disconnectIntegration('hubspot')" data-en="Disconnect" data-fr="Déconnecter">Disconnect</button>
         </div>
       </div>
 
       <!-- 2. Test connection -->
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
-        <button class="btn-primary btn-md" id="hs-test-btn" onclick="_hsTestConnection()" disabled>
+        <button class="btn-primary btn-md" id="hs-test-btn" onclick="_hsTestConnection()" disabled data-en="Test connection" data-fr="Tester la connexion">
           Test connection
         </button>
         <div class="ai-spinner" id="hs-spinner" style="display:none;"></div>
@@ -2889,14 +2889,14 @@ body.new-nav { padding-left: 220px; }
       <!-- 3 + 4. Stage mapping + Save (revealed after successful test) -->
       <div id="hs-mapping-section" style="display:none;">
         <div style="border-top:1px solid var(--border);padding-top:20px;margin-bottom:16px;">
-          <div style="font-size:var(--fs-sm);font-weight:700;color:var(--navy);margin-bottom:4px;">Stage Mapping</div>
-          <div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:16px;">
+          <div style="font-size:var(--fs-sm);font-weight:700;color:var(--navy);margin-bottom:4px;" data-en="Stage Mapping" data-fr="Correspondance des étapes">Stage Mapping</div>
+          <div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:16px;" data-en="For each HubSpot deal stage, choose the equivalent Corridor stage." data-fr="Pour chaque étape de deal HubSpot, choisissez l'étape Corridor équivalente.">
             For each HubSpot deal stage, choose the equivalent Corridor stage.
           </div>
           <div id="hs-mapping-rows"></div>
         </div>
         <div style="display:flex;align-items:center;gap:12px;">
-          <button class="btn-primary btn-md" id="hs-save-btn" onclick="_hsSaveMapping()">Save mapping</button>
+          <button class="btn-primary btn-md" id="hs-save-btn" onclick="_hsSaveMapping()" data-en="Save mapping" data-fr="Enregistrer la correspondance">Save mapping</button>
           <span id="hs-save-result" style="font-size:var(--fs-sm);"></span>
         </div>
       </div>
@@ -2904,9 +2904,9 @@ body.new-nav { padding-left: 220px; }
       <!-- 5. Last sync -->
       <div style="margin-top:20px;padding-top:14px;border-top:1px solid var(--border);
                   font-size:var(--fs-xs);color:var(--muted);">
-        Last sync: <span id="hs-last-sync">—</span>
+        <span data-en="Last sync:" data-fr="Dernière synchro :">Last sync:</span> <span id="hs-last-sync">—</span>
       </div>
-      <button class="btn-secondary btn-sm" onclick="_intClosePanel()" style="margin-top:16px;">← Back to Integrations</button>
+      <button class="btn-secondary btn-sm" onclick="_intClosePanel()" style="margin-top:16px;" data-en="← Back to Integrations" data-fr="← Retour aux intégrations">← Back to Integrations</button>
     </div>
 
     <!-- ── SALESFORCE (OAuth2 -- 4 champs, pas une cle unique, cf. api/salesforce.js) ── -->
@@ -2918,52 +2918,52 @@ body.new-nav { padding-left: 220px; }
 
       <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:16px;">
         <div>
-          <label style="display:block;font-size:var(--fs-sm);font-weight:600;color:var(--navy);margin-bottom:6px;">Instance URL</label>
+          <label style="display:block;font-size:var(--fs-sm);font-weight:600;color:var(--navy);margin-bottom:6px;" data-en="Instance URL" data-fr="URL de l'instance">Instance URL</label>
           <input type="text" id="sf-instance-url" class="input-field" placeholder="https://yourorg.my.salesforce.com"
             style="width:100%;font-family:monospace;font-size:var(--fs-sm);" oninput="_sfOnFieldInput()">
         </div>
         <div>
-          <label style="display:block;font-size:var(--fs-sm);font-weight:600;color:var(--navy);margin-bottom:6px;">Connected App Consumer Key (Client ID)</label>
+          <label style="display:block;font-size:var(--fs-sm);font-weight:600;color:var(--navy);margin-bottom:6px;" data-en="Connected App Consumer Key (Client ID)" data-fr="Consumer Key de la Connected App (Client ID)">Connected App Consumer Key (Client ID)</label>
           <div style="display:flex;gap:8px;align-items:center;">
             <input type="password" id="sf-client-id" class="input-field" placeholder="••••••••"
               style="flex:1;font-family:monospace;font-size:var(--fs-sm);letter-spacing:0.04em;" oninput="_sfOnFieldInput()">
-            <button class="btn-secondary btn-sm" id="sf-reveal-client-id" onclick="_sfRevealField('sf-client-id')" title="Reveal / hide" style="padding:7px 10px;font-size:15px;line-height:1;">👁</button>
-            <button class="btn-secondary btn-sm" id="sf-copy-client-id" onclick="_sfCopyField('sf-client-id')" style="white-space:nowrap;">Copy</button>
+            <button class="btn-secondary btn-sm" id="sf-reveal-client-id" onclick="_sfRevealField('sf-client-id')" data-en-title="Reveal / hide" data-fr-title="Afficher / masquer" title="Reveal / hide" style="padding:7px 10px;font-size:15px;line-height:1;">👁</button>
+            <button class="btn-secondary btn-sm" id="sf-copy-client-id" onclick="_sfCopyField('sf-client-id')" style="white-space:nowrap;" data-en="Copy" data-fr="Copier">Copy</button>
           </div>
         </div>
         <div>
-          <label style="display:block;font-size:var(--fs-sm);font-weight:600;color:var(--navy);margin-bottom:6px;">Connected App Consumer Secret</label>
+          <label style="display:block;font-size:var(--fs-sm);font-weight:600;color:var(--navy);margin-bottom:6px;" data-en="Connected App Consumer Secret" data-fr="Consumer Secret de la Connected App">Connected App Consumer Secret</label>
           <div style="display:flex;gap:8px;align-items:center;">
             <input type="password" id="sf-client-secret" class="input-field" placeholder="••••••••"
               style="flex:1;font-family:monospace;font-size:var(--fs-sm);letter-spacing:0.04em;" oninput="_sfOnFieldInput()">
-            <button class="btn-secondary btn-sm" id="sf-reveal-client-secret" onclick="_sfRevealField('sf-client-secret')" title="Reveal / hide" style="padding:7px 10px;font-size:15px;line-height:1;">👁</button>
-            <button class="btn-secondary btn-sm" id="sf-copy-client-secret" onclick="_sfCopyField('sf-client-secret')" style="white-space:nowrap;">Copy</button>
+            <button class="btn-secondary btn-sm" id="sf-reveal-client-secret" onclick="_sfRevealField('sf-client-secret')" data-en-title="Reveal / hide" data-fr-title="Afficher / masquer" title="Reveal / hide" style="padding:7px 10px;font-size:15px;line-height:1;">👁</button>
+            <button class="btn-secondary btn-sm" id="sf-copy-client-secret" onclick="_sfCopyField('sf-client-secret')" style="white-space:nowrap;" data-en="Copy" data-fr="Copier">Copy</button>
           </div>
         </div>
         <div>
-          <label style="display:block;font-size:var(--fs-sm);font-weight:600;color:var(--navy);margin-bottom:6px;">Username</label>
+          <label style="display:block;font-size:var(--fs-sm);font-weight:600;color:var(--navy);margin-bottom:6px;" data-en="Username" data-fr="Nom d'utilisateur">Username</label>
           <input type="text" id="sf-username" class="input-field" placeholder="you@yourorg.com"
             style="width:100%;font-family:monospace;font-size:var(--fs-sm);" oninput="_sfOnFieldInput()">
         </div>
         <div>
-          <label style="display:block;font-size:var(--fs-sm);font-weight:600;color:var(--navy);margin-bottom:6px;">Password + Security Token</label>
+          <label style="display:block;font-size:var(--fs-sm);font-weight:600;color:var(--navy);margin-bottom:6px;" data-en="Password + Security Token" data-fr="Mot de passe + jeton de sécurité">Password + Security Token</label>
           <div style="display:flex;gap:8px;align-items:center;">
             <input type="password" id="sf-password" class="input-field" placeholder="••••••••"
               style="flex:1;font-family:monospace;font-size:var(--fs-sm);letter-spacing:0.04em;" oninput="_sfOnFieldInput()">
-            <button class="btn-secondary btn-sm" id="sf-reveal-password" onclick="_sfRevealField('sf-password')" title="Reveal / hide" style="padding:7px 10px;font-size:15px;line-height:1;">👁</button>
-            <button class="btn-secondary btn-sm" id="sf-copy-password" onclick="_sfCopyField('sf-password')" style="white-space:nowrap;">Copy</button>
+            <button class="btn-secondary btn-sm" id="sf-reveal-password" onclick="_sfRevealField('sf-password')" data-en-title="Reveal / hide" data-fr-title="Afficher / masquer" title="Reveal / hide" style="padding:7px 10px;font-size:15px;line-height:1;">👁</button>
+            <button class="btn-secondary btn-sm" id="sf-copy-password" onclick="_sfCopyField('sf-password')" style="white-space:nowrap;" data-en="Copy" data-fr="Copier">Copy</button>
           </div>
-          <div style="font-size:var(--fs-xs);color:var(--muted);margin-top:4px;">Salesforce password concatenated with the security token (no space).</div>
+          <div style="font-size:var(--fs-xs);color:var(--muted);margin-top:4px;" data-en="Salesforce password concatenated with the security token (no space)." data-fr="Mot de passe Salesforce concaténé avec le jeton de sécurité (sans espace).">Salesforce password concatenated with the security token (no space).</div>
         </div>
         <div id="sf-configured-row" style="display:none;font-size:var(--fs-sm);color:var(--muted);">
-          Connected — values hidden for security.
-          <button class="btn-secondary btn-sm" onclick="_reconnectPanel('salesforce')">Reconnect</button>
-          <button class="btn-secondary btn-sm" onclick="_disconnectIntegration('salesforce')">Disconnect</button>
+          <span data-en="Connected — values hidden for security." data-fr="Connecté — valeurs masquées pour des raisons de sécurité.">Connected — values hidden for security.</span>
+          <button class="btn-secondary btn-sm" onclick="_reconnectPanel('salesforce')" data-en="Reconnect" data-fr="Reconnecter">Reconnect</button>
+          <button class="btn-secondary btn-sm" onclick="_disconnectIntegration('salesforce')" data-en="Disconnect" data-fr="Déconnecter">Disconnect</button>
         </div>
       </div>
 
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
-        <button class="btn-primary btn-md" id="sf-test-btn" onclick="_sfTestConnection()" disabled>
+        <button class="btn-primary btn-md" id="sf-test-btn" onclick="_sfTestConnection()" disabled data-en="Test connection" data-fr="Tester la connexion">
           Test connection
         </button>
         <div class="ai-spinner" id="sf-spinner" style="display:none;"></div>
@@ -2972,23 +2972,23 @@ body.new-nav { padding-left: 220px; }
 
       <div id="sf-mapping-section" style="display:none;">
         <div style="border-top:1px solid var(--border);padding-top:20px;margin-bottom:16px;">
-          <div style="font-size:var(--fs-sm);font-weight:700;color:var(--navy);margin-bottom:4px;">Stage Mapping</div>
-          <div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:16px;">
+          <div style="font-size:var(--fs-sm);font-weight:700;color:var(--navy);margin-bottom:4px;" data-en="Stage Mapping" data-fr="Correspondance des étapes">Stage Mapping</div>
+          <div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:16px;" data-en="For each Salesforce Opportunity stage, choose the equivalent Corridor stage." data-fr="Pour chaque étape d'opportunité Salesforce, choisissez l'étape Corridor équivalente.">
             For each Salesforce Opportunity stage, choose the equivalent Corridor stage.
           </div>
           <div id="sf-mapping-rows"></div>
         </div>
         <div style="display:flex;align-items:center;gap:12px;">
-          <button class="btn-primary btn-md" id="sf-save-btn" onclick="_sfSaveMapping()">Save mapping</button>
+          <button class="btn-primary btn-md" id="sf-save-btn" onclick="_sfSaveMapping()" data-en="Save mapping" data-fr="Enregistrer la correspondance">Save mapping</button>
           <span id="sf-save-result" style="font-size:var(--fs-sm);"></span>
         </div>
       </div>
 
       <div style="margin-top:20px;padding-top:14px;border-top:1px solid var(--border);
                   font-size:var(--fs-xs);color:var(--muted);">
-        Last sync: <span id="sf-last-sync">—</span>
+        <span data-en="Last sync:" data-fr="Dernière synchro :">Last sync:</span> <span id="sf-last-sync">—</span>
       </div>
-      <button class="btn-secondary btn-sm" onclick="_intClosePanel()" style="margin-top:16px;">← Back to Integrations</button>
+      <button class="btn-secondary btn-sm" onclick="_intClosePanel()" style="margin-top:16px;" data-en="← Back to Integrations" data-fr="← Retour aux intégrations">← Back to Integrations</button>
     </div>
 
     <!-- ── PIPEDRIVE (simple cle API, meme pattern que HubSpot) ── -->
@@ -2999,26 +2999,26 @@ body.new-nav { padding-left: 220px; }
       </div>
 
       <div style="margin-bottom:16px;">
-        <label style="display:block;font-size:var(--fs-sm);font-weight:600;color:var(--navy);margin-bottom:6px;">API Token</label>
+        <label style="display:block;font-size:var(--fs-sm);font-weight:600;color:var(--navy);margin-bottom:6px;" data-en="API Token" data-fr="Jeton API">API Token</label>
         <div style="display:flex;gap:8px;align-items:center;">
           <input type="password" id="pdrv-api-key" class="input-field"
             placeholder="••••••••"
             style="flex:1;font-family:monospace;font-size:var(--fs-sm);letter-spacing:0.04em;"
             oninput="_pdrvOnKeyInput()">
           <button class="btn-secondary btn-sm" onclick="_pdrvRevealKey()" id="pdrv-reveal-btn"
-            title="Reveal / hide" style="padding:7px 10px;font-size:15px;line-height:1;">👁</button>
-          <button class="btn-secondary btn-sm" onclick="_pdrvCopyKey()" id="pdrv-copy-btn" style="white-space:nowrap;">Copy</button>
+            data-en-title="Reveal / hide" data-fr-title="Afficher / masquer" title="Reveal / hide" style="padding:7px 10px;font-size:15px;line-height:1;">👁</button>
+          <button class="btn-secondary btn-sm" onclick="_pdrvCopyKey()" id="pdrv-copy-btn" style="white-space:nowrap;" data-en="Copy" data-fr="Copier">Copy</button>
         </div>
-        <div style="font-size:var(--fs-xs);color:var(--muted);margin-top:4px;">Settings → Personal preferences → API in Pipedrive.</div>
+        <div style="font-size:var(--fs-xs);color:var(--muted);margin-top:4px;" data-en="Settings → Personal preferences → API in Pipedrive." data-fr="Paramètres → Préférences personnelles → API dans Pipedrive.">Settings → Personal preferences → API in Pipedrive.</div>
         <div id="pdrv-configured-row" style="display:none;margin-top:8px;font-size:var(--fs-sm);color:var(--muted);">
-          Connected — value hidden for security.
-          <button class="btn-secondary btn-sm" onclick="_reconnectPanel('pipedrive')">Reconnect</button>
-          <button class="btn-secondary btn-sm" onclick="_disconnectIntegration('pipedrive')">Disconnect</button>
+          <span data-en="Connected — value hidden for security." data-fr="Connecté — valeur masquée pour des raisons de sécurité.">Connected — value hidden for security.</span>
+          <button class="btn-secondary btn-sm" onclick="_reconnectPanel('pipedrive')" data-en="Reconnect" data-fr="Reconnecter">Reconnect</button>
+          <button class="btn-secondary btn-sm" onclick="_disconnectIntegration('pipedrive')" data-en="Disconnect" data-fr="Déconnecter">Disconnect</button>
         </div>
       </div>
 
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
-        <button class="btn-primary btn-md" id="pdrv-test-btn" onclick="_pdrvTestConnection()" disabled>
+        <button class="btn-primary btn-md" id="pdrv-test-btn" onclick="_pdrvTestConnection()" disabled data-en="Test connection" data-fr="Tester la connexion">
           Test connection
         </button>
         <div class="ai-spinner" id="pdrv-spinner" style="display:none;"></div>
@@ -3027,23 +3027,23 @@ body.new-nav { padding-left: 220px; }
 
       <div id="pdrv-mapping-section" style="display:none;">
         <div style="border-top:1px solid var(--border);padding-top:20px;margin-bottom:16px;">
-          <div style="font-size:var(--fs-sm);font-weight:700;color:var(--navy);margin-bottom:4px;">Stage Mapping</div>
-          <div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:16px;">
+          <div style="font-size:var(--fs-sm);font-weight:700;color:var(--navy);margin-bottom:4px;" data-en="Stage Mapping" data-fr="Correspondance des étapes">Stage Mapping</div>
+          <div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:16px;" data-en="For each Pipedrive deal stage, choose the equivalent Corridor stage." data-fr="Pour chaque étape de deal Pipedrive, choisissez l'étape Corridor équivalente.">
             For each Pipedrive deal stage, choose the equivalent Corridor stage.
           </div>
           <div id="pdrv-mapping-rows"></div>
         </div>
         <div style="display:flex;align-items:center;gap:12px;">
-          <button class="btn-primary btn-md" id="pdrv-save-btn" onclick="_pdrvSaveMapping()">Save mapping</button>
+          <button class="btn-primary btn-md" id="pdrv-save-btn" onclick="_pdrvSaveMapping()" data-en="Save mapping" data-fr="Enregistrer la correspondance">Save mapping</button>
           <span id="pdrv-save-result" style="font-size:var(--fs-sm);"></span>
         </div>
       </div>
 
       <div style="margin-top:20px;padding-top:14px;border-top:1px solid var(--border);
                   font-size:var(--fs-xs);color:var(--muted);">
-        Last sync: <span id="pdrv-last-sync">—</span>
+        <span data-en="Last sync:" data-fr="Dernière synchro :">Last sync:</span> <span id="pdrv-last-sync">—</span>
       </div>
-      <button class="btn-secondary btn-sm" onclick="_intClosePanel()" style="margin-top:16px;">← Back to Integrations</button>
+      <button class="btn-secondary btn-sm" onclick="_intClosePanel()" style="margin-top:16px;" data-en="← Back to Integrations" data-fr="← Retour aux intégrations">← Back to Integrations</button>
     </div>
 
     <!-- ── SLACK (mecanisme deja en prod cote serveur -- webhook n8n "Slack Notifier" + 4
@@ -3056,87 +3056,95 @@ body.new-nav { padding-left: 220px; }
       </div>
 
       <div style="margin-bottom:16px;">
-        <label style="display:block;font-size:var(--fs-sm);font-weight:600;color:var(--navy);margin-bottom:6px;">Webhook URL</label>
+        <label style="display:block;font-size:var(--fs-sm);font-weight:600;color:var(--navy);margin-bottom:6px;" data-en="Webhook URL" data-fr="URL du webhook">Webhook URL</label>
         <div style="display:flex;gap:8px;align-items:center;">
           <input type="password" id="slk-webhook-url" class="input-field"
             placeholder="https://hooks.slack.com/services/••••••••"
             style="flex:1;font-family:monospace;font-size:var(--fs-sm);letter-spacing:0.02em;"
             oninput="_slkOnFieldInput()">
           <button class="btn-secondary btn-sm" onclick="_slkRevealField()" id="slk-reveal-btn"
-            title="Reveal / hide" style="padding:7px 10px;font-size:15px;line-height:1;">👁</button>
-          <button class="btn-secondary btn-sm" onclick="_slkCopyField()" id="slk-copy-btn" style="white-space:nowrap;">Copy</button>
+            data-en-title="Reveal / hide" data-fr-title="Afficher / masquer" title="Reveal / hide" style="padding:7px 10px;font-size:15px;line-height:1;">👁</button>
+          <button class="btn-secondary btn-sm" onclick="_slkCopyField()" id="slk-copy-btn" style="white-space:nowrap;" data-en="Copy" data-fr="Copier">Copy</button>
         </div>
-        <div style="font-size:var(--fs-xs);color:var(--muted);margin-top:4px;">Slack → Apps → Incoming Webhooks.</div>
+        <div style="font-size:var(--fs-xs);color:var(--muted);margin-top:4px;" data-en="Slack → Apps → Incoming Webhooks." data-fr="Slack → Apps → Incoming Webhooks.">Slack → Apps → Incoming Webhooks.</div>
         <div id="slk-configured-row" style="display:none;margin-top:8px;font-size:var(--fs-sm);color:var(--muted);">
-          Connected — value hidden for security.
-          <button class="btn-secondary btn-sm" onclick="_reconnectPanel('slack')">Reconnect</button>
-          <button class="btn-secondary btn-sm" onclick="_disconnectIntegration('slack')">Disconnect</button>
+          <span data-en="Connected — value hidden for security." data-fr="Connecté — valeur masquée pour des raisons de sécurité.">Connected — value hidden for security.</span>
+          <button class="btn-secondary btn-sm" onclick="_reconnectPanel('slack')" data-en="Reconnect" data-fr="Reconnecter">Reconnect</button>
+          <button class="btn-secondary btn-sm" onclick="_disconnectIntegration('slack')" data-en="Disconnect" data-fr="Déconnecter">Disconnect</button>
         </div>
       </div>
 
       <div style="margin-bottom:16px;">
-        <div style="font-size:var(--fs-sm);font-weight:700;color:var(--navy);margin-bottom:10px;">Events</div>
+        <div style="font-size:var(--fs-sm);font-weight:700;color:var(--navy);margin-bottom:10px;" data-en="Events" data-fr="Événements">Events</div>
         <div style="display:flex;flex-direction:column;gap:10px;">
           <label style="display:flex;align-items:center;gap:8px;font-size:var(--fs-sm);color:var(--text);cursor:pointer;">
-            <input type="checkbox" id="slk-evt-stageEngaged" onchange="_slkOnFieldInput()"> Prospect reaches "Engaged"
+            <input type="checkbox" id="slk-evt-stageEngaged" onchange="_slkOnFieldInput()"> <span data-en='Prospect reaches "Engaged"' data-fr='Le prospect atteint « Engagé »'>Prospect reaches "Engaged"</span>
           </label>
           <label style="display:flex;align-items:center;gap:8px;font-size:var(--fs-sm);color:var(--text);cursor:pointer;">
-            <input type="checkbox" id="slk-evt-stageProposal" onchange="_slkOnFieldInput()"> Prospect reaches "Proposal"
+            <input type="checkbox" id="slk-evt-stageProposal" onchange="_slkOnFieldInput()"> <span data-en='Prospect reaches "Proposal"' data-fr='Le prospect atteint « Proposition »'>Prospect reaches "Proposal"</span>
           </label>
           <label style="display:flex;align-items:center;gap:8px;font-size:var(--fs-sm);color:var(--text);cursor:pointer;">
-            <input type="checkbox" id="slk-evt-icpAlert" onchange="_slkOnFieldInput()"> New prospect, ICP ≥ 9.0 (Morning Scan)
+            <input type="checkbox" id="slk-evt-icpAlert" onchange="_slkOnFieldInput()"> <span data-en="New prospect, ICP ≥ 9.0 (Morning Scan)" data-fr="Nouveau prospect, ICP ≥ 9.0 (Morning Scan)">New prospect, ICP ≥ 9.0 (Morning Scan)</span>
           </label>
           <label style="display:flex;align-items:center;gap:8px;font-size:var(--fs-sm);color:var(--text);cursor:pointer;">
-            <input type="checkbox" id="slk-evt-pipelineReview" onchange="_slkOnFieldInput()"> Weekly Pipeline Review
+            <input type="checkbox" id="slk-evt-pipelineReview" onchange="_slkOnFieldInput()"> <span data-en="Weekly Pipeline Review" data-fr="Revue hebdomadaire du pipeline">Weekly Pipeline Review</span>
           </label>
         </div>
       </div>
 
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
-        <button class="btn-primary btn-md" id="slk-save-btn" onclick="_slkSaveConfig()" disabled>
+        <button class="btn-primary btn-md" id="slk-save-btn" onclick="_slkSaveConfig()" disabled data-en="Save" data-fr="Enregistrer">
           Save
         </button>
         <span id="slk-save-result" style="font-size:var(--fs-sm);"></span>
       </div>
 
-      <div style="font-size:var(--fs-xs);color:var(--muted);">
+      <div style="font-size:var(--fs-xs);color:var(--muted);" data-html data-en='Prospect reaches &quot;Engaged&quot;/&quot;Proposal&quot; are live: they fire for real from this dashboard.
+        ICP alert and Weekly Pipeline Review are sent by their own scheduled workflows (Morning
+        Scan, Pipeline Reviewer) which don&#39;t read this webhook yet -- toggling them here only
+        saves your preference for when that gets wired up, it doesn&#39;t change what those two
+        actually send today.' data-fr='Le prospect atteint « Engagé »/« Proposition » sont en direct : ils se déclenchent réellement depuis ce tableau de bord.
+        L&#39;alerte ICP et la revue hebdomadaire du pipeline sont envoyées par leurs propres workflows planifiés (Morning
+        Scan, Pipeline Reviewer) qui ne lisent pas encore ce webhook -- les activer ici enregistre seulement
+        votre préférence pour quand ce sera branché, ça ne change rien à ce que ces deux workflows
+        envoient réellement aujourd&#39;hui.'>
         Prospect reaches "Engaged"/"Proposal" are live: they fire for real from this dashboard.
         ICP alert and Weekly Pipeline Review are sent by their own scheduled workflows (Morning
         Scan, Pipeline Reviewer) which don't read this webhook yet -- toggling them here only
         saves your preference for when that gets wired up, it doesn't change what those two
         actually send today.
       </div>
-      <button class="btn-secondary btn-sm" onclick="_intClosePanel()" style="margin-top:16px;">← Back to Integrations</button>
+      <button class="btn-secondary btn-sm" onclick="_intClosePanel()" style="margin-top:16px;" data-en="← Back to Integrations" data-fr="← Retour aux intégrations">← Back to Integrations</button>
     </div>
 
     <!-- ── GMAIL (rien de fonctionnel encore -- config UI seulement, marque "Coming soon") ── -->
     <div class="card int-panel" id="int-panel-gmail" style="display:none;max-width:620px;">
       <div class="card-header">
         <span class="card-title">Gmail</span>
-        <span class="card-badge" style="background:#f3f4f6;color:var(--muted);border:1px solid var(--border);">Coming soon</span>
+        <span class="card-badge" style="background:#f3f4f6;color:var(--muted);border:1px solid var(--border);" data-en="Coming soon" data-fr="Bientôt disponible">Coming soon</span>
       </div>
-      <div style="font-size:var(--fs-sm);color:var(--muted);margin-bottom:16px;">
+      <div style="font-size:var(--fs-sm);color:var(--muted);margin-bottom:16px;" data-en="Email notifications for pipeline events aren't wired up yet -- this panel lets you set your preferences now so they're ready the day sending goes live. Nothing will be sent until then." data-fr="Les notifications email pour les événements du pipeline ne sont pas encore branchées -- ce panneau vous permet de définir vos préférences dès maintenant pour qu'elles soient prêtes le jour où l'envoi sera activé. Rien ne sera envoyé d'ici là.">
         Email notifications for pipeline events aren't wired up yet -- this panel lets you set your
         preferences now so they're ready the day sending goes live. Nothing will be sent until then.
       </div>
       <div style="margin-bottom:16px;opacity:0.6;pointer-events:none;">
-        <div style="font-size:var(--fs-sm);font-weight:700;color:var(--navy);margin-bottom:10px;">Events (preview)</div>
+        <div style="font-size:var(--fs-sm);font-weight:700;color:var(--navy);margin-bottom:10px;" data-en="Events (preview)" data-fr="Événements (aperçu)">Events (preview)</div>
         <div style="display:flex;flex-direction:column;gap:10px;">
           <label style="display:flex;align-items:center;gap:8px;font-size:var(--fs-sm);color:var(--text);">
-            <input type="checkbox" disabled> Prospect reaches "Engaged"
+            <input type="checkbox" disabled> <span data-en='Prospect reaches "Engaged"' data-fr='Le prospect atteint « Engagé »'>Prospect reaches "Engaged"</span>
           </label>
           <label style="display:flex;align-items:center;gap:8px;font-size:var(--fs-sm);color:var(--text);">
-            <input type="checkbox" disabled> Prospect reaches "Proposal"
+            <input type="checkbox" disabled> <span data-en='Prospect reaches "Proposal"' data-fr='Le prospect atteint « Proposition »'>Prospect reaches "Proposal"</span>
           </label>
           <label style="display:flex;align-items:center;gap:8px;font-size:var(--fs-sm);color:var(--text);">
-            <input type="checkbox" disabled> New prospect, ICP ≥ 9.0 (Morning Scan)
+            <input type="checkbox" disabled> <span data-en="New prospect, ICP ≥ 9.0 (Morning Scan)" data-fr="Nouveau prospect, ICP ≥ 9.0 (Morning Scan)">New prospect, ICP ≥ 9.0 (Morning Scan)</span>
           </label>
           <label style="display:flex;align-items:center;gap:8px;font-size:var(--fs-sm);color:var(--text);">
-            <input type="checkbox" disabled> Weekly Pipeline Review
+            <input type="checkbox" disabled> <span data-en="Weekly Pipeline Review" data-fr="Revue hebdomadaire du pipeline">Weekly Pipeline Review</span>
           </label>
         </div>
       </div>
-      <button class="btn-secondary btn-sm" onclick="_intClosePanel()">← Back to Integrations</button>
+      <button class="btn-secondary btn-sm" onclick="_intClosePanel()" data-en="← Back to Integrations" data-fr="← Retour aux intégrations">← Back to Integrations</button>
     </div>
 
     <!-- ── MICROSOFT 365 (indicateur statique -- pas de config, la surveillance de boite reelle
@@ -3146,14 +3154,14 @@ body.new-nav { padding-left: 220px; }
     <div class="card int-panel" id="int-panel-m365" style="display:none;max-width:620px;">
       <div class="card-header">
         <span class="card-title">Microsoft 365</span>
-        <span class="card-badge badge-ai">Connected</span>
+        <span class="card-badge badge-ai" data-en="Connected" data-fr="Connecté">Connected</span>
       </div>
-      <div style="font-size:var(--fs-sm);color:var(--text);margin-bottom:8px;"><strong>Monitored inbox:</strong> <span id="m365-inbox-email"></span></div>
-      <div style="font-size:var(--fs-sm);color:var(--muted);margin-bottom:16px;">
+      <div style="font-size:var(--fs-sm);color:var(--text);margin-bottom:8px;"><strong data-en="Monitored inbox:" data-fr="Boîte surveillée :">Monitored inbox:</strong> <span id="m365-inbox-email"></span></div>
+      <div style="font-size:var(--fs-sm);color:var(--muted);margin-bottom:16px;" data-en="Corridor detects prospect replies received on this address and updates the pipeline automatically. Email content is never displayed in the dashboard." data-fr="Corridor détecte les réponses des prospects reçues sur cette adresse et met à jour le pipeline automatiquement. Le contenu des emails n'est jamais affiché dans le tableau de bord.">
         Corridor detects prospect replies received on this address and updates the pipeline
         automatically. Email content is never displayed in the dashboard.
       </div>
-      <button class="btn-secondary btn-sm" onclick="_intClosePanel()">← Back to Integrations</button>
+      <button class="btn-secondary btn-sm" onclick="_intClosePanel()" data-en="← Back to Integrations" data-fr="← Retour aux intégrations">← Back to Integrations</button>
     </div>
   </div>
 
@@ -3324,7 +3332,7 @@ function _renderSignalsFeed() {
   const items = [..._morningItems, ..._liveAlertItems]
     .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
   if (!items.length) {
-    feed.innerHTML = '<div style="color:var(--text-secondary);font-size:var(--fs-base);padding:16px 0;">Run Morning Scan or Live Alert to populate the feed.</div>';
+    feed.innerHTML = `<div style="color:var(--text-secondary);font-size:var(--fs-base);padding:16px 0;">${currentLang==='fr'?'Lancez Morning Scan ou Live Alert pour remplir le fil.':'Run Morning Scan or Live Alert to populate the feed.'}</div>`;
     return;
   }
   if (!window._feedVotes) window._feedVotes = {};
@@ -5470,6 +5478,17 @@ function applyLang() {
   document.querySelectorAll('[data-en-ph]').forEach(el => {
     el.placeholder = (currentLang === 'fr' && el.dataset.frPh != null) ? el.dataset.frPh : el.dataset.enPh;
   });
+  // FIX 24/09 (chantier langue, Integrations) : meme mecanisme que data-en-ph juste au-dessus,
+  // pour l'attribut title (tooltips) -- aucun wrapper existant ne couvrait ce cas avant ce soir.
+  document.querySelectorAll('[data-en-title]').forEach(el => {
+    el.title = (currentLang === 'fr' && el.dataset.frTitle != null) ? el.dataset.frTitle : el.dataset.enTitle;
+  });
+  // FIX 24/09 (chantier langue, Pipeline) : meme mecanisme que data-en-title juste au-dessus,
+  // pour aria-label (accessibilite) -- les 7 colonnes kanban avaient un aria-label statique
+  // jamais retraduit (visuellement invisible mais lu par les lecteurs d'ecran).
+  document.querySelectorAll('[data-en-aria]').forEach(el => {
+    el.setAttribute('aria-label', (currentLang === 'fr' && el.dataset.frAria != null) ? el.dataset.frAria : el.dataset.enAria);
+  });
 }
 function renderWelcome() {
   ['cmo','positioning','content','copywriter','repurposing','seo','distribution','performance','competitive','prospect','objection'].forEach(a => {
@@ -5490,6 +5509,17 @@ function setLang(lang) {
   renderWelcome();
   paintBlocked();      // écran "essai terminé" / "accès refusé" suit la langue
   _renderSystemActiveLabel(); // F13 -- re-traduit depuis le cache, pas de nouvel appel reseau
+  // FIX 24/09 (chantier langue, go Thomas) : les sections construites en JS avec un ternaire
+  // currentLang (pas un wrapper data-en/data-fr statique) ne se retraduisaient qu'au prochain
+  // rendu naturel (chargement d'onglet, refresh) -- jamais retroactivement au clic FR/EN. Chaque
+  // fonction ci-dessous garde deja son propre garde-fou (retour immediat si son conteneur/etat
+  // n'existe pas), donc ces appels sont un no-op silencieux si l'onglet correspondant n'a jamais
+  // ete visite -- meme principe que renderWelcome()/paintBlocked() juste au-dessus.
+  if (typeof renderStatsRevenue === 'function') renderStatsRevenue();
+  if (typeof renderStatsLearning === 'function') renderStatsLearning();
+  if (typeof _renderSignalLearningSummary === 'function') _renderSignalLearningSummary();
+  if (typeof _loadStageConversion === 'function') _loadStageConversion();
+  if (typeof _applySendFilters === 'function') _applySendFilters();
   // BUG 3 (23/09) : meme principe que renderWelcome() juste au-dessus (deja etabli pour les agents
   // chat) applique au panneau Ask Corridor -- si le panneau est ouvert (ou sera rouvert) SANS
   // conversation reelle en cours, son accueil + ses pills suivent la bascule immediatement au lieu
@@ -7656,7 +7686,13 @@ function updateKanbanCounts(){
     const count = col.querySelectorAll('.k-card').length;
     if (badge) badge.textContent = count;
     const stage = col.dataset.stage || '';
-    col.setAttribute('aria-label', stage + ' column, ' + count + ' prospect' + (count !== 1 ? 's' : ''));
+    // FIX 24/09 (chantier langue, Pipeline) : aria-label suivait toujours l'anglais, jamais
+    // retraduit -- reutilise _stageDisplayLabel() (source unique deja etablie pour le tiroir
+    // prospect) plutot qu'une nouvelle table de correspondance.
+    const stageLbl = (typeof _stageDisplayLabel === 'function' ? _stageDisplayLabel(stage)[currentLang] : null) || stage;
+    col.setAttribute('aria-label', currentLang === 'fr'
+      ? ('Colonne ' + stageLbl + ', ' + count + ' prospect' + (count !== 1 ? 's' : ''))
+      : (stageLbl + ' column, ' + count + ' prospect' + (count !== 1 ? 's' : '')));
   });
 }
 let _draggedCard = null;
@@ -8587,7 +8623,7 @@ async function loadSendView() {
 
   } catch(e) {
     console.error('loadSendView:', e);
-    listEl.innerHTML = '<div style="padding:20px;color:var(--red);font-size:var(--fs-sm)">Error loading send queue. Try refreshing.</div>';
+    listEl.innerHTML = `<div style="padding:20px;color:var(--red);font-size:var(--fs-sm)">${currentLang==='fr'?'Erreur lors du chargement de la file d\'envoi. Essayez de rafraîchir.':'Error loading send queue. Try refreshing.'}</div>`;
   }
 }
 
@@ -8809,13 +8845,13 @@ function _sendCardHTML(p, touchType, expanded = false) {
              sendTitle deja calcule (distingue connexion/email manquant) plutot que d'inventer un
              2e libelle. -->
         ${sendBlocked
-          ? `<span class="send-touch" style="background:#f3f4f6;color:#6b7280;" title="${sendTitle}">⏳ ${isEmailTouch ? 'No email' : 'Awaiting connection'}</span>`
+          ? `<span class="send-touch" style="background:#f3f4f6;color:#6b7280;" title="${sendTitle}">⏳ ${isEmailTouch ? (currentLang==='fr'?'Pas d\'email':'No email') : (currentLang==='fr'?'Connexion en attente':'Awaiting connection')}</span>`
           : `<span class="send-touch ${TOUCH_LABELS[touchType]?.class||'touch-j0'}">${TOUCH_LABELS[touchType]?.label||touchType}</span>
         ${isReady
-          ? `<span class="send-touch" style="background:var(--green-bg);color:var(--green);">✓ Ready</span>`
+          ? `<span class="send-touch" style="background:var(--green-bg);color:var(--green);">✓ ${currentLang==='fr'?'Prêt':'Ready'}</span>`
           : hasBody
-            ? `<span class="send-touch" style="background:var(--chip-bg);color:var(--indigo);">Draft saved</span>`
-            : `<span class="send-touch" style="background:#f3f4f6;color:#6b7280;">No draft</span>`}`}
+            ? `<span class="send-touch" style="background:var(--chip-bg);color:var(--indigo);">${currentLang==='fr'?'Brouillon enregistré':'Draft saved'}</span>`
+            : `<span class="send-touch" style="background:#f3f4f6;color:#6b7280;">${currentLang==='fr'?'Aucun brouillon':'No draft'}</span>`}`}
       </div>
       <div class="send-expand" id="se-${p.id}" style="display:${expanded ? 'block' : 'none'}">
         <div class="ai-box" style="margin-top:10px">
@@ -8853,7 +8889,7 @@ function _sendCardHTML(p, touchType, expanded = false) {
         <div id="srch-${p.id}" style="font-size:var(--fs-sm);color:#8892b0;margin-top:6px;min-height:16px;"></div>
       </div>
       <div class="send-actions">
-        <button class="btn-secondary btn-md" onclick="_toggleSendCard('${p.id}')" style="width:100%">${expanded ? '▲ Collapse' : (hasBody ? '▼ Review & send' : '▼ Write message')}</button>
+        <button class="btn-secondary btn-md" onclick="_toggleSendCard('${p.id}')" style="width:100%">${expanded ? (currentLang==='fr'?'▲ Réduire':'▲ Collapse') : (hasBody ? (currentLang==='fr'?'▼ Relire et envoyer':'▼ Review & send') : (currentLang==='fr'?'▼ Écrire un message':'▼ Write message'))}</button>
       </div>
     </div>`;
 }
@@ -12166,11 +12202,11 @@ function _renderInboxCards(drafts, view = 'pending') {
     const _selectedIdx = _inboxSelectedVariantIndex[draft.id];
     const replyHtml = variants.length
       ? `<div style="margin-top:12px;">
-           <div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);margin-bottom:6px;">Suggested replies</div>
+           <div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);margin-bottom:6px;">${currentLang==='fr'?'Réponses suggérées':'Suggested replies'}</div>
            ${variants.map((v, idx) => `
              <button type="button" onclick="_inboxUseVariant('${draft.id}', ${idx})" id="inbox-variant-${draft.id}-${idx}"
                style="display:block;width:100%;box-sizing:border-box;text-align:left;margin-bottom:6px;padding:10px 12px;border-radius:var(--radius-md);border:1px solid ${idx === _selectedIdx ? 'var(--navy)' : 'var(--border)'};background:${idx === _selectedIdx ? 'var(--bg)' : 'none'};cursor:pointer;font-family:inherit;">
-               <div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:3px;">${_esc(v.angle || 'Variant ' + (idx + 1))}</div>
+               <div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:3px;">${_esc(v.angle || ((currentLang==='fr'?'Variante ':'Variant ') + (idx + 1)))}</div>
                <div style="font-size:var(--fs-sm);color:var(--text);line-height:1.4;white-space:pre-wrap;">${_esc(v.text)}</div>
              </button>`).join('')}
            <textarea id="inbox-reply-${draft.id}"
@@ -12317,7 +12353,7 @@ function _setProposalsBadge(n) {
 async function loadProposalsView() {
   const container = document.getElementById('proposals-container');
   if (!container) return;
-  container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">Loading...</div>';
+  container.innerHTML = `<div style="padding:40px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">${currentLang==='fr'?'Chargement...':'Loading...'}</div>`;
   try {
     // F15 point 2 (audit 2026-09-17) : .in() explicite sur les 2 seuls types reellement geres
     // par _renderProposalCard()/_proposalUseVariant() -- remplace l'ancien .neq('content_type',
@@ -12340,7 +12376,7 @@ async function loadProposalsView() {
       .limit(200);
     if (error) throw error;
     if (!proposals || !proposals.length) {
-      container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">No proposals waiting.</div>';
+      container.innerHTML = `<div style="padding:40px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">${currentLang==='fr'?'Aucune proposition en attente.':'No proposals waiting.'}</div>`;
       _setProposalsBadge(0);
       return;
     }
@@ -12373,20 +12409,22 @@ async function loadProposalsView() {
            ${items.map(p => _renderProposalCard(p, prospectsById[p.prospect_id])).join('')}
          </div>`
       : '';
-    container.innerHTML = subSection('Messages', messages) + subSection('Publications', posts);
+    container.innerHTML = subSection(currentLang==='fr'?'Messages':'Messages', messages) + subSection(currentLang==='fr'?'Publications':'Publications', posts);
     _setProposalsBadge(proposals.length);
   } catch(e) {
     console.error('[loadProposalsView]', e);
-    container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">Unable to load proposals right now.</div>';
+    container.innerHTML = `<div style="padding:40px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">${currentLang==='fr'?'Impossible de charger les propositions pour le moment.':'Unable to load proposals right now.'}</div>`;
   }
 }
 
-const _PROPOSAL_CONTENT_TYPE_LABELS = { outreach_opener: 'Outreach opener', linkedin_post: 'LinkedIn post' };
+const _PROPOSAL_CONTENT_TYPE_LABELS = () => currentLang==='fr'
+  ? { outreach_opener: 'Message de prospection', linkedin_post: 'Publication LinkedIn' }
+  : { outreach_opener: 'Outreach opener', linkedin_post: 'LinkedIn post' };
 
 function _renderProposalCard(prop, prospect) {
   const name = (prospect && prospect.name) || '—';
   const company = (prospect && prospect.company) || '';
-  const contentTypeLbl = _PROPOSAL_CONTENT_TYPE_LABELS[prop.content_type] || prop.content_type || '—';
+  const contentTypeLbl = _PROPOSAL_CONTENT_TYPE_LABELS()[prop.content_type] || prop.content_type || '—';
   const variants = Array.isArray(prop.variants) ? prop.variants : [];
   // _cleanVariantText() : garde-fou em-dash/double-tiret partage (definition unique, section
   // INBOX plus haut) -- reutilise ici, plus de duplication locale.
@@ -12403,14 +12441,14 @@ function _renderProposalCard(prop, prospect) {
     const textIdAttr = canSend ? ` id="${elPrefix}so-${pid}"` : '';
     const sendBtn = canSend
       ? `<button id="${elPrefix}sli-${pid}" onclick="_proposalSendViaLinkedIn('${prop.id}', ${idx}, '${pid}', '${elPrefix}')"
-        style="margin-top:8px;margin-left:8px;padding:6px 14px;border-radius:var(--radius-pill);background:none;border:1px solid var(--navy);color:var(--navy);font-size:var(--fs-sm);font-weight:600;cursor:pointer;">Send via LinkedIn</button>`
+        style="margin-top:8px;margin-left:8px;padding:6px 14px;border-radius:var(--radius-pill);background:none;border:1px solid var(--navy);color:var(--navy);font-size:var(--fs-sm);font-weight:600;cursor:pointer;">${currentLang==='fr'?'Envoyer via LinkedIn':'Send via LinkedIn'}</button>`
       : '';
     return `
     <div${wrapAttrs} style="border:1px solid var(--border);border-radius:var(--radius-md);padding:12px 14px;margin-top:10px;">
-      <div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px;">${_esc(v.angle || 'Variant ' + (idx + 1))}</div>
+      <div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px;">${_esc(v.angle || ((currentLang==='fr'?'Variante ':'Variant ') + (idx + 1)))}</div>
       <div${textIdAttr} style="font-size:var(--fs-sm);color:var(--text);line-height:1.5;white-space:pre-wrap;">${_esc(_cleanVariantText(v.text))}</div>
       <button onclick="_proposalUseVariant('${prop.id}', ${idx})"
-        style="margin-top:8px;padding:6px 14px;border-radius:var(--radius-pill);background:var(--navy);color:#fff;border:none;font-size:var(--fs-sm);font-weight:600;cursor:pointer;">Use this</button>${sendBtn}
+        style="margin-top:8px;padding:6px 14px;border-radius:var(--radius-pill);background:var(--navy);color:#fff;border:none;font-size:var(--fs-sm);font-weight:600;cursor:pointer;">${currentLang==='fr'?'Utiliser':'Use this'}</button>${sendBtn}
     </div>`;
   }).join('');
   return `<div class="priority-card proposal-card" id="proposal-card-${prop.id}"
@@ -12423,7 +12461,7 @@ function _renderProposalCard(prop, prospect) {
     ${variantsHtml}
     <div style="display:flex;gap:8px;margin-top:12px;" id="proposal-actions-${prop.id}">
       <button onclick="_proposalRejectStart('${prop.id}')"
-        style="padding:7px 16px;border-radius:var(--radius-pill);background:none;border:1px solid var(--border);color:var(--text);font-size:var(--fs-sm);cursor:pointer;">Reject</button>
+        style="padding:7px 16px;border-radius:var(--radius-pill);background:none;border:1px solid var(--border);color:var(--text);font-size:var(--fs-sm);cursor:pointer;">${currentLang==='fr'?'Rejeter':'Reject'}</button>
     </div>
     <!-- Chantier "apprentissage sur les rejets" (23/09, go Thomas) : formulaire inline, PAS de modale
          -- aucun pattern modale reel n'existe dans ce fichier (verifie), un formulaire inline replie
@@ -12431,13 +12469,13 @@ function _renderProposalCard(prop, prospect) {
          Raison TOUJOURS optionnelle : "Confirm rejection" fonctionne meme textarea vide, jamais de
          friction forcee sur un rejet. -->
     <div id="proposal-reject-form-${prop.id}" style="display:none;margin-top:12px;border-top:1px solid var(--border);padding-top:12px;">
-      <textarea id="proposal-reject-reason-${prop.id}" placeholder="Reason (optional) — helps the copywriter learn what to avoid"
+      <textarea id="proposal-reject-reason-${prop.id}" placeholder="${currentLang==='fr'?"Raison (facultatif) — aide le copywriter à savoir ce qu'il faut éviter":'Reason (optional) — helps the copywriter learn what to avoid'}"
         style="width:100%;min-height:64px;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:var(--fs-sm);font-family:inherit;color:var(--text);background:var(--card-bg);resize:vertical;box-sizing:border-box;"></textarea>
       <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
         <button id="proposal-reject-confirm-${prop.id}" onclick="_proposalRejectConfirm('${prop.id}')"
-          style="padding:7px 16px;border-radius:var(--radius-pill);background:var(--navy);color:#fff;border:none;font-size:var(--fs-sm);font-weight:600;cursor:pointer;">Confirm rejection</button>
+          style="padding:7px 16px;border-radius:var(--radius-pill);background:var(--navy);color:#fff;border:none;font-size:var(--fs-sm);font-weight:600;cursor:pointer;">${currentLang==='fr'?'Confirmer le rejet':'Confirm rejection'}</button>
         <button onclick="_proposalRejectCancel('${prop.id}')"
-          style="padding:7px 16px;border-radius:var(--radius-pill);background:none;border:1px solid var(--border);color:var(--text);font-size:var(--fs-sm);cursor:pointer;">Cancel</button>
+          style="padding:7px 16px;border-radius:var(--radius-pill);background:none;border:1px solid var(--border);color:var(--text);font-size:var(--fs-sm);cursor:pointer;">${currentLang==='fr'?'Annuler':'Cancel'}</button>
       </div>
     </div>
   </div>`;
@@ -12737,7 +12775,7 @@ async function loadPendingActionsView() {
       .limit(200);
     if (error) throw error;
     if (!actions || !actions.length) {
-      container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">No drafts waiting for approval.</div>';
+      container.innerHTML = `<div style="padding:40px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">${currentLang==='fr'?'Aucun brouillon en attente d\'approbation.':'No drafts waiting for approval.'}</div>`;
       _setPendingActionsBadge(0);
       return;
     }
@@ -12748,7 +12786,7 @@ async function loadPendingActionsView() {
     _setPendingActionsBadge(actions.length);
   } catch(e) {
     console.error('[loadPendingActionsView]', e);
-    container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">Unable to load pending actions right now.</div>';
+    container.innerHTML = `<div style="padding:40px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">${currentLang==='fr'?'Impossible de charger les actions en attente pour le moment.':'Unable to load pending actions right now.'}</div>`;
   }
 }
 
@@ -14862,7 +14900,7 @@ function _updateBulkBar() {
     bar.style.display = 'none';
   } else {
     bar.style.display = 'flex';
-    if (count) count.textContent = _selectedPids.size + ' selected';
+    if (count) count.textContent = _selectedPids.size + (currentLang==='fr' ? ' sélectionné(s)' : ' selected');
   }
 }
 function _bulkClear() {
@@ -14874,10 +14912,10 @@ async function _bulkChangeStage() {
   const stage = document.getElementById('bulk-stage-select')?.value;
   if (!stage || _selectedPids.size === 0) return;
   const pids = Array.from(_selectedPids);
-  showToast('Updating ' + pids.length + ' prospects...');
+  showToast(currentLang==='fr' ? ('Mise à jour de ' + pids.length + ' prospects...') : ('Updating ' + pids.length + ' prospects...'));
   const { error } = await sbClient.from('prospects')
     .update({ stage }).in('id', pids).eq('client_id', CLIENT_ID);
-  if (error) { showToast('Error: ' + error.message); return; }
+  if (error) { showToast((currentLang==='fr'?'Erreur : ':'Error: ') + error.message); return; }
   const advancedStages = ['1st Contact','Engaged','Replied','Proposal','Closed'];
   if (advancedStages.includes(stage)) {
     const toUpgrade = pids.filter(id => (_prospectsById[id] || {}).linkedin_tag === 'invite-sent');
@@ -14885,18 +14923,18 @@ async function _bulkChangeStage() {
       await sbClient.from('prospects').update({ linkedin_tag: 'connection-accepted' }).in('id', toUpgrade).eq('client_id', CLIENT_ID);
     }
   }
-  showToast(pids.length + ' prospects moved to ' + stage);
+  showToast(currentLang==='fr' ? (pids.length + ' prospects déplacés vers ' + stage) : (pids.length + ' prospects moved to ' + stage));
   _bulkClear();
   await loadKanban();
 }
 async function _bulkArchive() {
   if (_selectedPids.size === 0) return;
   const pids = Array.from(_selectedPids);
-  if (!confirm('Archive ' + pids.length + ' prospects?')) return;
+  if (!confirm(currentLang==='fr' ? ('Archiver ' + pids.length + ' prospects ?') : ('Archive ' + pids.length + ' prospects?'))) return;
   const { error } = await sbClient.from('prospects')
     .update({ archived: true, stage: 'Archived' }).in('id', pids).eq('client_id', CLIENT_ID);
-  if (error) { showToast('Error: ' + error.message); return; }
-  showToast(pids.length + ' prospects archived');
+  if (error) { showToast((currentLang==='fr'?'Erreur : ':'Error: ') + error.message); return; }
+  showToast(currentLang==='fr' ? (pids.length + ' prospects archivés') : (pids.length + ' prospects archived'));
   _bulkClear();
   await loadKanban();
 }
@@ -14906,7 +14944,7 @@ async function _bulkStartEmailSeq() {
 
   const btn = document.getElementById('bulk-email-seq-btn');
   const countEl = document.getElementById('bulk-count');
-  if (btn) { btn.disabled = true; btn.textContent = 'Checking...'; }
+  if (btn) { btn.disabled = true; btn.textContent = currentLang==='fr' ? 'Vérification...' : 'Checking...'; }
 
   const pids = Array.from(_selectedPids);
 
@@ -14918,8 +14956,8 @@ async function _bulkStartEmailSeq() {
   const noEmail = pids.length - withEmail.length;
 
   if (withEmail.length === 0) {
-    showToast('No prospects with email in selection');
-    if (btn) { btn.disabled = false; btn.textContent = 'Email Sequence'; }
+    showToast(currentLang==='fr' ? 'Aucun prospect avec email dans la sélection' : 'No prospects with email in selection');
+    if (btn) { btn.disabled = false; btn.textContent = currentLang==='fr' ? 'Séquence email' : 'Email Sequence'; }
     return;
   }
 
@@ -14944,15 +14982,18 @@ async function _bulkStartEmailSeq() {
 
   if (toSend.length === 0) {
     showToast(currentLang==='fr' ? `0 à envoyer — ${alreadyCount} déjà en séquence, ${noEmail} sans email` : `0 to send — ${alreadyCount} already in sequence, ${noEmail} no email`);
-    if (btn) { btn.disabled = false; btn.textContent = 'Email Sequence'; }
+    if (btn) { btn.disabled = false; btn.textContent = currentLang==='fr' ? 'Séquence email' : 'Email Sequence'; }
     return;
   }
 
   // Garde d'identite elargie : la confirmation nomme CHAQUE fiche CONTRADICTED du lot (pas un avertissement generique), en reutilisant
   // le meme texte que le point d'envoi unitaire -- une seule fonction pour construire ce texte, ici passee un tableau.
   const _bulkP = toSend.map(pid => _prospectsById[pid] || _prospectsById[parseInt(pid)]).filter(Boolean);
-  if (!confirm(`Start the email sequence for ${toSend.length} prospect(s)?\nThis will send the first email immediately to each.` + _contradictedWarningText(_bulkP))) {
-    if (btn) { btn.disabled = false; btn.textContent = 'Email Sequence'; }
+  const _bulkConfirmMsg = currentLang==='fr'
+    ? `Démarrer la séquence email pour ${toSend.length} prospect(s) ?\nCela enverra immédiatement le premier email à chacun.`
+    : `Start the email sequence for ${toSend.length} prospect(s)?\nThis will send the first email immediately to each.`;
+  if (!confirm(_bulkConfirmMsg + _contradictedWarningText(_bulkP))) {
+    if (btn) { btn.disabled = false; btn.textContent = currentLang==='fr' ? 'Séquence email' : 'Email Sequence'; }
     return;
   }
 
@@ -14965,7 +15006,7 @@ async function _bulkStartEmailSeq() {
   for (let i = 0; i < toSend.length; i++) {
     const pid = toSend[i];
     const p = _prospectsById[pid] || _prospectsById[parseInt(pid)];
-    if (countEl) countEl.textContent = `Sending ${i + 1}/${toSend.length}...`;
+    if (countEl) countEl.textContent = currentLang==='fr' ? `Envoi ${i + 1}/${toSend.length}...` : `Sending ${i + 1}/${toSend.length}...`;
     try {
       const nameParts = (p.name || '').trim().split(/\s+/);
       const r = await _authFetch('/api/email-send', {
@@ -15415,7 +15456,7 @@ async function renderStatsSignal() {
   const taxonomy = await _loadSignalTaxonomy();
   const codes = Object.keys(taxonomy);
   if (!codes.length) {
-    el.innerHTML = '<div style="color:var(--muted);font-size:var(--fs-sm);padding:8px 0">No signal taxonomy configured for this account.</div>';
+    el.innerHTML = `<div style="color:var(--muted);font-size:var(--fs-sm);padding:8px 0">${currentLang==='fr'?'Aucune taxonomie de signaux configurée pour ce compte.':'No signal taxonomy configured for this account.'}</div>`;
     return;
   }
   const active = (_allProspects || []).filter(p => !p.archived);
@@ -16377,21 +16418,21 @@ async function loadClientsKanban(force) {
     if (_crmSectEl) {
       const cur = _crmSectEl.value;
       const sects = [...new Set(_crmAllRows.map(r => { const pr = Array.isArray(r.prospects) ? r.prospects[0] : r.prospects; return pr && pr.sector; }).filter(Boolean))].sort();
-      _crmSectEl.innerHTML = '<option value="">All sectors</option>'
+      _crmSectEl.innerHTML = `<option value="">${currentLang==='fr'?'Tous les secteurs':'All sectors'}</option>`
         + sects.map(s => `<option value="${_esc(s)}"${s === cur ? ' selected' : ''}>${_esc(s)}</option>`).join('');
     }
     const _crmCntEl = document.getElementById('crm-filter-country');
     if (_crmCntEl) {
       const cur = _crmCntEl.value;
       const countries = [...new Set(_crmAllRows.map(r => { const pr = Array.isArray(r.prospects) ? r.prospects[0] : r.prospects; return _deriveCountry(pr && pr.country); }).filter(c => c && _VALID_COUNTRIES.has(c)))].sort();
-      _crmCntEl.innerHTML = '<option value="">All countries</option>'
+      _crmCntEl.innerHTML = `<option value="">${currentLang==='fr'?'Tous les pays':'All countries'}</option>`
         + countries.map(c => `<option value="${_esc(c)}"${c === cur ? ' selected' : ''}>${_esc(c)}</option>`).join('');
     }
     const _crmSigEl = document.getElementById('crm-filter-signal');
     if (_crmSigEl) {
       const cur = _crmSigEl.value;
       const signals = [...new Set(_crmAllRows.map(r => { const pr = Array.isArray(r.prospects) ? r.prospects[0] : r.prospects; return pr && pr.signal_type; }).filter(Boolean))].sort();
-      _crmSigEl.innerHTML = '<option value="">All signals</option>'
+      _crmSigEl.innerHTML = `<option value="">${currentLang==='fr'?'Tous les signaux':'All signals'}</option>`
         + signals.map(s => `<option value="${_esc(s)}"${s === cur ? ' selected' : ''}>${_esc(s)}</option>`).join('');
     }
     _crmLoaded = true;
@@ -16430,7 +16471,9 @@ async function _loadCrmEmptyStats() {
     if (error) throw error;
     const n = (data || []).length;
     if (n > 0) {
-      adjEl.textContent = n + (n === 1 ? ' deal is' : ' deals are') + ' currently in Proposal or Negotiation.';
+      adjEl.textContent = currentLang==='fr'
+        ? n + (n === 1 ? ' deal est' : ' deals sont') + ' actuellement en Proposition ou Négociation.'
+        : n + (n === 1 ? ' deal is' : ' deals are') + ' currently in Proposal or Negotiation.';
       if (btn) btn.style.display = '';
       if (countEl) countEl.textContent = n;
     } else {
@@ -17199,7 +17242,9 @@ function _intStatus(name) {
 function _intRenderGrid() {
   const grid = document.getElementById('int-grid');
   if (!grid) return;
-  const STATUS_LABEL = { connected: 'Connected', not_connected: 'Not connected', coming_soon: 'Coming soon' };
+  const STATUS_LABEL = currentLang==='fr'
+    ? { connected: 'Connecté', not_connected: 'Non connecté', coming_soon: 'Bientôt disponible' }
+    : { connected: 'Connected', not_connected: 'Not connected', coming_soon: 'Coming soon' };
   const STATUS_STYLE = {
     connected: 'background:#f0fdf4;color:#15803d;border:1px solid #86efac;',
     not_connected: 'background:var(--navy-light);color:var(--navy);border:1px solid var(--border);',
