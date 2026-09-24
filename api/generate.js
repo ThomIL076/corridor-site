@@ -153,6 +153,12 @@ export default async function handler(req, res) {
       if (!upstream.ok) {
         // Headers not yet sent — can still return a JSON error
         const errData = await upstream.json().catch(() => ({}));
+        // Fix 24/09 (meme angle mort que le chemin non-streaming plus bas) : upstream.ok=false ne
+        // leve aucune exception JS ici, donc restait invisible cote Sentry sans cet appel explicite.
+        Sentry.captureException(Object.assign(new Error(errData.error?.message || 'Anthropic API error (upstream non-2xx)'), { name: 'AnthropicUpstreamError' }), {
+          extra: { status: upstream.status, errorType: errData.error?.type || null, model: restBody.model, max_tokens: restBody.max_tokens },
+        });
+        await Sentry.flush(1000).catch(() => {});
         trace.update({ output: { error: errData } }).end();
         await safeFlushLangfuse();
         return res.status(upstream.status).json({
@@ -301,6 +307,15 @@ export default async function handler(req, res) {
       // l'echec + logger le type/message reel cote serveur (console.error, meme convention que
       // les autres api/*.js -- ex. email-send.js/enrich.js sur un non-2xx).
       console.error('[generate] Anthropic in-band error:', data.error?.type || 'unknown_type', data.error?.message || data.error);
+      // Fix 24/09 (Manual Send "Error generating message", zero trace Sentry) : ce chemin loggait
+      // deja en console/Langfuse mais n'appelait jamais Sentry.captureException -- contrairement au
+      // catch(e) plus bas, une erreur "in-band" Anthropic (HTTP 200 avec type:'error' dans le corps,
+      // ex. overloaded_error/rate_limit_error) ne levait jamais d'exception JS et restait donc
+      // invisible cote Sentry. Ajout pur (aucun changement de statut HTTP ni de corps de reponse).
+      Sentry.captureException(Object.assign(new Error(data.error?.message || 'Anthropic API error (in-band)'), { name: 'AnthropicInBandError' }), {
+        extra: { errorType: data.error?.type || null, model: restBody.model, max_tokens: restBody.max_tokens },
+      });
+      await Sentry.flush(1000).catch(() => {});
       generation.update({ level: 'ERROR', statusMessage: data.error?.message || 'Anthropic API error', output: data.error }).end();
       trace.update({ output: { error: data.error } }).end();
       await safeFlushLangfuse();
