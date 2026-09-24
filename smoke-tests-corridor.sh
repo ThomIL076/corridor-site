@@ -10,6 +10,20 @@
 
 set -uo pipefail
 
+# FIX 24/09 (faux echec recurrent de TEST 1, SUPABASE_SECRET_KEY jamais chargee dans ce
+# shell) : charge .env.local (ou .env a defaut) situe a cote de ce script, s'il existe --
+# jamais en dur ici, jamais affiche/logge. set -a exporte tout ce qui est source pour que
+# les variables soient bien visibles des commandes lancees plus bas (curl, etc.), pas
+# seulement dans ce process. Un environnement CI/deploy.sh qui exporte deja la variable
+# autrement continue de fonctionner a l'identique (${VAR:-} en dessous ne l'ecrase pas si
+# le fichier ne redefinit pas cette cle).
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -f "$SCRIPT_DIR/.env.local" ]; then
+  set -a; source "$SCRIPT_DIR/.env.local"; set +a
+elif [ -f "$SCRIPT_DIR/.env" ]; then
+  set -a; source "$SCRIPT_DIR/.env"; set +a
+fi
+
 SUPABASE_URL="https://oanokmugroiahtgcecbn.supabase.co"
 # service_role, jamais codee en dur (meme regle que les credentials n8n) -- lue depuis
 # l'environnement. Fix securite RLS du 2026-09-11 : anon a perdu SELECT sur workflow_health
