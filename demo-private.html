@@ -1834,7 +1834,7 @@ body.new-nav { padding-left: 220px; }
   <div class="tab-panel" id="tab-agents">
     <div class="module-header" style="margin-bottom:20px;">
       <div class="module-title">Orchestration</div>
-      <div class="section-sub"><span id="agents-total-count">0</span> agents configured for your brand. The Orchestrator decides which ones run, and when.</div>
+      <div class="section-sub"><span id="agents-total-count">0</span> <span data-en="agents configured for your brand. The Orchestrator decides which ones run, and when." data-fr="agents configurés pour votre marque. L'Orchestrateur décide lesquels s'exécutent, et quand.">agents configured for your brand. The Orchestrator decides which ones run, and when.</span></div>
     </div>
     <div id="agents-map" class="agent-map">
       <!-- CMO Orchestrator hero -->
@@ -2003,7 +2003,7 @@ body.new-nav { padding-left: 220px; }
           </div>
         </div>
         <div class="chat-input-row">
-          <textarea class="chat-input" id="input-cmo" rows="2" placeholder="What do you need to orchestrate this week?" onkeydown="handleEnter(event,'cmo')"></textarea>
+          <textarea class="chat-input" id="input-cmo" rows="2" data-en-ph="What do you need to orchestrate this week?" data-fr-ph="De quoi avez-vous besoin d'orchestrer cette semaine ?" placeholder="What do you need to orchestrate this week?" onkeydown="handleEnter(event,'cmo')"></textarea>
           <button class="btn-primary btn-lg" onclick="sendAgent('cmo')" id="btn-cmo">Send</button>
         </div><button onclick="clearAgent('cmo')" style="font-size:var(--fs-micro);color:var(--muted);background:none;border:none;cursor:pointer;text-decoration:underline;margin:6px 0 0 2px">Clear conversation</button>
       </div>
@@ -2808,7 +2808,7 @@ body.new-nav { padding-left: 220px; }
         <div id="learned-preferences-meta" style="font-size:var(--fs-xs);color:var(--muted);margin-top:10px;"></div>
       </div>
       <div class="card" style="margin-top:16px;">
-        <div class="card-header"><span class="card-title">Stage conversion</span></div>
+        <div class="card-header"><span class="card-title" data-en="Stage conversion" data-fr="Conversion des étapes">Stage conversion</span></div>
         <div id="stage-conversion-list" style="font-size:var(--fs-sm);color:var(--muted);">Loading...</div>
       </div>
     </div>
@@ -3280,14 +3280,15 @@ let _liveAlertItems = [];
 const _GENERIC_SIGNAL_TYPES = new Set(['firmographic-match','active_hiring']);
 
 function _signalTypeBanner(st) {
+  const fr = currentLang === 'fr';
   const MAP = {
-    'leadership-change':          { label: 'Leadership Change',          color: '#7C3AED', bg: '#f5f0ff', border: '#c4b5fd' },
-    'expansion':                  { label: 'Expansion',                  color: '#16a34a', bg: '#f0fdf4', border: '#86efac' },
-    'active_hiring':              { label: 'Active Hiring',              color: '#2563eb', bg: '#eff6ff', border: '#93c5fd' },
-    'firmographic-match':         { label: 'Firmographic Match',         color: '#6b7280', bg: '#f9fafb', border: '#d1d5db' },
-    'operating-partner-activity': { label: 'Operating Partner Activity', color: '#d97706', bg: '#fffbeb', border: '#fcd34d' },
-    'pre-deal-signal':            { label: 'Pre-Deal Signal',            color: '#dc2626', bg: '#fef2f2', border: '#fca5a5' },
-    'thought-leadership':         { label: 'Thought Leadership',         color: '#0284c7', bg: '#f0f9ff', border: '#7dd3fc' },
+    'leadership-change':          { label: fr ? 'Changement de direction'      : 'Leadership Change',          color: '#7C3AED', bg: '#f5f0ff', border: '#c4b5fd' },
+    'expansion':                  { label: fr ? 'Expansion'                    : 'Expansion',                  color: '#16a34a', bg: '#f0fdf4', border: '#86efac' },
+    'active_hiring':              { label: fr ? 'Recrutement actif'           : 'Active Hiring',               color: '#2563eb', bg: '#eff6ff', border: '#93c5fd' },
+    'firmographic-match':         { label: fr ? 'Correspondance firmographique' : 'Firmographic Match',        color: '#6b7280', bg: '#f9fafb', border: '#d1d5db' },
+    'operating-partner-activity': { label: fr ? 'Activité Operating Partner'   : 'Operating Partner Activity', color: '#d97706', bg: '#fffbeb', border: '#fcd34d' },
+    'pre-deal-signal':            { label: fr ? 'Signal pré-deal'             : 'Pre-Deal Signal',             color: '#dc2626', bg: '#fef2f2', border: '#fca5a5' },
+    'thought-leadership':         { label: fr ? "Leadership d'opinion"        : 'Thought Leadership',          color: '#0284c7', bg: '#f0f9ff', border: '#7dd3fc' },
   };
   const key = (st || '').toLowerCase().replace(/_/g, '-');
   const def = MAP[key];
@@ -3707,19 +3708,21 @@ async function _loadStageConversion() {
       const rateStr = rate != null ? rate.toFixed(1) + '%' : '—';
       const target = targets.find(x => x.from_stage === t.from && x.to_stage === t.to);
       let colorVar = 'var(--text)';
-      let targetLine = '<span style="font-size:var(--fs-xs);color:var(--dim);">Target available after 30 days of activity</span>';
+      let targetLine = '<span style="font-size:var(--fs-xs);color:var(--dim);">' + (currentLang==='fr'?'Cible disponible après 30 jours d\'activité':'Target available after 30 days of activity') + '</span>';
       if (target && target.target_rate != null && rate != null) {
         const onTarget = rate >= target.target_rate;
         colorVar = onTarget ? 'var(--green-brand)' : 'var(--amber-mid)';
         const provenance = target.set_by
-          ? 'SET BY YOU' + (target.computed_at ? ' · ' + new Date(target.computed_at).toLocaleDateString() : '')
-          : (target.source === 'calculated_snapshot_current' ? 'CURRENT PIPELINE SNAPSHOT' : 'YOUR 90D MEDIAN');
-        targetLine = '<span style="font-family:monospace;font-size:var(--fs-xs);color:var(--dim);">TARGET ' + target.target_rate + '% · ' + provenance + '</span>';
+          ? (currentLang==='fr'?'DÉFINI PAR VOUS':'SET BY YOU') + (target.computed_at ? ' · ' + new Date(target.computed_at).toLocaleDateString(currentLang==='fr'?'fr-FR':'en-GB') : '')
+          : (target.source === 'calculated_snapshot_current' ? (currentLang==='fr'?'ÉTAT ACTUEL DU PIPELINE':'CURRENT PIPELINE SNAPSHOT') : (currentLang==='fr'?'VOTRE MÉDIANE SUR 90J':'YOUR 90D MEDIAN'));
+        targetLine = '<span style="font-family:monospace;font-size:var(--fs-xs);color:var(--dim);">' + (currentLang==='fr'?'CIBLE ':'TARGET ') + target.target_rate + '% · ' + provenance + '</span>';
       }
       const barPct = rate != null ? Math.min(100, rate) : 0;
+      const fromLbl = _stageDisplayLabel(t.from)[currentLang] || t.from;
+      const toLbl = _stageDisplayLabel(t.to)[currentLang] || t.to;
       return '<div style="padding:9px 0;border-bottom:1px solid var(--border);">'
         + '<div style="display:flex;justify-content:space-between;align-items:baseline;">'
-        + '<span style="font-family:monospace;font-size:var(--fs-xs);color:var(--muted);">' + _esc(t.from.toUpperCase()) + ' → ' + _esc(t.to.toUpperCase()) + '</span>'
+        + '<span style="font-family:monospace;font-size:var(--fs-xs);color:var(--muted);">' + _esc(fromLbl.toUpperCase()) + ' → ' + _esc(toLbl.toUpperCase()) + '</span>'
         + '<span style="font-family:monospace;font-weight:600;color:' + colorVar + ';">' + rateStr + '</span>'
         + '</div>'
         + '<div style="height:4px;background:var(--border);border-radius:2px;margin:5px 0;overflow:hidden;"><div style="height:100%;width:' + barPct + '%;background:' + colorVar + ';"></div></div>'
@@ -3728,7 +3731,7 @@ async function _loadStageConversion() {
     }).join('');
   } catch(e) {
     console.warn('[stage-conversion]', e);
-    el.innerHTML = 'Unable to load stage conversion right now.';
+    el.innerHTML = currentLang==='fr' ? 'Impossible de charger la conversion des étapes pour le moment.' : 'Unable to load stage conversion right now.';
   }
 }
 
@@ -8747,7 +8750,9 @@ function _applySendFilters() {
     const scheduled = queue.slice(1);
     html += `<div class="today-step-divider"><span class="today-step-label">Due now</span><span class="today-step-rule"></span></div>`;
     html += _sendCardHTML(dueNow.p, dueNow.touch, true);
-    if (totalInvite > 25) html += `<div style="text-align:center;font-size:var(--fs-sm);color:var(--muted);padding:8px 0 16px">${totalInvite - 25} more invitation${totalInvite - 25 > 1 ? 's' : ''} not shown -- raise ICP filter or mark some as sent to see the next batch.</div>`;
+    if (totalInvite > 25) html += `<div style="text-align:center;font-size:var(--fs-sm);color:var(--muted);padding:8px 0 16px">${_esc(currentLang==='fr'
+      ? `${totalInvite - 25} invitation${totalInvite - 25 > 1 ? 's' : ''} supplémentaire${totalInvite - 25 > 1 ? 's' : ''} non affichée${totalInvite - 25 > 1 ? 's' : ''} -- augmentez le filtre ICP ou marquez-en comme envoyées pour voir le lot suivant.`
+      : `${totalInvite - 25} more invitation${totalInvite - 25 > 1 ? 's' : ''} not shown -- raise ICP filter or mark some as sent to see the next batch.`)}</div>`;
     if (scheduled.length) {
       html += `<div class="today-step-divider"><span class="today-step-label">Scheduled today</span><span class="today-step-rule"></span><span class="today-step-count">${scheduled.length}</span></div>`;
       html += scheduled.map(item => _sendCardHTML(item.p, item.touch, false)).join('');
@@ -14266,7 +14271,7 @@ function _drawerProfileHTML(id, p, colStage, fb){
       ((p.signal || p.signal_date) ? `<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:2px">Signal: ${_esc(p.signal_date && _relDate(p.signal_date) ? _relDate(p.signal_date) : (currentLang==='fr'?'date non précisée':'date not specified'))}</div>` : '') +
       `<select id="drawer-signal-type" style="font-size:var(--fs-sm);padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);color:var(--text)">` +
         `<option value="">-- Signal type --</option>` +
-        `${(_signalTaxonomy && Object.keys(_signalTaxonomy).length ? Object.values(_signalTaxonomy) : [{code:'S1',label:'S1'},{code:'S2',label:'S2'},{code:'S3',label:'S3'},{code:'S4',label:'S4'},{code:'activity',label:currentLang==='fr'?'Engagement passif (réaction/commentaire)':'Passive engagement (reaction/comment)',icon:'👁'}]).map(t => `<option value="${_esc(t.code)}"${(p.signal_type||'').toUpperCase()===(t.code||'').toUpperCase()?' selected':''}>${_esc(t.icon||'')} ${_esc(t.code)} — ${_esc(t.label||t.code)}</option>`).join('')}` +
+        `${(_signalTaxonomy && Object.keys(_signalTaxonomy).length ? Object.values(_signalTaxonomy) : [{code:'S1',label:'S1'},{code:'S2',label:'S2'},{code:'S3',label:'S3'},{code:'S4',label:'S4'},{code:'activity',label:currentLang==='fr'?'Engagement passif (réaction/commentaire)':'Passive engagement (reaction/comment)',icon:'👁'}]).map(t => `<option value="${_esc(t.code)}"${(p.signal_type||'').toUpperCase()===(t.code||'').toUpperCase()?' selected':''}>${_esc(t.icon||'')} ${_esc(t.code)} — ${_esc((currentLang==='fr'?(t.label_fr||t.label):t.label)||t.code)}</option>`).join('')}` +
       `</select>` +
       // FIX 22/09 (chantier langue tiroir, point 2, GO Thomas) : icp_reason n'est plus re-rendu ici.
       // Ce bloc dupliquait exactement la section "Priority reason" (toujours visible en tete du
@@ -15282,9 +15287,11 @@ async function renderStatsLearning() {
   const { total, byType, firstDate } = await _loadSignalLearning();
   if (total < 10) {
     const dateStr = firstDate
-      ? 'Tracking started ' + new Date(firstDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) + '. '
+      ? (currentLang==='fr' ? 'Suivi démarré le ' : 'Tracking started ') + new Date(firstDate).toLocaleDateString(currentLang==='fr'?'fr-FR':'en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) + '. '
       : '';
-    el.innerHTML = `<div style="color:var(--muted);font-size:var(--fs-sm);padding:8px 0">${_esc(dateStr + total + (total !== 1 ? ' signals' : ' signal') + ' tracked so far -- not enough data yet to show conversion rates.')}</div>`;
+    el.innerHTML = `<div style="color:var(--muted);font-size:var(--fs-sm);padding:8px 0">${_esc(currentLang==='fr'
+      ? dateStr + total + (total !== 1 ? ' signaux suivis' : ' signal suivi') + " pour le moment -- pas encore assez de donnees pour afficher des taux de conversion."
+      : dateStr + total + (total !== 1 ? ' signals' : ' signal') + ' tracked so far -- not enough data yet to show conversion rates.')}</div>`;
     return;
   }
   const taxonomy = await _loadSignalTaxonomy();
@@ -15292,10 +15299,11 @@ async function renderStatsLearning() {
     .map(([code, d]) => ({ code, tracked: d.tracked, converted: d.converted, rate: d.tracked > 0 ? Math.round(d.converted / d.tracked * 100) : 0 }))
     .sort((a, b) => b.rate - a.rate);
   let html = '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:var(--fs-sm)">';
-  html += '<thead><tr style="text-align:left;border-bottom:1px solid var(--border)"><th style="padding:6px 8px;font-weight:600;color:var(--muted)">Signal type</th><th style="padding:6px 8px;font-weight:600;color:var(--muted);text-align:right">Tracked</th><th style="padding:6px 8px;font-weight:600;color:var(--muted);text-align:right">Converted to reply+</th><th style="padding:6px 8px;font-weight:600;color:var(--muted);text-align:right">Rate</th></tr></thead><tbody>';
+  html += `<thead><tr style="text-align:left;border-bottom:1px solid var(--border)"><th style="padding:6px 8px;font-weight:600;color:var(--muted)">${currentLang==='fr'?'Type de signal':'Signal type'}</th><th style="padding:6px 8px;font-weight:600;color:var(--muted);text-align:right">${currentLang==='fr'?'Suivis':'Tracked'}</th><th style="padding:6px 8px;font-weight:600;color:var(--muted);text-align:right">${currentLang==='fr'?'Convertis en réponse+':'Converted to reply+'}</th><th style="padding:6px 8px;font-weight:600;color:var(--muted);text-align:right">${currentLang==='fr'?'Taux':'Rate'}</th></tr></thead><tbody>`;
   rows.forEach(r => {
     const t = taxonomy[r.code];
-    const lbl = t ? ((t.icon ? t.icon + ' ' : '') + (t.label || r.code)) : r.code;
+    const tLabel = t ? (currentLang==='fr' ? (t.label_fr || t.label) : t.label) : null;
+    const lbl = t ? ((t.icon ? t.icon + ' ' : '') + (tLabel || r.code)) : r.code;
     html += `<tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 8px">${_esc(lbl)}</td><td style="padding:6px 8px;text-align:right">${r.tracked}</td><td style="padding:6px 8px;text-align:right">${r.converted}</td><td style="padding:6px 8px;text-align:right;font-weight:600">${r.rate}%</td></tr>`;
   });
   html += '</tbody></table></div>';
@@ -15336,7 +15344,9 @@ async function _renderSignalLearningSummary() {
   if (!el) return;
   const { total, byType } = await _loadSignalLearning();
   if (total < 10) {
-    el.textContent = 'Learning: ' + total + (total !== 1 ? ' signals' : ' signal') + ' tracked so far, not enough data yet.';
+    el.textContent = currentLang==='fr'
+      ? 'Apprentissage : ' + total + (total !== 1 ? ' signaux suivis' : ' signal suivi') + " pour le moment, pas encore assez de donnees."
+      : 'Learning: ' + total + (total !== 1 ? ' signals' : ' signal') + ' tracked so far, not enough data yet.';
     el.style.display = '';
     return;
   }
@@ -15346,8 +15356,10 @@ async function _renderSignalLearningSummary() {
   if (!best) { el.style.display = 'none'; return; }
   const taxonomy = await _loadSignalTaxonomy();
   const t = taxonomy[best.code];
-  const lbl = t ? (t.label || best.code) : best.code;
-  el.textContent = 'Learning: ' + lbl + ' converts best (' + best.rate + '%, n=' + best.tracked + ').';
+  const lbl = t ? ((currentLang==='fr' ? (t.label_fr||t.label) : t.label) || best.code) : best.code;
+  el.textContent = currentLang==='fr'
+    ? 'Apprentissage : ' + lbl + ' convertit le mieux (' + best.rate + '%, n=' + best.tracked + ').'
+    : 'Learning: ' + lbl + ' converts best (' + best.rate + '%, n=' + best.tracked + ').';
   el.style.display = '';
 }
 let _signalTaxonomy = null;
@@ -15427,7 +15439,7 @@ async function renderStatsSignal() {
     return { code, pCount, attrCount: attr.count, revenue: attr.revenue, convRate };
   }).sort((a, b) => b.revenue - a.revenue);
   if (!rows.some(r => r.pCount > 0 || r.revenue > 0)) {
-    el.innerHTML = '<div style="color:var(--muted);font-size:var(--fs-sm);padding:8px 0">No signal data yet.</div>';
+    el.innerHTML = `<div style="color:var(--muted);font-size:var(--fs-sm);padding:8px 0">${currentLang==='fr'?'Aucune donnée de signal pour le moment.':'No signal data yet.'}</div>`;
     return;
   }
   const maxRev = Math.max(1, ...rows.map(r => r.revenue));
@@ -15435,7 +15447,7 @@ async function renderStatsSignal() {
   rows.forEach(r => {
     const bar = r.revenue > 0 ? Math.max(4, Math.round(r.revenue / maxRev * 100)) : 0;
     html += `<div class="sig-attr-row">
-      <div class="sig-attr-head">${_sigBadge(r.code)}<span class="sig-attr-meta">${r.pCount} prospect${r.pCount !== 1 ? 's' : ''} · ${r.attrCount} won · ${r.convRate}%</span></div>
+      <div class="sig-attr-head">${_sigBadge(r.code)}<span class="sig-attr-meta">${r.pCount} prospect${r.pCount !== 1 ? 's' : ''} · ${r.attrCount} ${currentLang==='fr'?'gagné':'won'} · ${r.convRate}%</span></div>
       <div class="sig-attr-rev-row"><div class="sig-attr-track"><div class="sig-attr-fill" style="transform:scaleX(${bar/100})"></div></div><span class="sig-attr-amt">${fmt(r.revenue)}</span></div>
     </div>`;
   });
@@ -15462,15 +15474,15 @@ async function renderStatsRevenue(){
   const fmtAmt = v => { const n = Math.abs(v); return n >= 1000 ? (n/1000).toFixed(1).replace(/\.0$/,'') + 'k' : String(Math.round(n)); };
   const fmtRow = d => { const cur = d.currency || ''; return cur ? cur + ' ' + fmtAmt(parseFloat(d.amount)||0) : fmtAmt(parseFloat(d.amount)||0); };
   let html = `<div class="rev-kpi-grid">
-    <div class="rev-kpi"><span class="rev-kpi-val">${fmtAmt(monthTotal)}</span><span class="rev-kpi-label">Closed this month</span></div>
-    <div class="rev-kpi"><span class="rev-kpi-val">${fmtAmt(qTotal)}</span><span class="rev-kpi-label">Closed this quarter</span></div>
-    <div class="rev-kpi"><span class="rev-kpi-val">${data.length}</span><span class="rev-kpi-label">Deals (count)</span></div>
+    <div class="rev-kpi"><span class="rev-kpi-val">${fmtAmt(monthTotal)}</span><span class="rev-kpi-label">${currentLang==='fr'?'Clôturé ce mois-ci':'Closed this month'}</span></div>
+    <div class="rev-kpi"><span class="rev-kpi-val">${fmtAmt(qTotal)}</span><span class="rev-kpi-label">${currentLang==='fr'?'Clôturé ce trimestre':'Closed this quarter'}</span></div>
+    <div class="rev-kpi"><span class="rev-kpi-val">${data.length}</span><span class="rev-kpi-label">${currentLang==='fr'?'Deals (nombre)':'Deals (count)'}</span></div>
   </div>
-  <div style="font-size:var(--fs-micro);color:var(--muted);margin-bottom:8px">Amounts in each deal's currency</div>`;
+  <div style="font-size:var(--fs-micro);color:var(--muted);margin-bottom:8px">${currentLang==='fr'?'Montants dans la devise de chaque deal':"Amounts in each deal's currency"}</div>`;
   const months = [];
   for (let i = 5; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    months.push({ lbl: d.toLocaleString('en-GB',{month:'short'}).toUpperCase(), yr: d.getFullYear(), mo: d.getMonth(), tot: 0 });
+    months.push({ lbl: d.toLocaleString(currentLang==='fr'?'fr-FR':'en-GB',{month:'short'}).toUpperCase(), yr: d.getFullYear(), mo: d.getMonth(), tot: 0 });
   }
   data.forEach(d => {
     const dt = new Date(d.occurred_at);
@@ -15484,11 +15496,11 @@ async function renderStatsRevenue(){
     return `<div class="col-wrap"><div class="col-bar" style="transform:scaleY(${scaleY.toFixed(3)})"></div><span class="col-lbl">${_esc(m.lbl)}</span></div>`;
   }).join('')}</div>`;
   if (!data.length) {
-    html += '<div style="color:var(--muted);font-size:var(--fs-sm);padding:8px 0">No closed deals yet.</div>';
+    html += `<div style="color:var(--muted);font-size:var(--fs-sm);padding:8px 0">${currentLang==='fr'?'Aucun deal clôturé pour le moment.':'No closed deals yet.'}</div>`;
   } else {
     html += '<div>' + data.map(d => {
       const dt = new Date(d.occurred_at);
-      const ds = dt.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+      const ds = dt.toLocaleDateString(currentLang==='fr'?'fr-FR':'en-GB',{day:'numeric',month:'short',year:'numeric'});
       return `<div class="deal-row"><div><div class="deal-name">${_esc(d.description||'-')}</div></div><div class="deal-right"><div class="deal-amt">${fmtRow(d)}</div><div class="deal-date">${_esc(ds)}</div></div></div>`;
     }).join('') + '</div>';
   }
