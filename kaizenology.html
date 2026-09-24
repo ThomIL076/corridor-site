@@ -8120,6 +8120,12 @@ async function importCSV(e) {
         notes    = (f[7] || '').trim() || null;
       }
       if (!name) continue;
+      // FIX 24/09 (source racine confirmee du contentious http:// -- 8641 fiches
+      // affectees table entiere, dont 1139 via cet import CSV) : le scheme n'etait
+      // jamais normalise a l'insertion, contrairement a partout ailleurs dans le
+      // fichier qui suppose du https lors du matching par URL (sync externe, reception
+      // de connexion...) -- une ligne stockee en http:// ne matche alors plus jamais.
+      if (linkedin) linkedin = linkedin.replace(/^http:\/\//i, 'https://');
       const region   = country ? _inferRegion(country) : '';
 
       const external_id = linkedin
@@ -11804,7 +11810,7 @@ async function _promoteContact(primaryPid, cIdx) {
       mandate_id: primary.mandate_id || null,
       name: contact.name || null,
       title: contact.title || null,
-      linkedin: contact.linkedin || null,
+      linkedin: contact.linkedin ? contact.linkedin.replace(/^http:\/\//i, 'https://') : null,
       company: primary.company || null,
       sector: primary.sector || null,
       country: primary.country || null,

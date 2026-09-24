@@ -9951,6 +9951,12 @@ async function importCSV(e) {
         email    = (f[5] || '').trim();
       }
       if (!name) continue;
+      // FIX 24/09 (source racine confirmee du contentious http:// -- 8641 fiches
+      // affectees table entiere, dont 1139 via cet import CSV) : le scheme n'etait
+      // jamais normalise a l'insertion, contrairement a partout ailleurs dans le
+      // fichier qui suppose du https lors du matching par URL (sync externe, reception
+      // de connexion...) -- une ligne stockee en http:// ne matche alors plus jamais.
+      if (linkedin) linkedin = linkedin.replace(/^http:\/\//i, 'https://');
       const region   = country ? _inferRegion(country) : '';
 
       const external_id = linkedin

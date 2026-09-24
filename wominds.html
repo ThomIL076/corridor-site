@@ -4730,7 +4730,8 @@ async function saveProspectForm(){
   const btn = document.getElementById('addp-save-btn');
   if (btn) btn.disabled = true;
   try {
-    const linkedin = document.getElementById('addp-linkedin')?.value.trim() || '';
+    let linkedin = document.getElementById('addp-linkedin')?.value.trim() || '';
+    if (linkedin) linkedin = linkedin.replace(/^http:\/\//i, 'https://'); // FIX 24/09, cf. import CSV plus haut
     const external_id = linkedin
       ? 'li:' + linkedin.replace(/^https?:\/\/(www\.)?linkedin\.com\/in\//, '').replace(/\/$/, '')
       : 'nc:' + name.toLowerCase().replace(/\s+/g, '') + '|' + company.toLowerCase().replace(/\s+/g, '');
@@ -4860,6 +4861,13 @@ async function importCSV(e) {
         title    = '';
       }
       if (!name) continue;
+      // FIX 24/09 (source racine confirmee du contentious http:// -- 8641 fiches
+      // affectees table entiere) : le scheme n'etait jamais normalise a l'insertion,
+      // contrairement a partout ailleurs qui suppose du https lors du matching
+      // (le sync externe, la reception de connexion...) -- une ligne stockee en http:// ne
+      // matche alors plus jamais. Place avant la validation invalidReason juste en
+      // dessous, qui accepte http:// comme "conforme" sans jamais l'avoir signale.
+      if (linkedin) linkedin = linkedin.replace(/^http:\/\//i, 'https://');
       // Correctif 2026-09-23 (go Thomas) : validation legere post-mapping, avant l'upsert -- le
       // meme decalage de colonnes que la fiche Nathaniel Amsellem/OneClinic (corrigee en base ce
       // soir, cf. backup_wominds_single_fiche_fix_20260923) peut se reproduire sur n'importe quel
