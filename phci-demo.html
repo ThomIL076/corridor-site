@@ -7386,6 +7386,12 @@ function _updatePrioritiesNextBtn() {
   btn.style.opacity = allActionable ? '1' : '0.4';
 }
 
+// Fix securite/fiabilite 2026-09-24 : upsert direct sbClient.from('priority_batches') depuis le
+// navigateur remplace par un appel a /api/priority-batches-advance (service_role cote serveur,
+// meme pattern que /api/signal-feedback) -- voir CLAUDE.md "Fiabilite - ecritures upsert
+// silencieuses". Erreur desormais surfacee via showToast (meme fonction que l'upsert CSV import),
+// plus le console.error deja present. Meme correctif que demo-private.html/kaizenology.html
+// (mecanisme partage, meme code trouve dans ce fichier).
 async function _prioritiesNext() {
   const btn = document.getElementById('priorities-next-btn');
   if (btn) { btn.disabled = true; btn.style.opacity = '0.4'; }
@@ -7395,17 +7401,16 @@ async function _prioritiesNext() {
   const _pbMandateId = (activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null;
 
   try {
-    if (shownIds.length) {
-      await sbClient.from('prospects')
-        .update({ priority_batch_number: newBatch })
-        .in('id', shownIds).eq('client_id', CLIENT_ID);
-    }
-    await sbClient.from('priority_batches').upsert(
-      { client_id: CLIENT_ID, mandate_id: _pbMandateId, current_batch: newBatch, updated_at: new Date().toISOString() },
-      { onConflict: 'client_id,mandate_id' }
-    );
+    const resp = await _authFetch('/api/priority-batches-advance', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'next', new_batch: newBatch, mandate_id: _pbMandateId, prospect_ids: shownIds })
+    });
+    const json = await resp.json();
+    if (!resp.ok || !json.ok) throw new Error(json.error || 'request failed');
   } catch(e) {
     console.error('[_prioritiesNext] batch advance failed:', e.message);
+    showToast(currentLang === 'fr' ? 'Erreur : passage au lot suivant a echoue' : 'Error: failed to advance to next batch');
   }
 
   await loadDailyPriorities();
