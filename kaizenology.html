@@ -1419,12 +1419,12 @@ body.new-nav { padding-left: 220px; }
 
 <!-- MANDATE SELECTOR BAR -->
 <div class="mandate-bar" id="mandate-bar" style="display:none;">
-  <span class="mandate-bar-label">📁 MANDATE</span>
+  <span class="mandate-bar-label" data-en="📁 MANDATE" data-fr="📁 MANDAT">📁 MANDATE</span>
   <select class="input-select" id="mandate-select" onchange="_onMandateChange()">
-    <option value="">Consolidated view (all)</option>
+    <option value="" data-en="Consolidated view (all)" data-fr="Vue consolidée (tous)">Consolidated view (all)</option>
   </select>
   <select class="input-select" id="deal-select" style="display:none;" onchange="_onDealChange()">
-    <option value="">No specific deal</option>
+    <option value="" data-en="No specific deal" data-fr="Aucun deal spécifique">No specific deal</option>
   </select>
   <button onclick="_openAskFromMandate()" style="flex-shrink:0;display:flex;align-items:center;gap:6px;font-size:var(--fs-xs);font-weight:700;padding:4px 12px;border:1px solid var(--blue);border-radius:var(--radius-pill);background:transparent;color:var(--blue);cursor:pointer;height:28px;" data-en="Ask Corridor" data-fr="Demander à Corridor">Ask Corridor</button>
 </div>
@@ -2691,7 +2691,7 @@ function _renderWeeklyList(reports, voteMap) {
   if (!list) return;
   const fr = typeof currentLang !== 'undefined' && currentLang === 'fr';
   if (!reports || !reports.length) {
-    list.innerHTML = `<div style="color:var(--text-secondary);font-size:var(--fs-base);padding:16px 0;">${fr ? 'Aucun rapport généré pour l\'instant. Cliquez sur Générer le rapport pour lancer la génération.' : 'No report generated yet. Click Generate Report to run.'}</div>`;
+    list.innerHTML = `<div style="color:var(--text-secondary);font-size:var(--fs-base);padding:16px 0;">${fr ? 'Aucun rapport pour l\'instant. Le rapport hebdomadaire est généré automatiquement chaque vendredi.' : 'No report yet. The weekly report is generated automatically every Friday.'}</div>`;
     return;
   }
   const _isAll = activeMandateId === '__ALL__';
@@ -3567,6 +3567,15 @@ function setLang(lang) {
   // BUG 3 (23/09, port demo-private.html) : panneau Ask Corridor ouvert (ou a rouvrir) sans
   // conversation reelle en cours suit la bascule immediatement.
   if (typeof _askRefreshLangIfIdle === 'function') _askRefreshLangIfIdle();
+  // FIX 25/09 (chantier langue, bouton "Générer" repere ce matin, Today/Priorities, port
+  // demo-private.html) : ce panneau (cartes _mscDecisionCardHTML + pied _priorityGenerateFooterHTML)
+  // est construit en JS avec des ternaires currentLang, jamais un data-en/data-fr statique -- meme
+  // defaut que les sections listees ci-dessus. Re-rendu pur depuis le cache local deja charge
+  // (_priorityShownProspects, initialise a [] -- no-op silencieux si Today n'a jamais ete visite ;
+  // de toute facon ecrase par loadDailyPriorities() au prochain vrai chargement de l'onglet). Pas de
+  // Reminders due/backlog dans ce fichier (feature non portee) -- rien d'equivalent a re-rendre ici.
+  if (typeof _renderPriorityCards === 'function') _renderPriorityCards(_priorityShownProspects);
+  if (typeof _updatePrioritiesNextBtn === 'function') _updatePrioritiesNextBtn();
 }
 
 function _relTimeShort(iso) {
@@ -4119,10 +4128,10 @@ Language instruction: Write your entire response in ${currentLang === 'fr' ? 'Fr
   const noInfo = /no verifiable|no public information|no information found|unable to find|cannot find/i.test(aiTxt);
   const sigs = [];
   if (!noInfo) {
-    if (/fund|raised|series [abc]|investm/i.test(aiTxt)) sigs.push({type:'s1', label:'Fundraise signal'});
-    if (/new.*(?:vp|cro|cmo|cto|svp|director|head of)|appointed|joined/i.test(aiTxt)) sigs.push({type:'s3', label:'Senior hire'});
-    if (/expan|new market|international|new country|new region|enter.*market/i.test(aiTxt)) sigs.push({type:'s4', label:'Expansion move'});
-    if (/partner|acqui|merger/i.test(aiTxt)) sigs.push({type:'s2', label:'Partnership'});
+    if (/fund|raised|series [abc]|investm/i.test(aiTxt)) sigs.push({type:'s1', label: currentLang==='fr' ? 'Signal de levée de fonds' : 'Fundraise signal'});
+    if (/new.*(?:vp|cro|cmo|cto|svp|director|head of)|appointed|joined/i.test(aiTxt)) sigs.push({type:'s3', label: currentLang==='fr' ? 'Recrutement senior' : 'Senior hire'});
+    if (/expan|new market|international|new country|new region|enter.*market/i.test(aiTxt)) sigs.push({type:'s4', label: currentLang==='fr' ? "Mouvement d'expansion" : 'Expansion move'});
+    if (/partner|acqui|merger/i.test(aiTxt)) sigs.push({type:'s2', label: currentLang==='fr' ? 'Partenariat' : 'Partnership'});
     if (sigList && sigs.length > 0) {
       sigList.innerHTML = '<div class="signal-list">' + sigs.map(s => `<span class="signal-tag signal-${s.type}">${s.label}</span>`).join('') + '</div>';
     }
@@ -7097,10 +7106,10 @@ function _renderSendSection(title, prospects, touchType) {
             ? `<span class="send-touch" style="background:#f3f4f6;color:#6b7280;" title="${sendTitle}">⏳ ${currentLang==='fr'?'Connexion en attente':'Awaiting connection'}</span>`
             : `<span class="send-touch ${TOUCH_LABELS[touchType]?.class||'touch-j0'}">${TOUCH_LABELS[touchType]?.label||touchType}</span>
           ${isReady
-            ? `<span class="send-touch" style="background:var(--green-bg);color:var(--green);">✓ Ready</span>`
+            ? `<span class="send-touch" style="background:var(--green-bg);color:var(--green);">${currentLang==='fr'?'✓ Prêt':'✓ Ready'}</span>`
             : hasBody
-              ? `<span class="send-touch" style="background:var(--chip-bg);color:var(--indigo);">Draft saved</span>`
-              : `<span class="send-touch" style="background:#f3f4f6;color:#6b7280;">No draft</span>`}`}
+              ? `<span class="send-touch" style="background:var(--chip-bg);color:var(--indigo);">${currentLang==='fr'?'Brouillon enregistré':'Draft saved'}</span>`
+              : `<span class="send-touch" style="background:#f3f4f6;color:#6b7280;">${currentLang==='fr'?'Aucun brouillon':'No draft'}</span>`}`}
         </div>
         <div class="send-expand" id="se-${p.id}" style="display:none">
           <div class="ai-box" style="margin-top:10px">
@@ -7111,14 +7120,14 @@ function _renderSendSection(title, prospects, touchType) {
             <div class="ai-box-body" id="so-${p.id}" contenteditable="true" spellcheck="false" data-pid="${p.id}" oninput="const b=document.getElementById('sv-'+this.dataset.pid);if(b){b.disabled=false;b.style.opacity='1';b.style.cursor='pointer';}" style="min-height:80px;outline:none;cursor:text">${_esc(seq?.body||'')}</div>
           </div>
           <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center">
-            <button class="btn-secondary" style="padding:6px 12px;" onclick="_generateSequenceMessage('${p.id}','${touchType}')" id="sg-${p.id}">▶ Generate</button>
+            <button class="btn-secondary" style="padding:6px 12px;" onclick="_generateSequenceMessage('${p.id}','${touchType}')" id="sg-${p.id}">${hasBody ? (currentLang==='fr'?'🔄 Régénérer':'🔄 Regenerate') : (currentLang==='fr'?'▶ Générer':'▶ Generate')}</button>
             <select id="sl-${p.id}" title="${currentLang==='fr'?'Langue du message':'Message language'}" style="padding:5px 6px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:var(--fs-xs);font-family:inherit;color:var(--text);background:#fff;">
               <option value="EN" ${_sendDefaultLang() === 'EN' ? 'selected' : ''}>EN</option>
               <option value="FR" ${_sendDefaultLang() === 'FR' ? 'selected' : ''}>FR</option>
             </select>
-            <button class="btn-secondary" onclick="_saveSequenceDraft('${p.id}','${touchType}')" id="sv-${p.id}" disabled style="padding:6px 12px;opacity:0.45;cursor:not-allowed">Save draft</button>
-            <button class="btn-secondary" style="padding:6px 12px;${isReady?'border-color:var(--green);color:var(--green)':''}" onclick="_markReady('${p.id}')" id="sr-${p.id}">${isReady ? '✓ Ready' : 'Mark ready'}</button>
-            <button class="btn-secondary" style="padding:6px 12px;" onclick="_markSent('${p.id}','${touchType}')" id="sms-${p.id}">✓ Mark as sent</button>
+            <button class="btn-secondary" onclick="_saveSequenceDraft('${p.id}','${touchType}')" id="sv-${p.id}" disabled style="padding:6px 12px;opacity:0.45;cursor:not-allowed">${currentLang==='fr'?'Enregistrer le brouillon':'Save draft'}</button>
+            <button class="btn-secondary" style="padding:6px 12px;${isReady?'border-color:var(--green);color:var(--green)':''}" onclick="_markReady('${p.id}')" id="sr-${p.id}">${isReady ? (currentLang==='fr'?'✓ Prêt':'✓ Ready') : (currentLang==='fr'?'Marquer prêt':'Mark ready')}</button>
+            <button class="btn-secondary" style="padding:6px 12px;" onclick="_markSent('${p.id}','${touchType}')" id="sms-${p.id}">${currentLang==='fr'?'✓ Marquer comme envoyé':'✓ Mark as sent'}</button>
             <!-- Send via LinkedIn = action dominante de la rangee (parite demo-private.html) :
                  style inline (11px 20px, 700, margin-left:auto) l'emporte deja sur le padding de
                  base de .btn-primary (specificite CSS : attribut style > classe) -- pas de
@@ -7279,15 +7288,15 @@ function _renderManualSection(containerId = 'manual-send-section', pid = _manual
             <div class="ai-box-body" id="${elPrefix}so-${p.id}" contenteditable="true" spellcheck="false" data-pid="${p.id}" data-elprefix="${elPrefix}" oninput="const b=document.getElementById(this.dataset.elprefix+'sv-'+this.dataset.pid);if(b){b.disabled=false;b.style.opacity='1';b.style.cursor='pointer';}" style="min-height:80px;outline:none;cursor:text">${_esc(seq?.body||'')}</div>
           </div>
           <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-            <button class="btn-primary" onclick="_generateSequenceMessage('${p.id}','${currentTouch}',false,'${elPrefix}')" id="${elPrefix}sg-${p.id}">▶ Generate</button>
+            <button class="btn-primary" onclick="_generateSequenceMessage('${p.id}','${currentTouch}',false,'${elPrefix}')" id="${elPrefix}sg-${p.id}">${currentLang==='fr'?'▶ Générer':'▶ Generate'}</button>
             <select id="${elPrefix}sl-${p.id}" title="${currentLang==='fr'?'Langue du message':'Message language'}" style="padding:5px 6px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:var(--fs-xs);font-family:inherit;color:var(--text);background:#fff;">
               <option value="EN" ${_sendDefaultLang() === 'EN' ? 'selected' : ''}>EN</option>
               <option value="FR" ${_sendDefaultLang() === 'FR' ? 'selected' : ''}>FR</option>
             </select>
-            <button class="btn-secondary" onclick="_saveSequenceDraft('${p.id}','${currentTouch}',undefined,'${elPrefix}')" id="${elPrefix}sv-${p.id}" disabled style="opacity:0.45;cursor:not-allowed">Save draft</button>
-            <button class="btn-secondary" onclick="_markReady('${p.id}','${elPrefix}')" id="${elPrefix}sr-${p.id}" ${isReady?'style="border-color:var(--green);color:var(--green)"':''}>${isReady?'✓ Ready':'Mark ready'}</button>
+            <button class="btn-secondary" onclick="_saveSequenceDraft('${p.id}','${currentTouch}',undefined,'${elPrefix}')" id="${elPrefix}sv-${p.id}" disabled style="opacity:0.45;cursor:not-allowed">${currentLang==='fr'?'Enregistrer le brouillon':'Save draft'}</button>
+            <button class="btn-secondary" onclick="_markReady('${p.id}','${elPrefix}')" id="${elPrefix}sr-${p.id}" ${isReady?'style="border-color:var(--green);color:var(--green)"':''}>${isReady?(currentLang==='fr'?'✓ Prêt':'✓ Ready'):(currentLang==='fr'?'Marquer prêt':'Mark ready')}</button>
             <button class="btn-primary" onclick="_sendViaLinkedIn('${p.id}','${currentTouch}','${elPrefix}')" id="${elPrefix}sli-${p.id}" ${sendDisabled?'disabled':''} ${sendBlocked?`style="opacity:0.4;cursor:not-allowed" title="${currentLang==='fr'?'Connexion pas encore acceptée':'Connection not yet accepted'}"`:''}>${currentLang==='fr'?'Envoyer via LinkedIn':'Send via LinkedIn'}</button>
-            <button class="btn-secondary" onclick="_markSent('${p.id}','${currentTouch}',false,'','${elPrefix}')" id="${elPrefix}sms-${p.id}">✓ Mark as sent</button>
+            <button class="btn-secondary" onclick="_markSent('${p.id}','${currentTouch}',false,'','${elPrefix}')" id="${elPrefix}sms-${p.id}">${currentLang==='fr'?'✓ Marquer comme envoyé':'✓ Mark as sent'}</button>
           </div>
         </div>
       </div>
@@ -7509,7 +7518,9 @@ async function _generateSequenceMessage(pid, touch, forceGenerate = false, elPre
         const departed = departureSignals.some(sig => pLower.includes(sig));
         if (departed && !forceGenerate) {
           srchEl.textContent = '';
-          if (out) out.innerHTML = `<span style="color:var(--amber)">⚠️ ${firstName} may no longer be at ${p.company}. Verify their current role before sending.</span><br><button onclick="this.parentElement.innerHTML='';_generateSequenceMessage('${pid}','${touch}',true,'${elPrefix}')" style="margin-top:8px;font-size:var(--fs-xs);padding:4px 12px;border:1px solid var(--amber);border-radius:var(--radius-badge);background:transparent;color:var(--amber);cursor:pointer">Generate anyway</button>`;
+          if (out) out.innerHTML = currentLang==='fr'
+            ? `<span style="color:var(--amber)">⚠️ ${firstName} ne travaille peut-être plus chez ${p.company}. Vérifiez son poste actuel avant d'envoyer.</span><br><button onclick="this.parentElement.innerHTML='';_generateSequenceMessage('${pid}','${touch}',true,'${elPrefix}')" style="margin-top:8px;font-size:var(--fs-xs);padding:4px 12px;border:1px solid var(--amber);border-radius:var(--radius-badge);background:transparent;color:var(--amber);cursor:pointer">Générer quand même</button>`
+            : `<span style="color:var(--amber)">⚠️ ${firstName} may no longer be at ${p.company}. Verify their current role before sending.</span><br><button onclick="this.parentElement.innerHTML='';_generateSequenceMessage('${pid}','${touch}',true,'${elPrefix}')" style="margin-top:8px;font-size:var(--fs-xs);padding:4px 12px;border:1px solid var(--amber);border-radius:var(--radius-badge);background:transparent;color:var(--amber);cursor:pointer">Generate anyway</button>`;
           if (btn) btn.disabled = false;
           if (spin) spin.classList.remove('active');
           return;
@@ -8329,7 +8340,7 @@ function _toggleDebrief(uid) {
   if (chevron) chevron.textContent = opening ? '▲' : '▼';
 }
 function _renderIntList(ints) {
-  if (!ints.length) return '<div class="int-empty">No interactions logged yet.</div>';
+  if (!ints.length) return `<div class="int-empty">${currentLang==='fr'?'Aucune interaction consignée pour le moment.':'No interactions logged yet.'}</div>`;
   return ints.map((i, idx) => {
     const uid = i.id || idx;
     if (i.type === 'call') {
@@ -8341,7 +8352,7 @@ function _renderIntList(ints) {
     <div class="int-icon-circle" style="background:${callMeta.bg};color:${callMeta.fg}">${callMeta.icon}</div>
     <div class="int-body" style="flex:1;min-width:0;">
       <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-        <span style="font-size:var(--fs-micro);font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--blue);">Post-call debrief</span>
+        <span style="font-size:var(--fs-micro);font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--blue);">${currentLang==='fr'?'Debrief post-appel':'Post-call debrief'}</span>
         <span style="background:${c.bg};border:1px solid ${c.border};color:${c.text};border-radius:var(--radius-panel);font-size:var(--fs-micro);font-weight:700;padding:1px 7px;text-transform:uppercase;">${debrief.verdict}</span>
         <span style="margin-left:auto;font-size:var(--fs-xs);color:var(--muted);">${_relDate(i.created_at)||''}</span>
         <span id="debrief-chevron-${uid}" style="font-size:var(--fs-xs);color:var(--muted);">▼</span>
@@ -8370,19 +8381,19 @@ function _reminderBannerHTML(reminderDate) {
   const bg = r ? (r.overdue ? 'var(--red-bg)' : 'var(--bg-warning)') : 'var(--bg)';
   const bdr = r ? (r.overdue ? 'var(--red)' : 'var(--amber-border)') : 'var(--border)';
   const tc = r ? (r.overdue ? 'var(--red)' : 'var(--amber)') : 'var(--muted)';
-  const label = r ? r.label : 'No reminder set';
+  const label = r ? r.label : (currentLang==='fr' ? 'Aucun rappel défini' : 'No reminder set');
   const clockSvg = `<svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" style="flex-shrink:0"><circle cx="8" cy="8" r="7"/><path d="M8 4.5V8l2.5 1.5" stroke-linecap="round"/></svg>`;
   return `<div id="reminder-banner" style="margin:12px 16px 0;border-radius:var(--radius-md);overflow:hidden;border:1px solid ${bdr}">
     <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:${bg};font-size:var(--fs-sm);color:${tc}">
       <span style="display:flex;align-items:center;gap:6px">${clockSvg}${_esc(label)}</span>
       <a href="#" style="font-size:var(--fs-xs);color:var(--navy);text-decoration:underline;text-underline-offset:2px;white-space:nowrap;margin-left:8px"
-        onclick="event.preventDefault();var row=document.getElementById('reminder-edit-row');row.style.display=row.style.display==='flex'?'none':'flex'">${r?'Edit':'Set'}</a>
+        onclick="event.preventDefault();var row=document.getElementById('reminder-edit-row');row.style.display=row.style.display==='flex'?'none':'flex'">${r?(currentLang==='fr'?'Modifier':'Edit'):(currentLang==='fr'?'Définir':'Set')}</a>
     </div>
     <div id="reminder-edit-row" style="display:none;align-items:center;gap:8px;padding:8px 12px;background:var(--bg);border-top:1px solid ${bdr}">
       <input type="date" class="reminder-date-input" id="drawer-reminder-input"
         value="${isoShort}" min="${new Date().toISOString().split('T')[0]}" style="flex:1">
-      <button class="reminder-set-btn" onclick="_saveReminder()">Set</button>
-      ${r?'<button class="reminder-clear-btn" onclick="_clearReminder()">Clear</button>':''}
+      <button class="reminder-set-btn" onclick="_saveReminder()">${currentLang==='fr'?'Définir':'Set'}</button>
+      ${r?`<button class="reminder-clear-btn" onclick="_clearReminder()">${currentLang==='fr'?'Effacer':'Clear'}</button>`:''}
     </div>
   </div>`;
 }
@@ -8713,11 +8724,11 @@ async function openDrawer(card, initialTab = 'activity') {
       <div style="padding:16px 20px;">
         ${_reminderBannerHTML(reminderDate)}
         <div style="margin-top:12px;padding:12px;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--bg);">
-          <div style="font-size:var(--fs-micro);font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--dim);margin-bottom:8px">Next action</div>
+          <div style="font-size:var(--fs-micro);font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--dim);margin-bottom:8px">${currentLang==='fr'?'Prochaine action':'Next action'}</div>
           <input id="drawer-next-action" class="dp-inp" value="${_esc(_p.next_action || '')}" data-en-ph="Next step..." data-fr-ph="Prochaine étape..." placeholder="Next step..." style="margin-bottom:6px">
           <div style="display:flex;gap:8px;align-items:center;">
             <input id="drawer-next-action-date" type="date" class="dp-inp" value="${_esc((_p.next_action_date || '').slice(0,10))}" style="flex:1;min-width:0">
-            <button onclick="_saveNextAction('${_esc(prospectId)}')" style="font-size:var(--fs-sm);padding:5px 12px;background:var(--navy);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer;white-space:nowrap">Save</button>
+            <button onclick="_saveNextAction('${_esc(prospectId)}')" style="font-size:var(--fs-sm);padding:5px 12px;background:var(--navy);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer;white-space:nowrap">${currentLang==='fr'?'Enregistrer':'Save'}</button>
           </div>
         </div>
       </div>
@@ -8729,10 +8740,10 @@ async function openDrawer(card, initialTab = 'activity') {
       <div style="padding:16px 20px;border-top:1px solid var(--border)">
         <div class="drawer-section-title" data-en="Interactions" data-fr="Journal d'interactions">Interactions</div>
         <div class="int-log" id="drawer-int-list">
-          <div class="int-empty" style="color:var(--dim);font-size:var(--fs-sm)">Loading...</div>
+          <div class="int-empty" style="color:var(--dim);font-size:var(--fs-sm)">${currentLang==='fr'?'Chargement…':'Loading...'}</div>
         </div>
         <div class="int-form">
-          <div class="int-form-title">Log interaction</div>
+          <div class="int-form-title">${currentLang==='fr'?'Consigner une interaction':'Log interaction'}</div>
           <div class="int-type-btns">
             ${['linkedin','email','call','meeting','note'].map((t,i) =>
               `<button class="int-type-btn${i===0?' selected':''}" data-type="${t}"
@@ -8742,7 +8753,7 @@ async function openDrawer(card, initialTab = 'activity') {
           <textarea class="int-note-input" id="drawer-int-note"
             data-en-ph="Add a note (optional)..." data-fr-ph="Ajouter une note (facultatif)..." placeholder="Add a note (optional)..." rows="2"></textarea>
           <button class="int-save-btn" id="drawer-int-save" onclick="_saveInteraction()">
-            Save interaction
+            ${currentLang==='fr'?"Enregistrer l'interaction":'Save interaction'}
           </button>
         </div>
       </div>
@@ -8756,85 +8767,85 @@ async function openDrawer(card, initialTab = 'activity') {
            quand le tiroir est ouvert hors Pipeline -- meme piege documente sur demo-private.html). -->
       ${_p.stage !== 'Identified' ? `
       <div style="padding:16px 20px;border-top:1px solid var(--border)">
-        <div class="drawer-section-title" style="margin-bottom:10px">Call prep</div>
+        <div class="drawer-section-title" style="margin-bottom:10px">${currentLang==='fr'?"Préparation d'appel":'Call prep'}</div>
         <button class="btn-accent" style="width:100%;justify-content:center;margin-bottom:12px"
-          onclick="_drawerAI()" id="drawer-next-btn">${_hasCachedAction ? '🔄 Regenerate' : '▶ Next recommended action'}</button>
-        <button class="btn-secondary" style="width:100%;justify-content:center;margin-bottom:12px" onclick="_escalateProspect()" id="drawer-escalate-btn">Escalation Handler</button>
-        <button class="btn-secondary" style="width:100%;justify-content:center;margin-bottom:12px" onclick="_sendDiscoveryBrief()" id="drawer-discovery-btn">Prepare discovery call</button>
+          onclick="_drawerAI()" id="drawer-next-btn">${_hasCachedAction ? (currentLang==='fr'?'🔄 Régénérer':'🔄 Regenerate') : (currentLang==='fr'?'▶ Prochaine action recommandée':'▶ Next recommended action')}</button>
+        <button class="btn-secondary" style="width:100%;justify-content:center;margin-bottom:12px" onclick="_escalateProspect()" id="drawer-escalate-btn">${currentLang==='fr'?"Gérer l'escalade":'Escalation Handler'}</button>
+        <button class="btn-secondary" style="width:100%;justify-content:center;margin-bottom:12px" onclick="_sendDiscoveryBrief()" id="drawer-discovery-btn">${currentLang==='fr'?'Préparer un brief de découverte':'Prepare discovery call'}</button>
         <div class="ai-box">
           <div class="ai-box-header">
-            <span class="ai-box-label">Call prep brief</span>
+            <span class="ai-box-label">${currentLang==='fr'?"Brief de préparation d'appel":'Call prep brief'}</span>
           </div>
-          <div class="ai-box-body" id="pd-brief-card">No brief prepared yet — generate one above.</div>
+          <div class="ai-box-body" id="pd-brief-card">${currentLang==='fr'?'Aucun brief préparé pour le moment — générez-en un ci-dessus.':'No brief prepared yet — generate one above.'}</div>
         </div>
-        <button class="btn-secondary" style="width:100%;justify-content:center;margin-bottom:12px" onclick="_pdCopyBrief()" id="pd-brief-copy-btn" disabled>Copy brief</button>
+        <button class="btn-secondary" style="width:100%;justify-content:center;margin-bottom:12px" onclick="_pdCopyBrief()" id="pd-brief-copy-btn" disabled>${currentLang==='fr'?'Copier le brief':'Copy brief'}</button>
         <div class="ai-box" id="escalate-box" style="display:none">
           <div class="ai-box-header">
-            <span class="ai-box-label" style="color:#ef4444">Escalation Brief</span>
+            <span class="ai-box-label" style="color:#ef4444">${currentLang==='fr'?"Brief d'escalade":'Escalation Brief'}</span>
             <div class="ai-spinner" id="escalate-spinner"></div>
           </div>
           <div class="ai-box-body" id="escalate-output"></div>
         </div>
         <div class="ai-box">
           <div class="ai-box-header">
-            <span class="ai-box-label">Recommended Action</span>
+            <span class="ai-box-label">${currentLang==='fr'?'Action recommandée':'Recommended Action'}</span>
             <div class="ai-spinner" id="drawer-spinner"></div>
           </div>
-          <div class="ai-box-body${_cachedRendered ? ' loaded' : ''}" id="drawer-output">${_cachedRendered || 'Click to generate the next step...'}</div>
+          <div class="ai-box-body${_cachedRendered ? ' loaded' : ''}" id="drawer-output">${_cachedRendered || (currentLang==='fr'?'Cliquez pour générer la prochaine étape...':'Click to generate the next step...')}</div>
         </div>
         <div style="display:flex;gap:10px;margin-top:16px">
           <button onclick="_scheduleCall('${prospectId}')" style="flex:1;font-size:12.5px;padding:9px;display:flex;align-items:center;justify-content:center;gap:6px;background:var(--white);color:var(--text);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;font-family:inherit">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            Schedule call
+            ${currentLang==='fr'?'Planifier un appel':'Schedule call'}
           </button>
         </div>
         <button id="start-seq-${prospectId}" onclick="_startEmailSeq('${prospectId}')" style="width:100%;margin-top:10px;background:var(--green-brand);color:#FFFFFF;border:none;border-radius:var(--radius-sm);font-size:12.5px;font-weight:500;display:flex;align-items:center;justify-content:center;gap:6px;padding:9px;cursor:pointer;font-family:inherit">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 6l-10 7L2 6"/></svg>
-          Start email sequence
+          ${currentLang==='fr'?'Démarrer la séquence email':'Start email sequence'}
         </button>
         <span id="seq-status-${prospectId}" style="font-size:var(--fs-xs);color:#6b7a99"></span>
         <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--border)">
-          <div class="drawer-section-title" style="margin-bottom:14px">Call prep and debrief</div>
-          <div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">Post-call message</div>
+          <div class="drawer-section-title" style="margin-bottom:14px">${currentLang==='fr'?"Préparation et debrief d'appel":'Call prep and debrief'}</div>
+          <div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">${currentLang==='fr'?'Message post-appel':'Post-call message'}</div>
           <input id="postcall-note" type="text" class="dp-inp"
             data-en-ph="One key point from the call, e.g. your expansion into the Nordics" data-fr-ph="Un point clé de l'appel, ex. votre expansion vers les pays nordiques" placeholder="One key point from the call, e.g. your expansion into the Nordics"
             style="margin-bottom:8px" />
           <button class="btn-secondary" onclick="_generatePostCallMsg()"
             style="width:100%;justify-content:center;margin-bottom:10px">
-            Generate post-call message
+            ${currentLang==='fr'?'Générer le message post-appel':'Generate post-call message'}
           </button>
           <div id="postcall-box" style="display:none">
             <div class="ai-box">
               <div class="ai-box-header">
-                <span class="ai-box-label">Post-call</span>
+                <span class="ai-box-label">${currentLang==='fr'?'Post-appel':'Post-call'}</span>
               </div>
               <div class="ai-box-body" id="postcall-output" contenteditable="true" spellcheck="false"
                 style="min-height:80px;outline:none;cursor:text;white-space:pre-wrap"></div>
             </div>
             <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-              <button class="btn-secondary" onclick="_copyPostCall()">Copy</button>
-              <button class="btn-secondary" onclick="_sendPostCallLinkedIn()">Send via LinkedIn</button>
-              <button class="btn-secondary" onclick="_markPostCallSent()">Mark as sent</button>
+              <button class="btn-secondary" onclick="_copyPostCall()">${currentLang==='fr'?'Copier':'Copy'}</button>
+              <button class="btn-secondary" onclick="_sendPostCallLinkedIn()">${currentLang==='fr'?'Envoyer via LinkedIn':'Send via LinkedIn'}</button>
+              <button class="btn-secondary" onclick="_markPostCallSent()">${currentLang==='fr'?'Marquer comme envoyé':'Mark as sent'}</button>
             </div>
           </div>
           <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
-            <div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">Post-call debrief</div>
+            <div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">${currentLang==='fr'?'Debrief post-appel':'Post-call debrief'}</div>
             <button class="btn-secondary" id="btn-postcall-debrief" onclick="_openPostCallDebrief()"
               style="width:100%;justify-content:center;margin-bottom:10px">
-              🎙 Generate post-call debrief
+              ${currentLang==='fr'?'🎙 Générer le debrief post-appel':'🎙 Generate post-call debrief'}
             </button>
             <div id="meeting-notes-select" style="display:none;margin-bottom:10px"></div>
             <div id="post-call-output" style="display:none"></div>
             <div style="text-align:center;margin-top:6px">
               <a href="#" style="font-size:var(--fs-xs);color:var(--muted);text-decoration:underline;text-underline-offset:2px"
-                onclick="event.preventDefault();_toggleManualDebrief()">Or paste call notes manually</a>
+                onclick="event.preventDefault();_toggleManualDebrief()">${currentLang==='fr'?"Ou collez vos notes d'appel manuellement":'Or paste call notes manually'}</a>
             </div>
             <div id="manual-debrief-panel" style="display:none;margin-top:10px">
               <textarea id="manual-debrief-notes" rows="6"
                 data-en-ph="Paste your call notes, transcript, or summary here..." data-fr-ph="Collez vos notes d'appel, la transcription ou un résumé ici..." placeholder="Paste your call notes, transcript, or summary here..."
                 style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:var(--fs-sm);font-family:inherit;resize:vertical;background:var(--bg);color:var(--text);line-height:1.5"></textarea>
               <button class="btn-secondary" onclick="_generateFromManualNotes()"
-                style="width:100%;justify-content:center;margin-top:8px">Generate from notes</button>
+                style="width:100%;justify-content:center;margin-top:8px">${currentLang==='fr'?'Générer à partir des notes':'Generate from notes'}</button>
             </div>
           </div>
         </div>
@@ -8843,101 +8854,101 @@ async function openDrawer(card, initialTab = 'activity') {
            depuis l'ancien onglet Profile, calculateur Deal Value deplace depuis l'ancien onglet
            Deal) -->
       <details id="pd-editdetails" style="padding:16px 20px;border-top:1px solid var(--border)">
-        <summary class="drawer-section-title" style="cursor:pointer;display:list-item">Edit details</summary>
+        <summary class="drawer-section-title" style="cursor:pointer;display:list-item">${currentLang==='fr'?'Modifier les détails':'Edit details'}</summary>
         <div style="margin-top:12px">
           ${_drawerProfileHTML(prospectId, _prospectsById[prospectId] || {}, stage, { name, company, sector })}
           <div style="border-top:1px solid var(--border);padding-top:16px;margin-top:16px;">
             <div class="drawer-section-title" style="margin-bottom:12px" data-en="Deal Value" data-fr="Valeur du deal">Deal Value</div>
             <div class="dv-row" style="margin-bottom:12px;">
               <select id="dv-deal-type" onchange="_dvShowFields();recalcDealValue()" style="font-family:inherit;color:var(--text);background:var(--bg);">
-                <option value="">— Select deal type —</option>
-                <option value="retainer_only">Retainer only</option>
-                <option value="retainer_success">Retainer + Success</option>
-                <option value="prep_success">Preparation fee + Success</option>
-                <option value="success_only">Success only</option>
-                <option value="fixed">Fixed amount</option>
-                <option value="shared">Shared mandate</option>
-                <option value="referral">Referral commission</option>
+                <option value="">${currentLang==='fr'?'— Sélectionner un type de deal —':'— Select deal type —'}</option>
+                <option value="retainer_only">${currentLang==='fr'?'Forfait seul':'Retainer only'}</option>
+                <option value="retainer_success">${currentLang==='fr'?'Forfait + commission de performance':'Retainer + Success'}</option>
+                <option value="prep_success">${currentLang==='fr'?'Frais initial + commission de performance':'Preparation fee + Success'}</option>
+                <option value="success_only">${currentLang==='fr'?'Commission de performance seule':'Success only'}</option>
+                <option value="fixed">${currentLang==='fr'?'Montant fixe':'Fixed amount'}</option>
+                <option value="shared">${currentLang==='fr'?'Mandat partagé':'Shared mandate'}</option>
+                <option value="referral">${currentLang==='fr'?"Commission d'apport":'Referral commission'}</option>
               </select>
             </div>
             <div class="dv-field-group" id="dvg-retainer" style="display:none;">
               <div class="dv-field-row">
-                <label>Monthly retainer</label>
+                <label>${currentLang==='fr'?'Frais mensuel':'Monthly retainer'}</label>
                 <input type="number" id="dv-retainer-monthly" min="0" step="100" data-en-ph="e.g. 5000" data-fr-ph="ex. 5000" placeholder="e.g. 5000" oninput="recalcDealValue()">
               </div>
               <div class="dv-field-row">
-                <label>Number of months</label>
+                <label>${currentLang==='fr'?'Nombre de mois':'Number of months'}</label>
                 <input type="number" id="dv-retainer-months" min="1" step="1" data-en-ph="e.g. 6" data-fr-ph="ex. 6" placeholder="e.g. 6" oninput="recalcDealValue()">
               </div>
             </div>
             <div class="dv-field-group" id="dvg-prep" style="display:none;">
               <div class="dv-field-row">
-                <label>Preparation fee</label>
+                <label>${currentLang==='fr'?'Frais initial':'Preparation fee'}</label>
                 <input type="number" id="dv-prep-fee" min="0" step="500" data-en-ph="e.g. 15000" data-fr-ph="ex. 15000" placeholder="e.g. 15000" oninput="recalcDealValue()">
               </div>
             </div>
             <div class="dv-field-group" id="dvg-success" style="display:none;">
               <div class="dv-field-row">
-                <label>Success rate</label>
+                <label>${currentLang==='fr'?'Taux de performance':'Success rate'}</label>
                 <input type="number" id="dv-success-rate" min="0" max="100" step="0.5" data-en-ph="e.g. 7" data-fr-ph="ex. 7" placeholder="e.g. 7" oninput="recalcDealValue()">
                 <span class="dv-pct">%</span>
               </div>
               <div class="dv-field-row">
-                <label>Applied to</label>
+                <label>${currentLang==='fr'?'Appliqué à':'Applied to'}</label>
                 <select id="dv-base-type" onchange="_dvShowFields();recalcDealValue()" style="font-family:inherit;color:var(--text);background:var(--bg);">
-                  <option value="transaction_value">% of transaction value</option>
-                  <option value="third_party_fee">% of a third party's fee</option>
+                  <option value="transaction_value">${currentLang==='fr'?'% de la valeur de la transaction':'% of transaction value'}</option>
+                  <option value="third_party_fee">${currentLang==='fr'?"% des honoraires d'un tiers":"% of a third party's fee"}</option>
                 </select>
               </div>
               <div class="dv-field-row">
-                <label id="dv-base-amount-lbl">Transaction value</label>
+                <label id="dv-base-amount-lbl">${currentLang==='fr'?'Valeur de la transaction':'Transaction value'}</label>
                 <input type="number" id="dv-base-amount" min="0" step="10000" data-en-ph="e.g. 2000000" data-fr-ph="ex. 2000000" placeholder="e.g. 2000000" oninput="recalcDealValue()">
               </div>
             </div>
             <div class="dv-field-group" id="dvg-fixed" style="display:none;">
               <div class="dv-field-row">
-                <label>Amount</label>
+                <label>${currentLang==='fr'?'Montant':'Amount'}</label>
                 <input type="number" id="dv-fixed-amount" min="0" step="1000" data-en-ph="e.g. 50000" data-fr-ph="ex. 50000" placeholder="e.g. 50000" oninput="recalcDealValue()">
               </div>
             </div>
             <div class="dv-field-group" id="dvg-shared" style="display:none;">
               <div class="dv-field-row">
-                <label>Stéphane's share</label>
+                <label>${currentLang==='fr'?'Part de Stéphane':"Stéphane's share"}</label>
                 <input type="number" id="dv-share-pct" min="0" max="100" step="5" data-en-ph="e.g. 50" data-fr-ph="ex. 50" placeholder="e.g. 50" oninput="recalcDealValue()">
                 <span class="dv-pct">%</span>
               </div>
               <div class="dv-field-row">
-                <label>Sub-type</label>
+                <label>${currentLang==='fr'?'Sous-type':'Sub-type'}</label>
                 <select id="dv-sub-type" onchange="_dvShowFields();recalcDealValue()" style="font-family:inherit;color:var(--text);background:var(--bg);">
-                  <option value="retainer_only">Retainer only</option>
-                  <option value="retainer_success">Retainer + Success</option>
-                  <option value="prep_success">Preparation fee + Success</option>
-                  <option value="success_only">Success only</option>
-                  <option value="fixed">Fixed amount</option>
+                  <option value="retainer_only">${currentLang==='fr'?'Forfait seul':'Retainer only'}</option>
+                  <option value="retainer_success">${currentLang==='fr'?'Forfait + commission de performance':'Retainer + Success'}</option>
+                  <option value="prep_success">${currentLang==='fr'?'Frais initial + commission de performance':'Preparation fee + Success'}</option>
+                  <option value="success_only">${currentLang==='fr'?'Commission de performance seule':'Success only'}</option>
+                  <option value="fixed">${currentLang==='fr'?'Montant fixe':'Fixed amount'}</option>
                 </select>
               </div>
               <div class="dv-field-row" id="dvg-gross-row" style="display:none;">
-                <label style="color:var(--muted)">Gross fee</label>
+                <label style="color:var(--muted)">${currentLang==='fr'?'Honoraires bruts':'Gross fee'}</label>
                 <span id="dv-gross-fee" style="font-size:var(--fs-sm);color:var(--muted);">—</span>
               </div>
             </div>
             <div class="dv-field-group" id="dvg-referral" style="display:none;">
               <div class="dv-field-row">
-                <label>Monthly base</label>
+                <label>${currentLang==='fr'?'Base mensuelle':'Monthly base'}</label>
                 <input type="number" id="dv-referral-base" min="0" step="100" data-en-ph="e.g. 1500" data-fr-ph="ex. 1500" placeholder="e.g. 1500" oninput="recalcDealValue()">
               </div>
               <div class="dv-field-row">
-                <label>First month rate</label>
+                <label>${currentLang==='fr'?'Taux du premier mois':'First month rate'}</label>
                 <input type="number" id="dv-referral-first" min="0" max="100" step="0.5" data-en-ph="e.g. 15" data-fr-ph="ex. 15" placeholder="e.g. 15" oninput="recalcDealValue()">
                 <span class="dv-pct">%</span>
               </div>
               <div class="dv-field-row">
-                <label>Subsequent rate</label>
+                <label>${currentLang==='fr'?'Taux suivant':'Subsequent rate'}</label>
                 <input type="number" id="dv-referral-sub" min="0" max="100" step="0.5" data-en-ph="e.g. 10" data-fr-ph="ex. 10" placeholder="e.g. 10" oninput="recalcDealValue()">
                 <span class="dv-pct">%</span>
               </div>
               <div class="dv-field-row">
-                <label>Duration (months)</label>
+                <label>${currentLang==='fr'?'Durée (mois)':'Duration (months)'}</label>
                 <input type="number" id="dv-referral-dur" min="1" step="1" data-en-ph="e.g. 12" data-fr-ph="ex. 12" placeholder="e.g. 12" oninput="recalcDealValue()">
               </div>
             </div>
@@ -8957,11 +8968,11 @@ async function openDrawer(card, initialTab = 'activity') {
             </div>
             <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">
               <div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px;" data-en="Currency &amp; Manual override" data-fr="Devise &amp; Saisie manuelle">Currency &amp; Manual override</div>
-              <div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:4px;">Currency (applies to estimator &amp; manual)</div>
+              <div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:4px;">${currentLang==='fr'?"Devise (s'applique à l'estimation et à la saisie manuelle)":'Currency (applies to estimator & manual)'}</div>
               <select id="dv-currency" onchange="recalcDealValue()"
                 style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:var(--fs-sm);font-family:inherit;background:var(--bg);color:var(--text);margin-bottom:8px;">
                   <option value="">— —</option>
-                  <optgroup label="Common">
+                  <optgroup label="${currentLang==='fr'?'Courantes':'Common'}">
                     <option value="EUR">EUR — Euro</option>
                     <option value="USD">USD — US Dollar</option>
                     <option value="GBP">GBP — British Pound</option>
@@ -8979,7 +8990,7 @@ async function openDrawer(card, initialTab = 'activity') {
                     <option value="DKK">DKK — Danish Krone</option>
                     <option value="MAD">MAD — Moroccan Dirham</option>
                   </optgroup>
-                  <optgroup label="All currencies">
+                  <optgroup label="${currentLang==='fr'?'Toutes les devises':'All currencies'}">
                     <option value="AFN">AFN — Afghan Afghani</option>
                     <option value="ALL">ALL — Albanian Lek</option>
                     <option value="AMD">AMD — Armenian Dram</option>
@@ -9122,7 +9133,7 @@ async function openDrawer(card, initialTab = 'activity') {
                     <option value="ZWL">ZWL — Zimbabwean Dollar</option>
                   </optgroup>
                 </select>
-              <div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:4px;margin-top:4px;">Manual amount (overrides estimator)</div>
+              <div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:4px;margin-top:4px;">${currentLang==='fr'?"Montant manuel (remplace l'estimation)":'Manual amount (overrides estimator)'}</div>
               <input type="number" id="dv-manual" min="0" step="1000" data-en-ph="e.g. 150000" data-fr-ph="ex. 150000" placeholder="e.g. 150000"
                 oninput="recalcDealValue()"
                 style="width:100%;box-sizing:border-box;padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:var(--fs-base);font-family:inherit;background:var(--bg);color:var(--text);margin-bottom:8px;" />
@@ -9994,10 +10005,14 @@ function _renderPriorityCards(prospects) {
 // (necessaire maintenant que le pied est un enfant de ce div, plus un frere). Bouton compact : memes declarations CSS que le bouton
 // « + Add to pipeline » du Comite d'achat (_addBtnHtml), pas un style invente.
 function _priorityGenerateFooterHTML(pid) {
+  // FIX 25/09 (chantier langue, bouton "Générer" repere ce matin) : le libelle initial etait en
+  // dur en anglais alors que _priorityGenerate() (etats "Generating…"/"Régénérer" ci-dessous) est
+  // deja bilingue depuis le debut -- seul l'etat de depart du bouton avait ete oublie. Meme
+  // ternaire currentLang que le reste de la fonction, aucun mecanisme nouveau.
   return `<div class="pri-action" id="pri-action-${pid}" style="margin-top:6px;text-align:right;" onclick="event.stopPropagation()">
     <button id="pri-gen-${pid}" onclick="_priorityGenerate('${pid}')"
       style="font-size:var(--fs-xs);padding:4px 11px;background:var(--navy);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer">
-      Generate
+      ${currentLang==='fr' ? 'Générer' : 'Generate'}
     </button>
   </div>`;
 }
@@ -10611,7 +10626,7 @@ Rules: no em-dashes, no markdown headers, factual only, base everything on the n
     const rem = new Date();
     rem.setDate(rem.getDate() + 2);
     const remIso = rem.toISOString();
-    const remLabel = rem.toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short' });
+    const remLabel = rem.toLocaleDateString(currentLang==='fr'?'fr-FR':'en-GB', { weekday:'short', day:'numeric', month:'short' });
     const updates = { reminder_date: remIso, updated_at: new Date().toISOString() };
     if (shouldAdvance) updates.stage = 'Proposal';
     const { error: _pcErr } = await sbClient.from('prospects').update(updates).eq('id', pid).eq('client_id', _drawerClientId());
@@ -10622,8 +10637,8 @@ Rules: no em-dashes, no markdown headers, factual only, base everything on the n
       if (card) { card.dataset.reminderDate = remIso; if (shouldAdvance) card.dataset.stage = 'Proposal'; }
     }
     verdictActions = `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
-      ${shouldAdvance ? '<span style="background:#dcfce7;color:var(--green);border:1px solid var(--green-border);border-radius:var(--radius-panel);font-size:var(--fs-xs);font-weight:700;padding:2px 8px;">Stage advanced to Proposal</span>' : ''}
-      <span style="background:#dbeafe;color:#1e40af;border:1px solid #93c5fd;border-radius:var(--radius-panel);font-size:var(--fs-xs);font-weight:700;padding:2px 8px;">Reminder set: ${remLabel}</span>
+      ${shouldAdvance ? `<span style="background:#dcfce7;color:var(--green);border:1px solid var(--green-border);border-radius:var(--radius-panel);font-size:var(--fs-xs);font-weight:700;padding:2px 8px;">${currentLang==='fr'?'Étape avancée à Proposition':'Stage advanced to Proposal'}</span>` : ''}
+      <span style="background:#dbeafe;color:#1e40af;border:1px solid #93c5fd;border-radius:var(--radius-panel);font-size:var(--fs-xs);font-weight:700;padding:2px 8px;">${currentLang==='fr'?'Rappel défini : ':'Reminder set: '}${remLabel}</span>
     </div>`;
   }
 
@@ -10642,12 +10657,12 @@ Rules: no em-dashes, no markdown headers, factual only, base everything on the n
 
   pcBox.innerHTML = `<div class="post-call-box">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-      <span style="font-size:var(--fs-xs);font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Post-call debrief</span>
+      <span style="font-size:var(--fs-xs);font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">${currentLang==='fr'?'Debrief post-appel':'Post-call debrief'}</span>
       <span style="background:${verdictBg};color:${verdictColor};border-radius:var(--radius-panel);font-size:var(--fs-xs);font-weight:700;padding:2px 8px;text-transform:uppercase;">${verdict}</span>
     </div>
     ${verdictActions}
     <pre style="font-size:var(--fs-sm);line-height:1.6;white-space:pre-wrap;margin:0 0 10px;font-family:inherit;">${_esc(formatted)}</pre>
-    ${emailBody ? `<a href="${gmailHref}" target="_blank" rel="noopener" style="display:inline-block;font-size:var(--fs-sm);padding:6px 14px;background:var(--navy);color:#fff;border-radius:var(--radius-sm);text-decoration:none;font-weight:600;">Open Gmail compose</a>` : ''}
+    ${emailBody ? `<a href="${gmailHref}" target="_blank" rel="noopener" style="display:inline-block;font-size:var(--fs-sm);padding:6px 14px;background:var(--navy);color:#fff;border-radius:var(--radius-sm);text-decoration:none;font-weight:600;">${currentLang==='fr'?'Ouvrir Gmail':'Open Gmail compose'}</a>` : ''}
   </div>`;
 
   // Persist debrief to interactions table
@@ -11719,7 +11734,7 @@ function _drawerProfileHTML(id, p, colStage, fb){
   fb = fb || {};
   const v = s => _esc(s == null ? '' : String(s));
   const stripHtml = s => (s || '').replace(/<a\s[^>]*>([^<]*)<\/a>/gi, '$1').replace(/<[^>]*>/g, '').trim();
-  const opts = KANBAN_STAGES.map(s => `<option value="${s}"${s === colStage ? ' selected' : ''}>${s}</option>`).join('');
+  const opts = KANBAN_STAGES.map(s => `<option value="${s}"${s === colStage ? ' selected' : ''}>${_esc((_SC_STAGE_LABEL_FR && currentLang==='fr' && _SC_STAGE_LABEL_FR[s]) || s)}</option>`).join('');
   const rt = p.region ? _regionTag(p.region) : '';
   const lbl = t => `<div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);letter-spacing:0.02em">${t}</div>`;
   const card = c => `<div style="border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:14px 16px;display:flex;flex-direction:column;gap:8px">${c}</div>`;
@@ -11731,12 +11746,12 @@ function _drawerProfileHTML(id, p, colStage, fb){
       `<input id="ed-title" class="dp-inp" value="${v(p.title)}" data-en-ph="Title" data-fr-ph="Titre" placeholder="Title">` +
       `<div style="display:flex;gap:8px">` +
         `<input id="ed-email" class="dp-inp" value="${v(p.email)}" data-en-ph="Email" data-fr-ph="Email" placeholder="Email" style="flex:1;min-width:0">` +
-        `<button id="find-email-${id}" onclick="_findEmailDrawer('${id}')" style="font-size:var(--fs-sm);white-space:nowrap;min-width:95px;padding:6px 12px;background:var(--navy);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer">Find email</button>` +
+        `<button id="find-email-${id}" onclick="_findEmailDrawer('${id}')" style="font-size:var(--fs-sm);white-space:nowrap;min-width:95px;padding:6px 12px;background:var(--navy);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer">${currentLang==='fr'?"Trouver l'email":'Find email'}</button>` +
       `</div>` +
       `<span id="email-status-${id}" style="font-size:var(--fs-xs);color:#6b7a99"></span>` +
       `<div style="display:flex;gap:8px">` +
         `<input id="ed-phone" class="dp-inp" value="${v(p.phone)}" data-en-ph="Phone" data-fr-ph="Téléphone" placeholder="Phone" style="flex:1;min-width:0">` +
-        `<button id="find-phone-${id}" onclick="_findPhoneDrawer('${id}')" style="font-size:var(--fs-sm);white-space:nowrap;min-width:95px;padding:6px 12px;background:var(--navy);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer">Find phone</button>` +
+        `<button id="find-phone-${id}" onclick="_findPhoneDrawer('${id}')" style="font-size:var(--fs-sm);white-space:nowrap;min-width:95px;padding:6px 12px;background:var(--navy);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer">${currentLang==='fr'?'Trouver le téléphone':'Find phone'}</button>` +
       `</div>` +
       `<span id="phone-status-${id}" style="font-size:var(--fs-xs);color:#6b7a99"></span>` +
       `<input id="ed-linkedin" class="dp-inp" value="${v(p.linkedin)}" data-en-ph="LinkedIn URL" data-fr-ph="URL LinkedIn" placeholder="LinkedIn URL">`
@@ -11746,7 +11761,7 @@ function _drawerProfileHTML(id, p, colStage, fb){
       `<div class="classification-grid">` +
         `<input id="ed-sector" class="dp-inp" value="${v(p.sector || fb.sector)}" data-en-ph="e.g. B2B SaaS, Fintech..." data-fr-ph="ex. B2B SaaS, Fintech..." placeholder="e.g. B2B SaaS, Fintech...">` +
         `<input id="ed-country" class="dp-inp" value="${v(p.country)}" data-en-ph="Country" data-fr-ph="Pays" placeholder="Country">` +
-        `<select id="ed-region" class="dp-inp"><option value=""${rt === '' ? ' selected' : ''}>Select region...</option><option value="EMEA"${rt === 'EMEA' ? ' selected' : ''}>EMEA</option><option value="NA"${rt === 'NA' ? ' selected' : ''}>NA</option><option value="APAC"${rt === 'APAC' ? ' selected' : ''}>APAC</option><option value="LATAM"${rt === 'LATAM' ? ' selected' : ''}>LATAM</option></select>` +
+        `<select id="ed-region" class="dp-inp"><option value=""${rt === '' ? ' selected' : ''}>${currentLang==='fr'?'Sélectionner une région...':'Select region...'}</option><option value="EMEA"${rt === 'EMEA' ? ' selected' : ''}>EMEA</option><option value="NA"${rt === 'NA' ? ' selected' : ''}>NA</option><option value="APAC"${rt === 'APAC' ? ' selected' : ''}>APAC</option><option value="LATAM"${rt === 'LATAM' ? ' selected' : ''}>LATAM</option></select>` +
         `<select id="ed-stage" class="dp-inp">${opts}</select>` +
       `</div>` +
       `<div style="display:flex;gap:8px">` +
@@ -11763,26 +11778,26 @@ function _drawerProfileHTML(id, p, colStage, fb){
           const _emailDom2 = _emailRaw2.includes('@') ? _emailRaw2.split('@')[1].trim().toLowerCase() : null;
           const _hasDom = (_dom && !_dom.includes('linkedin.com') && _dom.includes('.')) || (_emailDom2 && _emailDom2.includes('.'));
           return _hasDom
-            ? `<button id="co-enrich-${id}" onclick="_enrichCompanyDrawer('${id}')" style="font-size:var(--fs-sm);white-space:nowrap;padding:6px 12px;background:var(--navy);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer">Enrich Company</button>`
-            : `<button disabled style="font-size:var(--fs-sm);white-space:nowrap;padding:6px 12px;background:var(--border);color:var(--muted);border:none;border-radius:var(--radius-sm);cursor:not-allowed">No domain on file</button>`;
+            ? `<button id="co-enrich-${id}" onclick="_enrichCompanyDrawer('${id}')" style="font-size:var(--fs-sm);white-space:nowrap;padding:6px 12px;background:var(--navy);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer">${currentLang==='fr'?'Enrichir la société':'Enrich Company'}</button>`
+            : `<button disabled style="font-size:var(--fs-sm);white-space:nowrap;padding:6px 12px;background:var(--border);color:var(--muted);border:none;border-radius:var(--radius-sm);cursor:not-allowed">${currentLang==='fr'?'Aucun domaine enregistré':'No domain on file'}</button>`;
         })() +
         `<span id="co-enrich-status-${id}" style="font-size:var(--fs-xs);color:var(--muted)"></span>` +
       `</div>` +
       `<div>` +
-        `<p style="font-size:var(--fs-xs);color:var(--muted);font-weight:600;letter-spacing:0.02em;margin:0 0 6px">Contact type</p>` +
+        `<p style="font-size:var(--fs-xs);color:var(--muted);font-weight:600;letter-spacing:0.02em;margin:0 0 6px">${currentLang==='fr'?'Type de contact':'Contact type'}</p>` +
         `<div style="display:flex;gap:8px">` +
-          `<button id="origin-network-${id}" onclick="_setOrigin('${id}','network')" style="font-size:var(--fs-sm);padding:5px 12px;border-radius:var(--radius-sm);cursor:pointer;border:1px solid ${p.origin==='network'?'var(--navy)':'var(--border)'};background:${p.origin==='network'?'var(--navy)':'var(--white)'};color:${p.origin==='network'?'#fff':'var(--text)'}">Known contact</button>` +
-          `<button id="origin-outbound-${id}" onclick="_setOrigin('${id}','outbound')" style="font-size:var(--fs-sm);padding:5px 12px;border-radius:var(--radius-sm);cursor:pointer;border:1px solid ${p.origin!=='network'?'var(--navy)':'var(--border)'};background:${p.origin!=='network'?'var(--navy)':'var(--white)'};color:${p.origin!=='network'?'#fff':'var(--text)'}">New prospect</button>` +
+          `<button id="origin-network-${id}" onclick="_setOrigin('${id}','network')" style="font-size:var(--fs-sm);padding:5px 12px;border-radius:var(--radius-sm);cursor:pointer;border:1px solid ${p.origin==='network'?'var(--navy)':'var(--border)'};background:${p.origin==='network'?'var(--navy)':'var(--white)'};color:${p.origin==='network'?'#fff':'var(--text)'}">${currentLang==='fr'?'Contact connu':'Known contact'}</button>` +
+          `<button id="origin-outbound-${id}" onclick="_setOrigin('${id}','outbound')" style="font-size:var(--fs-sm);padding:5px 12px;border-radius:var(--radius-sm);cursor:pointer;border:1px solid ${p.origin!=='network'?'var(--navy)':'var(--border)'};background:${p.origin!=='network'?'var(--navy)':'var(--white)'};color:${p.origin!=='network'?'#fff':'var(--text)'}">${currentLang==='fr'?'Nouveau prospect':'New prospect'}</button>` +
         `</div>` +
       `</div>`
     )}
     ${card(
-      lbl('Signal / Context') +
+      lbl(currentLang==='fr'?'Signal / Contexte':'Signal / Context') +
       `<textarea id="drawer-signal" class="dp-inp" rows="3" data-en-ph="e.g. New CRO hired from PE-backed SaaS, scaled $4M to $28M ARR" data-fr-ph="ex. Nouveau CRO recruté par un SaaS soutenu par un fonds PE, croissance de 4M$ à 28M$ ARR" placeholder="e.g. New CRO hired from PE-backed SaaS, scaled $4M to $28M ARR" style="font-size:var(--fs-base);min-height:60px;resize:vertical">${v(stripHtml(p.signal))}</textarea>` +
       `<div id="signal-link-wrap" style="font-size:var(--fs-xs)"></div>` +
-      (p.signal_date && _relDate(p.signal_date) ? `<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:2px">Signal: ${_esc(_relDate(p.signal_date))}</div>` : '') +
+      (p.signal_date && _relDate(p.signal_date) ? `<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:2px">${currentLang==='fr'?'Signal :':'Signal:'} ${_esc(_relDate(p.signal_date))}</div>` : '') +
       `<select id="drawer-signal-type" style="font-size:var(--fs-sm);padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);color:var(--text)">` +
-        `<option value="">-- Signal type --</option>` +
+        `<option value="">${currentLang==='fr'?'-- Type de signal --':'-- Signal type --'}</option>` +
         `${(_signalTaxonomy && Object.keys(_signalTaxonomy).length ? Object.values(_signalTaxonomy) : [{code:'S1',label:'S1'},{code:'S2',label:'S2'},{code:'S3',label:'S3'},{code:'S4',label:'S4'},{code:'activity',label:currentLang==='fr'?'Engagement passif (réaction/commentaire)':'Passive engagement (reaction/comment)',icon:'👁'}]).map(t => `<option value="${_esc(t.code)}"${(p.signal_type||'').toUpperCase()===(t.code||'').toUpperCase()?' selected':''}>${_esc(t.icon||'')} ${_esc(t.code)} — ${_esc((currentLang==='fr'?(t.label_fr||t.label):t.label)||t.code)}</option>`).join('')}` +
       `</select>` +
       // FIX 22/09 (chantier langue tiroir, point 2, GO Thomas) : icp_reason n'est plus re-rendu ici.
@@ -12029,7 +12044,7 @@ async function addProspect(){
         }).catch(e => console.warn('[icp-score-batch] webhook failed:', e));
       } catch(e) { console.warn('[icp-score-batch] auth headers failed:', e); }
     }
-  } catch(e){ console.error('[addProspect]', e); err.textContent = (e && e.message) ? e.message : 'Error'; err.style.display = 'block'; }
+  } catch(e){ console.error('[addProspect]', e); err.textContent = (e && e.message) ? e.message : (currentLang==='fr' ? 'Erreur' : 'Error'); err.style.display = 'block'; }
   finally { if (btn) btn.disabled = false; }
 }
 function openAddProspect(){
@@ -14783,7 +14798,7 @@ function _renderCrmDrawerContent(crmId) {
     const opCo   = _esc((op && op.company) || '');
     originHtml = `<div class="crm-origin-banner" onclick="_openProspectFromCrm('${_esc(String(originId))}')" title="${currentLang==='fr'?'Ouvrir la fiche du prospect':'Open prospect drawer'}">
       <div style="flex:1;min-width:0;">
-        <div class="crm-origin-label">Converted from prospect</div>
+        <div class="crm-origin-label">${currentLang==='fr'?'Converti depuis un prospect':'Converted from prospect'}</div>
         <div class="crm-origin-name">${opName}</div>
         ${opCo ? `<div class="crm-origin-co">${opCo}</div>` : ''}
       </div>
@@ -14794,7 +14809,7 @@ function _renderCrmDrawerContent(crmId) {
   // ── Roadmap steps ──
   let stepsHtml = '';
   if (steps.length === 0) {
-    stepsHtml = '<div class="crm-drawer-empty">No roadmap steps yet.</div>';
+    stepsHtml = `<div class="crm-drawer-empty">${currentLang==='fr'?'Aucune étape de roadmap pour le moment.':'No roadmap steps yet.'}</div>`;
   } else {
     stepsHtml = '<div class="crm-roadmap-list">'
       + steps.map(s => {
@@ -14802,7 +14817,7 @@ function _renderCrmDrawerContent(crmId) {
           const lbl         = _esc(s.label || '');
           const isSuggested = s.status === 'Suggested';
           const statusChip  = s.status
-            ? `<span class="crm-step-status-chip${isSuggested ? ' crm-step-chip-suggested' : ''}">${_esc(isSuggested ? 'AI suggested' : s.status)}</span>` : '';
+            ? `<span class="crm-step-status-chip${isSuggested ? ' crm-step-chip-suggested' : ''}">${isSuggested ? (currentLang==='fr'?"Suggéré par l'IA":'AI suggested') : _esc(s.status)}</span>` : '';
           const dateStr     = s.step_date
             ? `<span class="crm-step-date">${_esc(String(s.step_date).slice(0, 10))}</span>` : '';
           return `<div class="crm-step-item${isSuggested ? ' crm-step-suggested' : ''}" data-step-id="${sid}" onclick="_crmShowStepForm('${sid}')">
@@ -14828,7 +14843,7 @@ function _renderCrmDrawerContent(crmId) {
       ${originHtml}
       <div class="drawer-section-title" style="margin-bottom:12px;">Roadmap</div>
       ${stepsHtml}
-      <button class="crm-add-step-btn" onclick="_crmShowStepForm(null)">+ Add step</button>
+      <button class="crm-add-step-btn" onclick="_crmShowStepForm(null)">${currentLang==='fr'?'+ Ajouter une étape':'+ Add step'}</button>
     </div>`;
 
   document.getElementById('drawer').dataset.crmId = crmId;
@@ -14860,9 +14875,9 @@ function _crmShowStepForm(stepId) {
   const formHtml = `<div class="crm-step-form" id="crm-sf">
     <input type="text" id="crm-sf-label" value="${lbl}" placeholder="${currentLang === 'fr' ? 'Libellé de l\'étape…' : 'Step label…'}" oninput="" />
     <div class="crm-step-chips">
-      <button type="button" class="crm-step-chip" onclick="_crmSetChip('Planned')">Planned</button>
-      <button type="button" class="crm-step-chip" onclick="_crmSetChip('In discussion')">In discussion</button>
-      <button type="button" class="crm-step-chip" onclick="_crmSetChip('Done')">Done</button>
+      <button type="button" class="crm-step-chip" onclick="_crmSetChip('Planned')" data-en="Planned" data-fr="Planifié">Planned</button>
+      <button type="button" class="crm-step-chip" onclick="_crmSetChip('In discussion')" data-en="In discussion" data-fr="En discussion">In discussion</button>
+      <button type="button" class="crm-step-chip" onclick="_crmSetChip('Done')" data-en="Done" data-fr="Terminé">Done</button>
     </div>
     <input type="text" id="crm-sf-status" value="${status}" placeholder="${currentLang === 'fr' ? 'Statut (texte libre)…' : 'Status (free text)…'}" oninput="_crmHighlightChips()" />
     <input type="date" id="crm-sf-date" value="${date}" />
@@ -15151,7 +15166,7 @@ async function handleAvatarUpload(event) {
   if (!file) return;
   const reader = new FileReader();
   reader.onload = e => {
-    document.getElementById('modal-avatar').innerHTML = `<img src="${e.target.result}" alt="preview">`;
+    document.getElementById('modal-avatar').innerHTML = `<img src="${e.target.result}" alt="${currentLang==='fr'?'aperçu':'preview'}">`;
   };
   reader.readAsDataURL(file);
   try {
@@ -15477,35 +15492,35 @@ async function _hsSaveMapping() {
 
 <div class="profile-overlay" id="profile-overlay" onclick="overlayClick(event)">
   <div class="profile-modal">
-    <h3>My Profile</h3>
+    <h3 data-en="My Profile" data-fr="Mon profil">My Profile</h3>
     <div class="profile-avatar-big" id="modal-avatar" onclick="document.getElementById('avatar-file-input').click()"></div>
-    <p class="avatar-hint">Click to change your photo</p>
+    <p class="avatar-hint" data-en="Click to change your photo" data-fr="Cliquez pour changer votre photo">Click to change your photo</p>
     <div class="pf-field">
-      <label>Display name</label>
+      <label data-en="Display name" data-fr="Nom affiché">Display name</label>
       <input type="text" id="pf-name" data-en-ph="e.g. Alex" data-fr-ph="ex. Alex" placeholder="e.g. Alex">
     </div>
     <div class="pf-field">
-      <label>Company</label>
+      <label data-en="Company" data-fr="Société">Company</label>
       <input type="text" id="pf-company" disabled>
     </div>
     <div class="pf-actions">
-      <button class="btn-pf-cancel" onclick="closeProfileModal()">Cancel</button>
-      <button class="btn-pf-save" onclick="saveProfile()">Save changes</button>
+      <button class="btn-pf-cancel" onclick="closeProfileModal()" data-en="Cancel" data-fr="Annuler">Cancel</button>
+      <button class="btn-pf-save" onclick="saveProfile()" data-en="Save changes" data-fr="Enregistrer les modifications">Save changes</button>
     </div>
     <div style="border-top:1px solid #eef0f6;margin-top:20px;padding-top:16px;">
       <div class="pf-field">
-        <label>New password</label>
+        <label data-en="New password" data-fr="Nouveau mot de passe">New password</label>
         <input type="password" id="pf-new-password" data-en-ph="Min. 8 characters" data-fr-ph="Min. 8 caractères" placeholder="Min. 8 characters" autocomplete="new-password">
       </div>
       <div class="pf-field">
-        <label>Confirm password</label>
+        <label data-en="Confirm password" data-fr="Confirmer le mot de passe">Confirm password</label>
         <input type="password" id="pf-confirm-password" data-en-ph="Repeat new password" data-fr-ph="Répétez le nouveau mot de passe" placeholder="Repeat new password" autocomplete="new-password">
       </div>
       <div id="pf-pw-error" style="display:none;font-size:var(--fs-sm);color:var(--red);margin-bottom:10px;"></div>
-      <button onclick="_changePassword()" style="width:100%;background:var(--navy);color:#fff;border:none;border-radius:var(--radius-md);padding:10px;font-size:var(--fs-base);font-weight:700;cursor:pointer;font-family:inherit;">Update password</button>
+      <button onclick="_changePassword()" style="width:100%;background:var(--navy);color:#fff;border:none;border-radius:var(--radius-md);padding:10px;font-size:var(--fs-base);font-weight:700;cursor:pointer;font-family:inherit;" data-en="Update password" data-fr="Mettre à jour le mot de passe">Update password</button>
     </div>
     <div style="text-align:center;margin-top:16px;">
-      <button onclick="signOut()" style="background:none;border:none;font-size:var(--fs-sm);color:var(--dim);cursor:pointer;text-decoration:underline;">Sign out</button>
+      <button onclick="signOut()" style="background:none;border:none;font-size:var(--fs-sm);color:var(--dim);cursor:pointer;text-decoration:underline;" data-en="Sign out" data-fr="Se déconnecter">Sign out</button>
     </div>
   </div>
 </div>
@@ -15524,8 +15539,8 @@ async function _hsSaveMapping() {
     <input id="ap-linkedin" class="dp-inp" data-en-ph="LinkedIn URL" data-fr-ph="URL LinkedIn" placeholder="LinkedIn URL">
     <input id="ap-sector" class="dp-inp" data-en-ph="Sector" data-fr-ph="Secteur" placeholder="Sector">
     <input id="ap-country" class="dp-inp" data-en-ph="Country" data-fr-ph="Pays" placeholder="Country">
-    <select id="ap-region" class="dp-inp"><option value="" selected>Select region...</option><option value="EMEA">EMEA</option><option value="NA">NA</option></select>
-    <select id="ap-stage" class="dp-inp"><option>Identified</option><option value="1st Contact">Connected</option><option>Engaged</option><option>Replied</option><option>Proposal</option><option>Negotiation</option><option>Closed</option></select>
+    <select id="ap-region" class="dp-inp"><option value="" selected data-en="Select region..." data-fr="Sélectionner une région...">Select region...</option><option value="EMEA">EMEA</option><option value="NA">NA</option></select>
+    <select id="ap-stage" class="dp-inp"><option data-en="Identified" data-fr="Identifiés">Identified</option><option value="1st Contact" data-en="Connected" data-fr="Connecté">Connected</option><option data-en="Engaged" data-fr="Engagés">Engaged</option><option data-en="Replied" data-fr="Répondu">Replied</option><option data-en="Proposal" data-fr="Proposition">Proposal</option><option data-en="Negotiation" data-fr="Négociation">Negotiation</option><option data-en="Closed" data-fr="Clôturé">Closed</option></select>
     <div id="ap-error" style="display:none;color:var(--red);font-size:var(--fs-sm);"></div>
     <div style="display:flex;gap:8px;margin-top:6px;">
       <button id="ap-save-btn" class="btn-primary" style="flex:1;justify-content:center" onclick="addProspect()"><span data-en="Add prospect" data-fr="Ajouter">Add prospect</span></button>
@@ -15538,41 +15553,41 @@ async function _hsSaveMapping() {
 <div id="addm-overlay" onclick="if(event.target===this) closeAddMandate()" style="position:fixed;inset:0;background:rgba(26,43,94,0.35);z-index:9700;opacity:0;pointer-events:none;transition:opacity .25s;"></div>
 <div id="addm-modal" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-48%);width:480px;max-width:92vw;max-height:88vh;overflow-y:auto;z-index:9800;opacity:0;pointer-events:none;transition:opacity .25s, transform .25s;background:#fff;border-radius:var(--radius-xl);box-shadow:0 20px 60px rgba(26,43,94,0.25);padding:28px;">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-    <h3 style="font-size:var(--fs-md);font-weight:800;color:var(--navy);margin:0;">New mandate</h3>
+    <h3 style="font-size:var(--fs-md);font-weight:800;color:var(--navy);margin:0;" data-en="New mandate" data-fr="Nouveau mandat">New mandate</h3>
     <button onclick="closeAddMandate()" style="background:none;border:none;font-size:20px;color:var(--muted);cursor:pointer;line-height:1;" data-en-aria="Close" data-fr-aria="Fermer" aria-label="Close">✕</button>
   </div>
   <div style="margin-bottom:14px;">
-    <label style="display:block;font-size:var(--fs-micro);font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:5px;">Segment *</label>
+    <label style="display:block;font-size:var(--fs-micro);font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:5px;" data-en="Segment *" data-fr="Segment *">Segment *</label>
     <input type="text" id="addm-segment" class="dp-inp" data-en-ph="e.g. Cession, Acquisition, Fundraising..." data-fr-ph="ex. Cession, Acquisition, Levée de fonds..." placeholder="e.g. Cession, Acquisition, Fundraising...">
   </div>
   <div style="margin-bottom:14px;">
-    <label style="display:block;font-size:var(--fs-micro);font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:5px;">Mandate name *</label>
+    <label style="display:block;font-size:var(--fs-micro);font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:5px;" data-en="Mandate name *" data-fr="Nom du mandat *">Mandate name *</label>
     <input type="text" id="addm-name" class="dp-inp" data-en-ph="e.g. Manufacturing - DACH" data-fr-ph="ex. Industrie - DACH" placeholder="e.g. Manufacturing - DACH">
   </div>
   <div style="margin-bottom:14px;">
-    <label style="display:block;font-size:var(--fs-micro);font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:5px;">ICP criteria</label>
+    <label style="display:block;font-size:var(--fs-micro);font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:5px;" data-en="ICP criteria" data-fr="Critères ICP">ICP criteria</label>
     <textarea id="addm-icp" class="dp-inp" style="min-height:60px;resize:vertical;" data-en-ph="Decision makers, company type, size..." data-fr-ph="Décideurs, type de société, taille..." placeholder="Decision makers, company type, size..."></textarea>
   </div>
   <div style="margin-bottom:14px;">
-    <label style="display:block;font-size:var(--fs-micro);font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:5px;">Sectors</label>
+    <label style="display:block;font-size:var(--fs-micro);font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:5px;" data-en="Sectors" data-fr="Secteurs">Sectors</label>
     <input type="text" id="addm-sectors" class="dp-inp">
   </div>
   <div style="margin-bottom:14px;">
-    <label style="display:block;font-size:var(--fs-micro);font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:5px;">Geography</label>
+    <label style="display:block;font-size:var(--fs-micro);font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:5px;" data-en="Geography" data-fr="Zone géographique">Geography</label>
     <input type="text" id="addm-geography" class="dp-inp">
   </div>
   <div style="margin-bottom:14px;">
-    <label style="display:block;font-size:var(--fs-micro);font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:5px;">Signals</label>
+    <label style="display:block;font-size:var(--fs-micro);font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:5px;" data-en="Signals" data-fr="Signaux">Signals</label>
     <input type="text" id="addm-signals" class="dp-inp">
   </div>
   <div style="margin-bottom:18px;">
-    <label style="display:block;font-size:var(--fs-micro);font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:5px;">Exclusions</label>
+    <label style="display:block;font-size:var(--fs-micro);font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:5px;" data-en="Exclusions" data-fr="Exclusions">Exclusions</label>
     <input type="text" id="addm-exclusions" class="dp-inp">
   </div>
   <div id="addm-error" style="display:none;color:var(--red);font-size:var(--fs-sm);margin-bottom:12px;"></div>
   <div style="display:flex;gap:8px;justify-content:flex-end;">
-    <button class="btn-secondary" style="justify-content:center;" onclick="closeAddMandate()">Cancel</button>
-    <button id="addm-save-btn" class="btn-primary" style="justify-content:center;" onclick="saveMandateForm()">Create mandate</button>
+    <button class="btn-secondary" style="justify-content:center;" onclick="closeAddMandate()" data-en="Cancel" data-fr="Annuler">Cancel</button>
+    <button id="addm-save-btn" class="btn-primary" style="justify-content:center;" onclick="saveMandateForm()" data-en="Create mandate" data-fr="Créer le mandat">Create mandate</button>
   </div>
 </div>
 
@@ -15607,13 +15622,13 @@ if ('serviceWorker' in navigator) {
 <div id="scanner-overlay" onclick="closeScannerPanel()"></div>
 <div id="scanner-panel">
   <div class="scanner-panel-head">
-    <span class="scanner-panel-title">Scan a company</span>
+    <span class="scanner-panel-title" data-en="Scan a company" data-fr="Analyser une société">Scan a company</span>
     <button class="drawer-close" onclick="closeScannerPanel()" data-en-aria="Close scanner" data-fr-aria="Fermer le scanner" aria-label="Close scanner">✕</button>
   </div>
   <div class="scanner-panel-body">
     <div class="scanner-mode-toggle">
-      <button class="scanner-mode-btn active" id="scanner-mode-icp" onclick="_scannerSetMode('icp')">ICP Scan</button>
-      <button class="scanner-mode-btn" id="scanner-mode-free" onclick="_scannerSetMode('free')">Free Search</button>
+      <button class="scanner-mode-btn active" id="scanner-mode-icp" onclick="_scannerSetMode('icp')" data-en="ICP Scan" data-fr="Scan ICP">ICP Scan</button>
+      <button class="scanner-mode-btn" id="scanner-mode-free" onclick="_scannerSetMode('free')" data-en="Free Search" data-fr="Recherche libre">Free Search</button>
     </div>
     <div class="input-row">
       <input class="input-field" id="scanner-company" placeholder="Company name" data-en-ph="Company name" data-fr-ph="Nom de la société" />

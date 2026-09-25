@@ -3491,7 +3491,7 @@ function _renderWeeklyList(reports, voteMap) {
   if (!list) return;
   const fr = typeof currentLang !== 'undefined' && currentLang === 'fr';
   if (!reports || !reports.length) {
-    list.innerHTML = `<div style="color:var(--text-secondary);font-size:var(--fs-base);padding:16px 0;">${fr ? 'Aucun rapport généré pour l\'instant. Cliquez sur Générer le rapport pour lancer la génération.' : 'No report generated yet. Click Generate Report to run.'}</div>`;
+    list.innerHTML = `<div style="color:var(--text-secondary);font-size:var(--fs-base);padding:16px 0;">${fr ? 'Aucun rapport pour l\'instant. Le rapport hebdomadaire est généré automatiquement chaque vendredi.' : 'No report yet. The weekly report is generated automatically every Friday.'}</div>`;
     return;
   }
   const vm = voteMap || {};
@@ -3688,7 +3688,7 @@ const _SC_TRANSITIONS = [
 async function _loadStageConversion() {
   const el = document.getElementById('stage-conversion-list');
   if (!el) return;
-  el.innerHTML = 'Loading...';
+  el.innerHTML = currentLang==='fr' ? 'Chargement...' : 'Loading...';
   try {
     const { data: { session } } = await sbClient.auth.getSession();
     const token = session?.access_token || '';
@@ -5525,6 +5525,22 @@ function setLang(lang) {
   // conversation reelle en cours, son accueil + ses pills suivent la bascule immediatement au lieu
   // d'attendre une fermeture/reouverture.
   if (typeof _askRefreshLangIfIdle === 'function') _askRefreshLangIfIdle();
+  // FIX 25/09 (chantier langue, bouton "Générer" repere ce matin, Today/Priorities) : ce panneau
+  // (cartes _mscDecisionCardHTML + pied _priorityFooterHTML, lignes Reminders due/backlog) est
+  // construit en JS avec des ternaires currentLang, jamais un data-en/data-fr statique -- exactement
+  // le meme defaut que les sections listees ci-dessus (FIX 24/09), simplement oublie de cette liste.
+  // Re-rendu pur depuis les caches locaux deja charges (tous initialises a [] / 0 -- no-op silencieux
+  // si Today n'a jamais ete visite ; de toute facon ecrase par loadDailyPriorities()/
+  // _loadFollowUpsDue() au prochain vrai chargement de l'onglet, meme garde-fou que les appels
+  // ci-dessus).
+  if (typeof _renderPriorityCards === 'function') _renderPriorityCards(_priorityShownProspects);
+  if (typeof _updatePrioritiesNextBtn === 'function') _updatePrioritiesNextBtn();
+  if (typeof _renderFollowUpRows === 'function') _renderFollowUpRows(_reminderShownProspects);
+  const _todayFollowupCountEl = document.getElementById('today-followup-count');
+  if (_todayFollowupCountEl) _todayFollowupCountEl.textContent = _reminderShownProspects.length ? _reminderShownProspects.length + (currentLang === 'fr' ? ' à traiter' : ' due') : '';
+  if (typeof _renderReminderBacklogRows === 'function') _renderReminderBacklogRows(_reminderBacklogProspects);
+  const _todayBacklogCountEl = document.getElementById('today-backlog-count');
+  if (_todayBacklogCountEl) _todayBacklogCountEl.textContent = _reminderBacklogTotal ? _reminderBacklogTotal + (currentLang === 'fr' ? ' en retard' : ' overdue') : '';
 }
 
 function _relTimeShort(iso) {
@@ -6150,10 +6166,10 @@ Language instruction: Write your entire response in ${currentLang === 'fr' ? 'Fr
   const noInfo = /no verifiable|no public information|no information found|unable to find|cannot find/i.test(aiTxt);
   const sigs = [];
   if (!noInfo) {
-    if (/fund|raised|series [abc]|investm/i.test(aiTxt)) sigs.push({type:'s1', label:'Fundraise signal'});
-    if (/new.*(?:vp|cro|cmo|cto|svp|director|head of)|appointed|joined/i.test(aiTxt)) sigs.push({type:'s3', label:'Senior hire'});
-    if (/expan|new market|international|new country|new region|enter.*market/i.test(aiTxt)) sigs.push({type:'s4', label:'Expansion move'});
-    if (/partner|acqui|merger/i.test(aiTxt)) sigs.push({type:'s2', label:'Partnership'});
+    if (/fund|raised|series [abc]|investm/i.test(aiTxt)) sigs.push({type:'s1', label: currentLang==='fr' ? 'Signal de levée de fonds' : 'Fundraise signal'});
+    if (/new.*(?:vp|cro|cmo|cto|svp|director|head of)|appointed|joined/i.test(aiTxt)) sigs.push({type:'s3', label: currentLang==='fr' ? 'Recrutement senior' : 'Senior hire'});
+    if (/expan|new market|international|new country|new region|enter.*market/i.test(aiTxt)) sigs.push({type:'s4', label: currentLang==='fr' ? "Mouvement d'expansion" : 'Expansion move'});
+    if (/partner|acqui|merger/i.test(aiTxt)) sigs.push({type:'s2', label: currentLang==='fr' ? 'Partenariat' : 'Partnership'});
     if (sigList && sigs.length > 0) {
       sigList.innerHTML = '<div class="signal-list">' + sigs.map(s => `<span class="signal-tag signal-${s.type}">${s.label}</span>`).join('') + '</div>';
     }
@@ -7668,7 +7684,7 @@ async function _sendAskMessage() {
   } catch(e) {
     console.error('[_sendAskMessage]', e);
     const el = bubbleEl();
-    if (el) { el.style.color = 'var(--danger)'; el.style.fontStyle = 'normal'; el.textContent = 'Error: ' + e.message; }
+    if (el) { el.style.color = 'var(--danger)'; el.style.fontStyle = 'normal'; el.textContent = (fr ? 'Erreur : ' : 'Error: ') + e.message; }
   } finally {
     if (btn) btn.disabled = false;
     msgs.scrollTop = msgs.scrollHeight;
@@ -9334,7 +9350,9 @@ async function _generateSequenceMessage(pid, touch, forceGenerate = false, elPre
         const departed = departureSignals.some(sig => pLower.includes(sig));
         if (departed && !forceGenerate) {
           srchEl.textContent = '';
-          if (out) out.innerHTML = `<span style="color:var(--amber)">⚠️ ${firstName} may no longer be at ${p.company}. Verify their current role before sending.</span><br><button onclick="this.parentElement.innerHTML='';_generateSequenceMessage('${pid}','${touch}',true)" style="margin-top:8px;font-size:var(--fs-xs);padding:4px 12px;border:1px solid var(--amber);border-radius:var(--radius-badge);background:transparent;color:var(--amber);cursor:pointer">Generate anyway</button>`;
+          if (out) out.innerHTML = currentLang==='fr'
+            ? `<span style="color:var(--amber)">⚠️ ${firstName} ne travaille peut-être plus chez ${p.company}. Vérifiez son poste actuel avant d'envoyer.</span><br><button onclick="this.parentElement.innerHTML='';_generateSequenceMessage('${pid}','${touch}',true)" style="margin-top:8px;font-size:var(--fs-xs);padding:4px 12px;border:1px solid var(--amber);border-radius:var(--radius-badge);background:transparent;color:var(--amber);cursor:pointer">Générer quand même</button>`
+            : `<span style="color:var(--amber)">⚠️ ${firstName} may no longer be at ${p.company}. Verify their current role before sending.</span><br><button onclick="this.parentElement.innerHTML='';_generateSequenceMessage('${pid}','${touch}',true)" style="margin-top:8px;font-size:var(--fs-xs);padding:4px 12px;border:1px solid var(--amber);border-radius:var(--radius-badge);background:transparent;color:var(--amber);cursor:pointer">Generate anyway</button>`;
           if (btn) btn.disabled = false;
           if (spin) spin.classList.remove('active');
           return;
@@ -9573,7 +9591,7 @@ async function _markReady(pid, elPrefix = '') {
   const seqEntry = (_sendSequences[pid] || []).find(s => s.id === seqId);
   if (seqEntry) seqEntry.status = 'ready';
   const btn = document.getElementById(elPrefix + 'sr-' + pid);
-  if (btn) { btn.textContent = '✓ Ready'; btn.style.borderColor = 'var(--green)'; btn.style.color = 'var(--green)'; }
+  if (btn) { btn.textContent = currentLang==='fr' ? '✓ Prêt' : '✓ Ready'; btn.style.borderColor = 'var(--green)'; btn.style.color = 'var(--green)'; }
   // Send button id depends on channel: 'sli-' for LinkedIn touches (invite/j0), 'start-seq-' for
   // email (j5, cf. isEmailTouch in _sendCardHTML) -- only one of the two exists in the DOM for a
   // given card, the lookup on the other is a harmless no-op.
@@ -10185,19 +10203,19 @@ function _reminderBannerHTML(reminderDate) {
   const bg = r ? (r.overdue ? 'var(--red-bg)' : 'var(--bg-warning)') : '#f8f9fb';
   const bdr = r ? (r.overdue ? 'var(--red)' : 'var(--amber-border)') : 'var(--border)';
   const tc = r ? (r.overdue ? 'var(--red)' : 'var(--amber)') : 'var(--muted)';
-  const label = r ? r.label : 'No reminder set';
+  const label = r ? r.label : (currentLang==='fr' ? 'Aucun rappel défini' : 'No reminder set');
   const clockSvg = `<svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" style="flex-shrink:0"><circle cx="8" cy="8" r="7"/><path d="M8 4.5V8l2.5 1.5" stroke-linecap="round"/></svg>`;
   return `<div id="reminder-banner" style="margin:12px 16px 0;border-radius:var(--radius-md);overflow:hidden;border:1px solid ${bdr}">
     <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:${bg};font-size:var(--fs-sm);color:${tc}">
       <span style="display:flex;align-items:center;gap:6px">${clockSvg}${_esc(label)}</span>
       <a href="#" style="font-size:var(--fs-xs);color:var(--ink);text-decoration:underline;text-underline-offset:2px;white-space:nowrap;margin-left:8px"
-        onclick="event.preventDefault();var row=document.getElementById('reminder-edit-row');row.style.display=row.style.display==='flex'?'none':'flex'">${r?'Edit':'Set'}</a>
+        onclick="event.preventDefault();var row=document.getElementById('reminder-edit-row');row.style.display=row.style.display==='flex'?'none':'flex'">${r?(currentLang==='fr'?'Modifier':'Edit'):(currentLang==='fr'?'Définir':'Set')}</a>
     </div>
     <div id="reminder-edit-row" style="display:none;align-items:center;gap:8px;padding:8px 12px;background:#f8f9fb;border-top:1px solid ${bdr}">
       <input type="date" class="reminder-date-input" id="drawer-reminder-input"
         value="${isoShort}" min="${new Date().toISOString().split('T')[0]}" style="flex:1">
-      <button class="reminder-set-btn" onclick="_saveReminder()">Set</button>
-      ${r?'<button class="reminder-clear-btn btn-sm" onclick="_clearReminder()">Clear</button>':''}
+      <button class="reminder-set-btn" onclick="_saveReminder()">${currentLang==='fr'?'Définir':'Set'}</button>
+      ${r?`<button class="reminder-clear-btn btn-sm" onclick="_clearReminder()">${currentLang==='fr'?'Effacer':'Clear'}</button>`:''}
     </div>
   </div>`;
 }
@@ -10606,28 +10624,28 @@ async function openDrawer(card, initialTab = 'activity') {
       <!-- 4. NEXT ACTION -->
       <div class="pd-section" id="pd-section-nextaction">
         ${_reminderBannerHTML(reminderDate)}
-        <div class="pd-section-label" style="margin-top:14px">Next action</div>
+        <div class="pd-section-label" style="margin-top:14px">${currentLang==='fr'?'Prochaine action':'Next action'}</div>
         <div class="pd-next-action">
-          <div class="pd-next-action-label">NEXT ACTION</div>
-          <div class="pd-next-action-text ai-box-body${_cachedRendered ? ' loaded' : ''}" id="drawer-output">${_cachedRendered || 'Click to generate the next step...'}</div>
+          <div class="pd-next-action-label">${currentLang==='fr'?'PROCHAINE ACTION':'NEXT ACTION'}</div>
+          <div class="pd-next-action-text ai-box-body${_cachedRendered ? ' loaded' : ''}" id="drawer-output">${_cachedRendered || (currentLang==='fr'?'Cliquez pour générer la prochaine étape...':'Click to generate the next step...')}</div>
         </div>
         <div style="margin-top:10px;padding:12px 14px;border:1px solid var(--border);border-radius:var(--radius-md);background:#fff;">
-          <div class="pd-section-label" style="margin-bottom:8px">Manual next step</div>
+          <div class="pd-section-label" style="margin-bottom:8px">${currentLang==='fr'?'Prochaine étape manuelle':'Manual next step'}</div>
           <input id="drawer-next-action" class="dp-inp" value="${_esc(_p.next_action || '')}" placeholder="${currentLang==='fr'?'Prochaine étape...':'Next step...'}" style="margin-bottom:6px">
           <div style="display:flex;gap:8px;align-items:center;">
             <input id="drawer-next-action-date" type="date" class="dp-inp" value="${_esc((_p.next_action_date || '').slice(0,10))}" style="flex:1;min-width:0">
-            <button class="btn-secondary btn-sm" onclick="_saveNextAction('${_esc(prospectId)}')">Save</button>
+            <button class="btn-secondary btn-sm" onclick="_saveNextAction('${_esc(prospectId)}')">${currentLang==='fr'?'Enregistrer':'Save'}</button>
           </div>
         </div>
         <button class="btn-accent btn-lg" style="width:100%;justify-content:center;margin-top:10px"
-          onclick="_drawerAI()" id="drawer-next-btn">${_actionButtonLabel(_p, '🔄 Regenerate', '▶ Next recommended action')}</button>
+          onclick="_drawerAI()" id="drawer-next-btn">${_actionButtonLabel(_p, currentLang==='fr'?'🔄 Régénérer':'🔄 Regenerate', currentLang==='fr'?'▶ Prochaine action recommandée':'▶ Next recommended action')}</button>
         <div class="ai-spinner" id="drawer-spinner" style="margin:6px auto 0;"></div>
         ${_qualificationNote(_p) ? `<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:6px;text-align:center;">${_esc(_qualificationNote(_p))}</div>` : ''}
         ${_stalled ? `
-        <button class="btn-secondary btn-md" style="width:100%;justify-content:center;margin-top:8px;border-color:var(--danger-border);color:var(--danger);" onclick="_escalateProspect()" id="drawer-escalate-btn">⚠ Prospect stalled — Escalation Handler</button>
+        <button class="btn-secondary btn-md" style="width:100%;justify-content:center;margin-top:8px;border-color:var(--danger-border);color:var(--danger);" onclick="_escalateProspect()" id="drawer-escalate-btn">${currentLang==='fr'?"⚠ Prospect en stagnation — Gérer l'escalade":'⚠ Prospect stalled — Escalation Handler'}</button>
         <div class="ai-box" id="escalate-box" style="display:none;margin-top:8px">
           <div class="ai-box-header">
-            <span class="ai-box-label" style="color:var(--danger)">Escalation Brief</span>
+            <span class="ai-box-label" style="color:var(--danger)">${currentLang==='fr'?"Brief d'escalade":'Escalation Brief'}</span>
             <div class="ai-spinner" id="escalate-spinner"></div>
           </div>
           <div class="ai-box-body" id="escalate-output"></div>
@@ -10636,7 +10654,7 @@ async function openDrawer(card, initialTab = 'activity') {
 
       <!-- 5. MESSAGE HISTORY -->
       <div class="pd-section">
-        <div class="pd-section-label">Message history</div>
+        <div class="pd-section-label">${currentLang==='fr'?'Historique des messages':'Message history'}</div>
         <div id="pd-msghistory-rows">${messageHistoryHTML}</div>
         <div id="pd-logint-form" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
           <div class="int-type-btns">
@@ -10645,9 +10663,9 @@ async function openDrawer(card, initialTab = 'activity') {
   ).join('')}
           </div>
           <textarea class="int-note-input" id="drawer-int-note" placeholder="${currentLang==='fr'?'Ajouter une note (optionnel)...':'Add a note (optional)...'}" rows="2"></textarea>
-          <button class="int-save-btn" id="drawer-int-save" onclick="_saveInteraction()">Save interaction</button>
+          <button class="int-save-btn" id="drawer-int-save" onclick="_saveInteraction()">${currentLang==='fr'?"Enregistrer l'interaction":'Save interaction'}</button>
         </div>
-        <button class="pd-plus" style="margin-top:8px" onclick="_pdToggleLogInteraction()">+ Log interaction</button>
+        <button class="pd-plus" style="margin-top:8px" onclick="_pdToggleLogInteraction()">${currentLang==='fr'?'+ Ajouter une interaction':'+ Log interaction'}</button>
       </div>
 
       <!-- 6. BUYING COMMITTEE -->
@@ -10672,21 +10690,21 @@ async function openDrawer(card, initialTab = 'activity') {
            Thomas plutot que tranche seul. -->
       ${_p.stage !== 'Identified' ? `
       <div class="pd-section">
-        <div class="pd-section-label">Call prep brief</div>
-        <div class="pd-brief-card" id="pd-brief-card">${discoveryBrief ? _discoveryBriefHTML(discoveryBrief.note) : '<span style="opacity:.6">No brief prepared yet — generate one below.</span>'}</div>
+        <div class="pd-section-label">${currentLang==='fr'?'Brief de préparation d\'appel':'Call prep brief'}</div>
+        <div class="pd-brief-card" id="pd-brief-card">${discoveryBrief ? _discoveryBriefHTML(discoveryBrief.note) : `<span style="opacity:.6">${currentLang==='fr'?'Aucun brief préparé pour le moment — générez-en un ci-dessous.':'No brief prepared yet — generate one below.'}</span>`}</div>
         <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-          <button class="btn-secondary btn-sm" onclick="_pdCopyBrief()"${discoveryBrief ? '' : ' disabled'}>Copy brief</button>
-          <button class="btn-secondary btn-sm" onclick="_openAskFromDrawer()">Ask a follow-up</button>
+          <button class="btn-secondary btn-sm" onclick="_pdCopyBrief()"${discoveryBrief ? '' : ' disabled'}>${currentLang==='fr'?'Copier le brief':'Copy brief'}</button>
+          <button class="btn-secondary btn-sm" onclick="_openAskFromDrawer()">${currentLang==='fr'?'Poser une question de suivi':'Ask a follow-up'}</button>
         </div>
         <div style="display:flex;gap:10px;margin-top:14px">
           <button class="btn-md" onclick="_scheduleCall('${prospectId}')" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;background:var(--white);color:var(--text);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;font-family:inherit">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            Schedule call
+            ${currentLang==='fr'?'Planifier un appel':'Schedule call'}
           </button>
         </div>
-        <button class="btn-secondary btn-md" style="width:100%;justify-content:center;margin-top:8px" onclick="_sendDiscoveryBrief()" id="drawer-discovery-btn">Prepare discovery call</button>
+        <button class="btn-secondary btn-md" style="width:100%;justify-content:center;margin-top:8px" onclick="_sendDiscoveryBrief()" id="drawer-discovery-btn">${currentLang==='fr'?"Préparer l'appel de découverte":'Prepare discovery call'}</button>
         <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
-          <div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">Post-call message</div>
+          <div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">${currentLang==='fr'?'Message post-appel':'Post-call message'}</div>
           <input id="postcall-note" type="text" class="dp-inp" data-en-ph="One key point from the call, e.g. your expansion into the Nordics" data-fr-ph="Un point clé de l'appel, ex. votre expansion dans les pays nordiques" placeholder="One key point from the call, e.g. your expansion into the Nordics" style="margin-bottom:8px" />
           <button class="btn-secondary btn-md" onclick="_generatePostCallMsg()" style="width:100%;justify-content:center;margin-bottom:10px" data-en="Generate post-call message" data-fr="Générer le message post-appel">Generate post-call message</button>
           <div id="postcall-box" style="display:none">
@@ -10702,22 +10720,22 @@ async function openDrawer(card, initialTab = 'activity') {
           </div>
         </div>
         <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
-          <div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">Post-call debrief</div>
-          <button class="btn-secondary btn-md" id="btn-postcall-debrief" onclick="_openPostCallDebrief()" style="width:100%;justify-content:center;margin-bottom:10px">🎙 Generate post-call debrief</button>
+          <div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">${currentLang==='fr'?'Debrief post-appel':'Post-call debrief'}</div>
+          <button class="btn-secondary btn-md" id="btn-postcall-debrief" onclick="_openPostCallDebrief()" style="width:100%;justify-content:center;margin-bottom:10px">${currentLang==='fr'?'🎙 Générer le debrief post-appel':'🎙 Generate post-call debrief'}</button>
           <div id="meeting-notes-select" style="display:none;margin-bottom:10px"></div>
           <div id="post-call-output" style="display:none"></div>
           <div style="text-align:center;margin-top:6px">
-            <a href="#" style="font-size:var(--fs-xs);color:var(--muted);text-decoration:underline;text-underline-offset:2px" onclick="event.preventDefault();_toggleManualDebrief()">Or paste call notes manually</a>
+            <a href="#" style="font-size:var(--fs-xs);color:var(--muted);text-decoration:underline;text-underline-offset:2px" onclick="event.preventDefault();_toggleManualDebrief()">${currentLang==='fr'?'Ou collez vos notes d\'appel manuellement':'Or paste call notes manually'}</a>
           </div>
           <div id="manual-debrief-panel" style="display:none;margin-top:10px">
-            <textarea id="manual-debrief-notes" rows="6" placeholder="Paste your call notes, transcript, or summary here..." style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:var(--fs-sm);font-family:inherit;resize:vertical;background:var(--bg);color:var(--text);line-height:1.5"></textarea>
-            <button class="btn-secondary btn-md" onclick="_generateFromManualNotes()" style="width:100%;justify-content:center;margin-top:8px">Generate from notes</button>
+            <textarea id="manual-debrief-notes" rows="6" placeholder="${currentLang==='fr'?"Collez vos notes d'appel, la transcription ou un résumé ici...":'Paste your call notes, transcript, or summary here...'}" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:var(--fs-sm);font-family:inherit;resize:vertical;background:var(--bg);color:var(--text);line-height:1.5"></textarea>
+            <button class="btn-secondary btn-md" onclick="_generateFromManualNotes()" style="width:100%;justify-content:center;margin-top:8px">${currentLang==='fr'?'Générer à partir des notes':'Generate from notes'}</button>
           </div>
         </div>
         <span id="seq-status-${prospectId}" style="font-size:var(--fs-xs);color:var(--muted)"></span>
         <button class="btn-lg" id="start-seq-${prospectId}" onclick="_startEmailSeq('${prospectId}', false)" style="width:100%;margin-top:8px;background:var(--green-brand);color:#FFFFFF;border:none;border-radius:var(--radius-sm);font-weight:500;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;font-family:inherit">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 6l-10 7L2 6"/></svg>
-          Start email sequence
+          ${currentLang==='fr'?'Démarrer la séquence email':'Start email sequence'}
         </button>
       </div>` : ''}
 
@@ -10725,7 +10743,7 @@ async function openDrawer(card, initialTab = 'activity') {
            champs Contact/Classification/Signal (edition), Stage et le calculateur Deal Value,
            dont aucun n'a de place dans les sections en lecture seule. Repliee par defaut. -->
       <details class="pd-section" id="pd-editdetails">
-        <summary class="pd-section-label" style="cursor:pointer">Edit details</summary>
+        <summary class="pd-section-label" style="cursor:pointer">${currentLang==='fr'?'Modifier les détails':'Edit details'}</summary>
         <div style="margin-top:12px">
           ${_drawerProfileHTML(prospectId, _prospectsById[prospectId] || {}, stage, { name, company, sector })}
         </div>
@@ -10793,7 +10811,7 @@ function _pdBuildMessageHistoryHTML() {
     ..._drawerInteractions.filter(i => (i.type === 'note' || i.type === 'meeting' || i.type === 'call') && !_parseDebrief(i.note))
       .map(i => ({ kind: 'msg', dir: 'LOGGED', channel: i.type.toUpperCase(), date: i.created_at, text: i.note || '' }))
   ].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 4);
-  if (!_histRows.length) return `<div class="pd-empty">No messages logged yet.</div>`;
+  if (!_histRows.length) return `<div class="pd-empty">${currentLang==='fr'?'Aucun message consigné pour le moment.':'No messages logged yet.'}</div>`;
   return _histRows.map(r => {
     if (r.kind === 'debrief') {
       const c = _VERDICT_COLORS[r.debrief.verdict] || _VERDICT_COLORS.neutral;
@@ -12954,11 +12972,15 @@ async function _sendDiscoveryBrief() {
   if (!_drawerProspect) return;
   const p = _drawerProspect;
   const btn = document.getElementById('drawer-discovery-btn');
-  const origLabel = btn ? btn.textContent : 'Prepare discovery call';
+  const origLabel = btn ? btn.textContent : (currentLang==='fr' ? "Préparer l'appel de découverte" : 'Prepare discovery call');
   const isConnected = p.linkedin_tag === 'connection-accepted';
-  const confirmMsg = isConnected
-    ? `Send discovery call brief for ${p.name} at ${p.company}?`
-    : `${p.name} isn't connected on LinkedIn yet. Send the discovery call brief anyway?`;
+  const confirmMsg = currentLang==='fr'
+    ? (isConnected
+      ? `Envoyer le brief de découverte pour ${p.name} chez ${p.company} ?`
+      : `${p.name} n'est pas encore connecté sur LinkedIn. Envoyer quand même le brief de découverte ?`)
+    : (isConnected
+      ? `Send discovery call brief for ${p.name} at ${p.company}?`
+      : `${p.name} isn't connected on LinkedIn yet. Send the discovery call brief anyway?`);
   if (!confirm(confirmMsg)) return;
   if (btn) { btn.disabled = true; btn.textContent = (currentLang==='fr'?'Préparation…':'Preparing…'); }
   try {
@@ -14001,7 +14023,7 @@ async function _findEmailDrawer(pid) {
         if (pd.email) {
           await _saveEmail(pollPid, pd.email, 'enrich');
           if (status) status.textContent = (currentLang==='fr'?'✓ Email vérifié':'✓ Email verified');
-          if (btn) { btn.style.background = 'var(--green-brand)'; btn.textContent = '✓ Found'; }
+          if (btn) { btn.style.background = 'var(--green-brand)'; btn.textContent = currentLang==='fr' ? '✓ Trouvé' : '✓ Found'; }
           if (siblingBtn) siblingBtn.disabled = false;
         } else {
           if (status) status.textContent = (currentLang==='fr'?'Introuvable':'Not found');
@@ -14255,7 +14277,7 @@ function _drawerProfileHTML(id, p, colStage, fb){
   fb = fb || {};
   const v = s => _esc(s == null ? '' : String(s));
   const stripHtml = s => (s || '').replace(/<a\s[^>]*>([^<]*)<\/a>/gi, '$1').replace(/<[^>]*>/g, '').trim();
-  const opts = KANBAN_STAGES.map(s => `<option value="${s}"${s === colStage ? ' selected' : ''}>${s}</option>`).join('');
+  const opts = KANBAN_STAGES.map(s => `<option value="${s}"${s === colStage ? ' selected' : ''}>${_esc(_stageDisplayLabel(s)[currentLang] || s)}</option>`).join('');
   const rt = p.region ? _regionTag(p.region) : '';
   const lbl = t => `<div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);letter-spacing:0.02em">${t}</div>`;
   const card = c => `<div style="border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:14px 16px;display:flex;flex-direction:column;gap:8px">${c}</div>`;
@@ -14313,12 +14335,12 @@ function _drawerProfileHTML(id, p, colStage, fb){
       `</div>`
     )}
     ${card(
-      lbl('Signal / Context') +
+      lbl(currentLang==='fr'?'Signal / Contexte':'Signal / Context') +
       `<textarea id="drawer-signal" class="dp-inp" rows="3" placeholder="${currentLang==='fr'?'ex. Nouveau CRO recruté d\'une SaaS soutenue par un fonds, passé de 4M$ à 28M$ ARR':'e.g. New CRO hired from PE-backed SaaS, scaled $4M to $28M ARR'}" style="font-size:var(--fs-base);min-height:60px;resize:vertical">${v(stripHtml(p.signal))}</textarea>` +
       `<div id="signal-link-wrap" style="font-size:var(--fs-xs)">${(() => { const _u = p.signal_url || _extractSigUrl(p.signal); return _u ? `<a href="${_esc(_u)}" target="_blank" rel="noopener noreferrer" style="color:var(--ink);text-decoration:underline;font-weight:600;">${_signalSourceLabel(_u, (typeof currentLang!=='undefined'?currentLang:'en'), true)} →</a>` : ''; })()}</div>` +
       // F03 : signal sans signal_date -> "date not specified" explicite, jamais de repli sur
       // created_at/updated_at. Rien si aucun signal du tout (comportement inchange).
-      ((p.signal || p.signal_date) ? `<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:2px">Signal: ${_esc(p.signal_date && _relDate(p.signal_date) ? _relDate(p.signal_date) : (currentLang==='fr'?'date non précisée':'date not specified'))}</div>` : '') +
+      ((p.signal || p.signal_date) ? `<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:2px">${currentLang==='fr'?'Signal :':'Signal:'} ${_esc(p.signal_date && _relDate(p.signal_date) ? _relDate(p.signal_date) : (currentLang==='fr'?'date non précisée':'date not specified'))}</div>` : '') +
       `<select id="drawer-signal-type" style="font-size:var(--fs-sm);padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);color:var(--text)">` +
         `<option value="">${currentLang==='fr'?'-- Type de signal --':'-- Signal type --'}</option>` +
         `${(_signalTaxonomy && Object.keys(_signalTaxonomy).length ? Object.values(_signalTaxonomy) : [{code:'S1',label:'S1'},{code:'S2',label:'S2'},{code:'S3',label:'S3'},{code:'S4',label:'S4'},{code:'activity',label:currentLang==='fr'?'Engagement passif (réaction/commentaire)':'Passive engagement (reaction/comment)',icon:'👁'}]).map(t => `<option value="${_esc(t.code)}"${(p.signal_type||'').toUpperCase()===(t.code||'').toUpperCase()?' selected':''}>${_esc(t.icon||'')} ${_esc(t.code)} — ${_esc((currentLang==='fr'?(t.label_fr||t.label):t.label)||t.code)}</option>`).join('')}` +
@@ -14598,7 +14620,7 @@ async function addProspect(){
         }).catch(e => console.warn('[icp-score-batch] webhook failed:', e));
       } catch(e) { console.warn('[icp-score-batch] auth headers failed:', e); }
     }
-  } catch(e){ console.error('[addProspect]', e); err.textContent = (e && e.message) ? e.message : 'Error'; err.style.display = 'block'; }
+  } catch(e){ console.error('[addProspect]', e); err.textContent = (e && e.message) ? e.message : (currentLang==='fr' ? 'Erreur' : 'Error'); err.style.display = 'block'; }
   finally { if (btn) btn.disabled = false; }
 }
 function openAddProspect(){
@@ -15931,7 +15953,7 @@ async function _startEmailSeq(id, requireDraft = true) {
   // message quand la fiche est CONTRADICTED (_contradictedWarningText renvoie '' sinon, rien n'est ajoute). Couvre Send ET Rappels
   // (Today Step 2 -> _goToJ5Followup -> ce meme bouton) ET le tiroir (requireDraft=false), un seul point d'envoi.
   if (!confirm((currentLang==='fr' ? `Démarrer la séquence email pour ${p.name} chez ${p.company} ?\nCela enverra immédiatement le premier email.` : `Start the email sequence for ${p.name} at ${p.company}?\nThis will send the first email immediately.`) + _contradictedWarningText(p))) return;
-  if (btn) { btn.disabled = true; btn.textContent = 'Sending...'; btn.style.background = 'var(--muted)'; }
+  if (btn) { btn.disabled = true; btn.textContent = currentLang==='fr' ? 'Envoi...' : 'Sending...'; btn.style.background = 'var(--muted)'; }
   if (statusEl) statusEl.textContent = '';
   try {
     const now = new Date().toISOString();
@@ -15956,7 +15978,7 @@ async function _startEmailSeq(id, requireDraft = true) {
       });
       if (_seqInsErr) {
         console.error('[_startEmailSeq] Supabase insert failed:', _seqInsErr);
-        if (statusEl) statusEl.textContent = '⚠ Sent but not tracked — ' + _seqInsErr.message;
+        if (statusEl) statusEl.textContent = (currentLang==='fr' ? '⚠ Envoyé mais non suivi — ' : '⚠ Sent but not tracked — ') + _seqInsErr.message;
         showToast((currentLang==='fr' ? 'Envoyé mais non suivi — ' : 'Sent but not tracked — ') + _seqInsErr.message);
       } else {
         // Meme forme que ce que loadSendView() charge depuis interactions (prospect_id, created_at) --
@@ -15982,7 +16004,7 @@ async function _startEmailSeq(id, requireDraft = true) {
           .or('priority_batch_number.is.null,priority_batch_number.eq.0');
         if (ePriorityBatch) console.error('[_startEmailSeq] priority_batch_number:', ePriorityBatch);
         else if (document.getElementById('tab-priorities')?.classList.contains('active')) loadDailyPriorities();
-        if (btn) { btn.disabled = true; btn.textContent = '✓ Sequence started'; btn.style.background = 'var(--green-brand)'; }
+        if (btn) { btn.disabled = true; btn.textContent = currentLang==='fr' ? '✓ Séquence démarrée' : '✓ Sequence started'; btn.style.background = 'var(--green-brand)'; }
         if (statusEl) statusEl.textContent = '';
         if (ePriorityBatch) {
           showToast(currentLang==='fr' ? '⚠ Envoyé mais pas totalement suivi' : '⚠ Sent but not fully tracked');
@@ -15991,15 +16013,15 @@ async function _startEmailSeq(id, requireDraft = true) {
         }
       }
     } else {
-      if (btn) { btn.disabled = false; btn.textContent = 'Start Email Sequence'; btn.style.background = 'var(--green-brand)'; }
+      if (btn) { btn.disabled = false; btn.textContent = currentLang==='fr' ? 'Démarrer la séquence email' : 'Start Email Sequence'; btn.style.background = 'var(--green-brand)'; }
       console.error('[_startEmailSeq] Email sequence failed to start:', data.error || 'unknown');
-      if (statusEl) statusEl.textContent = '⚠ Email sequence failed to start — please try again';
+      if (statusEl) statusEl.textContent = currentLang==='fr' ? '⚠ Échec du démarrage de la séquence email — réessayez' : '⚠ Email sequence failed to start — please try again';
       showToast(currentLang==='fr' ? 'Échec du démarrage de la séquence email — réessayez' : 'Email sequence failed to start — please try again');
     }
   } catch(e) {
     console.error('[_startEmailSeq]', e);
-    if (btn) { btn.disabled = false; btn.textContent = 'Start Email Sequence'; btn.style.background = 'var(--green-brand)'; }
-    if (statusEl) statusEl.textContent = '⚠ Network error, retry';
+    if (btn) { btn.disabled = false; btn.textContent = currentLang==='fr' ? 'Démarrer la séquence email' : 'Start Email Sequence'; btn.style.background = 'var(--green-brand)'; }
+    if (statusEl) statusEl.textContent = currentLang==='fr' ? '⚠ Erreur réseau, réessayez' : '⚠ Network error, retry';
     showToast(currentLang==='fr' ? 'Erreur réseau — réessayez' : 'Network error — retry');
   }
 }
@@ -16591,7 +16613,7 @@ function _renderCrmDrawerContent(crmId) {
   // ── Roadmap steps ──
   let stepsHtml = '';
   if (steps.length === 0) {
-    stepsHtml = '<div class="crm-drawer-empty">No roadmap steps yet.</div>';
+    stepsHtml = `<div class="crm-drawer-empty">${currentLang==='fr'?'Aucune étape de roadmap pour le moment.':'No roadmap steps yet.'}</div>`;
   } else {
     stepsHtml = '<div class="crm-roadmap-list">'
       + steps.map(s => {
@@ -16599,7 +16621,7 @@ function _renderCrmDrawerContent(crmId) {
           const lbl         = _esc(_crmStepLabelText(s.label));
           const isSuggested = s.status === 'Suggested';
           const statusChip  = s.status
-            ? `<span class="crm-step-status-chip${isSuggested ? ' crm-step-chip-suggested' : ''}">${_esc(isSuggested ? 'AI suggested' : s.status)}</span>` : '';
+            ? `<span class="crm-step-status-chip${isSuggested ? ' crm-step-chip-suggested' : ''}">${isSuggested ? (currentLang==='fr'?'Suggéré par l\'IA':'AI suggested') : _esc(s.status)}</span>` : '';
           const dateStr     = s.step_date
             ? `<span class="crm-step-date">${_esc(String(s.step_date).slice(0, 10))}</span>` : '';
           return `<div class="crm-step-item${isSuggested ? ' crm-step-suggested' : ''}" data-step-id="${sid}" onclick="_crmShowStepForm('${sid}')">
@@ -16625,7 +16647,7 @@ function _renderCrmDrawerContent(crmId) {
       ${originHtml}
       <div class="drawer-section-title" style="margin-bottom:12px;">Roadmap</div>
       ${stepsHtml}
-      <button class="crm-add-step-btn" onclick="_crmShowStepForm(null)">+ Add step</button>
+      <button class="crm-add-step-btn" onclick="_crmShowStepForm(null)">${currentLang==='fr'?'+ Ajouter une étape':'+ Add step'}</button>
     </div>`;
 
   document.getElementById('drawer').dataset.crmId = crmId;
@@ -16657,8 +16679,8 @@ function _crmShowStepForm(stepId) {
   const formHtml = `<div class="crm-step-form" id="crm-sf">
     <input type="text" id="crm-sf-label" value="${lbl}" placeholder="${currentLang === 'fr' ? 'Libellé de l\'étape…' : 'Step label…'}" oninput="" />
     <div class="crm-step-chips">
-      <button type="button" class="crm-step-chip" onclick="_crmSetChip('Planned')">Planned</button>
-      <button type="button" class="crm-step-chip" onclick="_crmSetChip('In discussion')">In discussion</button>
+      <button type="button" class="crm-step-chip" onclick="_crmSetChip('Planned')" data-en="Planned" data-fr="Planifié">Planned</button>
+      <button type="button" class="crm-step-chip" onclick="_crmSetChip('In discussion')" data-en="In discussion" data-fr="En discussion">In discussion</button>
       <button type="button" class="crm-step-chip" onclick="_crmSetChip('Done')" data-en="Done" data-fr="Terminé">Done</button>
     </div>
     <input type="text" id="crm-sf-status" value="${status}" placeholder="${currentLang === 'fr' ? 'Statut (texte libre)…' : 'Status (free text)…'}" oninput="_crmHighlightChips()" />
@@ -16822,7 +16844,7 @@ function _mandateCardHTML(m, fr){
     [L.kw, m.target_role_keywords], [L.excl, m.exclusions], [L.icp, m.icp_criteria],
   ].filter(([, v]) => v != null && v !== '');
   return `<div class="card" style="margin-bottom:16px;">
-    <div class="card-header"><span class="card-title">${_esc(m.name || m.segment || 'Mandate')}</span><span class="card-badge badge-auto">${L.active}</span></div>
+    <div class="card-header"><span class="card-title">${_esc(m.name || m.segment || (fr ? 'Mandat' : 'Mandate'))}</span><span class="card-badge badge-auto">${L.active}</span></div>
     <div>${rows.map(([label, val]) => `<div style="padding:8px 0;border-bottom:1px solid var(--border);"><div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;">${_esc(label)}</div><div style="font-size:var(--fs-sm);color:var(--text);white-space:pre-wrap;">${_esc(val)}</div></div>`).join('')}</div>
   </div>`;
 }
@@ -17359,7 +17381,7 @@ async function _hsTestConnection() {
       if (_clientProfile) _clientProfile.hubspot_api_key = apiKey;
       _hsRenderStageMapping(_hsStages, _clientProfile?.hubspot_stage_mapping || {});
     } else {
-      resultEl.textContent = '✗ ' + (data.error || 'Connection failed — check your API key');
+      resultEl.textContent = '✗ ' + (data.error || (currentLang==='fr' ? 'Échec de la connexion — vérifiez votre clé API' : 'Connection failed — check your API key'));
       resultEl.style.color = 'var(--red, #dc2626)';
       badge.textContent    = (currentLang==='fr'?'Erreur':'Error');
       badge.className      = 'card-badge';
@@ -17367,7 +17389,7 @@ async function _hsTestConnection() {
       badge.style.display  = '';
     }
   } catch (e) {
-    resultEl.textContent = '✗ Network error — ' + e.message;
+    resultEl.textContent = (currentLang==='fr' ? '✗ Erreur réseau — ' : '✗ Network error — ') + e.message;
     resultEl.style.color = 'var(--red, #dc2626)';
   } finally {
     testBtn.disabled = false;
@@ -17825,35 +17847,35 @@ async function _slkNotify(eventKey, eventName, prospect) {
 
 <div class="profile-overlay" id="profile-overlay" onclick="overlayClick(event)">
   <div class="profile-modal">
-    <h3>My Profile</h3>
+    <h3 data-en="My Profile" data-fr="Mon profil">My Profile</h3>
     <div class="profile-avatar-big" id="modal-avatar" onclick="document.getElementById('avatar-file-input').click()"></div>
-    <p class="avatar-hint">Click to change your photo</p>
+    <p class="avatar-hint" data-en="Click to change your photo" data-fr="Cliquez pour changer votre photo">Click to change your photo</p>
     <div class="pf-field">
-      <label>Display name</label>
-      <input type="text" id="pf-name" placeholder="e.g. Alex">
+      <label data-en="Display name" data-fr="Nom affiché">Display name</label>
+      <input type="text" id="pf-name" data-en-ph="e.g. Alex" data-fr-ph="ex. Alex" placeholder="e.g. Alex">
     </div>
     <div class="pf-field">
-      <label>Company</label>
+      <label data-en="Company" data-fr="Société">Company</label>
       <input type="text" id="pf-company" disabled>
     </div>
     <div class="pf-actions">
       <button class="btn-pf-cancel" onclick="closeProfileModal()" data-en="Cancel" data-fr="Annuler">Cancel</button>
-      <button class="btn-pf-save" onclick="saveProfile()">Save changes</button>
+      <button class="btn-pf-save" onclick="saveProfile()" data-en="Save changes" data-fr="Enregistrer les modifications">Save changes</button>
     </div>
     <div style="border-top:1px solid #eef0f6;margin-top:20px;padding-top:16px;">
       <div class="pf-field">
-        <label>New password</label>
+        <label data-en="New password" data-fr="Nouveau mot de passe">New password</label>
         <input type="password" id="pf-new-password" data-en-ph="Min. 8 characters" data-fr-ph="8 caractères min." placeholder="Min. 8 characters" autocomplete="new-password">
       </div>
       <div class="pf-field">
-        <label>Confirm password</label>
+        <label data-en="Confirm password" data-fr="Confirmer le mot de passe">Confirm password</label>
         <input type="password" id="pf-confirm-password" data-en-ph="Repeat new password" data-fr-ph="Répétez le nouveau mot de passe" placeholder="Repeat new password" autocomplete="new-password">
       </div>
       <div id="pf-pw-error" style="display:none;font-size:var(--fs-sm);color:var(--red);margin-bottom:10px;"></div>
-      <button onclick="_changePassword()" style="width:100%;background:var(--navy);color:#fff;border:none;border-radius:var(--radius-md);padding:10px;font-size:var(--fs-base);font-weight:700;cursor:pointer;font-family:inherit;">Update password</button>
+      <button onclick="_changePassword()" style="width:100%;background:var(--navy);color:#fff;border:none;border-radius:var(--radius-md);padding:10px;font-size:var(--fs-base);font-weight:700;cursor:pointer;font-family:inherit;" data-en="Update password" data-fr="Mettre à jour le mot de passe">Update password</button>
     </div>
     <div style="text-align:center;margin-top:16px;">
-      <button onclick="signOut()" style="background:none;border:none;font-size:var(--fs-sm);color:var(--dim);cursor:pointer;text-decoration:underline;">Sign out</button>
+      <button onclick="signOut()" style="background:none;border:none;font-size:var(--fs-sm);color:var(--dim);cursor:pointer;text-decoration:underline;" data-en="Sign out" data-fr="Se déconnecter">Sign out</button>
     </div>
   </div>
 </div>
@@ -17872,8 +17894,8 @@ async function _slkNotify(eventKey, eventName, prospect) {
     <input id="ap-linkedin" class="dp-inp" data-en-ph="LinkedIn URL" data-fr-ph="URL LinkedIn" placeholder="LinkedIn URL">
     <input id="ap-sector" class="dp-inp" data-en-ph="Sector" data-fr-ph="Secteur" placeholder="Sector">
     <input id="ap-country" class="dp-inp" data-en-ph="Country" data-fr-ph="Pays" placeholder="Country">
-    <select id="ap-region" class="dp-inp"><option value="" selected>Select region...</option><option value="EMEA">EMEA</option><option value="NA">NA</option></select>
-    <select id="ap-stage" class="dp-inp"><option>Identified</option><option value="1st Contact">Connected</option><option>Engaged</option><option>Replied</option><option>Proposal</option><option>Negotiation</option><option>Closed</option></select>
+    <select id="ap-region" class="dp-inp"><option value="" selected data-en="Select region..." data-fr="Sélectionner une région...">Select region...</option><option value="EMEA">EMEA</option><option value="NA">NA</option></select>
+    <select id="ap-stage" class="dp-inp"><option data-en="Identified" data-fr="Identifiés">Identified</option><option value="1st Contact" data-en="Connected" data-fr="Connecté">Connected</option><option data-en="Engaged" data-fr="Engagés">Engaged</option><option data-en="Replied" data-fr="Répondu">Replied</option><option data-en="Proposal" data-fr="Proposition">Proposal</option><option data-en="Negotiation" data-fr="Négociation">Negotiation</option><option data-en="Closed" data-fr="Clôturé">Closed</option></select>
     <div id="ap-error" style="display:none;color:var(--red);font-size:var(--fs-sm);"></div>
     <div style="display:flex;gap:8px;margin-top:6px;">
       <button id="ap-save-btn" class="btn-primary btn-lg" style="flex:1;justify-content:center" onclick="addProspect()"><span data-en="Add prospect" data-fr="Ajouter">Add prospect</span></button>
@@ -17886,41 +17908,41 @@ async function _slkNotify(eventKey, eventName, prospect) {
 <div id="addm-overlay" onclick="if(event.target===this) closeAddMandate()" style="position:fixed;inset:0;background:rgba(26,43,94,0.35);z-index:9700;opacity:0;pointer-events:none;transition:opacity .25s;"></div>
 <div id="addm-modal" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-48%);width:480px;max-width:92vw;max-height:88vh;overflow-y:auto;z-index:9800;opacity:0;pointer-events:none;transition:opacity .25s, transform .25s;background:#fff;border-radius:var(--radius-xl);box-shadow:0 20px 60px rgba(26,43,94,0.25);padding:28px;">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-    <h3 style="font-size:var(--fs-md);font-weight:800;color:var(--navy);margin:0;">New mandate</h3>
+    <h3 style="font-size:var(--fs-md);font-weight:800;color:var(--navy);margin:0;" data-en="New mandate" data-fr="Nouveau mandat">New mandate</h3>
     <button onclick="closeAddMandate()" style="background:none;border:none;font-size:20px;color:var(--muted);cursor:pointer;line-height:1;" data-en-aria="Close" data-fr-aria="Fermer" aria-label="Close">✕</button>
   </div>
   <div style="margin-bottom:14px;">
-    <label style="display:block;font-size:var(--fs-micro);font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:5px;">Segment *</label>
-    <input type="text" id="addm-segment" class="dp-inp" placeholder="e.g. Cession, Acquisition, Fundraising...">
+    <label style="display:block;font-size:var(--fs-micro);font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:5px;" data-en="Segment *" data-fr="Segment *">Segment *</label>
+    <input type="text" id="addm-segment" class="dp-inp" data-en-ph="e.g. Cession, Acquisition, Fundraising..." data-fr-ph="ex. Cession, Acquisition, Levée de fonds..." placeholder="e.g. Cession, Acquisition, Fundraising...">
   </div>
   <div style="margin-bottom:14px;">
-    <label style="display:block;font-size:var(--fs-micro);font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:5px;">Mandate name *</label>
-    <input type="text" id="addm-name" class="dp-inp" placeholder="e.g. Manufacturing - DACH">
+    <label style="display:block;font-size:var(--fs-micro);font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:5px;" data-en="Mandate name *" data-fr="Nom du mandat *">Mandate name *</label>
+    <input type="text" id="addm-name" class="dp-inp" data-en-ph="e.g. Manufacturing - DACH" data-fr-ph="ex. Industrie - DACH" placeholder="e.g. Manufacturing - DACH">
   </div>
   <div style="margin-bottom:14px;">
-    <label style="display:block;font-size:var(--fs-micro);font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:5px;">ICP criteria</label>
+    <label style="display:block;font-size:var(--fs-micro);font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:5px;" data-en="ICP criteria" data-fr="Critères ICP">ICP criteria</label>
     <textarea id="addm-icp" class="dp-inp" style="min-height:60px;resize:vertical;" data-en-ph="Decision makers, company type, size..." data-fr-ph="Décideurs, type d'entreprise, taille..." placeholder="Decision makers, company type, size..."></textarea>
   </div>
   <div style="margin-bottom:14px;">
-    <label style="display:block;font-size:var(--fs-micro);font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:5px;">Sectors</label>
+    <label style="display:block;font-size:var(--fs-micro);font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:5px;" data-en="Sectors" data-fr="Secteurs">Sectors</label>
     <input type="text" id="addm-sectors" class="dp-inp">
   </div>
   <div style="margin-bottom:14px;">
-    <label style="display:block;font-size:var(--fs-micro);font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:5px;">Geography</label>
+    <label style="display:block;font-size:var(--fs-micro);font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:5px;" data-en="Geography" data-fr="Zone géographique">Geography</label>
     <input type="text" id="addm-geography" class="dp-inp">
   </div>
   <div style="margin-bottom:14px;">
-    <label style="display:block;font-size:var(--fs-micro);font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:5px;">Signals</label>
+    <label style="display:block;font-size:var(--fs-micro);font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:5px;" data-en="Signals" data-fr="Signaux">Signals</label>
     <input type="text" id="addm-signals" class="dp-inp">
   </div>
   <div style="margin-bottom:18px;">
-    <label style="display:block;font-size:var(--fs-micro);font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:5px;">Exclusions</label>
+    <label style="display:block;font-size:var(--fs-micro);font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:5px;" data-en="Exclusions" data-fr="Exclusions">Exclusions</label>
     <input type="text" id="addm-exclusions" class="dp-inp">
   </div>
   <div id="addm-error" style="display:none;color:var(--red);font-size:var(--fs-sm);margin-bottom:12px;"></div>
   <div style="display:flex;gap:8px;justify-content:flex-end;">
     <button class="btn-secondary btn-md" style="justify-content:center;" onclick="closeAddMandate()" data-en="Cancel" data-fr="Annuler">Cancel</button>
-    <button id="addm-save-btn" class="btn-primary btn-lg" style="justify-content:center;" onclick="saveMandateForm()">Create mandate</button>
+    <button id="addm-save-btn" class="btn-primary btn-lg" style="justify-content:center;" onclick="saveMandateForm()" data-en="Create mandate" data-fr="Créer le mandat">Create mandate</button>
   </div>
 </div>
 
@@ -17955,13 +17977,13 @@ if ('serviceWorker' in navigator) {
 <div id="scanner-overlay" onclick="closeScannerPanel()"></div>
 <div id="scanner-panel">
   <div class="scanner-panel-head">
-    <span class="scanner-panel-title">Scan a company</span>
+    <span class="scanner-panel-title" data-en="Scan a company" data-fr="Analyser une société">Scan a company</span>
     <button class="drawer-close" onclick="closeScannerPanel()" data-en-aria="Close scanner" data-fr-aria="Fermer le scanner" aria-label="Close scanner">✕</button>
   </div>
   <div class="scanner-panel-body">
     <div class="scanner-mode-toggle">
-      <button class="toggle-pill active" id="scanner-mode-icp" onclick="_scannerSetMode('icp')">ICP Scan</button>
-      <button class="toggle-pill" id="scanner-mode-free" onclick="_scannerSetMode('free')">Free Search</button>
+      <button class="toggle-pill active" id="scanner-mode-icp" onclick="_scannerSetMode('icp')" data-en="ICP Scan" data-fr="Scan ICP">ICP Scan</button>
+      <button class="toggle-pill" id="scanner-mode-free" onclick="_scannerSetMode('free')" data-en="Free Search" data-fr="Recherche libre">Free Search</button>
     </div>
     <div class="input-row">
       <input class="input-field" id="scanner-company" placeholder="Company name" data-en-ph="Company name" data-fr-ph="Nom de la société" />
