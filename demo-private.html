@@ -4693,7 +4693,13 @@ function _mscDecisionCardHTML(d, live) {
   const sectorHtml = sector ? `<span style="font-size:var(--fs-xs);font-weight:600;padding:2px 8px;background:var(--chip-bg);border-radius:var(--radius-pill);color:var(--indigo);max-width:100%;overflow-wrap:anywhere;">${_esc(sector)}</span>` : '';
   const icpScore = live && live.icp_score != null ? live.icp_score : null;
   const cleanText = s => String(s).replace(/<[^>]*>/g, '').trim();
-  const signalSrc = (live && live.signal) || (isEntry && d.signal && d.signal.text) || '';
+  // FIX 25/09 (audit Thomas, bug bilingue confirme en live sur Uscreen/Allison Yazdian) : signal
+  // etait lu directement (live.signal, toujours en francais), contrairement a signalInterp juste en
+  // dessous qui passe deja par _bilingualReasonText -- meme pattern applique ici desormais.
+  // signal_en est un AJOUT pur cote base (colonne nullable, jamais backfillee sur le stock existant) :
+  // pour toute fiche pas encore repassee par ICP Score Batch, _bilingualReasonText retombe sur le
+  // champ francais existant, comme concu.
+  const signalSrc = (live && _bilingualReasonText(live, 'signal', 'signal_en')) || (isEntry && d.signal && d.signal.text) || '';
   const signal = signalSrc ? cleanText(signalSrc) : '';
   const interpSrc = (isEntry && d.interpretation) || (live && _bilingualReasonText(live, 'signal_interpretation', 'signal_interpretation_en')) || '';
   const signalInterp = interpSrc ? cleanText(interpSrc) : '';
