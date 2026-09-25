@@ -9809,7 +9809,17 @@ async function _markSent(pid, touch, auto = false, msgText = '', elPrefix = '') 
     if (eLastContact) console.error('_markSent last_contact:', eLastContact);
   }
   const p = _sendProspects.find(x => x.id === pid) || _prospectsById[pid];
-  const newStage = TOUCH_NEXT_STAGE[touch];
+  // FIX 25/09 (audit Thomas, cas Uscreen/Allison Yazdian, meme chantier que le fix linkedin_tag
+  // ci-dessous) : touch==='invite' n'avance plus stage vers TOUCH_NEXT_STAGE['invite']='1st Contact'
+  // (libelle affiche "Connecte"/"Connected") au moment du simple envoi -- meme raisonnement deja
+  // ecrit dans le commentaire du fix linkedin_tag plus bas (un envoi ne prouve rien sur l'acceptation
+  // reelle) mais jamais applique a stage jusqu'ici. stage n'avance vers '1st Contact' que lorsque
+  // l'acceptation est reellement confirmee -- dans ce fichier, uniquement via une action utilisateur
+  // explicite de changement de stage (persistStage/saveProspectEdit/_bulkChangeStage), qui pose deja
+  // stage ET linkedin_tag='connection-accepted' dans la MEME ecriture. Rien a ajouter dans ces 3
+  // fonctions : aucun mecanisme automatique separe de detection d'acceptation n'existe dans ce depot
+  // (confirme : connection-accepted n'est ecrit nulle part ailleurs, ni cote client ni cote api/*.js).
+  const newStage = touch === 'invite' ? null : TOUCH_NEXT_STAGE[touch];
   const _curRank = _stageRank[p?.stage] ?? -1;
   const _newRank = _stageRank[newStage] ?? -1;
   let eStage = null;
