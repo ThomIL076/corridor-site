@@ -8669,8 +8669,21 @@ function _sortEMEAFirst(arr) {
 // disparaissait donc de Due Now des le rechargement suivant, alors qu'aucun email n'etait parti.
 // _sendJ5Sent est deja la seule source fiable de "deja envoye" -- retiree, la ligne ne faisait
 // que dupliquer (mal) ce qu'elle couvre deja.
+// FIX 25/09 (audit Thomas, cas marginal expose par le fix _markSent ci-dessus : un envoi J0
+// force malgre la boite de confirmation, avec stage reste a 'Identified' plutot que '1st
+// Contact', saute directement a 'Engaged' au moment de l'acceptation -- l'egalite stricte
+// perdait alors silencieusement l'eligibilite J5, alors que le prospect a bien depasse le
+// palier '1st Contact'. Seuil de rang (_stageRank, deja defini plus bas dans ce fichier mais
+// deja assigne au moment ou cette fonction s'execute reellement, jamais appelee avant le
+// chargement complet du script) BORNE entre '1st Contact' et 'Engaged' inclus, pas "au moins
+// 1st Contact" sans plafond (verification independante 25/09) : _sendProspects (loadSendView)
+// charge tout prospect non archive quel que soit son stage, donc un seuil sans plafond aurait
+// rendu eligibles des deals a Replied/Proposal/Negotiation/Closed -- le message J+5 genere
+// (ligne ~9478) est calibre pour une relance de prospection a froid post-J0, semantiquement
+// faux pour un deal deja en conversation active.
 function _isJ5Eligible(p, fiveDaysAgo) {
-  return p.stage === '1st Contact'
+  const r = _stageRank[p.stage] ?? -1;
+  return r >= _stageRank['1st Contact'] && r <= _stageRank['Engaged']
     && !!p.last_contact && p.last_contact <= fiveDaysAgo
     && !_sendJ5Sent[p.id];
 }
@@ -11877,8 +11890,8 @@ function _renderFollowUpRows(rows) {
   el.innerHTML = rows.map(p => {
     const initials = _esc((p.name || '?').trim().split(/\s+/).map(s => s[0] || '').slice(0, 2).join('').toUpperCase() || '?');
     const rem = _fmtReminder(p.reminder_date);
-    // Seuls les prospects reellement _isJ5Eligible() (stage 1st Contact, last_contact >= 5j, pas
-    // deja envoye) ont droit au bouton "Send follow-up" -> _goToJ5Followup(), qui suppose une
+    // Seuls les prospects reellement _isJ5Eligible() (stage entre 1st Contact et Engaged inclus,
+    // last_contact >= 5j, pas deja envoye) ont droit au bouton "Send follow-up" -> _goToJ5Followup(), qui suppose une
     // card J+5 existante cote Send. Pour les autres (reminder pose sur un autre stage, contact
     // trop recent, deja envoye...), un bouton pointant vers Send n'a rien a tenir -- on ouvre le
     // tiroir a la place (memes actions log/reminder deja disponibles la, rien de duplique).
@@ -11974,7 +11987,7 @@ async function _reminderClose(id) {
 // "Send follow-up" (Today, Step 2) ne doit pas appeler _startEmailSeq directement : cette
 // fonction exige un brouillon deja genere+ready (requireDraft par defaut), jamais le cas venant
 // d'ici -- ca produisait un toast bloquant sans suite. Le critere d'eligibilite J+5 de Today
-// (reminder_date <= aujourd'hui) et celui de la queue Send (_isJ5Eligible : stage 1st Contact +
+// (reminder_date <= aujourd'hui) et celui de la queue Send (_isJ5Eligible : stage entre 1st Contact et Engaged +
 // last_contact >= 5j) sont deux criteres distincts qui ne se recouvrent pas systematiquement --
 // la card peut donc ne pas exister dans Send au moment du clic, d'ou la verification explicite
 // plutot qu'un scroll vers rien.
