@@ -15519,10 +15519,19 @@ async function renderStatsSignal() {
     return;
   }
   const active = (_allProspects || []).filter(p => !p.archived);
+  // FIX 26/09 (Thomas : le breakdown comptait les prospects bruts par signal_type sans jamais
+  // regarder l'apprentissage, donnant l'impression trompeuse que le systeme "logue sans appliquer" --
+  // meme mecanisme que le classement du dashboard, cf _effectiveSignalStrength/_loadDeprioritizedTypes
+  // plus haut dans ce fichier) : un type appris comme deprioritise (learned_preferences.deprioritized_types)
+  // n'est plus compte comme signal actif ici, coherent avec le fait qu'il a deja une force effective de 0
+  // partout ailleurs sur le dashboard.
+  await _loadDeprioritizedTypes();
   const prospectCounts = {};
   active.forEach(p => {
     const k = (p.signal_type || '').toUpperCase();
-    if (k) prospectCounts[k] = (prospectCounts[k] || 0) + 1;
+    if (!k) return;
+    if (_deprioTypes && _deprioTypes.has(p.signal_type)) return;
+    prospectCounts[k] = (prospectCounts[k] || 0) + 1;
   });
   const { data: attrData } = await _supabase
     .from('attribution_log')
