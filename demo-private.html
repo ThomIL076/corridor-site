@@ -9634,7 +9634,7 @@ async function _sendViaLinkedIn(pid, touch, elPrefix = '') {
   if (!p) return;
   // Garde d'identite elargie : cette fonction n'avait AUCUNE confirmation (envoi immediat au clic) -- surface listee INVISIBLE par
   // l'audit. Aucun dialogue si la fiche n'est pas CONTRADICTED (comportement inchange, meme envoi immediat qu'avant).
-  if (!_confirmIfContradicted(p)) return;
+  if (!(await _confirmIfContradicted(p))) return;
   const out = document.getElementById(elPrefix + 'so-' + pid);
   const body = out?.textContent?.trim() || '';
   if (!body) { showToast(currentLang==='fr' ? 'Aucun message à envoyer' : 'No message to send'); return; }
@@ -9780,9 +9780,9 @@ async function _markSent(pid, touch, auto = false, msgText = '', elPrefix = '') 
     const _msConnP = _sendProspects.find(x => x.id === pid) || _prospectsById[pid];
     if (_msConnP && _msConnP.linkedin_tag !== 'connection-accepted') {
       const _fr = currentLang === 'fr';
-      if (!confirm(_fr
+      if (!(await _confirmModal(_fr
         ? "Cette invitation LinkedIn ne semble pas encore acceptée. Marquer comme envoyé quand même ?"
-        : "This LinkedIn invitation doesn't appear to be accepted yet. Mark as sent anyway?")) return;
+        : "This LinkedIn invitation doesn't appear to be accepted yet. Mark as sent anyway?"))) return;
     }
   }
   const card = document.getElementById(elPrefix + 'sc-' + pid);
@@ -9988,7 +9988,7 @@ async function importCSV(e) {
   const file = e.target.files[0];
   if (!file) return;
   if (!activeMandateId || activeMandateId === '__ALL__') {
-    alert(currentLang==='fr' ? 'Sélectionnez un mandat précis avant d\'importer. L\'import CSV ne fonctionne pas sur la vue « Tous les mandats ».' : 'Please select a specific mandate before importing. CSV import cannot run on the "All mandates" view.');
+    await _alertModal(currentLang==='fr' ? 'Sélectionnez un mandat précis avant d\'importer. L\'import CSV ne fonctionne pas sur la vue « Tous les mandats ».' : 'Please select a specific mandate before importing. CSV import cannot run on the "All mandates" view.');
     e.target.value = '';
     return;
   }
@@ -12324,7 +12324,7 @@ async function _inboxSend(draftId, prospectId) {
   if (!conversationId) { showToast(currentLang==='fr' ? 'Pas de conversationId dans raw_payload — impossible d\'envoyer une réponse directe' : 'No conversationId in raw_payload — cannot send direct reply'); return; }
   // Garde d'identite elargie : Inbox envoyait sans aucune confirmation -- surface listee INVISIBLE par l'audit. Aucun dialogue si la
   // fiche n'est pas CONTRADICTED (comportement inchange).
-  if (!_confirmIfContradicted(_inboxProspectsById[prospectId] || _prospectsById[prospectId])) return;
+  if (!(await _confirmIfContradicted(_inboxProspectsById[prospectId] || _prospectsById[prospectId]))) return;
   if (sendBtn) sendBtn.disabled = true;
   if (dismissBtn) dismissBtn.disabled = true;
   try {
@@ -12583,7 +12583,7 @@ async function _proposalUseVariant(id, variantIndex) {
   const _propP = prop.prospect_id
     ? (_prospectsById[prop.prospect_id] || (await sbClient.from('prospects').select('name, company, identity_verdict').eq('id', prop.prospect_id).eq('client_id', CLIENT_ID).maybeSingle()).data)
     : null;
-  if (!_confirmIfContradicted(_propP)) return;
+  if (!(await _confirmIfContradicted(_propP))) return;
   const variantText = (Array.isArray(prop.variants) && prop.variants[variantIndex]) ? (prop.variants[variantIndex].text || '') : '';
 
   if (prop.content_type === 'linkedin_post') {
@@ -12727,7 +12727,7 @@ async function _proposalSendViaLinkedIn(propId, variantIndex, pid, elPrefix) {
     const _sendP = pid
       ? (_prospectsById[pid] || (await sbClient.from('prospects').select('name, company, identity_verdict').eq('id', pid).eq('client_id', CLIENT_ID).maybeSingle()).data)
       : null;
-    if (!_confirmIfContradicted(_sendP)) return;
+    if (!(await _confirmIfContradicted(_sendP))) return;
     const variantText = (Array.isArray(prop.variants) && prop.variants[variantIndex]) ? (prop.variants[variantIndex].text || '') : '';
     if (!variantText) { showToast(currentLang==='fr' ? 'Variante introuvable' : 'Variant not found'); return; }
 
@@ -12883,7 +12883,7 @@ async function _paApprove(id) {
   const _paProspectId = _pendingActionsById[id]?.prospect_id;
   if (_paProspectId) {
     const _paP = _prospectsById[_paProspectId] || (await sbClient.from('prospects').select('name, company, identity_verdict').eq('id', _paProspectId).eq('client_id', CLIENT_ID).maybeSingle()).data;
-    if (!_confirmIfContradicted(_paP)) return;
+    if (!(await _confirmIfContradicted(_paP))) return;
   }
   const { error } = await sbClient.from('pending_actions')
     .update({ status: 'approved', decided_at: new Date().toISOString() })
@@ -13023,7 +13023,7 @@ async function _sendDiscoveryBrief() {
     : (isConnected
       ? `Send discovery call brief for ${p.name} at ${p.company}?`
       : `${p.name} isn't connected on LinkedIn yet. Send the discovery call brief anyway?`);
-  if (!confirm(confirmMsg)) return;
+  if (!(await _confirmModal(confirmMsg))) return;
   if (btn) { btn.disabled = true; btn.textContent = (currentLang==='fr'?'Préparation…':'Preparing…'); }
   try {
     const _now = new Date();
@@ -13198,13 +13198,17 @@ Rules: no em-dashes, no markdown headers, factual only, base everything on the n
     const updates = { reminder_date: remIso, updated_at: new Date().toISOString() };
     if (shouldAdvance) updates.stage = 'Proposal';
     const { error: _pcErr } = await sbClient.from('prospects').update(updates).eq('id', pid).eq('client_id', _drawerClientId());
-    if (_pcErr) console.warn('post-call update failed:', _pcErr);
-    if (!_pcErr) {
+    if (_pcErr) {
+      console.warn('post-call update failed:', _pcErr);
+      showToast(currentLang==='fr' ? 'Erreur lors de la mise à jour du rappel/étape' : 'Error updating reminder/stage');
+    } else {
       if (_drawerProspect) { _drawerProspect.reminder_date = remIso; if (shouldAdvance) _drawerProspect.stage = 'Proposal'; }
       const card = document.querySelector(`.k-card[data-id="${pid}"]`);
       if (card) { card.dataset.reminderDate = remIso; if (shouldAdvance) card.dataset.stage = 'Proposal'; }
     }
-    verdictActions = `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
+    // FIX 29/09 (silent write, meme classe que signals_feed_cache) : le badge "Reminder set"
+    // s'affichait meme si l'UPDATE avait echoue -- desormais conditionne a !_pcErr.
+    verdictActions = _pcErr ? '' : `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
       ${shouldAdvance ? '<span style="background:#dcfce7;color:#15803d;border:1px solid #86efac;border-radius:var(--radius-panel);font-size:var(--fs-xs);font-weight:700;padding:2px 8px;">Stage advanced to Proposal</span>' : ''}
       <span style="background:#dbeafe;color:#1e40af;border:1px solid #93c5fd;border-radius:var(--radius-panel);font-size:var(--fs-xs);font-weight:700;padding:2px 8px;">Reminder set: ${remLabel}</span>
     </div>`;
@@ -13240,7 +13244,12 @@ Rules: no em-dashes, no markdown headers, factual only, base everything on the n
       _drawerInteractions = [intData, ..._drawerInteractions];
       _pdRefreshMessageHistory();
     }
-  } catch(e) { console.warn('[post-call] persist failed:', e.message); }
+  } catch(e) {
+    console.warn('[post-call] persist failed:', e.message);
+    // FIX 29/09 (silent write) : le debrief reste affiche dans pcBox mais n'est plus jamais
+    // recuperable une fois le tiroir ferme si l'insert echoue -- toast pour que ce ne soit plus invisible.
+    showToast(currentLang==='fr' ? 'Débrief affiché mais non enregistré dans l\'historique (erreur)' : 'Debrief shown but not saved to history (error)');
+  }
 }
 
 let _meetingNotesPickerState = null;
@@ -14655,7 +14664,7 @@ async function archiveProspect(id){
 }
 async function deleteProspect(id){
   if (!id) return;
-  if (!confirm(currentLang === 'fr' ? 'Supprimer définitivement ce prospect ?' : 'Permanently delete this prospect?')) return;
+  if (!(await _confirmModal(currentLang === 'fr' ? 'Supprimer définitivement ce prospect ?' : 'Permanently delete this prospect?'))) return;
   try {
     const { error } = await sbClient.from('prospects').delete().eq('client_id', CLIENT_ID).eq('id', id);
     if (error) throw error;
@@ -14967,7 +14976,7 @@ async function _bulkChangeStage() {
 async function _bulkArchive() {
   if (_selectedPids.size === 0) return;
   const pids = Array.from(_selectedPids);
-  if (!confirm(currentLang==='fr' ? ('Archiver ' + pids.length + ' prospects ?') : ('Archive ' + pids.length + ' prospects?'))) return;
+  if (!(await _confirmModal(currentLang==='fr' ? ('Archiver ' + pids.length + ' prospects ?') : ('Archive ' + pids.length + ' prospects?')))) return;
   const { error } = await sbClient.from('prospects')
     .update({ archived: true, stage: 'Archived' }).in('id', pids).eq('client_id', CLIENT_ID);
   if (error) { showToast((currentLang==='fr'?'Erreur : ':'Error: ') + error.message); return; }
@@ -15029,7 +15038,7 @@ async function _bulkStartEmailSeq() {
   const _bulkConfirmMsg = currentLang==='fr'
     ? `Démarrer la séquence email pour ${toSend.length} prospect(s) ?\nCela enverra immédiatement le premier email à chacun.`
     : `Start the email sequence for ${toSend.length} prospect(s)?\nThis will send the first email immediately to each.`;
-  if (!confirm(_bulkConfirmMsg + _contradictedWarningText(_bulkP))) {
+  if (!(await _confirmModal(_bulkConfirmMsg + _contradictedWarningText(_bulkP)))) {
     if (btn) { btn.disabled = false; btn.textContent = currentLang==='fr' ? 'Séquence email' : 'Email Sequence'; }
     return;
   }
@@ -15970,7 +15979,7 @@ async function _startEmailSeq(id, requireDraft = true) {
   // Garde d'identite elargie : meme confirm() qu'avant pour toute fiche (comportement inchange), + avertissement NOMME ajoute au
   // message quand la fiche est CONTRADICTED (_contradictedWarningText renvoie '' sinon, rien n'est ajoute). Couvre Send ET Rappels
   // (Today Step 2 -> _goToJ5Followup -> ce meme bouton) ET le tiroir (requireDraft=false), un seul point d'envoi.
-  if (!confirm((currentLang==='fr' ? `Démarrer la séquence email pour ${p.name} chez ${p.company} ?\nCela enverra immédiatement le premier email.` : `Start the email sequence for ${p.name} at ${p.company}?\nThis will send the first email immediately.`) + _contradictedWarningText(p))) return;
+  if (!(await _confirmModal((currentLang==='fr' ? `Démarrer la séquence email pour ${p.name} chez ${p.company} ?\nCela enverra immédiatement le premier email.` : `Start the email sequence for ${p.name} at ${p.company}?\nThis will send the first email immediately.`) + _contradictedWarningText(p)))) return;
   if (btn) { btn.disabled = true; btn.textContent = currentLang==='fr' ? 'Envoi...' : 'Sending...'; btn.style.background = 'var(--muted)'; }
   if (statusEl) statusEl.textContent = '';
   try {
@@ -16076,10 +16085,13 @@ function _contradictedWarningText(ps, fr) {
 // A poser en garde sur une surface qui n'a PAS deja de confirm() d'envoi : aucun dialogue si rien n'est CONTRADICTED (comportement
 // inchange), sinon un confirm() natif nommant la ou les fiches. Les surfaces qui confirment deja (ex. _startEmailSeq) appendent plutot
 // _contradictedWarningText() directement a leur message existant -- pas un 2e dialogue empile. fr omis -> suit currentLang, meme regle.
-function _confirmIfContradicted(ps, fr) {
+// FIX 29/09 (remplacement confirm() natif, go Thomas) : async + _confirmModal au lieu de confirm()
+// natif -- court-circuit prealable preserve explicitement (pas de dialogue si rien n'est CONTRADICTED).
+async function _confirmIfContradicted(ps, fr) {
   fr = fr === undefined ? currentLang === 'fr' : fr;
   const warn = _contradictedWarningText(ps, fr);
-  return !warn || confirm((fr ? 'Continuer malgré l\'alerte identité ?' : 'Continue despite the identity warning?') + warn);
+  if (!warn) return true;
+  return await _confirmModal((fr ? 'Continuer malgré l\'alerte identité ?' : 'Continue despite the identity warning?') + warn);
 }
 // Badge compact "fiabilite" a poser a cote d'un score ICP (audit Stephane point 5, 2026-09-11) --
 // memes flags/couleurs que les pastilles textuelles deja existantes (kanban/priority/tiroir),
@@ -17253,7 +17265,7 @@ function _reconnectPanel(name) {
 
 async function _disconnectIntegration(name) {
   const label = INTEGRATIONS_META[name]?.label || name;
-  if (!confirm((currentLang==='fr' ? 'Déconnecter ' : 'Disconnect ') + label + (currentLang==='fr' ? ' ? Vous devrez ressaisir vos identifiants pour vous reconnecter.' : '? You will need to re-enter credentials to reconnect.'))) return;
+  if (!(await _confirmModal((currentLang==='fr' ? 'Déconnecter ' : 'Disconnect ') + label + (currentLang==='fr' ? ' ? Vous devrez ressaisir vos identifiants pour vous reconnecter.' : '? You will need to re-enter credentials to reconnect.')))) return;
   const CLEAR_FIELDS = {
     hubspot:    { hubspot_api_key: null },
     salesforce: { salesforce_enabled: false, salesforce_client_id: null, salesforce_client_secret: null, salesforce_username: null, salesforce_password: null, salesforce_instance_url: null },

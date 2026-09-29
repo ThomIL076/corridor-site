@@ -199,3 +199,83 @@ function _fmtNextActionDivergence(manualText, cacheRaw) {
   const fr = typeof currentLang === 'undefined' || currentLang === 'fr';
   return fr ? '⚠ Texte manuel et recommandation IA divergent' : '⚠ Manual text and AI recommendation differ';
 }
+
+// AJOUT 29/09 (remplacement confirm()/alert() natifs, go Thomas, audit visuel) : confirm()/alert()
+// natifs cassent le style de l'app (pas de theme, rendu OS/navigateur incoherent) et presentent un
+// risque reel sur les actions destructrices -- apres plusieurs confirm() rapproches sur une page,
+// Chrome/Firefox proposent a l'utilisateur de bloquer les futurs dialogues ; si coche, TOUS les
+// confirm() suivants sont auto-rejetes silencieusement, y compris "Supprimer definitivement" ou
+// "Demarrer la sequence email (envoi immediat)". _confirmModal/_alertModal les remplacent par une
+// modale DOM construite a la volee (memes tokens que #addp-modal/#addm-modal deja presents dans les
+// 3 fichiers), retournent une Promise pour garder la meme forme d'appel au site d'appel :
+// `if (!(await _confirmModal(msg))) return;` a la place de `if (!confirm(msg)) return;`.
+// ponytail: un seul jeu d'elements DOM partage, pas de file d'attente -- suffisant pour une UI
+// pilotee par un seul clic utilisateur a la fois ; a revoir seulement si deux confirmations peuvent
+// un jour se declencher en concurrence (ex. deux actions bulk lancees en parallele).
+function _corridorModalEls() {
+  let overlay = document.getElementById('_cModalOverlay');
+  if (overlay) return overlay;
+  overlay = document.createElement('div');
+  overlay.id = '_cModalOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(26,43,94,0.35);z-index:20000;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s;';
+  overlay.innerHTML =
+    '<div id="_cModalBox" role="alertdialog" aria-modal="true" aria-labelledby="_cModalMsg" style="background:#fff;border-radius:var(--radius-xl,16px);box-shadow:0 20px 60px rgba(26,43,94,0.25);padding:24px;max-width:420px;width:92vw;transform:translateY(-8px);transition:transform .2s;font-family:inherit;">' +
+      '<div id="_cModalMsg" style="font-size:var(--fs-base,15px);color:var(--ink,#0e1a2e);line-height:1.5;white-space:pre-line;margin-bottom:18px;"></div>' +
+      '<div style="display:flex;gap:10px;justify-content:flex-end;">' +
+        '<button id="_cModalCancel" type="button" style="padding:8px 16px;border-radius:var(--radius-sm,8px);border:1px solid var(--border,#dbe2ee);background:#fff;color:var(--ink,#0e1a2e);font-weight:600;font-size:var(--fs-sm,14px);cursor:pointer;font-family:inherit;"></button>' +
+        '<button id="_cModalOk" type="button" style="padding:8px 16px;border-radius:var(--radius-sm,8px);border:none;background:var(--navy,#1a2b5e);color:#fff;font-weight:600;font-size:var(--fs-sm,14px);cursor:pointer;font-family:inherit;"></button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+  return overlay;
+}
+function _corridorModalShow(message, kind) {
+  return new Promise(resolve => {
+    const fr = typeof currentLang === 'undefined' || currentLang === 'fr';
+    const overlay = _corridorModalEls();
+    const box = document.getElementById('_cModalBox');
+    const msgEl = document.getElementById('_cModalMsg');
+    const cancelBtn = document.getElementById('_cModalCancel');
+    const okBtn = document.getElementById('_cModalOk');
+    msgEl.textContent = message;
+    cancelBtn.style.display = kind === 'alert' ? 'none' : '';
+    cancelBtn.textContent = fr ? 'Annuler' : 'Cancel';
+    okBtn.textContent = kind === 'alert' ? 'OK' : (fr ? 'Confirmer' : 'Confirm');
+    const prevFocus = document.activeElement;
+    let done = false;
+    function finish(result) {
+      if (done) return; done = true;
+      overlay.style.opacity = '0'; overlay.style.pointerEvents = 'none';
+      box.style.transform = 'translateY(-8px)';
+      document.removeEventListener('keydown', onKey, true);
+      cancelBtn.removeEventListener('click', onCancel);
+      okBtn.removeEventListener('click', onOk);
+      overlay.removeEventListener('click', onOverlayClick);
+      if (prevFocus && prevFocus.focus) { try { prevFocus.focus(); } catch(_) {} }
+      resolve(result);
+    }
+    function onCancel() { finish(false); }
+    function onOk() { finish(true); }
+    function onOverlayClick(e) { if (e.target === overlay && kind !== 'alert') finish(false); }
+    function onKey(e) {
+      if (e.key === 'Escape') { e.preventDefault(); finish(kind === 'alert'); }
+      else if (e.key === 'Enter') { e.preventDefault(); finish(true); }
+      else if (e.key === 'Tab') {
+        const focusables = kind === 'alert' ? [okBtn] : [cancelBtn, okBtn];
+        const idx = focusables.indexOf(document.activeElement);
+        e.preventDefault();
+        const next = e.shiftKey ? (idx <= 0 ? focusables.length - 1 : idx - 1) : (idx === focusables.length - 1 ? 0 : idx + 1);
+        focusables[next].focus();
+      }
+    }
+    cancelBtn.addEventListener('click', onCancel);
+    okBtn.addEventListener('click', onOk);
+    overlay.addEventListener('click', onOverlayClick);
+    document.addEventListener('keydown', onKey, true);
+    overlay.style.opacity = '1'; overlay.style.pointerEvents = 'auto';
+    box.style.transform = 'translateY(0)';
+    okBtn.focus();
+  });
+}
+function _confirmModal(message) { return _corridorModalShow(message, 'confirm'); }
+function _alertModal(message) { return _corridorModalShow(message, 'alert').then(() => {}); }

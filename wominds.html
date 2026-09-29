@@ -5064,7 +5064,7 @@ async function _bulkChangeStage() {
 async function _bulkArchive() {
   if (_selectedPids.size === 0) return;
   const pids = Array.from(_selectedPids);
-  if (!confirm('Archiver ' + pids.length + ' prospects ? Ils ne seront plus visibles dans le pipeline actif.')) return;
+  if (!(await _confirmModal('Archiver ' + pids.length + ' prospects ? Ils ne seront plus visibles dans le pipeline actif.'))) return;
   const { error } = await sbClient.from('prospects')
     .update({ archived: true, updated_at: new Date().toISOString() }).in('id', pids).eq('client_id', CLIENT_ID);
   if (error) { showToast('Erreur : ' + error.message); return; }
@@ -5144,7 +5144,7 @@ async function _bulkStartEmailSeq() {
 
   // Garde d'identite elargie (meme texte que le point d'envoi unitaire, cf. _contradictedWarningText).
   const _bulkP = toSend.map(pid => _prospectsById[pid] || _prospectsById[parseInt(pid)]).filter(Boolean);
-  if (!confirm(`Démarrer la séquence email pour ${toSend.length} prospect(s) ?\nLe premier email sera envoyé immédiatement à chacun.` + _contradictedWarningText(_bulkP))) {
+  if (!(await _confirmModal(`Démarrer la séquence email pour ${toSend.length} prospect(s) ?\nLe premier email sera envoyé immédiatement à chacun.` + _contradictedWarningText(_bulkP)))) {
     if (btn) { btn.disabled = false; btn.textContent = 'Séquence email'; }
     return;
   }
@@ -6587,7 +6587,7 @@ async function saveProspectEdit(id) {
 }
 async function archiveProspect(id) {
   if (!id) return;
-  if (!confirm('Archiver ce prospect ? Il ne sera plus visible dans le pipeline actif.')) return;
+  if (!(await _confirmModal('Archiver ce prospect ? Il ne sera plus visible dans le pipeline actif.'))) return;
   try {
     const { error } = await sbClient.from('prospects').update({ archived: true, updated_at: new Date().toISOString() }).eq('client_id', CLIENT_ID).eq('id', id);
     if (error) throw error;
@@ -6745,7 +6745,7 @@ async function _paApprove(id) {
       const { data: pr } = await sbClient.from('prospects').select('identity_verdict').eq('id', paRow.prospect_id).eq('client_id', CLIENT_ID).maybeSingle();
       if (pr && pr.identity_verdict === 'CONTRADICTED') {
         const named = Object.assign({}, paRow.payload || {}, { identity_verdict: 'CONTRADICTED' });
-        if (!_confirmIfContradicted(named)) return;
+        if (!(await _confirmIfContradicted(named))) return;
       }
     }
   } catch (e) { console.error('[_paApprove] verification identite', e); }
@@ -7481,15 +7481,18 @@ function _contradictedWarningText(ps, fr) {
 }
 // A poser en garde sur une surface qui n'a PAS deja de confirm() d'envoi (Wominds : Envoyer, Approbation) : aucun dialogue si rien
 // n'est CONTREDIT (comportement inchange), sinon un confirm() natif nommant la ou les fiches.
-function _confirmIfContradicted(ps, fr) {
+// FIX 29/09 (remplacement confirm() natif, go Thomas) : async + _confirmModal au lieu de confirm()
+// natif -- court-circuit prealable preserve explicitement (pas de dialogue si rien n'est CONTRADICTED).
+async function _confirmIfContradicted(ps, fr) {
   fr = fr === undefined ? (typeof currentLang === 'undefined' || currentLang === 'fr') : fr;
   const warn = _contradictedWarningText(ps, fr);
-  return !warn || confirm((fr ? 'Continuer malgré l\'alerte identité ?' : 'Continue despite the identity warning?') + warn);
+  if (!warn) return true;
+  return await _confirmModal((fr ? 'Continuer malgré l\'alerte identité ?' : 'Continue despite the identity warning?') + warn);
 }
 async function _sendViaLinkedIn(pid, touch, elPrefix = '') {
   const p = _sendProspects.find(x => x.id === pid) || _prospectsById[pid];
   if (!p) return;
-  if (!_confirmIfContradicted(p)) return;
+  if (!(await _confirmIfContradicted(p))) return;
   const out = document.getElementById(elPrefix + 'so-' + pid);
   const body = out?.textContent?.trim() || '';
   if (!body) { showToast('Aucun message à envoyer'); return; }
@@ -7562,9 +7565,9 @@ async function _markSent(pid, touch, auto = false, msgText = '', elPrefix = '') 
     const _msConnP = _sendProspects.find(x => x.id === pid) || _prospectsById[pid];
     if (_msConnP && _msConnP.linkedin_tag !== 'connection-accepted') {
       const _fr = typeof currentLang === 'undefined' || currentLang === 'fr';
-      if (!confirm(_fr
+      if (!(await _confirmModal(_fr
         ? "Cette invitation LinkedIn ne semble pas encore acceptée. Marquer comme envoyé quand même ?"
-        : "This LinkedIn invitation doesn't appear to be accepted yet. Mark as sent anyway?")) return;
+        : "This LinkedIn invitation doesn't appear to be accepted yet. Mark as sent anyway?"))) return;
     }
   }
   const card = document.getElementById(elPrefix + 'sc-' + pid);
@@ -8887,7 +8890,7 @@ function _reconnectPanel(name) {
 }
 async function _disconnectIntegration(name) {
   if (name !== 'slack') return; // seule integration self-service configurable dans cette version
-  if (!confirm('Déconnecter Slack ? Vous devrez ressaisir le webhook pour reconnecter.')) return;
+  if (!(await _confirmModal('Déconnecter Slack ? Vous devrez ressaisir le webhook pour reconnecter.'))) return;
   const updates = { slack_enabled: false, slack_webhook_url: null };
   const { error } = await sbClient.from('clients').update(updates).eq('client_id', CLIENT_ID);
   if (error) { showToast('Échec de la déconnexion : ' + error.message); return; }
