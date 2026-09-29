@@ -612,6 +612,33 @@ button, [role="button"], select, input { min-height: 28px; }
 .agent-card .ac-bar { height:2px; border-radius:1px; margin-top:8px; background:var(--accent-color, var(--ink)); opacity:0.5; }
 .agent-status-dot { position:absolute; top:12px; right:12px; width:7px; height:7px; border-radius:50%; background:#cdd5e0; }
 .agent-status-dot.is-active { background:var(--success); }
+/* AJOUT 29/09 (refonte v2 Phase 4) : liste (pas grille) pour les 4 agents "act on your behalf" --
+   memes tokens que .agent-card (rule/ink/muted/accent-color par ligne), disposition en ligne au
+   lieu d'empilee verticalement pour laisser la place aux pastilles d'autonomie a droite. */
+.agent-actor-list { display:flex; flex-direction:column; gap:8px; }
+.agent-actor-row {
+  position:relative;
+  background:#fff; border:1px solid var(--rule);
+  border-radius:9px; padding:14px 16px;
+  cursor:pointer;
+  display:flex; align-items:center; gap:14px; text-align:left; width:100%; flex-wrap:wrap;
+}
+.agent-actor-row:hover { border-color:var(--accent-color, var(--border-hover)); box-shadow:0 4px 14px rgba(14,26,46,.06); }
+.agent-actor-row .agent-status-dot { position:static; flex:0 0 7px; }
+.agent-actor-row .ac-icon { font-size:20px; line-height:1; flex:0 0 auto; }
+.actor-row-main { display:flex; flex-direction:column; gap:2px; flex:1 1 220px; min-width:0; }
+.actor-row-main .ac-name { font-size:var(--fs-sm); font-weight:700; color:var(--ink); }
+.actor-row-main .ac-desc { font-size:var(--fs-xs); color:var(--muted); line-height:1.4; }
+.actor-row-main .agent-card-footer-status { font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.04em; }
+.actor-autonomy-pills { display:flex; flex-direction:column; gap:3px; align-items:flex-end; flex:0 0 auto; }
+.autonomy-pill {
+  font-family:'IBM Plex Mono',monospace; font-size:9px; letter-spacing:0.06em; text-transform:uppercase;
+  padding:2px 8px; border-radius:var(--radius-pill,999px); white-space:nowrap;
+}
+.autonomy-pill.lvl-autopilot { background:#e8f7ef; color:#166b48; border:1px solid #b8e6cd; }
+.autonomy-pill.lvl-assist    { background:#fef6e6; color:#8a5a00; border:1px solid #f5dca3; }
+.autonomy-pill.lvl-approve   { background:#eef1f6; color:var(--muted); border:1px solid var(--border); }
+@media(max-width:600px) { .agent-actor-row { flex-wrap:wrap; } .actor-autonomy-pills { align-items:flex-start; flex-direction:row; flex-wrap:wrap; } }
 .agent-card-footer {
   display:flex; align-items:center; justify-content:space-between; gap:6px; flex-wrap:wrap;
   margin-top:6px; padding-top:8px; border-top:1px solid var(--border);
@@ -1867,6 +1894,64 @@ body.new-nav { padding-left: 220px; }
         </div>
       </div>
 
+      <!-- AJOUT 29/09 (refonte v2 Phase 4, go Thomas) : les 4 agents qui AGISSENT (Copywriter,
+           Content Strategist, Distribution, Objection Handler -- deplaces depuis les groupes
+           Content/GTM ci-dessous, memes ids/onclick/_activateAgent inchanges, _renderAgentsStatus()
+           les retrouve normalement par id) regroupes en tete, en liste (pas en grille) avec une
+           pastille de niveau d'autonomie REEL par action (lecture directe de la fonction Postgres
+           resolve_autonomy_level(), la meme que consulte le workflow n8n "Execute Approved
+           Actions" -- jamais un niveau invente ou suppose). Pastille en LECTURE SEULE en v1
+           (decision Thomas 29/09) : le mapping entre les 3 niveaux reels (approve/assist/autopilot)
+           et le toggle 2-etats Ask/Auto de la maquette n'est pas encore tranche -- l'ecriture est
+           une phase ulterieure. Alimentee par _loadActorAutonomy(), appelee par _showAgentsMap(). -->
+      <div class="agent-group">
+        <div class="agent-group-label" style="color:var(--ink);" data-en="ACT ON YOUR BEHALF" data-fr="AGISSENT EN VOTRE NOM">ACT ON YOUR BEHALF</div>
+        <div id="actor-agents-list" class="agent-actor-list">
+          <button class="agent-actor-row" style="--accent-color:#1D9E75" onclick="_activateAgent('copywriter')">
+            <span class="agent-status-dot" id="dot-copywriter"></span>
+            <span class="ac-icon">✏️</span>
+            <div class="actor-row-main">
+              <span class="ac-name" data-en="Copywriter" data-fr="Copywriter">Copywriter</span>
+              <span class="ac-desc" data-en="LinkedIn posts, emails, landing page copy" data-fr="Posts LinkedIn, emails, textes de landing page">LinkedIn posts, emails, landing page copy</span>
+              <span class="agent-card-footer-status" id="status-copywriter">—</span>
+            </div>
+            <div class="actor-autonomy-pills" id="autonomy-copywriter"></div>
+          </button>
+          <button class="agent-actor-row" style="--accent-color:#1D9E75" onclick="_activateAgent('content')">
+            <span class="agent-status-dot" id="dot-content"></span>
+            <span class="ac-icon">✍️</span>
+            <div class="actor-row-main">
+              <span class="ac-name" data-en="Content Strategist" data-fr="Stratège Contenu">Content Strategist</span>
+              <span class="ac-desc" data-en="Thought leadership calendar and content mix" data-fr="Calendrier de leadership éclairé et mix de contenu">Thought leadership calendar and content mix</span>
+              <span class="agent-card-footer-status" id="status-content">—</span>
+            </div>
+            <div class="actor-autonomy-pills" id="autonomy-content"></div>
+          </button>
+          <button class="agent-actor-row" style="--accent-color:#1D9E75" onclick="_activateAgent('distribution')">
+            <span class="agent-status-dot" id="dot-distribution"></span>
+            <span class="ac-icon">📡</span>
+            <div class="actor-row-main">
+              <span class="ac-name" data-en="Distribution" data-fr="Distribution">Distribution</span>
+              <span class="ac-desc" data-en="Right channel, right timing for each piece" data-fr="Le bon canal, le bon moment pour chaque contenu">Right channel, right timing for each piece</span>
+              <span class="agent-card-footer-status" id="status-distribution">—</span>
+            </div>
+            <div class="actor-autonomy-pills" id="autonomy-distribution"></div>
+          </button>
+          <button class="agent-actor-row" style="--accent-color:#2568B5" onclick="_activateAgent('objection')">
+            <span class="agent-status-dot" id="dot-objection"></span>
+            <span class="ac-icon">🛡️</span>
+            <div class="actor-row-main">
+              <span class="ac-name" data-en="Objection Handler" data-fr="Gestionnaire d'objections">Objection Handler</span>
+              <span class="ac-desc" data-en="3 ready-to-send responses for any objection" data-fr="3 réponses prêtes à envoyer pour toute objection">3 ready-to-send responses for any objection</span>
+              <span class="agent-card-footer-status" id="status-objection">—</span>
+            </div>
+            <div class="actor-autonomy-pills" id="autonomy-objection"></div>
+          </button>
+        </div>
+      </div>
+
+      <div class="agent-group-label" style="color:var(--muted);margin-top:8px;" data-en="RESEARCH AND REPORT" data-fr="RECHERCHE ET RAPPORT">RESEARCH AND REPORT</div>
+
       <!-- Content Group -->
       <div class="agent-group">
         <div class="agent-group-label" style="color:#1D9E75;" data-en="Content" data-fr="Contenu">Content</div>
@@ -1877,20 +1962,6 @@ body.new-nav { padding-left: 220px; }
             <span class="ac-name" data-en="Positioning Analyst" data-fr="Analyste Positionnement">Positioning Analyst</span>
             <span class="ac-desc" data-en="Value proposition and differentiation" data-fr="Proposition de valeur et différenciation">Value proposition and differentiation</span>
             <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-positioning">—</span><span class="agent-card-footer-action" data-en="Open" data-fr="Ouvrir">Open</span></div>
-          </button>
-          <button class="agent-card" style="--accent-color:#1D9E75" onclick="_activateAgent('content')">
-            <span class="agent-status-dot" id="dot-content"></span>
-            <span class="ac-icon">✍️</span>
-            <span class="ac-name" data-en="Content Strategist" data-fr="Stratège Contenu">Content Strategist</span>
-            <span class="ac-desc" data-en="Thought leadership calendar and content mix" data-fr="Calendrier de leadership éclairé et mix de contenu">Thought leadership calendar and content mix</span>
-            <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-content">—</span><span class="agent-card-footer-action" data-en="Open" data-fr="Ouvrir">Open</span></div>
-          </button>
-          <button class="agent-card" style="--accent-color:#1D9E75" onclick="_activateAgent('copywriter')">
-            <span class="agent-status-dot" id="dot-copywriter"></span>
-            <span class="ac-icon">✏️</span>
-            <span class="ac-name" data-en="Copywriter" data-fr="Copywriter">Copywriter</span>
-            <span class="ac-desc" data-en="LinkedIn posts, emails, landing page copy" data-fr="Posts LinkedIn, emails, textes de landing page">LinkedIn posts, emails, landing page copy</span>
-            <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-copywriter">—</span><span class="agent-card-footer-action" data-en="Open" data-fr="Ouvrir">Open</span></div>
           </button>
           <button class="agent-card" style="--accent-color:#1D9E75" onclick="_activateAgent('repurposing')">
             <span class="agent-status-dot" id="dot-repurposing"></span>
@@ -1906,13 +1977,6 @@ body.new-nav { padding-left: 220px; }
             <span class="ac-desc" data-en="Rank on search engines, get cited by AI" data-fr="Se classer sur les moteurs de recherche, être cité par l'IA">Rank on search engines, get cited by AI</span>
             <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-seo">—</span><span class="agent-card-footer-action" data-en="Open" data-fr="Ouvrir">Open</span></div>
           </button>
-          <button class="agent-card" style="--accent-color:#1D9E75" onclick="_activateAgent('distribution')">
-            <span class="agent-status-dot" id="dot-distribution"></span>
-            <span class="ac-icon">📡</span>
-            <span class="ac-name" data-en="Distribution" data-fr="Distribution">Distribution</span>
-            <span class="ac-desc" data-en="Right channel, right timing for each piece" data-fr="Le bon canal, le bon moment pour chaque contenu">Right channel, right timing for each piece</span>
-            <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-distribution">—</span><span class="agent-card-footer-action" data-en="Open" data-fr="Ouvrir">Open</span></div>
-          </button>
           <button class="agent-card" style="--accent-color:#1D9E75" onclick="_activateAgent('performance')">
             <span class="agent-status-dot" id="dot-performance"></span>
             <span class="ac-icon">📊</span>
@@ -1923,7 +1987,7 @@ body.new-nav { padding-left: 220px; }
         </div>
       </div>
 
-      <!-- GTM Group (3 agents exist; extensible for more) -->
+      <!-- GTM Group -->
       <div class="agent-group">
         <div class="agent-group-label" style="color:#2568B5;" data-en="GTM" data-fr="GTM">GTM</div>
         <div class="agent-grid">
@@ -1940,13 +2004,6 @@ body.new-nav { padding-left: 220px; }
             <span class="ac-name" data-en="Prospect Agent" data-fr="Agent Prospect">Prospect Agent</span>
             <span class="ac-desc" data-en="Deep-dive on any prospect before the call" data-fr="Analyse approfondie de tout prospect avant l'appel">Deep-dive on any prospect before the call</span>
             <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-prospect">—</span><span class="agent-card-footer-action" data-en="Open" data-fr="Ouvrir">Open</span></div>
-          </button>
-          <button class="agent-card" style="--accent-color:#2568B5" onclick="_activateAgent('objection')">
-            <span class="agent-status-dot" id="dot-objection"></span>
-            <span class="ac-icon">🛡️</span>
-            <span class="ac-name" data-en="Objection Handler" data-fr="Gestionnaire d'objections">Objection Handler</span>
-            <span class="ac-desc" data-en="3 ready-to-send responses for any objection" data-fr="3 réponses prêtes à envoyer pour toute objection">3 ready-to-send responses for any objection</span>
-            <div class="agent-card-footer"><span class="agent-card-footer-status" id="status-objection">—</span><span class="agent-card-footer-action" data-en="Open" data-fr="Ouvrir">Open</span></div>
           </button>
         </div>
       </div>
@@ -5871,6 +5928,60 @@ function _showAgentsMap() {
   const backBar = document.getElementById('agents-back-bar');
   if (backBar) backBar.style.display = 'none';
   _renderAgentsStatus();
+  _loadActorAutonomy();
+}
+
+// AJOUT 29/09 (refonte v2 Phase 4, go Thomas) : pastille de niveau d'autonomie REEL par agent
+// "act on your behalf", lecture seule. Appelle resolve_autonomy_level() -- la meme fonction
+// Postgres que consulte le workflow n8n "Corridor - Execute Approved Actions" / "Corridor - Auto
+// Invitations LinkedIn v1" (verifie le 29/09, diagnostic pending_actions) -- jamais un niveau
+// devine cote client. objection_response (Objection Handler) et linkedin_post (Content Strategist)
+// n'ont structurellement AUCUNE ligne autonomy_settings possible aujourd'hui (aucun mecanisme
+// d'envoi automatique n'existe pour ces 2 types, verifie en base le 29/09) -- affiche "toujours
+// manuel" sans appel RPC plutot que d'interroger une combinaison qui ne peut jamais exister.
+const _ACTOR_AUTONOMY_QUERIES = {
+  copywriter: [
+    { action_type: 'linkedin_invite', icp_tier: null, label: { fr: 'Invitation LinkedIn', en: 'LinkedIn invite' } },
+    { action_type: 'linkedin_message', icp_tier: 'gte8', label: { fr: 'Message LinkedIn (ICP≥8)', en: 'LinkedIn msg (ICP≥8)' } },
+    { action_type: 'linkedin_message', icp_tier: 'lt8', label: { fr: 'Message LinkedIn (ICP<8)', en: 'LinkedIn msg (ICP<8)' } },
+  ],
+  distribution: [
+    { action_type: 'email_j5', icp_tier: 'gte8', label: { fr: 'Relance J+5 (ICP≥8)', en: 'Follow-up J+5 (ICP≥8)' } },
+    { action_type: 'email_j5', icp_tier: 'lt8', label: { fr: 'Relance J+5 (ICP<8)', en: 'Follow-up J+5 (ICP<8)' } },
+  ],
+  objection: [],
+  content: [],
+};
+function _autonomyPillHTML(levelOrNull, label) {
+  const fr = currentLang === 'fr';
+  const level = levelOrNull || 'approve';
+  const levelLabel = { approve: fr ? 'Approbation' : 'Approve', assist: fr ? 'Assisté' : 'Assist', autopilot: 'Autopilot' }[level] || level;
+  return `<span class="autonomy-pill lvl-${_esc(level)}" title="${_esc(label)}">${_esc(levelLabel)}</span>`;
+}
+async function _loadActorAutonomy() {
+  const fr = currentLang === 'fr';
+  const mandateId = (activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null;
+  for (const [key, queries] of Object.entries(_ACTOR_AUTONOMY_QUERIES)) {
+    const el = document.getElementById('autonomy-' + key);
+    if (!el) continue;
+    if (!queries.length) {
+      el.innerHTML = `<span class="autonomy-pill lvl-approve">${fr ? 'Toujours manuel' : 'Always manual'}</span>`;
+      continue;
+    }
+    try {
+      const results = await Promise.all(queries.map(q =>
+        sbClient.rpc('resolve_autonomy_level', { p_client_id: CLIENT_ID, p_mandate_id: mandateId, p_action_type: q.action_type, p_icp_tier: q.icp_tier })
+      ));
+      el.innerHTML = results.map((r, i) => {
+        if (r.error) { console.warn('[_loadActorAutonomy]', key, queries[i].action_type, r.error); return ''; }
+        const level = r.data?.level || null;
+        return _autonomyPillHTML(level, fr ? queries[i].label.fr : queries[i].label.en);
+      }).join('');
+    } catch(e) {
+      console.warn('[_loadActorAutonomy]', key, e);
+      el.innerHTML = '';
+    }
+  }
 }
 
 // Hero + statut par carte (README 8. Agents). AWAITING YOU = somme des deux compteurs deja
@@ -5913,7 +6024,8 @@ async function _renderAgentsStatus() {
       const status = document.getElementById('status-' + key);
       const last = lastByAgent[m.label];
       if (dot) dot.classList.toggle('is-active', !!last);
-      if (status) status.textContent = last ? ('Ran ' + _relTimeShort(last)) : 'Idle';
+      // FIX 29/09 (bilingue, go Thomas -- surface plus visible depuis la restylisation Phase 4)
+      if (status) status.textContent = last ? ((currentLang==='fr' ? 'Passé ' : 'Ran ') + _relTimeShort(last)) : (currentLang==='fr' ? 'Inactif' : 'Idle');
     });
   } catch(e) {
     console.warn('[_renderAgentsStatus]', e);
@@ -5934,7 +6046,7 @@ async function _renderAgentsStatus() {
     if (error) throw error;
     const last = data && data[0] && data[0].created_at;
     if (dot) dot.classList.toggle('is-active', !!last);
-    if (status) status.textContent = last ? ('Ran ' + _relTimeShort(last)) : 'Idle';
+    if (status) status.textContent = last ? ((currentLang==='fr' ? 'Passé ' : 'Ran ') + _relTimeShort(last)) : (currentLang==='fr' ? 'Inactif' : 'Idle');
   } catch(e) {
     console.warn('[_renderAgentsStatus:dailydigest]', e);
   }
