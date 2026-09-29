@@ -1765,6 +1765,16 @@ body.new-nav { padding-left: 220px; }
 
 <!-- JOURNEY SPINE (Phase 1) -->
 <div class="journey-spine" id="journey-spine">
+  <!-- AJOUT 29/09 (audit Thomas) : Today/Priorities est l'ecran d'atterrissage reel de l'app
+       (switchTab('priorities') au chargement) mais manquait de sa propre etape dans la spine --
+       ajoutee en tete, sans compte (meme choix deliberement assume que Signal juste apres :
+       aucune source persistee unique et fiable pour "combien de priorites aujourd'hui" qui ne
+       recouvre pas deja spine-count-qualify/send/reply). -->
+  <button class="spine-stage" data-spine="today" onclick="_switchNewNav('priorities')">
+    <span class="spine-dot"></span>
+    <span class="spine-label" data-en="Today" data-fr="Aujourd'hui">Today</span>
+    <span class="spine-rail"></span>
+  </button>
   <button class="spine-stage" data-spine="signal" onclick="_switchNewNav('system','signals')">
     <span class="spine-dot"></span>
     <span class="spine-label" data-en="Signal" data-fr="Signal">Signal</span>
@@ -3265,6 +3275,7 @@ const SHOW_SPINE = true;
 // (pas sur Pipeline), QUALIFY s'allume sur Pipeline. Today/Agents/Reports/Stats/Integrations/
 // Scanner n'allument aucune etape (cockpits transverses ou hors funnel).
 const SPINE_ACTIVE_MAP = {
+  'priorities': 'today',
   'pipeline': 'qualify',
   'send': 'send',
   'inbox': 'reply',
@@ -5630,14 +5641,13 @@ async function _loadAgentsAtWork() {
 function switchTab(name, fromClick = false) {
   window.scrollTo({ top: 0, behavior: 'instant' });
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.tab-nav-btn').forEach(b => b.classList.remove('active'));
   const panel = document.getElementById('tab-' + name);
   if (panel) panel.classList.add('active');
-  // event.currentTarget (clic) > recherche du bouton par son onclick (appel programmatique)
-  const btn = (typeof event !== 'undefined' && event && event.currentTarget)
-    || document.querySelector('.tab-nav-btn[onclick*="\'' + name + '\'"]');
-  if (btn && btn.classList) btn.classList.add('active');
-  if (btn && btn.scrollIntoView) btn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+  // AJOUT 29/09 (audit Thomas, nettoyage dette technique) : le fallback .tab-nav-btn ci-dessus
+  // (recherche/surbrillance d'un bouton de nav par son onclick) retire -- code mort confirme,
+  // .tab-nav-btn n'existe nulle part dans le HTML actuel depuis le passage a la nouvelle nav
+  // (_switchNewNav -> _newNavActive gere deja seul et correctement la surbrillance active sur
+  // .snav-item/.spine-stage/.mtab-item, y compris pour les appels programmatiques a switchTab).
   if (name === 'pipeline') { const sh = document.getElementById('kanban-swipe-hint'); if (sh) { sh.style.opacity = '1'; setTimeout(() => { sh.style.opacity = '0'; }, 3000); } }
   if (name === 'send') loadSendView();
   if (name === 'agents') _showAgentsMap();
@@ -11757,7 +11767,11 @@ async function loadDailyPriorities() {
 
     _updateQueuedCount();
 
-    _renderPriorityCards(_priorityShownProspects);
+    // AJOUT 29/09 (audit Thomas) : distingue "rien dans CE lot, il y en a d'autres a paginer"
+    // (merged non vide, tout deja montre aujourd'hui) de "rien d'eligible du tout en ce moment"
+    // (merged vide -- zero prospect scorable trouve, qu'il n'y en ait aucun en base ou qu'aucun
+    // ne remplisse les criteres). Le message "Lot suivant" n'a de sens que dans le premier cas.
+    _renderPriorityCards(_priorityShownProspects, merged.length === 0 ? 'none-eligible' : 'batch-exhausted');
     _updatePrioritiesNextBtn();
 
   } catch(e) {
@@ -11784,15 +11798,21 @@ function _priorityFooterHTML(p) {
   </div>`;
 }
 
-function _renderPriorityCards(prospects) {
+function _renderPriorityCards(prospects, emptyReason = 'batch-exhausted') {
   const container = document.getElementById('priorities-container');
   if (!container) return;
 
   if (!prospects.length) {
     const fr = currentLang === 'fr';
+    // AJOUT 29/09 (audit Thomas) : "Lot suivant" est trompeur quand il n'y a rien a paginer --
+    // reserve au cas ou un lot a bien ete epuise (d'autres prospects existent, deja montres
+    // aujourd'hui). Sinon, message sans reference a un lot inexistant (meme esprit que le
+    // message deja correct de wominds.html:loadTodayRun).
     container.innerHTML =
       '<div style="padding:40px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">' +
-      (fr ? 'Aucun prospect éligible dans ce lot. Cliquez sur « Lot suivant » pour continuer.' : 'No eligible prospects in this batch. Click "Next batch" to continue.') + '</div>';
+      (emptyReason === 'none-eligible'
+        ? (fr ? 'Aucun prospect éligible pour le moment. Cette vue se remplira au fil des imports et du prochain scan du matin.' : 'No eligible prospects right now. This view will fill up as prospects are imported and the next morning scan runs.')
+        : (fr ? 'Aucun prospect éligible dans ce lot. Cliquez sur « Lot suivant » pour continuer.' : 'No eligible prospects in this batch. Click "Next batch" to continue.')) + '</div>';
     const btn = document.getElementById('priorities-next-btn');
     if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
     return;

@@ -1579,6 +1579,14 @@ body.new-nav { padding-left: 220px; }
 
 <!-- SPINE (parcours Signal→Client, parité demo-private.html) -->
 <div class="journey-spine" id="journey-spine">
+  <!-- AJOUT 29/09 (audit Thomas, meme fix que demo-private.html) : Today est l'ecran
+       d'atterrissage reel de l'app mais manquait de sa propre etape dans la spine -- ajoutee en
+       tete, sans compte (meme choix assume que Signal juste apres : aucun compte invente). -->
+  <button class="spine-stage" data-spine="today" onclick="switchTab('today')">
+    <span class="spine-dot"></span>
+    <span class="spine-label">Aujourd'hui</span>
+    <span class="spine-rail"></span>
+  </button>
   <button class="spine-stage" data-spine="signal" onclick="switchTab('signals')">
     <span class="spine-dot"></span>
     <span class="spine-label">Signal</span>
@@ -2465,7 +2473,7 @@ function switchTab(name){
   if (name === 'integrations') loadIntegrationsTab();
   if (name === 'stats') { renderStatsSector(); renderStatsCountry(); renderStatsRevenue(); renderStatsSignal(); renderStatsLearning(); }
 }
-const SPINE_ACTIVE_MAP = { 'pipeline': 'qualify', 'send': 'send', 'inbox': 'reply', 'clients': 'client', 'signals': 'signal', 'pipeintel': 'indeal' };
+const SPINE_ACTIVE_MAP = { 'today': 'today', 'pipeline': 'qualify', 'send': 'send', 'inbox': 'reply', 'clients': 'client', 'signals': 'signal', 'pipeintel': 'indeal' };
 function _updateSpineActive(key) {
   const spine = document.getElementById('journey-spine');
   if (!spine) return;
