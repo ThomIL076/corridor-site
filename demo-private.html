@@ -631,9 +631,12 @@ button, [role="button"], select, input { min-height: 28px; }
 .actor-row-main .ac-desc { font-size:var(--fs-xs); color:var(--muted); line-height:1.4; }
 .actor-row-main .agent-card-footer-status { font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.04em; }
 .actor-autonomy-pills { display:flex; flex-direction:column; gap:3px; align-items:flex-end; flex:0 0 auto; }
+/* FIX 29/09 (go Thomas, retour terrain) : desormais un <button> cliquable (cycle de niveau), plus
+   un <span> -- reset des styles bouton par defaut du navigateur (font/cursor/appearance). */
 .autonomy-pill {
   font-family:'IBM Plex Mono',monospace; font-size:9px; letter-spacing:0.06em; text-transform:uppercase;
   padding:2px 8px; border-radius:var(--radius-pill,999px); white-space:nowrap;
+  cursor:pointer; -webkit-appearance:none; appearance:none; transition:background .15s,border-color .15s;
 }
 .autonomy-pill.lvl-autopilot { background:#e8f7ef; color:#166b48; border:1px solid #b8e6cd; }
 .autonomy-pill.lvl-assist    { background:#fef6e6; color:#8a5a00; border:1px solid #f5dca3; }
@@ -5952,11 +5955,55 @@ const _ACTOR_AUTONOMY_QUERIES = {
   objection: [],
   content: [],
 };
-function _autonomyPillHTML(levelOrNull, label) {
+const _AUTONOMY_LEVEL_CYCLE = ['approve', 'assist', 'autopilot'];
+function _autonomyLevelLabel(level, fr) {
+  return { approve: fr ? 'Approbation' : 'Approve', assist: fr ? 'Assisté' : 'Assist', autopilot: 'Autopilot' }[level] || level;
+}
+// FIX 29/09 (go Thomas, retour terrain apres deploiement Phase 4) : pastille cliquable (cycle
+// Approve -> Assist -> Autopilot -> Approve au clic, decision Thomas). event.stopPropagation()
+// obligatoire ici -- la ligne entiere (.agent-actor-row) a son propre onclick vers
+// _activateAgent() (ouvre la conversation), sans ce stopPropagation un clic sur la pastille
+// aurait bascule le niveau ET navigue vers le chat au meme clic.
+function _autonomyPillHTML(levelOrNull, actionType, icpTier, label) {
   const fr = currentLang === 'fr';
   const level = levelOrNull || 'approve';
-  const levelLabel = { approve: fr ? 'Approbation' : 'Approve', assist: fr ? 'Assisté' : 'Assist', autopilot: 'Autopilot' }[level] || level;
-  return `<span class="autonomy-pill lvl-${_esc(level)}" title="${_esc(label)}">${_esc(levelLabel)}</span>`;
+  const icpTierArg = icpTier === null ? 'null' : `'${icpTier}'`;
+  return `<button type="button" class="autonomy-pill lvl-${_esc(level)}" title="${_esc(label)}"
+    onclick="event.stopPropagation(); _cycleAutonomyLevel('${actionType}', ${icpTierArg}, '${level}', '${_esc(label)}')"
+    >${_esc(_autonomyLevelLabel(level, fr))}</button>`;
+}
+// Ecriture reelle (go Thomas 29/09) : upsert sur la cle (client_id, mandate_id, action_type,
+// icp_tier) -- constraint corrigee en NULLS NOT DISTINCT le 29/09 (meme piege que
+// signals_feed_cache, cf. migration autonomy_settings_writable_by_owner) avant d'ecrire cette
+// fonction, pour qu'un client sans mandat (mandate_id toujours NULL, cas de thomas) mette bien a
+// jour la ligne existante au lieu d'en creer une nouvelle a chaque clic. Confirmation NOMMEE
+// uniquement en passant a Autopilot (decision Thomas) : c'est le seul sens qui fait reellement
+// partir un envoi sans validation humaine -- resserrer le controle (Autopilot -> Approve/Assist)
+// n'a besoin d'aucune friction.
+async function _cycleAutonomyLevel(actionType, icpTier, currentLevel, label) {
+  const fr = currentLang === 'fr';
+  const idx = _AUTONOMY_LEVEL_CYCLE.indexOf(currentLevel);
+  const nextLevel = _AUTONOMY_LEVEL_CYCLE[(idx + 1) % _AUTONOMY_LEVEL_CYCLE.length];
+  if (nextLevel === 'autopilot') {
+    const msg = fr
+      ? `Passer « ${label} » en Autopilot ? Les envois correspondants partiront automatiquement, sans validation humaine.`
+      : `Set "${label}" to Autopilot? Matching sends will go out automatically, without human review.`;
+    if (!(await _confirmModal(msg))) return;
+  }
+  const mandateId = (activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null;
+  try {
+    const { error } = await sbClient.from('autonomy_settings')
+      .upsert(
+        { client_id: CLIENT_ID, mandate_id: mandateId, action_type: actionType, icp_tier: icpTier, level: nextLevel, updated_at: new Date().toISOString() },
+        { onConflict: 'client_id,mandate_id,action_type,icp_tier' }
+      );
+    if (error) { console.error('[_cycleAutonomyLevel]', error); showToast(fr ? 'Erreur lors de la mise à jour du niveau d\'autonomie' : 'Error updating autonomy level'); return; }
+    showToast(fr ? `« ${label} » réglé sur ${_autonomyLevelLabel(nextLevel, fr)} ✓` : `"${label}" set to ${_autonomyLevelLabel(nextLevel, fr)} ✓`);
+    _loadActorAutonomy();
+  } catch(e) {
+    console.error('[_cycleAutonomyLevel]', e);
+    showToast(fr ? 'Erreur réseau' : 'Network error');
+  }
 }
 async function _loadActorAutonomy() {
   const fr = currentLang === 'fr';
@@ -5975,7 +6022,8 @@ async function _loadActorAutonomy() {
       el.innerHTML = results.map((r, i) => {
         if (r.error) { console.warn('[_loadActorAutonomy]', key, queries[i].action_type, r.error); return ''; }
         const level = r.data?.level || null;
-        return _autonomyPillHTML(level, fr ? queries[i].label.fr : queries[i].label.en);
+        const q = queries[i];
+        return _autonomyPillHTML(level, q.action_type, q.icp_tier, fr ? q.label.fr : q.label.en);
       }).join('');
     } catch(e) {
       console.warn('[_loadActorAutonomy]', key, e);
