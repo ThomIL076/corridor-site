@@ -4202,7 +4202,7 @@ async function loadKanban(force){
     let _kAll = [], _kFrom = 0;
     while (true) {
       const { data: chunk, error } = await sbClient.from('prospects')
-        .select('id, name, company, title, sector, region, country, country_code, stage, icp_score, icp_reason, signal, signal_url, signal_type, signal_interpretation, signal_date, notes, created_at, archived, email, phone, linkedin, website_url, company_size, funding_stage, last_funding_date, total_funding, hard_criteria_met, company_verified, identity_confidence, identity_verdict, identity_verdict_checked_at, company_checked_at, score_role, score_size, score_signal_strength, score_recency, score_mandate_fit, score_completeness, reminder_date, deal_value, deal_currency, deal_structure, deal_weighted, next_action, next_action_date, next_action_cache, next_action_generated_at, origin')
+        .select('id, name, company, title, sector, region, country, country_code, stage, icp_score, icp_reason, signal, signal_url, signal_type, signal_interpretation, signal_interpretation_updated_at, signal_date, notes, created_at, archived, email, phone, linkedin, website_url, company_size, funding_stage, last_funding_date, total_funding, hard_criteria_met, company_verified, identity_confidence, identity_verdict, identity_verdict_checked_at, company_checked_at, score_role, score_size, score_signal_strength, score_recency, score_mandate_fit, score_completeness, reminder_date, deal_value, deal_currency, deal_structure, deal_weighted, next_action, next_action_date, next_action_cache, next_action_generated_at, origin')
         .eq('client_id', CLIENT_ID)
         .order('created_at', { ascending: false })
         .range(_kFrom, _kFrom + 999);
@@ -5308,12 +5308,15 @@ function _pdWhyCorridorNowHTML(p) {
   }
   const sigUrl = (p.signal_url || '').trim();
   const sigInterp = p.signal_interpretation ? _esc(_stripHtmlPd(p.signal_interpretation)) : '';
+  // AJOUT 29/09 (audit Thomas, roadmap Phase 3) : meme mecanisme que le badge Next Action,
+  // applique ici a AI Insight -- trou de confiance explicitement note dans l'audit.
+  const aiInsightFreshBadge = _fmtNextActionFreshness(p.signal_interpretation_updated_at);
   return `<div class="card" style="margin:16px 0;">
     <div class="card-header"><span class="card-title">Pourquoi Wominds, maintenant</span></div>
     <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px;">${p.signal_type ? _sigBadge(p.signal_type) : ''}<span style="font-size:var(--fs-xs);color:var(--muted);margin-left:auto;white-space:nowrap;">${p.signal_date ? _esc(_relDate(p.signal_date) || '') : 'Date non renseignée'}</span></div>
     <div style="font-size:var(--fs-sm);color:var(--text);line-height:1.5;">${sigText}</div>
     ${sigUrl ? `<a href="${_esc(sigUrl)}" target="_blank" rel="noopener noreferrer" style="font-size:var(--fs-xs);color:var(--ink);text-decoration:underline;font-weight:600;">Source →</a>` : ''}
-    ${sigInterp ? `<div style="margin-top:8px;background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--ink);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:11px;opacity:0.65;display:block;margin-bottom:3px">✦ Analyse IA</span>${sigInterp}</div>` : ''}
+    ${sigInterp ? `<div style="margin-top:8px;background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--ink);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:11px;opacity:0.65;display:block;margin-bottom:3px">✦ Analyse IA</span>${sigInterp}${aiInsightFreshBadge ? `<div style="margin-top:6px"><span style="font-size:10.5px;font-weight:600;opacity:0.75">${aiInsightFreshBadge}</span></div>` : ''}</div>` : ''}
   </div>`;
 }
 // F16 (port wominds, 2026-09-17) : "Raison de la priorité" -- icp_reason jamais affiche dans le
@@ -6831,7 +6834,7 @@ async function _fetchTodaySendCounts() {
 // Colonnes prospects des cartes Aujourd'hui -- partagees par loadDailyPriorities (decisions du
 // Morning Scan) et loadTodayRun (repli), pour que les deux alimentent _prospectsById avec la
 // meme fiche complete.
-const _TODAY_PROSPECT_COLS = 'id,name,company,title,sector,stage,icp_score,icp_reason,signal,signal_url,signal_type,signal_interpretation,signal_date,created_at,email,phone,linkedin,website_url,region,country,country_code,company_size,funding_stage,last_funding_date,total_funding,hard_criteria_met,company_verified,identity_confidence,identity_verdict,identity_verdict_checked_at,company_checked_at,score_role,score_size,score_signal_strength,score_recency,score_mandate_fit,score_completeness,reminder_date,deal_value,deal_currency,deal_structure,deal_weighted,next_action,next_action_date,next_action_cache,next_action_generated_at,origin';
+const _TODAY_PROSPECT_COLS = 'id,name,company,title,sector,stage,icp_score,icp_reason,signal,signal_url,signal_type,signal_interpretation,signal_interpretation_updated_at,signal_date,created_at,email,phone,linkedin,website_url,region,country,country_code,company_size,funding_stage,last_funding_date,total_funding,hard_criteria_met,company_verified,identity_confidence,identity_verdict,identity_verdict_checked_at,company_checked_at,score_role,score_size,score_signal_strength,score_recency,score_mandate_fit,score_completeness,reminder_date,deal_value,deal_currency,deal_structure,deal_weighted,next_action,next_action_date,next_action_cache,next_action_generated_at,origin';
 // Port de loadDailyPriorities (demo-private.html) -- oubli de clonage constate le 2026-09-21 :
 // Wominds affichait toujours le classement arithmetique (loadTodayRun) meme quand le Morning Scan
 // du jour avait deja produit des decisions. Priorite au scan : morning_scan_decisions du jour
@@ -7056,7 +7059,7 @@ async function loadSendView() {
     let _spAll = [], _spFrom = 0;
     while (true) {
       const { data: chunk, error: pErr } = await sbClient.from('prospects')
-        .select('id,name,company,title,sector,stage,linkedin,last_contact,linkedin_tag,icp_score,client_id,created_at,signal,signal_url,signal_type,signal_date,email,phone,website_url,region,country,country_code,icp_reason,signal_interpretation,company_size,funding_stage,last_funding_date,total_funding,hard_criteria_met,company_verified,identity_confidence,identity_verdict,identity_verdict_checked_at,company_checked_at,score_role,score_size,score_signal_strength,score_recency,score_mandate_fit,score_completeness,reminder_date,deal_value,deal_currency,deal_structure,deal_weighted,next_action,next_action_date,next_action_cache,next_action_generated_at,origin')
+        .select('id,name,company,title,sector,stage,linkedin,last_contact,linkedin_tag,icp_score,client_id,created_at,signal,signal_url,signal_type,signal_date,email,phone,website_url,region,country,country_code,icp_reason,signal_interpretation,signal_interpretation_updated_at,company_size,funding_stage,last_funding_date,total_funding,hard_criteria_met,company_verified,identity_confidence,identity_verdict,identity_verdict_checked_at,company_checked_at,score_role,score_size,score_signal_strength,score_recency,score_mandate_fit,score_completeness,reminder_date,deal_value,deal_currency,deal_structure,deal_weighted,next_action,next_action_date,next_action_cache,next_action_generated_at,origin')
         .eq('client_id', CLIENT_ID).eq('archived', false)
         .order('created_at', { ascending: false })
         .range(_spFrom, _spFrom + 999);

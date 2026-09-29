@@ -148,10 +148,11 @@ function _fmtReminder(iso) {
     : { label: 'In ' + days + ' days — ' + d.toLocaleDateString('en-GB',{day:'numeric',month:'short'}), overdue:false };
 }
 
-// AJOUT 29/09 (badge de fraicheur Next Action, go Thomas) : meme forme que _fmtReminder
-// (parse/garde/label) mais sens inverse -- date d'ecriture passee, pas une echeance future.
-// Source : prospects.next_action_generated_at (deja ecrit a chaque generation de Next Action,
-// aucune migration necessaire). Retourne null si aucune date -- pas de badge affiche dans ce cas.
+// AJOUT 29/09 (badge de fraicheur, go Thomas) : meme forme que _fmtReminder (parse/garde/label)
+// mais sens inverse -- date d'ecriture passee, pas une echeance future. Generique malgre son nom :
+// utilisee pour prospects.next_action_generated_at (boite Next Action) ET, depuis la Phase 3,
+// prospects.signal_interpretation_updated_at (boite AI Insight) -- meme contrat pour les deux,
+// aucune raison de dupliquer. Retourne null si aucune date -- pas de badge affiche dans ce cas.
 function _fmtNextActionFreshness(iso) {
   if (!iso) return null;
   const d = new Date(iso); if (isNaN(d)) return null;

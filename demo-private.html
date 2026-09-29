@@ -10507,6 +10507,11 @@ async function openDrawer(card, initialTab = 'activity') {
   const _stripHtmlPd = s => (s || '').replace(/<a\s[^>]*>([^<]*)<\/a>/gi, '$1').replace(/<[^>]*>/g, '').trim();
   const _sigInterpText = _bilingualReasonText(_p, 'signal_interpretation', 'signal_interpretation_en');
   const _sigInterp = _sigInterpText ? _esc(_stripHtmlPd(_sigInterpText)) : '';
+  // AJOUT 29/09 (audit Thomas, roadmap Phase 3, migration signal_interpretation_updated_at +
+  // trigger BEFORE UPDATE deja en base) : meme mecanisme que le badge Next Action, applique ici a
+  // AI Insight -- trou de confiance explicitement note dans l'audit (aucun signal de fraicheur sur
+  // cette boite jusqu'ici).
+  const _aiInsightFreshBadge = _fmtNextActionFreshness(_p.signal_interpretation_updated_at);
   // F03 : "date not specified" explicite plutot que rien quand le signal existe sans signal_date --
   // jamais de repli sur created_at/updated_at (date d'import, pas la date reelle de l'evenement).
   const whyNowHTML = _sigText ? `
@@ -10516,7 +10521,7 @@ async function openDrawer(card, initialTab = 'activity') {
     </div>
     <div class="pd-row-main" style="margin:4px 0">${_sigText}</div>
     ${_sigUrl ? `<a href="${_esc(_sigUrl)}" target="_blank" rel="noopener noreferrer" style="font-size:var(--fs-xs);color:var(--ink);text-decoration:underline;font-weight:600;">Source →</a>` : ''}
-    ${_sigInterp ? `<div style="margin-top:8px;background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--ink);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:11px;opacity:0.65;display:block;margin-bottom:3px">✦ ${currentLang==='fr'?'Analyse IA':'AI Insight'}</span>${_sigInterp}</div>` : ''}
+    ${_sigInterp ? `<div style="margin-top:8px;background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--ink);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:11px;opacity:0.65;display:block;margin-bottom:3px">✦ ${currentLang==='fr'?'Analyse IA':'AI Insight'}</span>${_sigInterp}${_aiInsightFreshBadge ? `<div style="margin-top:6px"><span style="font-size:10.5px;font-weight:600;opacity:0.75">${_aiInsightFreshBadge}</span></div>` : ''}</div>` : ''}
   ` : `<div class="pd-empty">${currentLang==='fr'?'Aucun signal enregistré pour le moment.':'No signal recorded yet.'}</div>`;
 
   // "Raison de la priorite" (F16, nouvelle section) : icp_reason existe en base, jamais rendu
@@ -11605,7 +11610,7 @@ async function loadDailyPriorities() {
     // company_verified/identity_confidence/score_completeness deja presents.
     // icp_reason/signal_url/identity_verdict_checked_at/company_checked_at ajoutes (F16,
     // 2026-09-17) : tiroir "Pourquoi Corridor, maintenant" / "Raison de la priorite" ci-dessous.
-    const COLS = 'id,name,company,sector,icp_score,icp_confidence,icp_reason,score_signal_strength,score_role,score_size,score_recency,score_mandate_fit,score_completeness,signal,signal_type,signal_interpretation,signal_date,signal_url,mandate_id,stage,next_action_cache,next_action_generated_at,priority_batch_number,last_priority_shown_at,last_surfaced_in_scan_at,email,reminder_date,last_contact,linkedin,company_verified,identity_confidence,identity_verdict,identity_verdict_checked_at,company_checked_at,hard_criteria_met,website_url';
+    const COLS = 'id,name,company,sector,icp_score,icp_confidence,icp_reason,score_signal_strength,score_role,score_size,score_recency,score_mandate_fit,score_completeness,signal,signal_type,signal_interpretation,signal_interpretation_updated_at,signal_date,signal_url,mandate_id,stage,next_action_cache,next_action_generated_at,priority_batch_number,last_priority_shown_at,last_surfaced_in_scan_at,email,reminder_date,last_contact,linkedin,company_verified,identity_confidence,identity_verdict,identity_verdict_checked_at,company_checked_at,hard_criteria_met,website_url';
 
     // Priorite Morning Scan (arbitrage Thomas, meme fix que kaizenology.html) : si le scan du jour
     // a deja produit des decisions explicites (today_action/opportunistic_connection), elles
@@ -16857,7 +16862,7 @@ async function loadKanban(force){
         // (F16, meme soir) pour la ligne "Derniere verification" du tiroir.
         // icp_reason_en/signal_interpretation_en/hard_criteria_met_en ajoutes (chantier bilingue
         // Corridor, 23/09, GO Thomas) : voir _bilingualReasonText.
-        .select('id, name, company, title, sector, region, country, stage, linkedin, email, phone, deal_value, deal_currency, deal_structure, deal_weighted, notes, last_contact, reminder_date, icp_score, icp_reason, icp_reason_en, archived, client_id, linkedin_tag, origin, signal, signal_type, signal_interpretation, signal_interpretation_en, signal_date, created_at, draft_invite_note, company_size, next_action, next_action_date, score_signal_strength, score_growth, score_role, score_size, score_recency, score_mandate_fit, score_completeness, signal_url, website_url, funding_stage, last_funding_date, total_funding, additional_contacts, import_source, next_action_cache, next_action_generated_at, company_verified, identity_confidence, identity_verdict, identity_verdict_checked_at, company_checked_at, hard_criteria_met, hard_criteria_met_en')
+        .select('id, name, company, title, sector, region, country, stage, linkedin, email, phone, deal_value, deal_currency, deal_structure, deal_weighted, notes, last_contact, reminder_date, icp_score, icp_reason, icp_reason_en, archived, client_id, linkedin_tag, origin, signal, signal_type, signal_interpretation, signal_interpretation_en, signal_interpretation_updated_at, signal_date, created_at, draft_invite_note, company_size, next_action, next_action_date, score_signal_strength, score_growth, score_role, score_size, score_recency, score_mandate_fit, score_completeness, signal_url, website_url, funding_stage, last_funding_date, total_funding, additional_contacts, import_source, next_action_cache, next_action_generated_at, company_verified, identity_confidence, identity_verdict, identity_verdict_checked_at, company_checked_at, hard_criteria_met, hard_criteria_met_en')
         .eq('client_id', CLIENT_ID);
       _kQuery = _applyMandateFilter(_kQuery);
       const { data: chunk, error } = await _kQuery

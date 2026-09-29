@@ -8629,11 +8629,14 @@ async function openDrawer(card, initialTab = 'activity') {
   const _sigUrl = (_p.signal_url || '').trim();
   const _stripHtmlPd = s => (s || '').replace(/<a\s[^>]*>([^<]*)<\/a>/gi, '$1').replace(/<[^>]*>/g, '').trim();
   const _sigInterp = _p.signal_interpretation ? _esc(_stripHtmlPd(_p.signal_interpretation)) : '';
+  // AJOUT 29/09 (audit Thomas, roadmap Phase 3) : meme mecanisme que le badge Next Action,
+  // applique ici a AI Insight -- trou de confiance explicitement note dans l'audit.
+  const _aiInsightFreshBadge = _fmtNextActionFreshness(_p.signal_interpretation_updated_at);
   const _whyNowHTML = _sigText ? `
     <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px;">${_p.signal_type ? _sigBadge(_p.signal_type) : ''}<span style="font-size:var(--fs-xs);color:var(--muted);margin-left:auto;white-space:nowrap;">${_esc(_p.signal_date ? (_relDate(_p.signal_date) || '') : (currentLang==='fr'?'date non précisée':'date not specified'))}</span></div>
     <div style="font-size:var(--fs-sm);color:var(--text);line-height:1.5;">${_sigText}</div>
     ${_sigUrl ? `<a href="${_esc(_sigUrl)}" target="_blank" rel="noopener noreferrer" style="font-size:var(--fs-xs);color:var(--blue-brand);text-decoration:underline;font-weight:600;">Source →</a>` : ''}
-    ${_sigInterp ? `<div style="margin-top:8px;background:var(--navy-light);border:1px solid var(--blue);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--navy);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:11px;opacity:0.65;display:block;margin-bottom:3px">✦ ${currentLang==='fr'?'Analyse IA':'AI Insight'}</span>${_sigInterp}</div>` : ''}
+    ${_sigInterp ? `<div style="margin-top:8px;background:var(--navy-light);border:1px solid var(--blue);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--navy);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:11px;opacity:0.65;display:block;margin-bottom:3px">✦ ${currentLang==='fr'?'Analyse IA':'AI Insight'}</span>${_sigInterp}${_aiInsightFreshBadge ? `<div style="margin-top:6px"><span style="font-size:10.5px;font-weight:600;opacity:0.75">${_aiInsightFreshBadge}</span></div>` : ''}</div>` : ''}
   ` : `<div style="font-size:var(--fs-sm);color:var(--dim);font-style:italic">${currentLang==='fr'?'Aucun signal enregistré pour le moment.':'No signal recorded yet.'}</div>`;
   // F16 : "Priority reason" -- icp_reason jamais affiche dans le tiroir jusqu'ici (seulement
   // dans Edit details), plus derniere verification (identity_verdict_checked_at/
@@ -9819,7 +9822,7 @@ async function loadDailyPriorities() {
 
     // Etape B (2026-09-21) : + icp_reason, signal_interpretation, signal_url, identity_verdict, lues par la carte partagee _mscDecisionCardHTML (la ligne est
     // passee comme fiche « live »). Les 4 colonnes existent dans la vue prospects_scan_window (information_schema verifie) : vue security_invoker sur prospects.
-    const COLS = 'id,name,company,sector,icp_score,icp_confidence,score_signal_strength,signal,signal_type,signal_date,mandate_id,stage,next_action_cache,next_action_generated_at,priority_batch_number,last_priority_shown_at,email,reminder_date,last_contact,linkedin,company_verified,identity_confidence,icp_reason,signal_interpretation,signal_url,identity_verdict';
+    const COLS = 'id,name,company,sector,icp_score,icp_confidence,score_signal_strength,signal,signal_type,signal_date,mandate_id,stage,next_action_cache,next_action_generated_at,priority_batch_number,last_priority_shown_at,email,reminder_date,last_contact,linkedin,company_verified,identity_confidence,icp_reason,signal_interpretation,signal_interpretation_updated_at,signal_url,identity_verdict';
 
     // Priorite Morning Scan (arbitrage Thomas) : si le scan du jour a deja produit des decisions
     // explicites (today_action/opportunistic_connection), elles remplacent entierement le calcul
@@ -14950,7 +14953,7 @@ async function loadKanban(force){
     while (true) {
       let _kQuery = sbClient
         .from('prospects')
-        .select('id, name, company, title, sector, region, country, stage, linkedin, email, phone, deal_value, deal_currency, deal_structure, deal_weighted, notes, last_contact, reminder_date, icp_score, icp_reason, archived, client_id, linkedin_tag, origin, signal, signal_type, signal_interpretation, signal_date, created_at, draft_invite_note, company_size, next_action, next_action_date, score_signal_strength, score_growth, signal_url, mandate_id, website_url, funding_stage, last_funding_date, total_funding, additional_contacts, import_source, next_action_cache, next_action_generated_at, company_verified, identity_confidence, identity_verdict, identity_verdict_checked_at, company_checked_at')
+        .select('id, name, company, title, sector, region, country, stage, linkedin, email, phone, deal_value, deal_currency, deal_structure, deal_weighted, notes, last_contact, reminder_date, icp_score, icp_reason, archived, client_id, linkedin_tag, origin, signal, signal_type, signal_interpretation, signal_interpretation_updated_at, signal_date, created_at, draft_invite_note, company_size, next_action, next_action_date, score_signal_strength, score_growth, signal_url, mandate_id, website_url, funding_stage, last_funding_date, total_funding, additional_contacts, import_source, next_action_cache, next_action_generated_at, company_verified, identity_confidence, identity_verdict, identity_verdict_checked_at, company_checked_at')
         .eq('client_id', CLIENT_ID);
       _kQuery = _applyMandateFilter(_kQuery);
       const { data: chunk, error } = await _kQuery
