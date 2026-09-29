@@ -8619,6 +8619,7 @@ async function openDrawer(card, initialTab = 'activity') {
     ? _renderNextActionHTML(_p.next_action_cache, 'var(--navy)')
     : null;
   const _naFreshBadge = _fmtNextActionFreshness(_p.next_action_generated_at);
+  const _naDivergenceBadge = _fmtNextActionDivergence(_p.next_action, _p.next_action_cache);
   // F16 (kaizenology, 2026-09-17) : "Why Corridor, now" fusionne signal+source+interpretation,
   // remplace l'ancien encart signal/icp_reason fixe sous l'en-tete -- meme logique que
   // demo-private.html/wominds.html. signal/signal_type/signal_date restent des champs uniques
@@ -8697,6 +8698,7 @@ async function openDrawer(card, initialTab = 'activity') {
         ${_reminderBannerHTML(reminderDate)}
         <div style="margin-top:12px;padding:12px;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--bg);">
           <div style="font-size:var(--fs-micro);font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--dim);margin-bottom:8px">${currentLang==='fr'?'Prochaine action':'Next action'}</div>
+          ${_naDivergenceBadge ? `<div style="margin-bottom:8px"><span style="font-size:var(--fs-xs);font-weight:600;padding:2px 8px;background:var(--amber-bg);border:1px solid var(--amber-border);border-radius:var(--radius-pill);color:var(--amber-text)">${_naDivergenceBadge}</span></div>` : ''}
           <input id="drawer-next-action" class="dp-inp" value="${_esc(_p.next_action || '')}" data-en-ph="Next step..." data-fr-ph="Prochaine étape..." placeholder="Next step..." style="margin-bottom:6px">
           <div style="display:flex;gap:8px;align-items:center;">
             <input id="drawer-next-action-date" type="date" class="dp-inp" value="${_esc((_p.next_action_date || '').slice(0,10))}" style="flex:1;min-width:0">

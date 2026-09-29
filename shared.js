@@ -161,3 +161,40 @@ function _fmtNextActionFreshness(iso) {
   const dateStr = d.toLocaleDateString(fr ? 'fr-FR' : 'en-GB', { day: '2-digit', month: '2-digit' });
   return fr ? ('Mis à jour le ' + dateStr) : ('Updated on ' + dateStr);
 }
+
+// AJOUT 29/09 (badge de divergence Next Action, go Thomas, roadmap Phase 2) : prospects.next_action
+// (etape manuelle, texte libre court) et prospects.next_action_cache (recommandation IA, JSON
+// structure v1/v2/v3 ou markdown) sont deux sources independantes affichees cote a cote dans le
+// tiroir sans jamais etre comparees -- un utilisateur peut editer l'une en contradiction silencieuse
+// avec l'autre. Ce n'est PAS une comparaison semantique : les deux champs servent des usages
+// differents par design, donc une non-egalite textuelle est attendue des que les deux existent.
+// Le signal utile est "les deux sources existent, verifie qu'elles s'accordent", pas une detection
+// fine de contradiction.
+function _plainTextFromNextActionCache(raw) {
+  if (!raw) return '';
+  const trimmed = String(raw).trim();
+  if (trimmed.startsWith('{')) {
+    try {
+      const obj = JSON.parse(trimmed);
+      if (obj && typeof obj === 'object') {
+        return Object.values(obj).filter(v => typeof v === 'string').join(' ');
+      }
+    } catch (_) {}
+  }
+  return trimmed;
+}
+function _cleanCompareText(s) {
+  return String(s || '')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/[*_#>`[\]()]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+function _fmtNextActionDivergence(manualText, cacheRaw) {
+  const manual = _cleanCompareText(manualText);
+  const cache = _cleanCompareText(_plainTextFromNextActionCache(cacheRaw));
+  if (!manual || !cache || manual === cache) return null;
+  const fr = typeof currentLang === 'undefined' || currentLang === 'fr';
+  return fr ? '⚠ Texte manuel et recommandation IA divergent' : '⚠ Manual text and AI recommendation differ';
+}

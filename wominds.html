@@ -5835,6 +5835,7 @@ function _pdNextActionHTML(p) {
   const cachedRendered = p.next_action_cache ? _renderNextActionHTML(p.next_action_cache, 'var(--navy)') : null;
   const hasCached = !!p.next_action_cache;
   const naFreshBadge = _fmtNextActionFreshness(p.next_action_generated_at);
+  const naDivergenceBadge = _fmtNextActionDivergence(p.next_action, p.next_action_cache);
   return `<div class="ai-box" style="margin:16px 0;">
       <div class="ai-box-header"><span class="ai-box-label">Prochaine action conseillée</span><div class="ai-spinner" id="pd-next-action-spinner"></div></div>
       <div class="ai-box-body${cachedRendered ? ' loaded' : ''}" id="pd-next-action-output">${cachedRendered || 'Cliquez pour générer la prochaine étape...'}</div>
@@ -5843,6 +5844,7 @@ function _pdNextActionHTML(p) {
     <button class="btn-accent btn-lg" style="width:100%;justify-content:center;margin:8px 0;" onclick="_drawerAI()" id="pd-next-action-btn">${hasCached ? '🔄 Régénérer' : '▶ Prochaine action recommandée'}</button>
     <div style="margin:0 0 16px;padding:12px 14px;border:1px solid var(--border);border-radius:var(--radius-md);background:#fff;">
       <div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);margin-bottom:8px;">Prochaine étape manuelle</div>
+      ${naDivergenceBadge ? `<div style="margin-bottom:8px"><span style="font-size:var(--fs-xs);font-weight:600;padding:2px 8px;background:var(--amber-bg);border:1px solid var(--amber-border);border-radius:var(--radius-pill);color:var(--amber-text)">${naDivergenceBadge}</span></div>` : ''}
       <input id="pd-next-action-manual" class="dp-inp" value="${_esc(p.next_action || '')}" placeholder="Prochaine étape..." style="margin-bottom:6px;">
       <div style="display:flex;gap:8px;align-items:center;">
         <input id="pd-next-action-date" type="date" class="dp-inp" value="${_esc((p.next_action_date || '').slice(0,10))}" style="flex:1;min-width:0;">

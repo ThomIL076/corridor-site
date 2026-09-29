@@ -10468,6 +10468,7 @@ async function openDrawer(card, initialTab = 'activity') {
     ? _renderNextActionHTML(_p.next_action_cache, 'var(--ink)')
     : null;
   const _naFreshBadge = _fmtNextActionFreshness(_p.next_action_generated_at);
+  const _naDivergenceBadge = _fmtNextActionDivergence(_p.next_action, _p.next_action_cache);
 
   // Interactions + replies charges AVANT le template (restructuration scroll) : Touches et
   // Message history en ont besoin au rendu, pas seulement l'ancien onglet Activity.
@@ -10627,6 +10628,7 @@ async function openDrawer(card, initialTab = 'activity') {
         ${_naFreshBadge ? `<div style="margin-top:6px"><span style="font-size:var(--fs-xs);font-weight:600;padding:2px 8px;background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:var(--radius-pill);color:var(--accent)">${_naFreshBadge}</span></div>` : ''}
         <div style="margin-top:10px;padding:12px 14px;border:1px solid var(--border);border-radius:var(--radius-md);background:#fff;">
           <div class="pd-section-label" style="margin-bottom:8px">${currentLang==='fr'?'Prochaine étape manuelle':'Manual next step'}</div>
+          ${_naDivergenceBadge ? `<div style="margin-bottom:8px"><span style="font-size:var(--fs-xs);font-weight:600;padding:2px 8px;background:var(--amber-bg);border:1px solid var(--amber-border);border-radius:var(--radius-pill);color:var(--amber-text)">${_naDivergenceBadge}</span></div>` : ''}
           <input id="drawer-next-action" class="dp-inp" value="${_esc(_p.next_action || '')}" placeholder="${currentLang==='fr'?'Prochaine étape...':'Next step...'}" style="margin-bottom:6px">
           <div style="display:flex;gap:8px;align-items:center;">
             <input id="drawer-next-action-date" type="date" class="dp-inp" value="${_esc((_p.next_action_date || '').slice(0,10))}" style="flex:1;min-width:0">
