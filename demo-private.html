@@ -4585,7 +4585,7 @@ function _mscMentionsForSection(paragraphs, marketMentions, renderedKeys) {
   return matched;
 }
 // Badge ICP avec infobulle au survol -- UNIQUE implementation, partagee par les badges du Pipeline
-// (_topProspectItems) et par les cartes du Morning Scan (_mscDecisionCardHTML) : meme mecanisme
+// et par les cartes du Morning Scan (_mscDecisionCardHTML) : meme mecanisme
 // (span .icp-tt affiche/masque par onmouseover/onmouseout, pas de title natif), meme source unique
 // (prospects.icp_reason, repli generique si absent). chipHtml = le badge lui-meme, propre a chaque
 // site ; align 'left' ancre l'infobulle sur le bord gauche du badge (badge aligne a gauche dans une
@@ -6044,7 +6044,7 @@ Be direct. Use ## headers exactly as shown above. If information is not availabl
 
 Rules: Never use em-dashes or horizontal rules (---) in your response.
 
-Language: Write your entire response in ${typeof currentLang !== 'undefined' && currentLang === 'fr' ? 'French' : 'English'}.`;
+Language: Write your entire response in ${typeof currentLang !== 'undefined' && currentLang === 'fr' ? 'French' : 'English'}. All section headers, bullet points, and analysis must be in that language.`;
   await callAI(contactPrompt, out, 'scanner-contact-spinner');
   const _liSvg13 = '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>';
   const _li2icon = u => '<a href="' + u + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:3px;color:var(--fill-accent);text-decoration:none;font-weight:600" title="' + (currentLang==='fr'?'Profil LinkedIn':'LinkedIn profile') + '">' + _liSvg13 + '<span style="font-size:var(--fs-xs);vertical-align:middle">LinkedIn</span></a>';
@@ -6067,7 +6067,7 @@ async function _runFreeSearch(company) {
   if (out) out.textContent = (currentLang==='fr'?'Recherche en cours sur ':'Researching ') + company + '...';
   const personLine = person ? `\nPerson: ${person}` : '';
   const contextLine = context ? `\nContext: ${context}` : '';
-  const freePrompt = `You are a GTM intelligence assistant. Research the following and return a structured briefing with three ## section headers as shown below:\n\nCompany: ${company}${personLine}${contextLine}\n\n## WHO THEY ARE\nWhat the company does, stage, size, market position. 3-4 lines max.\n\n## SIGNAL\nIs there any recent signal that makes this company worth approaching now (funding, hiring, expansion, new product, leadership change)? If none, say so directly.\n\n## ANGLE\nOne specific conversation starter tailored to this company. Not generic. Based on what you found.\n\nBe direct. No filler. Use ## headers exactly as shown. If you cannot find information, say so rather than inventing details.\n\nRules: Never use em-dashes or horizontal rules (---) in your response.\n\nLanguage: Write your entire response in ${typeof currentLang !== 'undefined' && currentLang === 'fr' ? 'French' : 'English'}.`;
+  const freePrompt = `You are a GTM intelligence assistant. Research the following and return a structured briefing with three ## section headers as shown below:\n\nCompany: ${company}${personLine}${contextLine}\n\n## WHO THEY ARE\nWhat the company does, stage, size, market position. 3-4 lines max.\n\n## SIGNAL\nIs there any recent signal that makes this company worth approaching now (funding, hiring, expansion, new product, leadership change)? If none, say so directly.\n\n## ANGLE\nOne specific conversation starter tailored to this company. Not generic. Based on what you found.\n\nBe direct. No filler. Use ## headers exactly as shown. If you cannot find information, say so rather than inventing details.\n\nRules: Never use em-dashes or horizontal rules (---) in your response.\n\nLanguage: Write your entire response in ${typeof currentLang !== 'undefined' && currentLang === 'fr' ? 'French' : 'English'}. All section headers, bullet points, and analysis must be in that language.`;
   const liveCtx = await _prefetchWebContext(company, 'GTM decision maker');
   const noCtxNote = liveCtx ? '' : '\nNO LIVE CONTEXT AVAILABLE: Do not invent company-specific facts.\n';
   const p1 = callAI(liveCtx + noCtxNote + freePrompt, out, 'scanner-spinner');
@@ -6079,6 +6079,13 @@ async function _runFreeSearch(company) {
 async function runScanner() {
   const company = document.getElementById('scanner-company').value.trim() || window.activeCompany || '';
   if (company) window.activeCompany = company;
+  // Reset stale Buying Committee results from a previous company scan (bug fixed 2026-09-29)
+  const _cmOut = document.getElementById('scanner-committee-output');
+  if (_cmOut) {
+    _cmOut.textContent = (typeof currentLang !== 'undefined' && currentLang === 'fr')
+      ? (_cmOut.dataset.fr || _cmOut.dataset.en || '')
+      : (_cmOut.dataset.en || '');
+  }
   const person  = (document.getElementById('scanner-person')?.value || '').trim();
   if (_scannerMode === 'free') { return _runFreeSearch(company); }
   const sector = document.getElementById('scanner-sector').value;
@@ -8185,31 +8192,10 @@ Populate stakeholder_* fields ONLY when new_stakeholder is true; set to null oth
     }
     const text = _scanText.trim() || 'No response.';
     const runTs = new Date().toISOString();
-    const _topProspectItems = _topProspectData.map(function(p) {
-      const sigText = p.signal_interpretation
-        ? p.signal_interpretation.slice(0, 140)
-        : p.signal.replace(/<[^>]*>/g,'').trim().slice(0,90) + (p.signal.replace(/<[^>]*>/g,'').trim().length > 90 ? '…' : '');
-      const icpBadge = _icpBadgeWithTooltipHTML(
-        '<span style="font-size:var(--fs-xs);font-weight:700;background:var(--accent-bg);color:var(--ink);border:1px solid var(--accent-border);border-radius:var(--radius-pill);padding:1px 8px;white-space:nowrap;cursor:default;">ICP ' + p.icp_score + '</span>',
-        p.icp_score, p.icp_reason);
-      const _reminderBadge = p.isReminder ? '<span style="font-size:var(--fs-xs);font-weight:700;color:#B45309;background:#FEF3C7;border:1px solid #FCD34D;border-radius:var(--radius-pill);padding:1px 7px;white-space:nowrap;">Rappel</span>' : '';
-      const cardHtml =
-        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">' +
-          '<span onclick="_prOpenProspect(\'' + p.id + '\')" style="font-weight:700;font-size:var(--fs-sm);color:var(--ink);cursor:pointer;" onmouseover="this.style.textDecoration=\'underline\'" onmouseout="this.style.textDecoration=\'none\'">' + _esc(p.name||'') + '</span>' +
-          '<span style="margin-left:auto;display:flex;align-items:center;gap:6px;">' + _reminderBadge + icpBadge + '</span>' +
-        '</div>' +
-        '<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:2px;">' + (p.company ? '<strong>' + _esc(p.company) + '</strong>' : '') + (p.sector ? _esc(' · ' + p.sector) : '') + _esc(' · Stage: ' + (p.stage||'Identified')) + '</div>' +
-        '<div style="font-size:var(--fs-xs);color:var(--text-secondary);margin-top:3px;overflow-wrap:break-word;"><span style="font-weight:700;color:var(--text-primary);">Why:</span> ' + (function(){ var c = p.company; if (!c) return _esc(sigText); var re = new RegExp('(' + c.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + ')','gi'); return sigText.split(re).map(function(s,i){ return i%2===1 ? '<strong>'+_esc(s)+'</strong>' : _esc(s); }).join(''); })() + '</div>';
-      return {
-        timestamp: runTs,
-        type: 'morning',
-        prospectId: p.id || null,
-        signalType: p.signal_type || null,
-        label: (p.name||'') + (p.company ? ' · ' + p.company : ''),
-        linkedinUrl: p.linkedin || '',
-        htmlContent: cardHtml,
-      };
-    });
+    // Top Prospects no longer renders a prospect list here — Today is recalculated live on
+    // every load while this scan is a frozen snapshot, so the two could visibly diverge on the
+    // same screen. Link out to Today instead of duplicating prospect data.
+    const _topProspectsLinkHtml = '<div style="font-size:var(--fs-sm);"><a href="#" onclick="switchTab(\'priorities\', true); return false;" style="color:var(--fill-accent);text-decoration:underline;">' + (currentLang==='fr' ? '→ Voir les priorités du jour dans Today' : '→ See today’s priorities in Today') + '</a></div>';
     let signalsData = null;
     try {
       let raw = text.trim().replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
@@ -8321,18 +8307,9 @@ Populate stakeholder_* fields ONLY when new_stakeholder is true; set to null oth
           }).join(''));
 
     _morningItems = [
-      ...(_topProspectItems.length
-        ? _topProspectItems
-        : [{ timestamp: runTs, type: 'morning', label: 'Top Prospects Today', htmlContent: '<div style="color:var(--muted);font-size:var(--fs-sm);">No prospects with ICP score and active signal in pipeline.</div>' }]),
+      { timestamp: runTs, type: 'morning', label: 'Top Prospects', htmlContent: _topProspectsLinkHtml },
       { timestamp: runTs, type: 'morning', label: 'Signals & Interpretation', htmlContent: signalsHtml }
     ];
-    if (eligibleTotal > displayCount) {
-      const _mandateParam = (activeMandateId && activeMandateId !== '__ALL__') ? 'mandate=' + activeMandateId : '';
-      const _params = [_mandateParam, 'filter=signals'].filter(Boolean).join('&');
-      const _msLink = window.location.origin + window.location.pathname + (_params ? '?' + _params : '');
-      const _lastPItem = _topProspectItems[_topProspectItems.length - 1];
-      if (_lastPItem) _lastPItem.linkHtml = `<div style="margin-top:8px;"><a href="${_msLink}" style="color:var(--ink);font-size:var(--fs-sm);text-decoration:underline;">View prospects with signals (${eligibleTotal}) →</a></div>`;
-    }
     _renderSignalsFeed();
     if (_topProspectData.length) {
       const _wbNow = new Date().toISOString();
@@ -10042,16 +10019,21 @@ async function importCSV(e) {
       // de connexion...) -- une ligne stockee en http:// ne matche alors plus jamais.
       if (linkedin) linkedin = linkedin.replace(/^http:\/\//i, 'https://');
       const region   = country ? _inferRegion(country) : '';
+      // AJOUT 29/09 (audit Thomas) : un linkedin incomplet (ex. /in/ racine sans slug) ne doit ni
+      // etre enregistre tel quel dans la colonne linkedin, ni produire un external_id degenere
+      // ('li:' vide) qui ferait collisionner par erreur plusieurs prospects distincts sous le meme
+      // onConflict client_id,external_id (ignoreDuplicates silencieux plus bas).
+      const linkedinValid = linkedin && isCompleteLinkedinProfileUrl(linkedin) ? linkedin : null;
 
-      const external_id = linkedin
-        ? 'li:' + linkedin.replace(/^https?:\/\/(www\.)?linkedin\.com\/in\//, '').replace(/\/$/, '')
+      const external_id = linkedinValid
+        ? 'li:' + linkedinValid.replace(/^https?:\/\/(www\.)?linkedin\.com\/in\//, '').replace(/\/$/, '')
         : 'nc:' + name.toLowerCase().replace(/\s+/g, '') + '|' + company.toLowerCase().replace(/\s+/g, '');
 
       rows.push({
         client_id: CLIENT_ID, mandate_id: (activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null, deal_id: activeDealId || null, external_id,
         name, company: company || null, sector,
         country: country || null, region: region || null,
-        linkedin: linkedin || null, email: email || null,
+        linkedin: linkedinValid, email: email || null,
         stage: 'Identified', origin: 'csv_import', import_source: 'csv_import', archived: false
       });
     }
@@ -10168,6 +10150,19 @@ function _fmtReminder(iso) {
   return fr
     ? { label: 'Dans ' + days + ' jours, le ' + d.toLocaleDateString('fr-FR',{day:'numeric',month:'short'}), overdue:false }
     : { label: 'In ' + days + ' days — ' + d.toLocaleDateString('en-GB',{day:'numeric',month:'short'}), overdue:false };
+}
+// AJOUT 29/09 (badge de fraicheur Next Action, go Thomas) : meme forme que _fmtReminder
+// (parse/garde/label) mais sens inverse -- date d'ecriture passee, pas une echeance future.
+// Source : prospects.next_action_generated_at (deja ecrit a chaque generation de Next Action,
+// aucune migration necessaire). Retourne null si aucune date -- pas de badge affiche dans ce cas.
+function _fmtNextActionFreshness(iso) {
+  if (!iso) return null;
+  const d = new Date(iso); if (isNaN(d)) return null;
+  const days = Math.floor((Date.now() - d) / 86400000);
+  const fr = currentLang === 'fr';
+  if (days <= 0) return fr ? 'Mis à jour aujourd\'hui' : 'Updated today';
+  const dateStr = d.toLocaleDateString(fr ? 'fr-FR' : 'en-GB', { day: '2-digit', month: '2-digit' });
+  return fr ? ('Mis à jour le ' + dateStr) : ('Updated on ' + dateStr);
 }
 // Tiroir prospect (restructuration scroll) : meme definition de "au point mort" que le scoring
 // de priorite quotidienne (hasOverdueReminder, cf. _scoreLead) -- pas une nouvelle notion, reuse
@@ -10502,6 +10497,7 @@ async function openDrawer(card, initialTab = 'activity') {
   const _cachedRendered = _p.next_action_cache
     ? _renderNextActionHTML(_p.next_action_cache, 'var(--ink)')
     : null;
+  const _naFreshBadge = _fmtNextActionFreshness(_p.next_action_generated_at);
 
   // Interactions + replies charges AVANT le template (restructuration scroll) : Touches et
   // Message history en ont besoin au rendu, pas seulement l'ancien onglet Activity.
@@ -10658,6 +10654,7 @@ async function openDrawer(card, initialTab = 'activity') {
           <div class="pd-next-action-label">${currentLang==='fr'?'PROCHAINE ACTION':'NEXT ACTION'}</div>
           <div class="pd-next-action-text ai-box-body${_cachedRendered ? ' loaded' : ''}" id="drawer-output">${_cachedRendered || (currentLang==='fr'?'Cliquez pour générer la prochaine étape...':'Click to generate the next step...')}</div>
         </div>
+        ${_naFreshBadge ? `<div style="margin-top:6px"><span style="font-size:var(--fs-xs);font-weight:600;padding:2px 8px;background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:var(--radius-pill);color:var(--accent)">${_naFreshBadge}</span></div>` : ''}
         <div style="margin-top:10px;padding:12px 14px;border:1px solid var(--border);border-radius:var(--radius-md);background:#fff;">
           <div class="pd-section-label" style="margin-bottom:8px">${currentLang==='fr'?'Prochaine étape manuelle':'Manual next step'}</div>
           <input id="drawer-next-action" class="dp-inp" value="${_esc(_p.next_action || '')}" placeholder="${currentLang==='fr'?'Prochaine étape...':'Next step...'}" style="margin-bottom:6px">
@@ -11666,7 +11663,16 @@ async function loadDailyPriorities() {
         .in('id', Object.keys(_decisionByProspect));
       if (errDP) throw errDP;
       const _catRank = { today_action: 0, opportunistic_connection: 1 };
+      // Fix 2026-09-29 (Thomas) : un envoi (_markSent/_startEmailSeq, LinkedIn ou email, depuis la
+      // fiche prospect ou la vue Send) pose deja priority_batch_number = _priorityCurrentBatch sur
+      // la fiche -- signal "traite dans ce batch, ne plus le remontrer", deja utilise par la branche
+      // calcul arithmetique ci-dessous (eligible = filter priority_batch_number===0). Cette branche
+      // liste de decisions Morning Scan ne le lisait jamais (cf. commentaire plus bas : "pas de
+      // priority_batch_number a avancer ici", vrai pour l'avancement mais pas pour l'exclusion) --
+      // un prospect envoye pendant la journee restait donc affiche dans Today jusqu'au recalcul du
+      // scan du lendemain, alors que le signal "plus rien d'urgent" existait deja en base.
       _priorityShownProspects = (decisionProspects || [])
+        .filter(p => (p.priority_batch_number || 0) !== _priorityCurrentBatch)
         .map(p => { p._morningScanCategory = _decisionByProspect[p.id] || null; return p; })
         .sort((a, b) => (_catRank[a._morningScanCategory] ?? 2) - (_catRank[b._morningScanCategory] ?? 2));
       // Repli 2026-09-20 (incident reel : les 4 decisions du scan du matin, re-scorees a ICP 5 par ICP Score
@@ -13974,12 +13980,45 @@ async function persistStage(id, stage){
 }
 
 // ── CRUD prospects (Phase 1) ──
+// AJOUT 29/09 (audit Thomas, cas reels Ricardo Mendes / Valentina Jordan / Jagnoor Singh sur
+// Kaizenology, meme angle mort ici cote ecriture -- rien ne verifiait jusqu'ici qu'un lien
+// LinkedIn saisi/importe/resolu etait une URL de profil complete avant de l'enregistrer en base,
+// symetrique du fix isCompleteLinkedinProfileUrl deja pousse sur Morning Scan — Corridor/Kaizenology
+// (n8n) pour l'affichage. Meme regex que hasMalformedLinkedinSlug (workflow d'enrichissement) pour coherence.
+function isCompleteLinkedinProfileUrl(url) {
+  if (!url) return false;
+  const slugMatch = url.match(/\/in\/([^/?#]+)/);
+  if (!slugMatch) return false;
+  return slugMatch[1].trim().length >= 2;
+}
 // Clé d'identité canonique (alignée sur App.jsx) pour external_id à l'insertion.
 function identityKey(p){
   const m = (p.linkedin || '').match(/linkedin\.com\/in\/([^/?#]+)/i);
   if (m && m[1] && !/^acoaa/i.test(m[1])) return 'li:' + m[1].toLowerCase();
   if (p.email && p.email.trim()) return 'em:' + p.email.trim().toLowerCase();
   return 'nc:' + (p.name || '').trim().toLowerCase() + '|' + (p.company || '').trim().toLowerCase();
+}
+async function _findLinkedInDrawer(pid) {
+  const p = _prospectsById[pid];
+  if (!p) return;
+  const btn = document.getElementById('find-linkedin-' + pid);
+  const status = document.getElementById('linkedin-status-' + pid);
+  if (btn) btn.disabled = true;
+  if (status) status.textContent = (currentLang==='fr'?'Recherche en cours...':'Searching...');
+  try {
+    const url = await _resolveViaEnrichment(p.name, p.company);
+    if (url && isCompleteLinkedinProfileUrl(url)) {
+      await _saveLinkedIn(pid, url, 'enrich');
+      if (status) status.textContent = (currentLang==='fr'?'✓ Trouvé':'✓ Found');
+    } else {
+      if (status) status.textContent = (currentLang==='fr'?'Introuvable':'Not found');
+      if (btn) btn.disabled = false;
+    }
+  } catch(e) {
+    console.warn('[_findLinkedInDrawer]', e);
+    if (status) status.textContent = (currentLang==='fr'?'Erreur — vérifiez la connexion':'Error — check connection');
+    if (btn) btn.disabled = false;
+  }
 }
 async function _findEmailDrawer(pid) {
   const p = _prospectsById[pid];
@@ -14235,6 +14274,23 @@ async function _saveEmail(pid, email, source) {
   });
   if (_emailIntErr) console.error('[_saveEmail] interactions insert failed:', _emailIntErr);
 }
+async function _saveLinkedIn(pid, url, source) {
+  const p = _prospectsById[pid];
+  if (!p) return;
+  p.linkedin = url;
+  if (_drawerProspect && _drawerProspect.id === pid) _drawerProspect.linkedin = url;
+  const linkedinInput = document.getElementById('ed-linkedin');
+  if (linkedinInput) linkedinInput.value = url;
+  const findBtn = document.getElementById('find-linkedin-' + pid);
+  if (findBtn) findBtn.remove();
+  const { error: _liSaveErr } = await sbClient.from('prospects').update({ linkedin: url }).eq('id', pid).eq('client_id', CLIENT_ID);
+  if (_liSaveErr) { console.error('[_saveLinkedIn] prospects update failed:', _liSaveErr); showToast(currentLang==='fr' ? 'Erreur lors de l\'enregistrement du LinkedIn' : 'Error saving LinkedIn'); return; }
+  const { error: _liIntErr } = await sbClient.from('interactions').insert({
+    prospect_id: pid, client_id: CLIENT_ID, mandate_id: p?.mandate_id ?? null, type: 'linkedin_found',
+    note: 'LinkedIn found: ' + url + ' (source: ' + source + ')'
+  });
+  if (_liIntErr) console.error('[_saveLinkedIn] interactions insert failed:', _liIntErr);
+}
 async function _savePhone(pid, phone, source) {
   const p = _prospectsById[pid];
   if (!p) return;
@@ -14326,7 +14382,11 @@ function _drawerProfileHTML(id, p, colStage, fb){
         `<button id="find-phone-${id}" onclick="_findPhoneDrawer('${id}')" style="font-size:var(--fs-sm);white-space:nowrap;min-width:95px;padding:6px 12px;background:var(--ink);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer">${currentLang==='fr'?'Trouver le téléphone':'Find phone'}</button>` +
       `</div>` +
       `<span id="phone-status-${id}" style="font-size:var(--fs-xs);color:var(--muted)"></span>` +
-      `<input id="ed-linkedin" class="dp-inp" value="${v(p.linkedin)}" placeholder="${currentLang==='fr'?'URL LinkedIn':'LinkedIn URL'}">`
+      `<div style="display:flex;gap:8px">` +
+        `<input id="ed-linkedin" class="dp-inp" value="${v(p.linkedin)}" placeholder="${currentLang==='fr'?'URL LinkedIn':'LinkedIn URL'}" style="flex:1;min-width:0">` +
+        (p.linkedin ? '' : `<button id="find-linkedin-${id}" onclick="_findLinkedInDrawer('${id}')" style="font-size:var(--fs-sm);white-space:nowrap;min-width:95px;padding:6px 12px;background:var(--ink);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer">${currentLang==='fr'?'Trouver LinkedIn':'Find LinkedIn'}</button>`) +
+      `</div>` +
+      `<span id="linkedin-status-${id}" style="font-size:var(--fs-xs);color:var(--muted)"></span>`
     )}
     ${card(
       lbl('Classification') +
@@ -14548,9 +14608,10 @@ async function saveProspectEdit(id){
   if (_dvRaw) { try { const _dvObj = JSON.parse(_dvRaw); _dvVal = _dvObj.fee_if_closed ?? _dvObj.val ?? null; _dvCurSel = _dvObj.currency || null; } catch(e){} }
   if (!_dvCurSel) { const _curEl = document.getElementById('dv-currency'); _dvCurSel = (_curEl && _curEl.value) || null; }
   const signalVal = (document.getElementById('drawer-signal')?.value || '').replace(/<[^>]*>/g, '').trim() || null;
+  const edLinkedin = g('ed-linkedin'); // AJOUT 29/09 (audit Thomas) : voir isCompleteLinkedinProfileUrl
   const row = {
     name: g('ed-name') || null, company: g('ed-company') || null, title: g('ed-title') || null,
-    email: g('ed-email') || null, phone: g('ed-phone') || null, linkedin: g('ed-linkedin') || null, sector: g('ed-sector') || null,
+    email: g('ed-email') || null, phone: g('ed-phone') || null, linkedin: (edLinkedin && isCompleteLinkedinProfileUrl(edLinkedin)) ? edLinkedin : null, sector: g('ed-sector') || null,
     country: g('ed-country') || null, region: document.getElementById('ed-region')?.value || null,
     company_size: parseInt(g('ed-company-size')) || null,
     funding_stage: g('ed-funding-stage') || null,
@@ -14618,10 +14679,12 @@ async function addProspect(){
   if (!name || !company){ err.textContent = currentLang === 'fr' ? 'Nom et société requis' : 'Name and company required'; err.style.display = 'block'; return; }
   err.style.display = 'none';
   const stageSel = document.getElementById('ap-stage')?.value || 'Identified';
-  const p = { name, company, email: g('ap-email'), linkedin: g('ap-linkedin') };
+  const apLinkedinRaw = g('ap-linkedin'); // AJOUT 29/09 (audit Thomas) : voir isCompleteLinkedinProfileUrl
+  const apLinkedin = (apLinkedinRaw && isCompleteLinkedinProfileUrl(apLinkedinRaw)) ? apLinkedinRaw : null;
+  const p = { name, company, email: g('ap-email'), linkedin: apLinkedin };
   const row = {
     client_id: CLIENT_ID, mandate_id: (activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null, deal_id: activeDealId || null, external_id: identityKey(p),
-    name, company, title: g('ap-title') || null, email: g('ap-email') || null, linkedin: g('ap-linkedin') || null,
+    name, company, title: g('ap-title') || null, email: g('ap-email') || null, linkedin: apLinkedin,
     sector: g('ap-sector') || null, country: g('ap-country') || null, region: document.getElementById('ap-region')?.value || null,
     stage: STAGE_DB[stageSel] || stageSel, archived: false, import_source: 'manual', deal_value: null, deal_currency: null, updated_at: new Date().toISOString()
   };

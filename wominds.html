@@ -2911,7 +2911,7 @@ function _mscNarrativeBlockHTML(heading, paragraphs, linksByParagraph) {
   return `${_mscSectionLabel(heading)}<div style="font-size:var(--fs-sm);color:var(--muted);line-height:1.5;margin-bottom:4px;">${body}</div>`;
 }
 // Badge ICP avec infobulle au survol -- UNIQUE implementation, partagee par les badges du Pipeline
-// (_topProspectItems) et par les cartes du Morning Scan (_mscDecisionCardHTML) : meme mecanisme
+// et par les cartes du Morning Scan (_mscDecisionCardHTML) : meme mecanisme
 // (span .icp-tt affiche/masque par onmouseover/onmouseout, pas de title natif), meme source unique
 // (prospects.icp_reason, repli generique si absent). chipHtml = le badge lui-meme, propre a chaque
 // site ; align 'left' ancre l'infobulle sur le bord gauche du badge (badge aligne a gauche dans une
@@ -3986,28 +3986,10 @@ Renseignez les champs stakeholder_* UNIQUEMENT si new_stakeholder est true, sino
     const data = await res.json();
     const text = (Array.isArray(data.content) ? data.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim() : '') || 'Aucune réponse.';
     const runTs = new Date().toISOString();
-    const _topProspectItems = _topProspectData.map(function(p) {
-      // Fix 2026-09-13 (diagnostic point 2) : meme resolution "votre profil" -> vrai contact_name
-      // que _renderSignalsFeed() branche 'live' (deja correcte ce matin) -- _sanitizeSignal()
-      // deja _esc()-safe en interne, sigText n'est donc plus re-echappe ligne ~2917 ci-dessous
-      // (evite le double-echappement d'entites HTML).
-      const _sigSanitized = p.signal ? _sanitizeSignal(p.signal) : '';
-      const sigText = p.signal_interpretation
-        ? _esc(p.signal_interpretation.slice(0, 140))
-        : _sigSanitized.slice(0, 90) + (_sigSanitized.length > 90 ? '…' : '');
-      const icpBadge = _icpBadgeWithTooltipHTML(
-        '<span style="font-size:var(--fs-xs);font-weight:700;background:var(--navy-light);color:var(--navy);border:1px solid var(--blue);border-radius:var(--radius-pill);padding:1px 8px;white-space:nowrap;cursor:default;">ICP ' + p.icp_score + '</span>',
-        p.icp_score, p.icp_reason);
-      const _reminderBadge = p.isReminder ? '<span style="font-size:var(--fs-xs);font-weight:700;color:#B45309;background:#FEF3C7;border:1px solid #FCD34D;border-radius:var(--radius-pill);padding:1px 7px;white-space:nowrap;">Rappel</span>' : '';
-      const cardHtml =
-        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">' +
-          '<span onclick="openProspectDetail(\'' + p.id + '\')" style="font-weight:700;font-size:var(--fs-sm);color:var(--navy);cursor:pointer;" onmouseover="this.style.textDecoration=\'underline\'" onmouseout="this.style.textDecoration=\'none\'">' + _esc(p.name || '') + '</span>' +
-          '<span style="margin-left:auto;display:flex;align-items:center;gap:6px;">' + _reminderBadge + icpBadge + '</span>' +
-        '</div>' +
-        '<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:2px;">' + (p.company ? '<strong>' + _esc(p.company) + '</strong>' : '') + (p.sector ? _esc(' · ' + p.sector) : '') + _esc(' · Étape : ' + (STAGE_LABEL_FR[p.stage] || p.stage || 'Identifiés')) + '</div>' +
-        '<div style="font-size:var(--fs-xs);color:var(--text);margin-top:3px;overflow-wrap:break-word;"><span style="font-weight:700;">Pourquoi :</span> ' + sigText + '</div>';
-      return { timestamp: runTs, type: 'morning', prospectId: p.id || null, signalType: p.signal_type || null, label: (p.name || '') + (p.company ? ' · ' + p.company : ''), linkedinUrl: p.linkedin || '', htmlContent: cardHtml };
-    });
+    // Top Prospects n'affiche plus de liste de prospects ici -- Today est recalcule en live a
+    // chaque chargement alors que ce scan est un instantane fige, les deux pouvaient diverger
+    // visiblement sur le meme ecran. Lien vers Today plutot que dupliquer les donnees prospect.
+    const _topProspectsLinkHtml = '<div style="font-size:var(--fs-sm);"><a href="#" onclick="switchTab(\'today\'); return false;" style="color:var(--fill-accent);text-decoration:underline;">→ Voir les priorités du jour dans Today</a></div>';
     let signalsData = null;
     try {
       let raw = text.trim().replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
@@ -4087,7 +4069,7 @@ Renseignez les champs stakeholder_* UNIQUEMENT si new_stakeholder est true, sino
             }).join(''));
 
     _morningItems = [
-      ...(_topProspectItems.length ? _topProspectItems : [{ timestamp: runTs, type: 'morning', label: 'Top prospects du jour', htmlContent: '<div style="color:var(--muted);font-size:var(--fs-sm);">Aucun prospect avec score ICP et signal actif dans le pipeline.</div>' }]),
+      { timestamp: runTs, type: 'morning', label: 'Top prospects du jour', htmlContent: _topProspectsLinkHtml },
       { timestamp: runTs, type: 'morning', label: 'Signaux et interprétation', htmlContent: signalsHtml }
     ];
     _renderSignalsFeed();
@@ -4796,6 +4778,17 @@ function _parseCsvLine(line, sep) {
 // casse) des que l'en-tete est reconnu -- repli sur l'ancien mapping positionnel UNIQUEMENT si
 // aucun nom de colonne connu n'est detecte (CSV simple sans en-tete, comportement inchange).
 // ON CONFLICT (client_id, external_id) -> ignore les doublons.
+// AJOUT 29/09 (audit Thomas, cas reels Ricardo Mendes / Valentina Jordan / Jagnoor Singh sur
+// Kaizenology, meme angle mort ici cote ecriture -- rien ne verifiait jusqu'ici qu'un lien
+// LinkedIn saisi/importe etait une URL de profil complete avant de l'enregistrer en base,
+// symetrique du fix isCompleteLinkedinProfileUrl deja pousse sur Morning Scan — Corridor/Kaizenology
+// (n8n) pour l'affichage. Meme regex que hasMalformedLinkedinSlug (FullEnrich Submit) pour coherence.
+function isCompleteLinkedinProfileUrl(url) {
+  if (!url) return false;
+  const slugMatch = url.match(/\/in\/([^/?#]+)/);
+  if (!slugMatch) return false;
+  return slugMatch[1].trim().length >= 2;
+}
 function _csvHeaderColumnMap(headerFields) {
   const norm = headerFields.map(h => (h || '').trim().toLowerCase());
   const find = (...aliases) => { for (const a of aliases) { const i = norm.indexOf(a); if (i !== -1) return i; } return -1; };
@@ -4880,6 +4873,10 @@ async function importCSV(e) {
       const invalidReason =
         /@/.test(sector) ? 'email dans le champ secteur' :
         (linkedin && !/^https?:\/\//i.test(linkedin)) ? 'LinkedIn non conforme (pas une URL)' :
+        // AJOUT 29/09 (audit Thomas, cas reels Ricardo Mendes / Valentina Jordan / Jagnoor Singh sur
+        // Kaizenology) : une URL LinkedIn syntaxiquement valide mais incomplete (/in/ racine sans
+        // slug) passait jusqu'ici le controle ci-dessus -- meme ligne rejetee, meme mecanisme.
+        (linkedin && !isCompleteLinkedinProfileUrl(linkedin)) ? 'LinkedIn incomplet (URL sans profil)' :
         (email && !/@/.test(email)) ? 'email non conforme' : null;
       if (invalidReason) {
         skippedInvalidFormat++;
@@ -5770,6 +5767,18 @@ function _fmtReminder(iso) {
   if (days === 1) return { label: 'Demain', overdue: false };
   return { label: 'Dans ' + days + ' jours, le ' + d.toLocaleDateString('fr-FR', { day:'numeric', month:'short' }), overdue: false };
 }
+// AJOUT 29/09 (badge de fraicheur Next Action, go Thomas) : meme forme que _fmtReminder
+// (parse/garde/label) mais sens inverse -- date d'ecriture passee, pas une echeance future.
+// Source : prospects.next_action_generated_at (deja ecrit a chaque generation de Next Action,
+// aucune migration necessaire). Retourne null si aucune date -- pas de badge affiche dans ce cas.
+// Mono-FR comme le reste du fichier (pas de currentLang ici, cf. known-divergences-wominds.md).
+function _fmtNextActionFreshness(iso) {
+  if (!iso) return null;
+  const d = new Date(iso); if (isNaN(d)) return null;
+  const days = Math.floor((Date.now() - d) / 86400000);
+  if (days <= 0) return "Mis à jour aujourd'hui";
+  return 'Mis à jour le ' + d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+}
 function _reminderBannerHTML(reminderDate) {
   const r = reminderDate ? _fmtReminder(reminderDate) : null;
   const isoShort = reminderDate ? new Date(reminderDate).toISOString().split('T')[0] : '';
@@ -5923,10 +5932,12 @@ function _renderNextActionHTML(raw, linkColor) {
 function _pdNextActionHTML(p) {
   const cachedRendered = p.next_action_cache ? _renderNextActionHTML(p.next_action_cache, 'var(--navy)') : null;
   const hasCached = !!p.next_action_cache;
+  const naFreshBadge = _fmtNextActionFreshness(p.next_action_generated_at);
   return `<div class="ai-box" style="margin:16px 0;">
       <div class="ai-box-header"><span class="ai-box-label">Prochaine action conseillée</span><div class="ai-spinner" id="pd-next-action-spinner"></div></div>
       <div class="ai-box-body${cachedRendered ? ' loaded' : ''}" id="pd-next-action-output">${cachedRendered || 'Cliquez pour générer la prochaine étape...'}</div>
     </div>
+    ${naFreshBadge ? `<div style="margin-top:-4px;margin-bottom:8px"><span style="font-size:var(--fs-xs);font-weight:600;padding:2px 8px;background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:var(--radius-pill);color:var(--ink)">${naFreshBadge}</span></div>` : ''}
     <button class="btn-accent btn-lg" style="width:100%;justify-content:center;margin:8px 0;" onclick="_drawerAI()" id="pd-next-action-btn">${hasCached ? '🔄 Régénérer' : '▶ Prochaine action recommandée'}</button>
     <div style="margin:0 0 16px;padding:12px 14px;border:1px solid var(--border);border-radius:var(--radius-md);background:#fff;">
       <div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);margin-bottom:8px;">Prochaine étape manuelle</div>
@@ -6631,9 +6642,10 @@ async function saveProspectEdit(id) {
   let _dvVal = null, _dvCurSel = null;
   if (_dvRaw) { try { const o = JSON.parse(_dvRaw); _dvVal = o.fee_if_closed ?? null; _dvCurSel = o.currency || null; } catch(e){} }
   if (!_dvCurSel) { const c = document.getElementById('dv-currency'); _dvCurSel = (c && c.value) || null; }
+  const edLinkedin = g('ed-linkedin'); // AJOUT 29/09 (audit Thomas) : voir isCompleteLinkedinProfileUrl
   const row = {
     name: g('ed-name') || null, company: g('ed-company') || null, title: g('ed-title') || null,
-    email: g('ed-email') || null, phone: g('ed-phone') || null, linkedin: g('ed-linkedin') || null,
+    email: g('ed-email') || null, phone: g('ed-phone') || null, linkedin: (edLinkedin && isCompleteLinkedinProfileUrl(edLinkedin)) ? edLinkedin : null,
     website_url: g('ed-website') || null,
     sector: g('ed-sector') || null, country: g('ed-country') || null, region: g('ed-region') || null,
     company_size: g('ed-company-size') || null, funding_stage: g('ed-funding-stage') || null,
