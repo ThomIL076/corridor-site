@@ -2225,6 +2225,9 @@ body.new-nav { padding-left: 220px; }
           </button>
         </div>
       </div>
+      <!-- AJOUT 29/09 (refonte v2 "While you were away", Phase 2, go Thomas) : bloc stats reelles,
+           rempli par _loadTodayStats(). Vide tant que le JS n'a pas tourne (pas de donnee d'exemple). -->
+      <div id="today-stats-row" style="display:flex;flex-wrap:wrap;margin-bottom:16px;background:#fff;border:1px solid var(--border);border-radius:var(--radius-panel);overflow:hidden;"></div>
       <div class="section-sub"><span id="priorities-queued-count">0</span><span data-en=" actions queued today. Work top to bottom. The system re-ranks after each send." data-fr=" actions en file aujourd'hui. Traitez-les de haut en bas. Le système reclasse après chaque envoi."> actions queued today. Work top to bottom. The system re-ranks after each send.</span></div>
       <div class="today-layout">
         <div class="today-main">
@@ -5640,6 +5643,69 @@ async function _loadAgentsAtWork() {
   }
 }
 
+// AJOUT 29/09 (refonte v2 "While you were away", Phase 2, go Thomas) : bloc stats au-dessus de la
+// file de decisions Today -- 4 chiffres reels, aucune donnee d'exemple. "Envoyes aujourd'hui" est un
+// TOTAL (manuel + autopilot confondus, reutilise _fetchTodaySendCounts deja existant) : sequences/
+// interactions ne distinguent pas encore le canal d'envoi, donc pas de decomposition fiable
+// "sans vous" vs "par vous" pour l'instant -- limitation connue, a fermer si un marqueur sent_via
+// est ajoute plus tard. "En attente de vous" reutilise EXACTEMENT le meme compte que
+// priorities-queued-count (_updateQueuedCount), jamais recalcule differemment ailleurs.
+async function _loadTodayStats() {
+  const el = document.getElementById('today-stats-row');
+  if (!el) return;
+  const fr = currentLang === 'fr';
+  try {
+    const todayStart = new Date().toISOString().slice(0, 10) + 'T00:00:00.000Z';
+    const tomorrowStart = new Date(Date.now() + 86400000).toISOString().slice(0, 10) + 'T00:00:00.000Z';
+
+    let signalsQ = sbClient.from('prospects').select('id', { count: 'exact', head: true })
+      .eq('client_id', CLIENT_ID).eq('archived', false)
+      .gte('signal_date', todayStart).lt('signal_date', tomorrowStart);
+    signalsQ = _applyMandateFilter(signalsQ);
+
+    // Perimetre aligne sur Review (Phase 3 a venir) : uniquement les types qui attendent une
+    // decision humaine d'envoi (outreach_opener/objection_response/linkedin_post) -- content_idea/
+    // repurposed_content/seo_audit_and_proposals sont des sorties d'agents recherche/rapport,
+    // deja affichees ailleurs, hors perimetre de ce compteur.
+    let draftsQ = sbClient.from('agent_proposals').select('id', { count: 'exact', head: true })
+      .eq('client_id', CLIENT_ID)
+      .in('content_type', ['outreach_opener', 'objection_response', 'linkedin_post'])
+      .gte('created_at', todayStart).lt('created_at', tomorrowStart);
+    draftsQ = _applyMandateFilter(draftsQ);
+
+    const [{ count: signalsCount, error: errSig }, { count: draftsCount, error: errDrafts }] = await Promise.all([signalsQ, draftsQ]);
+    if (errSig) console.warn('[_loadTodayStats] signals:', errSig);
+    if (errDrafts) console.warn('[_loadTodayStats] drafts:', errDrafts);
+
+    await _fetchTodaySendCounts();
+    const sentToday = (_todaySendCounts.invitesSent || 0) + (_todaySendCounts.messagesSent || 0) + (_todaySendCounts.emailsSent || 0);
+    // Valeur initiale = ce qui est deja connu au moment ou ce bloc se rend ; corrigee juste apres
+    // par _updateQueuedCount() (seule source de verite, cf. commentaire au-dessus de cette fonction).
+    const waitingCount = _priorityShownProspects.length + _reminderShownProspects.length;
+
+    const stats = [
+      { label: fr ? 'SIGNAUX TROUVÉS' : 'SIGNALS FOUND', value: signalsCount ?? 0, note: fr ? "aujourd'hui" : 'today' },
+      { label: fr ? 'MESSAGES RÉDIGÉS' : 'MESSAGES DRAFTED', value: draftsCount ?? 0, note: fr ? 'ouvertures, réponses, posts' : 'openers, replies, posts' },
+      { label: fr ? 'ENVOYÉS AUJOURD\'HUI' : 'SENT TODAY', value: sentToday, note: fr ? 'manuel + autopilot' : 'manual + autopilot', color: '#166b48' }
+    ];
+
+    el.innerHTML = stats.map((s, i) => `
+      <div style="flex:1 1 120px;min-width:110px;padding:12px 16px;box-sizing:border-box;${i > 0 ? 'border-left:1px solid var(--border);' : ''}">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.1em;color:var(--muted);">${_esc(s.label)}</div>
+        <div style="margin-top:4px;font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;letter-spacing:-.02em;color:${s.color || 'var(--ink)'};">${s.value}</div>
+        <div style="margin-top:2px;font-size:11px;color:var(--muted);">${_esc(s.note)}</div>
+      </div>`).join('')
+      + `<div style="flex:1 1 120px;min-width:110px;padding:12px 16px;box-sizing:border-box;border-left:1px solid var(--border);">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.1em;color:var(--muted);">${fr ? 'EN ATTENTE DE VOUS' : 'WAITING ON YOU'}</div>
+        <div id="today-stat-waiting-value" style="margin-top:4px;font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;letter-spacing:-.02em;color:${waitingCount ? 'var(--navy)' : '#166b48'};">${waitingCount}</div>
+        <div id="today-stat-waiting-note" style="margin-top:2px;font-size:11px;color:var(--muted);">${_esc(waitingCount ? (fr ? 'classées ci-dessous' : 'ranked below') : (fr ? 'rien en attente' : 'all clear'))}</div>
+      </div>`;
+  } catch(e) {
+    console.warn('[_loadTodayStats]', e);
+    el.innerHTML = '';
+  }
+}
+
 // ── TAB SWITCHING ──
 function switchTab(name, fromClick = false) {
   window.scrollTo({ top: 0, behavior: 'instant' });
@@ -5654,7 +5720,7 @@ function switchTab(name, fromClick = false) {
   if (name === 'pipeline') { const sh = document.getElementById('kanban-swipe-hint'); if (sh) { sh.style.opacity = '1'; setTimeout(() => { sh.style.opacity = '0'; }, 3000); } }
   if (name === 'send') loadSendView();
   if (name === 'agents') _showAgentsMap();
-  if (name === 'priorities') { loadDailyPriorities(); _loadAgentsAtWork(); _fetchTodaySendCounts().catch(err => console.error('_fetchTodaySendCounts:', err)); _loadFollowUpsDue(); }
+  if (name === 'priorities') { loadDailyPriorities(); _loadAgentsAtWork(); _fetchTodaySendCounts().catch(err => console.error('_fetchTodaySendCounts:', err)); _loadFollowUpsDue(); _loadTodayStats(); }
   if (name === 'inbox') loadInboxDrafts();
   if (name === 'proposals') loadProposalsView();
   if (name === 'pending-actions') loadPendingActionsView();
@@ -11593,8 +11659,19 @@ let _reminderBacklogTotal = 0;
 // deux se chargent en parallele au switch d'onglet), donc toujours a jour quel que soit l'ordre
 // de resolution des deux appels.
 function _updateQueuedCount() {
+  const n = _priorityShownProspects.length + _reminderShownProspects.length;
   const el = document.getElementById('priorities-queued-count');
-  if (el) el.textContent = _priorityShownProspects.length + _reminderShownProspects.length;
+  if (el) el.textContent = n;
+  // FIX 29/09 (course possible) : loadDailyPriorities()/_loadFollowUpsDue() sont appeles en
+  // fire-and-forget par switchTab, en meme temps que _loadTodayStats() -- lire
+  // _priorityShownProspects/_reminderShownProspects au moment de _loadTodayStats() donnerait
+  // souvent 0 (pas encore charge). Seule source de verite pour ce chiffre : cette fonction,
+  // appelee au bon moment par les deux loaders concernes -- jamais recalcule ailleurs.
+  const fr = currentLang === 'fr';
+  const valEl = document.getElementById('today-stat-waiting-value');
+  const noteEl = document.getElementById('today-stat-waiting-note');
+  if (valEl) { valEl.textContent = n; valEl.style.color = n ? 'var(--navy)' : '#166b48'; }
+  if (noteEl) noteEl.textContent = n ? (fr ? 'classées ci-dessous' : 'ranked below') : (fr ? 'rien en attente' : 'all clear');
 }
 
 async function loadDailyPriorities() {
