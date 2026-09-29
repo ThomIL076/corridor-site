@@ -10639,7 +10639,10 @@ async function openDrawer(card, initialTab = 'activity') {
           <div class="pd-next-action-label">${currentLang==='fr'?'PROCHAINE ACTION':'NEXT ACTION'}</div>
           <div class="pd-next-action-text ai-box-body${_cachedRendered ? ' loaded' : ''}" id="drawer-output">${_cachedRendered || (currentLang==='fr'?'Cliquez pour générer la prochaine étape...':'Click to generate the next step...')}</div>
         </div>
-        ${_naFreshBadge ? `<div style="margin-top:6px"><span style="font-size:var(--fs-xs);font-weight:600;padding:2px 8px;background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:var(--radius-pill);color:var(--accent)">${_naFreshBadge}</span></div>` : ''}
+        <!-- FIX 29/09 (audit visuel Thomas) : color:var(--accent) sur background:var(--accent-bg)
+             ne passait pas le contraste WCAG AA texte normal (3.97:1, seuil 4.5:1, verifie par
+             calcul reel) -- var(--navy) sur le meme fond passe a 11.94:1. -->
+        ${_naFreshBadge ? `<div style="margin-top:6px"><span style="font-size:var(--fs-xs);font-weight:600;padding:2px 8px;background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:var(--radius-pill);color:var(--navy)">${_naFreshBadge}</span></div>` : ''}
         <div style="margin-top:10px;padding:12px 14px;border:1px solid var(--border);border-radius:var(--radius-md);background:#fff;">
           <div class="pd-section-label" style="margin-bottom:8px">${currentLang==='fr'?'Prochaine étape manuelle':'Manual next step'}</div>
           ${_naDivergenceBadge ? `<div style="margin-bottom:8px"><span style="font-size:var(--fs-xs);font-weight:600;padding:2px 8px;background:var(--amber-bg);border:1px solid var(--amber-border);border-radius:var(--radius-pill);color:var(--amber-text)">${_naDivergenceBadge}</span></div>` : ''}
