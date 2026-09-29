@@ -5459,7 +5459,10 @@ async function _loadBuyingCommittee(prospectId, p) {
   try {
     const { error } = await sbClient.from('buying_committee_members').upsert(upsertRows, { onConflict: 'prospect_id,role' });
     if (error) throw error;
-  } catch(e) { console.warn('[buying-committee] write error:', e); }
+  } catch(e) {
+    console.warn('[buying-committee] write error:', e);
+    showToast("Comité d'acheteurs découvert mais non enregistré — réessaie");
+  }
   const newByRole = {};
   upsertRows.forEach(r => { newByRole[r.role] = r; });
   _renderBuyingCommittee(prospectId, newByRole);

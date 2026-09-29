@@ -8476,8 +8476,12 @@ async function _loadBuyingCommittee(prospectId, p) {
     };
   });
   try {
-    await sbClient.from('buying_committee_members').upsert(upsertRows, { onConflict: 'prospect_id,role' });
-  } catch(e) { console.warn('[buying-committee] write error:', e); }
+    const { error } = await sbClient.from('buying_committee_members').upsert(upsertRows, { onConflict: 'prospect_id,role' });
+    if (error) throw error;
+  } catch(e) {
+    console.warn('[buying-committee] write error:', e);
+    showToast(currentLang === 'fr' ? "Comité d'acheteurs découvert mais non enregistré — réessaie" : 'Buying committee found but not saved — try again');
+  }
 
   const newByRole = {};
   upsertRows.forEach(r => { newByRole[r.role] = r; });
@@ -8564,8 +8568,13 @@ async function _bcPersistFromScan(stakeholders, company) {
   if (!upsertRows.length) return;
 
   try {
-    await sbClient.from('buying_committee_members').upsert(upsertRows, { onConflict: 'prospect_id,role' });
-  } catch(e) { console.warn('[buying-committee] scan write error:', e); return; }
+    const { error } = await sbClient.from('buying_committee_members').upsert(upsertRows, { onConflict: 'prospect_id,role' });
+    if (error) throw error;
+  } catch(e) {
+    console.warn('[buying-committee] scan write error:', e);
+    showToast(currentLang === 'fr' ? "Comité d'acheteurs découvert mais non enregistré — réessaie" : 'Buying committee found but not saved — try again');
+    return;
+  }
 
   if (document.getElementById('bc-section-' + prospectId)) {
     const byRole = await _bcFetchByRole(prospectId);
@@ -10335,7 +10344,14 @@ async function _inboxSend(draftId, prospectId) {
       type: 'linkedin', note: 'reply sent via inbox', touch: 'j0'
     });
     if (intErr) console.error('[_inboxSend] interactions insert failed:', intErr);
-    showToast(currentLang==='fr'?"Envoyé via LinkedIn ✓":"Sent via LinkedIn ✓");
+    // AJOUT 29/09 (audit Thomas, Phase 4) : l'envoi LinkedIn a reussi, mais ces 3 ecritures de
+    // suivi echouaient jusqu'ici en silence -- showToast() n'affiche qu'un seul message a la fois
+    // (pas de file d'attente), donc un seul toast combine plutot que d'ecraser le succes.
+    if (rdErr || afErr || intErr) {
+      showToast(currentLang==='fr'?"Envoyé via LinkedIn ✓ (mais historique non enregistré — vérifiez la fiche)":"Sent via LinkedIn ✓ (but follow-up record failed to save — check the record)");
+    } else {
+      showToast(currentLang==='fr'?"Envoyé via LinkedIn ✓":"Sent via LinkedIn ✓");
+    }
     const card = document.getElementById('inbox-card-' + draftId);
     if (card) card.remove();
   } catch(e) {
@@ -14317,10 +14333,13 @@ async function _startEmailSeq(id) {
           .update({ priority_batch_number: _priorityCurrentBatch || 1 })
           .eq('id', id).eq('client_id', p.client_id || CLIENT_ID)
           .or('priority_batch_number.is.null,priority_batch_number.eq.0');
+        // AJOUT 29/09 (audit Thomas, Phase 4) : jusqu'ici, un echec ici tombait dans cette meme
+        // branche "succes" sans rien afficher -- le prospect reste eligible au prochain calcul de
+        // Today alors que l'email est deja parti, sans que rien ne le signale.
         if (ePriorityBatch) console.error('[_startEmailSeq] priority_batch_number:', ePriorityBatch);
         else if (document.getElementById('tab-priorities')?.classList.contains('active')) loadDailyPriorities();
         if (btn) { btn.disabled = true; btn.textContent = (currentLang==='fr'?"✓ Séquence démarrée":"✓ Sequence started"); btn.style.background = 'var(--green-brand)'; }
-        if (statusEl) statusEl.textContent = '';
+        if (statusEl) statusEl.textContent = ePriorityBatch ? (currentLang==='fr'?"⚠ Séquence démarrée mais pas totalement suivie":"⚠ Sequence started but not fully tracked") : '';
       }
     } else {
       if (btn) { btn.disabled = false; btn.textContent = (currentLang==='fr'?"Démarrer la séquence email":"Start Email Sequence"); btn.style.background = 'var(--green-brand)'; }

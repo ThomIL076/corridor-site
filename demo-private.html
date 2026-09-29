@@ -10306,8 +10306,12 @@ async function _loadBuyingCommittee(prospectId, p) {
     };
   });
   try {
-    await sbClient.from('buying_committee_members').upsert(upsertRows, { onConflict: 'prospect_id,role' });
-  } catch(e) { console.warn('[buying-committee] write error:', e); }
+    const { error } = await sbClient.from('buying_committee_members').upsert(upsertRows, { onConflict: 'prospect_id,role' });
+    if (error) throw error;
+  } catch(e) {
+    console.warn('[buying-committee] write error:', e);
+    showToast(currentLang === 'fr' ? "Comité d'acheteurs découvert mais non enregistré — réessaie" : 'Buying committee found but not saved — try again');
+  }
 
   const newByRole = {};
   upsertRows.forEach(r => { newByRole[r.role] = r; });
@@ -10394,8 +10398,13 @@ async function _bcPersistFromScan(stakeholders, company) {
   if (!upsertRows.length) return;
 
   try {
-    await sbClient.from('buying_committee_members').upsert(upsertRows, { onConflict: 'prospect_id,role' });
-  } catch(e) { console.warn('[buying-committee] scan write error:', e); return; }
+    const { error } = await sbClient.from('buying_committee_members').upsert(upsertRows, { onConflict: 'prospect_id,role' });
+    if (error) throw error;
+  } catch(e) {
+    console.warn('[buying-committee] scan write error:', e);
+    showToast(currentLang === 'fr' ? "Comité d'acheteurs découvert mais non enregistré — réessaie" : 'Buying committee found but not saved — try again');
+    return;
+  }
 
   if (document.getElementById('bc-section-' + prospectId)) {
     const byRole = await _bcFetchByRole(prospectId);
@@ -12352,7 +12361,15 @@ async function _inboxSend(draftId, prospectId) {
       type: 'linkedin', note: 'reply sent via inbox', touch: 'j0'
     });
     if (intErr) console.error('[_inboxSend] interactions insert failed:', intErr);
-    showToast(currentLang==='fr' ? 'Envoyé via LinkedIn ✓' : 'Sent via LinkedIn ✓');
+    // AJOUT 29/09 (audit Thomas, Phase 4) : l'envoi LinkedIn a reussi (message reellement parti),
+    // mais ces 3 ecritures de suivi (statut du brouillon, feedback d'entrainement, historique
+    // d'interaction) echouaient jusqu'ici en silence -- showToast() n'affiche qu'un seul message a
+    // la fois (pas de file d'attente), donc un seul toast combine plutot que d'ecraser le succes.
+    if (rdErr || afErr || intErr) {
+      showToast(currentLang==='fr' ? 'Envoyé via LinkedIn ✓ (mais historique non enregistré — vérifiez la fiche)' : 'Sent via LinkedIn ✓ (but follow-up record failed to save — check the record)');
+    } else {
+      showToast(currentLang==='fr' ? 'Envoyé via LinkedIn ✓' : 'Sent via LinkedIn ✓');
+    }
     const card = document.getElementById('inbox-card-' + draftId);
     if (card) card.remove();
   } catch(e) {
