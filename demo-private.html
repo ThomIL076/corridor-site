@@ -1498,6 +1498,12 @@ body.new-nav { padding-left: 220px; }
   #auth-gate button:hover { opacity:.92; }
   .hp-btn { font-size:var(--fs-sm);padding:4px 12px;border:1px solid var(--border);border-radius:16px;background:var(--white);color:var(--text);cursor:pointer;font-family:inherit;transition:background .15s,color .15s; }
   .hp-btn.active { background:var(--navy);color:#fff;border-color:var(--navy); }
+  /* AJOUT 29/09 (refonte v2 Phase 3) : classe dediee aux pilules de filtre Review -- memes regles
+     visuelles que .hp-btn, mais un nom distinct expres. _setHpFilter()/_resetHpFilter() (filtres
+     Pipeline) font document.querySelectorAll('.hp-btn') SANS scope, ce qui aurait desynchronise
+     l'etat actif des 2 jeux de filtres si les boutons Review avaient partage la meme classe. */
+  .rv-btn { font-size:var(--fs-sm);padding:4px 12px;border:1px solid var(--border);border-radius:16px;background:var(--white);color:var(--text);cursor:pointer;font-family:inherit;transition:background .15s,color .15s; }
+  .rv-btn.active { background:var(--navy);color:#fff;border-color:var(--navy); }
   .sig-btn { font-size:var(--fs-sm);padding:4px 12px;border:1px solid var(--border);border-radius:16px;background:var(--white);color:var(--text);cursor:pointer;font-family:inherit;transition:background .15s,color .15s; }
   .sig-btn.active { background:var(--navy);color:#fff;border-color:var(--navy); }
   .k-j5-badge { position:absolute;bottom:8px;right:8px;font-size:var(--fs-micro);font-weight:600;background:rgba(245,158,11,0.12);color:var(--amber-text);border-radius:var(--radius-badge);padding:2px 6px;cursor:pointer;z-index:3;letter-spacing:.02em; }
@@ -1631,19 +1637,13 @@ body.new-nav { padding-left: 220px; }
       <span data-en="Send" data-fr="Envoyer">Send</span>
       <span class="snav-badge" id="snav-badge-send"></span>
     </button>
-    <button class="snav-item" data-nav="inbox" onclick="_switchNewNav('inbox')">
-      <span data-en="Inbox" data-fr="Boîte de réception">Inbox</span>
-      <span class="snav-badge" id="snav-badge-inbox"></span>
-    </button>
-    <button class="snav-item" data-nav="pending-actions" onclick="_switchNewNav('pending-actions')">
-      <span data-en="Approvals" data-fr="Actions en attente">Approvals</span>
-      <span class="snav-badge" id="snav-badge-pending-actions"></span>
-    </button>
-    <!-- F15 point 2 : renomme depuis "Proposals" -- collision de mot avec le stage pipeline
-         "Proposal", resolue par ce nouveau libelle. -->
-    <button class="snav-item" data-nav="proposals" onclick="_switchNewNav('proposals')">
-      <span data-en="Drafts &amp; approvals" data-fr="Brouillons et validations">Drafts &amp; approvals</span>
-      <span class="snav-badge" id="snav-badge-proposals"></span>
+    <!-- AJOUT 29/09 (refonte v2 Phase 3, go Thomas) : remplace les 3 boutons Inbox/Approvals/
+         Drafts & approvals (F15 point 2, renomme "Proposals" -> "Drafts & approvals") -- fusionnes
+         en une seule vue filtrable, badge = somme des 3 files reelles (cf. _setReviewBadge dans
+         loadReviewView()). Send garde son propre bouton juste au-dessus, inchange. -->
+    <button class="snav-item" data-nav="review" onclick="_switchNewNav('review')">
+      <span data-en="Review" data-fr="Revue">Review</span>
+      <span class="snav-badge" id="snav-badge-review"></span>
     </button>
   </div>
   <div class="snav-section">
@@ -1715,8 +1715,8 @@ body.new-nav { padding-left: 220px; }
   <button class="mtab-item" data-nav="send" onclick="_switchNewNav('send')">
     <span data-en="Send" data-fr="Envoyer">Send</span><span class="mtab-badge" id="mtab-badge-send"></span>
   </button>
-  <button class="mtab-item" data-nav="inbox" onclick="_switchNewNav('inbox')">
-    <span data-en="Inbox" data-fr="Boîte de réception">Inbox</span><span class="mtab-badge" id="mtab-badge-inbox"></span>
+  <button class="mtab-item" data-nav="review" onclick="_switchNewNav('review')">
+    <span data-en="Review" data-fr="Revue">Review</span><span class="mtab-badge" id="mtab-badge-review"></span>
   </button>
   <button class="mtab-item" id="mtab-more-btn" onclick="_switchNewNav('more')" data-en="More" data-fr="Plus">More</button>
 </nav>
@@ -1796,9 +1796,13 @@ body.new-nav { padding-left: 220px; }
     <div class="spine-row"><span class="spine-count" id="spine-count-send"></span><span class="spine-note" data-en="due today" data-fr="dus aujourd'hui">due today</span></div>
     <span class="spine-rail"></span>
   </button>
-  <button class="spine-stage" data-spine="reply" onclick="_switchNewNav('inbox')">
+  <!-- AJOUT 29/09 (refonte v2 Phase 3) : pointait vers Inbox seul, pointe desormais vers Review
+       (fusion Inbox+Approvals+Drafts&approvals) -- data-spine="reply" et spine-count-reply
+       inchanges (SPINE_ACTIVE_MAP toujours cle 'review' -> 'reply', cf. plus bas), seul le libelle
+       et la destination du clic changent. -->
+  <button class="spine-stage" data-spine="reply" onclick="_switchNewNav('review')">
     <span class="spine-dot"></span>
-    <span class="spine-label" data-en="Reply" data-fr="Répondre">Reply</span>
+    <span class="spine-label" data-en="Review" data-fr="Revue">Review</span>
     <div class="spine-row"><span class="spine-count" id="spine-count-reply"></span><span class="spine-note" data-en="to triage" data-fr="à trier">to triage</span></div>
     <span class="spine-rail"></span>
   </button>
@@ -1987,9 +1991,13 @@ body.new-nav { padding-left: 220px; }
       <div class="agent-group">
         <div class="agent-group-label" style="color:var(--ink);" data-en="Activity" data-fr="Activité">Activity</div>
         <div class="agent-grid">
-          <button class="agent-card" style="--accent-color:var(--ink)" onclick="_switchNewNav('inbox')">
+          <!-- AJOUT 29/09 (refonte v2 Phase 3) : pointait vers l'onglet Inbox seul, pointe
+               desormais vers Review (fusion Inbox+Approvals+Drafts&approvals) -- libelle mis a jour
+               en consequence, description inchangee (toujours vraie : les reponses LinkedIn y
+               sont bien presentes, juste plus seules). -->
+          <button class="agent-card" style="--accent-color:var(--ink)" onclick="_switchNewNav('review')">
             <span class="ac-icon">📩</span>
-            <span class="ac-name" data-html data-en='Inbox<span class="badge-new">New</span>' data-fr='Boîte de réception<span class="badge-new">Nouveau</span>'>Inbox<span class="badge-new">New</span></span>
+            <span class="ac-name" data-html data-en='Review<span class="badge-new">New</span>' data-fr='Revue<span class="badge-new">Nouveau</span>'>Review<span class="badge-new">New</span></span>
             <span class="ac-desc" data-en="LinkedIn reply drafts from active prospects" data-fr="Brouillons de réponses LinkedIn des prospects actifs">LinkedIn reply drafts from active prospects</span>
             <div class="ac-bar"></div>
           </button>
@@ -2487,6 +2495,39 @@ body.new-nav { padding-left: 220px; }
     </div>
     </div>
     <div class="kanban-swipe-hint" id="kanban-swipe-hint" data-en="← swipe →" data-fr="← glisser →">← swipe →</div>
+  </div>
+
+  <!-- ══ TAB: REVIEW ══ -->
+  <!-- AJOUT 29/09 (refonte v2 Phase 3, go Thomas) : fusion de 3 files existantes (Inbox,
+       Approvals=pending-actions, Drafts & approvals=proposals) en une seule vue filtrable.
+       Send reste un onglet separe (decision Thomas 29/09) -- generation a la demande + 2 decisions
+       distinctes (proposition puis envoi), incompatible avec le gabarit "brouillon deja pret, un
+       seul bouton" des 3 autres. Les 3 anciens panneaux (tab-inbox/tab-proposals/
+       tab-pending-actions) restent en l'etat plus bas, plus jamais atteints par la nav -- aucune
+       nouvelle logique d'envoi ici, chaque bouton des cartes reutilisees appelle exactement la
+       meme fonction qu'avant (_inboxSend/_inboxDismiss, _paApprove/_paReject,
+       _proposalUseVariant/_proposalSendViaLinkedIn/_proposalRejectStart). -->
+  <div class="tab-panel" id="tab-review">
+    <div style="padding:24px 16px 0;max-width:880px;margin:0 auto;">
+      <div class="module-header" style="margin-bottom:6px;">
+        <div class="module-title" data-en="Review" data-fr="Revue">Review</div>
+        <div class="section-sub" data-en="Everything your agents wrote that needs your eye, in one place. Each item says why it came to you." data-fr="Tout ce que vos agents ont rédigé et qui attend votre validation, au même endroit. Chaque élément indique pourquoi il vous revient.">Everything your agents wrote that needs your eye, in one place. Each item says why it came to you.</div>
+      </div>
+      <div id="review-filter-bar" style="display:flex;gap:6px;padding:10px 0 4px;flex-wrap:wrap;align-items:center;">
+        <button class="rv-btn active" onclick="_setReviewFilter('all')" id="review-filter-all" data-en="All" data-fr="Tous">All</button>
+        <button class="rv-btn" onclick="_setReviewFilter('opener')" id="review-filter-opener" data-en="Openers" data-fr="Ouvertures">Openers</button>
+        <button class="rv-btn" onclick="_setReviewFilter('reply')" id="review-filter-reply" data-en="Replies" data-fr="Réponses">Replies</button>
+        <button class="rv-btn" onclick="_setReviewFilter('followup')" id="review-filter-followup" data-en="Follow-ups" data-fr="Relances">Follow-ups</button>
+        <button class="rv-btn" onclick="_setReviewFilter('post')" id="review-filter-post" data-en="Posts" data-fr="Publications">Posts</button>
+      </div>
+      <div id="review-container" style="margin-top:10px;"></div>
+
+      <div style="margin-top:30px;display:flex;align-items:center;gap:10px;">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:var(--muted);" data-en="HANDLED WITHOUT YOU TODAY" data-fr="TRAITÉ SANS VOUS AUJOURD'HUI">HANDLED WITHOUT YOU TODAY</div>
+        <div style="flex:1;height:1px;background:var(--border);"></div>
+      </div>
+      <div id="review-handled-container" style="margin-top:10px;margin-bottom:30px;"></div>
+    </div>
   </div>
 
   <!-- ══ TAB: SEND ══ -->
@@ -3203,30 +3244,9 @@ body.new-nav { padding-left: 220px; }
       <button class="more-row" onclick="_switchNewNav('clients')"><span data-en="Clients" data-fr="Clients">Clients</span><span class="more-chevron">›</span></button>
       <button class="more-row" onclick="_switchNewNav('integrations')"><span data-en="Integrations" data-fr="Intégrations">Integrations</span><span class="more-chevron">›</span></button>
       <button class="more-row" onclick="_switchNewNav('stats')"><span>Stats</span><span class="more-chevron">›</span></button>
-      <!-- Proposals classe en MOBILE_TAB_SECONDARY (arbitrage Thomas : pas encore de trafic reel
-           pour justifier une place en barre primaire) -- pas de .mtab-item dedie comme Send/Inbox,
-           donc pas de badge natif possible a cet endroit. Meme pattern .mtab-badge reutilise ici,
-           a l'interieur du more-row (2 enfants flex space-between preserves : label+badge groupes
-           dans un wrapper, chevron seul). -->
-      <!-- F15 point 2 : libelle aligne avec la sidebar desktop (meme destination, meme rename) --
-           la reorganisation visuelle en 4 taches (F15 point 1) reste desktop uniquement ce soir,
-           mais ce libelle n'est pas structurel, seulement du texte pour la meme entree. -->
-      <button class="more-row" onclick="_switchNewNav('proposals')">
-        <span style="display:flex;align-items:center;gap:8px;">
-          <span data-en="Drafts &amp; approvals" data-fr="Brouillons et validations">Drafts &amp; approvals</span>
-          <span class="mtab-badge" id="mtab-badge-proposals"></span>
-        </span>
-        <span class="more-chevron">›</span>
-      </button>
-      <!-- Meme traitement secondaire que Proposals ci-dessus (pas encore de trafic reel pour la
-           barre primaire) -- meme pattern .mtab-badge dans un more-row. -->
-      <button class="more-row" onclick="_switchNewNav('pending-actions')">
-        <span style="display:flex;align-items:center;gap:8px;">
-          <span data-en="Approvals" data-fr="Actions en attente">Approvals</span>
-          <span class="mtab-badge" id="mtab-badge-pending-actions"></span>
-        </span>
-        <span class="more-chevron">›</span>
-      </button>
+      <!-- AJOUT 29/09 (refonte v2 Phase 3) : les 2 entrees "Drafts & approvals"/"Approvals" retirees
+           d'ici -- fusionnees dans Review, desormais dans la barre primaire mobile (mtab-item
+           dedie, remplace Inbox), donc plus besoin d'un acces secondaire via More. -->
       <button class="more-row" onclick="_switchNewNav('mandate')"><span data-en="Mandate &amp; ICP" data-fr="Mandat &amp; ICP">Mandate &amp; ICP</span><span class="more-chevron">›</span></button>
       <!-- Sign out (cleanup) : sidebar (donc Sign Out) inaccessible sous 768px -- seul point
            d'acces mobile, meme onclick="signOut()" que le bouton sidebar, aucune 2e logique. -->
@@ -3259,8 +3279,10 @@ function _newNavActive(key) {
 // Tab bar mobile (Phase 1 chunk 5) : "More" reste actif tant qu'une destination secondaire est
 // affichee, meme principe de derivation que la spine -- un seul point d'accroche (_newNavActive),
 // pas un troisieme mecanisme de navigation separe.
-const MOBILE_TAB_PRIMARY = { 'priorities': true, 'pipeline': true, 'send': true, 'inbox': true };
-const MOBILE_TAB_SECONDARY = { 'system-signals': true, 'system-pipeintel': true, 'system-weekly': true, 'agents': true, 'clients': true, 'integrations': true, 'stats': true, 'proposals': true, 'pending-actions': true, 'more': true };
+const MOBILE_TAB_PRIMARY = { 'priorities': true, 'pipeline': true, 'send': true, 'review': true };
+// AJOUT 29/09 : 'inbox'/'proposals'/'pending-actions' retires -- ne sont plus jamais la valeur de
+// `key` passee ici (nav fusionnee dans 'review', deja dans MOBILE_TAB_PRIMARY ci-dessus).
+const MOBILE_TAB_SECONDARY = { 'system-signals': true, 'system-pipeintel': true, 'system-weekly': true, 'agents': true, 'clients': true, 'integrations': true, 'stats': true, 'more': true };
 function _updateMobileTabActive(key) {
   const bar = document.getElementById('mobile-tabbar');
   if (!bar) return;
@@ -3284,7 +3306,7 @@ const SPINE_ACTIVE_MAP = {
   'priorities': 'today',
   'pipeline': 'qualify',
   'send': 'send',
-  'inbox': 'reply',
+  'review': 'reply', // AJOUT 29/09 : remplace 'inbox' (Review fusionne Inbox+Approvals+Drafts&approvals)
   'clients': 'client',
   'system-signals': 'signal',
   'system-pipeintel': 'indeal',
@@ -4052,9 +4074,10 @@ async function showDemo(){
   // en avance en plus de leur declenchement normal a la navigation -- aucune logique dupliquee,
   // meme principe que loadKanban() ci-dessus. Fire-and-forget, ne bloque jamais l'ecran Today.
   loadSendView();
-  loadInboxDrafts('pending');
-  loadPendingActionsView(); // badge Approvals : meme principe (etait lu seulement a l'ouverture de la page)
-  loadProposalsView(); // badge Drafts & approvals : idem
+  // AJOUT 29/09 (refonte v2 Phase 3) : remplace les 3 appels individuels (loadInboxDrafts/
+  // loadPendingActionsView/loadProposalsView, badges Inbox/Approvals/Drafts & approvals) par un
+  // seul chargement de la vue fusionnee -- meme principe (badge alimente en avance, fire-and-forget).
+  loadReviewView();
   loadClientsKanban(); // idem, alimente aussi le compte CLIENT de la spine (Phase 1)
   _loadSystemActiveStatus(); // F13, meme principe fire-and-forget
   _loadLastMorningScanEmail(); // dernier Morning Scan reellement envoye, meme principe fire-and-forget
@@ -5721,9 +5744,13 @@ function switchTab(name, fromClick = false) {
   if (name === 'send') loadSendView();
   if (name === 'agents') _showAgentsMap();
   if (name === 'priorities') { loadDailyPriorities(); _loadAgentsAtWork(); _fetchTodaySendCounts().catch(err => console.error('_fetchTodaySendCounts:', err)); _loadFollowUpsDue(); _loadTodayStats(); }
+  // AJOUT 29/09 (refonte v2 Phase 3) : inbox/proposals/pending-actions ne sont plus atteints par
+  // la nav (fusionnes dans review, cf. _switchNewNav) -- loaders laisses intacts, jamais appeles
+  // en pratique, aucune suppression de code pour rester reversible si besoin.
   if (name === 'inbox') loadInboxDrafts();
   if (name === 'proposals') loadProposalsView();
   if (name === 'pending-actions') loadPendingActionsView();
+  if (name === 'review') loadReviewView();
   if (name === 'stats') { if (!_kanbanLoaded) { loadKanban().then(() => renderStats()); } else { renderStats(); } }
   if (name === 'clients') loadClientsKanban();
   if (name === 'integrations') loadIntegrationsTab();
@@ -12259,17 +12286,20 @@ async function loadInboxDrafts(view = 'pending') {
   }
 }
 
-function _renderInboxCards(drafts, view = 'pending') {
-  const container = document.getElementById('inbox-container');
-  if (!container) return;
-  container.innerHTML = drafts.map(draft => {
+// AJOUT 29/09 (refonte v2 Phase 3, go Thomas) : extraction mecanique du corps de la boucle
+// .map() ci-dessous vers une fonction nommee, appelable carte par carte -- zero changement de
+// comportement, seul le point d'entree change. Necessaire pour que loadReviewView() puisse
+// reutiliser EXACTEMENT ce rendu (memes boutons, meme _inboxSend/_inboxDismiss deja cables) sans
+// dupliquer la logique.
+function _inboxCardHTML(draft, view = 'pending') {
+    const fr = currentLang === 'fr';
     const p = (draft.prospect_id && _inboxProspectsById[draft.prospect_id]) || null;
     const nameHtml = p
       ? `<button onclick="_openDrawerFromPriority('${draft.prospect_id}')"
            style="background:none;border:none;padding:0;cursor:pointer;font-weight:700;font-size:var(--fs-base);color:var(--navy);text-decoration:underline;text-align:left;"
          >${_esc(p.name || '—')}</button>
          <span style="font-size:var(--fs-sm);color:var(--muted);">${_esc(p.company || '—')}</span>`
-      : `<span style="font-size:var(--fs-sm);font-weight:600;padding:2px 8px;background:#fef3c7;border:1px solid #fde68a;border-radius:var(--radius-pill);color:#b45309;">Prospect not identified</span>`;
+      : `<span style="font-size:var(--fs-sm);font-weight:600;padding:2px 8px;background:#fef3c7;border:1px solid #fde68a;border-radius:var(--radius-pill);color:#b45309;">${fr ? 'Prospect non identifié' : 'Prospect not identified'}</span>`;
 
     // Bloc de liens (pending + history, cf. regression du commit 0bc0490 -- history en avait
     // perdu tout lien) : _buildProspectLinks() + "Full thread" en 4e entree. "Full thread" gate
@@ -12345,15 +12375,15 @@ function _renderInboxCards(drafts, view = 'pending') {
            >${_esc(variants[0].text)}</textarea>
          </div>`
       : `<div style="margin-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-           <span style="font-size:var(--fs-xs);font-style:italic;color:var(--muted);">Draft not generated — source message not recognized</span>
-           ${CLIENT_ID === 'thomas' && draft.raw_payload ? `<button onclick="_inboxShowRaw('${draft.id}')" style="font-size:var(--fs-xs);padding:3px 8px;border-radius:var(--radius-pill);border:1px solid var(--border);background:none;color:var(--text);cursor:pointer;">View raw_payload</button>` : ''}
+           <span style="font-size:var(--fs-xs);font-style:italic;color:var(--muted);">${fr ? 'Brouillon non généré — message source non reconnu' : 'Draft not generated — source message not recognized'}</span>
+           ${CLIENT_ID === 'thomas' && draft.raw_payload ? `<button onclick="_inboxShowRaw('${draft.id}')" style="font-size:var(--fs-xs);padding:3px 8px;border-radius:var(--radius-pill);border:1px solid var(--border);background:none;color:var(--text);cursor:pointer;">${fr ? 'Voir raw_payload' : 'View raw_payload'}</button>` : ''}
          </div>`;
     // "Other angles" retiree (redondant, 3 angles deja proposes par defaut desormais).
     const actionBtns = `<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
         ${variants.length && draft.prospect_id ? `<button id="inbox-send-${draft.id}" onclick="_inboxSend('${draft.id}','${draft.prospect_id}')"
-          style="padding:7px 16px;border-radius:var(--radius-pill);background:var(--navy);color:#fff;border:none;font-size:var(--fs-sm);font-weight:600;cursor:pointer;">Send</button>` : ''}
+          style="padding:7px 16px;border-radius:var(--radius-pill);background:var(--navy);color:#fff;border:none;font-size:var(--fs-sm);font-weight:600;cursor:pointer;">${fr ? 'Envoyer' : 'Send'}</button>` : ''}
         <button id="inbox-dismiss-${draft.id}" onclick="_inboxDismiss('${draft.id}')"
-          style="padding:7px 16px;border-radius:var(--radius-pill);background:none;border:1px solid var(--border);color:var(--text);font-size:var(--fs-sm);cursor:pointer;">Dismiss</button>
+          style="padding:7px 16px;border-radius:var(--radius-pill);background:none;border:1px solid var(--border);color:var(--text);font-size:var(--fs-sm);cursor:pointer;">${fr ? 'Rejeter' : 'Dismiss'}</button>
       </div>`;
     return `<div class="priority-card" id="inbox-card-${draft.id}"
         style="background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius-md);padding:18px 20px;margin-bottom:12px;">
@@ -12363,7 +12393,11 @@ function _renderInboxCards(drafts, view = 'pending') {
       ${linksHtml}
       ${actionBtns}
     </div>`;
-  }).join('');
+}
+function _renderInboxCards(drafts, view = 'pending') {
+  const container = document.getElementById('inbox-container');
+  if (!container) return;
+  container.innerHTML = drafts.map(draft => _inboxCardHTML(draft, view)).join('');
 }
 
 // Clic sur une variante (Inbox) : remplit la textarea editable existante et deplace la mise en
@@ -12871,15 +12905,25 @@ async function _proposalSendViaLinkedIn(propId, variantIndex, pid, elPrefix) {
 // d'automatisation LinkedIn / bonne campagne de sequence email) -- usage exclusif du workflow n8n
 // "Execute Approved Actions", jamais affiches ici. Seul le texte lisible (note/message/body) +
 // nom/entreprise comptent pour la decision d'approbation.
-const _PENDING_ACTION_TYPE_LABELS = {
-  linkedin_invite: 'LinkedIn invite',
-  linkedin_message: 'LinkedIn message (J0)',
-  email_j5: 'Follow-up email (J+5)',
-  // buying_committee_map : aucun reglage d'autonomie ne le met en 'approve' actuellement (brief
-  // 2026-09-12) -- label prevu pour ne pas planter l'affichage si une ligne apparait un jour,
-  // sans etre un engagement de forme de payload pour ce type.
-  buying_committee_map: 'Buying committee map',
-};
+// FIX 29/09 (bilingue, go Thomas -- surface plus visible depuis la fusion Review) : etait un objet
+// anglais uniquement. Fonction (meme forme que _PROPOSAL_CONTENT_TYPE_LABELS juste au-dessus dans
+// le fichier) pour suivre currentLang comme partout ailleurs.
+const _PENDING_ACTION_TYPE_LABELS = () => currentLang==='fr'
+  ? {
+      linkedin_invite: 'Invitation LinkedIn',
+      linkedin_message: 'Message LinkedIn (J0)',
+      email_j5: 'Email de relance (J+5)',
+      buying_committee_map: 'Cartographie du comité d\'achat',
+    }
+  : {
+      linkedin_invite: 'LinkedIn invite',
+      linkedin_message: 'LinkedIn message (J0)',
+      email_j5: 'Follow-up email (J+5)',
+      // buying_committee_map : aucun reglage d'autonomie ne le met en 'approve' actuellement (brief
+      // 2026-09-12) -- label prevu pour ne pas planter l'affichage si une ligne apparait un jour,
+      // sans etre un engagement de forme de payload pour ce type.
+      buying_committee_map: 'Buying committee map',
+    };
 // Cache local (id -> ligne pending_actions complete, prospect_id inclus) -- alimente par loadPendingActionsView(), lu par _paApprove().
 let _pendingActionsById = {};
 
@@ -12932,8 +12976,9 @@ function _renderPendingActionCard(action) {
   const p = action.payload || {};
   const name = p.name || '—';
   const company = p.company || '';
-  const typeLbl = _PENDING_ACTION_TYPE_LABELS[action.action_type] || action.action_type;
+  const typeLbl = _PENDING_ACTION_TYPE_LABELS()[action.action_type] || action.action_type;
   const text = _paActionText(action);
+  const fr = currentLang === 'fr';
   return `<div class="priority-card pending-action-card" id="pending-action-card-${action.id}"
       style="background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius-md);padding:18px 20px;margin-bottom:12px;">
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
@@ -12945,9 +12990,9 @@ function _renderPendingActionCard(action) {
     <div style="border:1px solid var(--border);border-radius:var(--radius-md);padding:12px 14px;font-size:var(--fs-sm);color:var(--text);line-height:1.5;white-space:pre-wrap;">${_esc(text)}</div>
     <div style="display:flex;gap:8px;margin-top:12px;">
       <button onclick="_paApprove('${action.id}')"
-        style="padding:7px 16px;border-radius:var(--radius-pill);background:var(--navy);color:#fff;border:none;font-size:var(--fs-sm);font-weight:600;cursor:pointer;">Approve</button>
+        style="padding:7px 16px;border-radius:var(--radius-pill);background:var(--navy);color:#fff;border:none;font-size:var(--fs-sm);font-weight:600;cursor:pointer;">${fr ? 'Approuver' : 'Approve'}</button>
       <button onclick="_paReject('${action.id}')"
-        style="padding:7px 16px;border-radius:var(--radius-pill);background:none;border:1px solid var(--border);color:var(--text);font-size:var(--fs-sm);cursor:pointer;">Reject</button>
+        style="padding:7px 16px;border-radius:var(--radius-pill);background:none;border:1px solid var(--border);color:var(--text);font-size:var(--fs-sm);cursor:pointer;">${fr ? 'Rejeter' : 'Reject'}</button>
     </div>
   </div>`;
 }
@@ -12982,6 +13027,224 @@ function _removePendingActionCard(id) {
   const card = document.getElementById('pending-action-card-' + id);
   if (card) card.remove();
   _setPendingActionsBadge(document.querySelectorAll('.pending-action-card').length);
+}
+
+// ── REVIEW (refonte v2 Phase 3, AJOUT 29/09, go Thomas) ──────────────────────────────────────
+// Fusionne Inbox (objection_response) + Approvals (pending_actions) + Drafts & approvals
+// (outreach_opener/linkedin_post) en une seule file filtrable. Reutilise TEL QUEL le rendu et les
+// actions de chaque source (_inboxCardHTML/_inboxSend/_inboxDismiss, _renderPendingActionCard/
+// _paApprove/_paReject, _renderProposalCard/_proposalUseVariant/_proposalSendViaLinkedIn/
+// _proposalRejectStart) -- aucune nouvelle logique d'envoi, uniquement l'affichage et le filtrage.
+// Send exclu de cette fusion (decision Thomas 29/09) : generation a la demande + 2 decisions
+// separees (proposition puis envoi reel), gabarit incompatible avec "brouillon deja pret, un seul
+// bouton" des 3 sources ci-dessus -- reste un onglet independant.
+let _reviewItems = [];
+let _reviewFilter = 'all';
+
+function _reviewTypeKey(kind, subtype) {
+  if (kind === 'proposal' && subtype === 'outreach_opener') return 'opener';
+  if (kind === 'proposal' && subtype === 'linkedin_post') return 'post';
+  if (kind === 'inbox') return 'reply';
+  if (kind === 'pending' && subtype === 'email_j5') return 'followup';
+  if (kind === 'pending' && (subtype === 'linkedin_invite' || subtype === 'linkedin_message')) return 'opener';
+  return 'other'; // ex. buying_committee_map -- jamais vu en pending_actions en pratique (toujours
+                   // autopilot au 29/09), garde-fou d'affichage seulement, ne matche aucune pilule
+                   // dediee (visible sous "All" uniquement).
+}
+
+// Regles reelles seulement (aucun texte invente, pas de score de confiance -- absent du schema
+// agent_proposals/pending_actions, verifie le 29/09) : icp_score>=8 pour "Tier A" (deja le seuil
+// utilise ailleurs dans ce fichier pour ce meme libelle) ; les 3 autres cas s'appuient sur le fait
+// STRUCTUREL que ces types n'ont jamais d'autopilot possible aujourd'hui (linkedin_post : 1 seule
+// ligne approuvee en base depuis sa creation, toujours manuellement ; objection_response : aucun
+// autonomy_settings pour ce type ; pending_actions n'existe QUE quand le niveau resolu n'est PAS
+// autopilot, cf. diagnostic _resolve_autonomy_level du 29/09).
+function _reviewWhyText(kind, subtype, icpScore) {
+  const fr = currentLang === 'fr';
+  if (kind === 'proposal' && subtype === 'outreach_opener') {
+    return (icpScore != null && icpScore >= 8)
+      ? (fr ? 'Compte Tier A — premier contact' : 'Tier A account — first touch')
+      : (fr ? 'Premier contact rédigé — en attente de votre validation' : 'First-touch drafted — waiting on your review');
+  }
+  if (kind === 'proposal' && subtype === 'linkedin_post') {
+    return fr ? 'Publication — validation toujours manuelle' : 'Post — always reviewed by you';
+  }
+  if (kind === 'inbox') {
+    return fr ? 'Réponse entrante — en attente de votre validation' : 'Incoming reply — waiting on your review';
+  }
+  if (kind === 'pending' && subtype === 'email_j5') {
+    return fr ? 'Relance programmée — en attente de votre validation' : 'Scheduled follow-up — waiting on your review';
+  }
+  if (kind === 'pending' && (subtype === 'linkedin_invite' || subtype === 'linkedin_message')) {
+    return fr ? 'Premier contact LinkedIn — en attente de votre validation' : 'LinkedIn first touch — waiting on your review';
+  }
+  return fr ? 'En attente de votre validation' : 'Waiting on your review';
+}
+
+function _reviewWhyHTML(text) {
+  return `<div style="display:flex;align-items:center;gap:7px;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.1em;color:var(--muted);padding:14px 20px 0;flex-wrap:wrap;">
+    <span style="width:5px;height:5px;border-radius:50%;background:#c07a10;flex:0 0 5px;"></span>
+    <span style="color:#c07a10;">${currentLang==='fr'?'POURQUOI VOUS':'WHY YOU'}</span>
+    <span>${_esc(text)}</span>
+  </div>`;
+}
+
+function _setReviewBadge(n) {
+  const el = document.getElementById('snav-badge-review');
+  if (el) el.textContent = n > 0 ? n : '';
+  const mtabEl = document.getElementById('mtab-badge-review');
+  if (mtabEl) mtabEl.textContent = n > 0 ? n : '';
+  // spine-count-reply : anciennement alimente par loadInboxDrafts() seul (Inbox uniquement),
+  // desormais par le total fusionne -- meme id, plus jamais ecrit par loadInboxDrafts() en
+  // pratique puisque la nav n'y mene plus (cf. switchTab).
+  const spineEl = document.getElementById('spine-count-reply');
+  if (spineEl) spineEl.textContent = n;
+}
+
+async function loadReviewView() {
+  const container = document.getElementById('review-container');
+  if (!container) return;
+  container.innerHTML = `<div style="padding:40px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">${currentLang==='fr'?'Chargement...':'Loading...'}</div>`;
+  try {
+    const [{ data: proposals, error: errProp }, { data: pendingActionsData, error: errPa }] = await Promise.all([
+      sbClient.from('agent_proposals').select('*').eq('client_id', CLIENT_ID).eq('status', 'pending')
+        .in('content_type', ['outreach_opener', 'linkedin_post', 'objection_response'])
+        .order('created_at', { ascending: false }).limit(200),
+      sbClient.from('pending_actions').select('*').eq('client_id', CLIENT_ID).eq('status', 'pending')
+        .order('created_at', { ascending: true }).limit(200)
+    ]);
+    if (errProp) throw errProp;
+    if (errPa) throw errPa;
+
+    const propList = proposals || [];
+    const paList = pendingActionsData || [];
+
+    // Batch-fetch unique (meme pattern que loadProposalsView()/loadInboxDrafts()) -- icp_score en
+    // plus (necessaire au WHY YOU des openers, absent des selects existants de ces 2 vues).
+    const prospectIds = [...new Set([...propList, ...paList].map(x => x.prospect_id).filter(Boolean))];
+    const prospectsById = {};
+    if (prospectIds.length) {
+      const { data: pRows, error: pErr } = await sbClient.from('prospects')
+        .select('id,name,company,linkedin,linkedin_tag,icp_score,identity_verdict,mandate_id')
+        .eq('client_id', CLIENT_ID).in('id', prospectIds);
+      if (pErr) console.error('[loadReviewView] prospects batch-fetch error:', pErr);
+      (pRows || []).forEach(p => { prospectsById[p.id] = p; _cacheProspectRow(p, true); });
+    }
+    // objection_response vit dans agent_proposals mais son rendu/ses actions (_inboxCardHTML/
+    // _inboxSend/_inboxDismiss) lisent des variables dediees Inbox (_inboxProspectsById/
+    // _inboxVariantsById/...), pas prospectsById local -- alimentees ici a l'identique de
+    // loadInboxDrafts(), meme forme, pour que ces fonctions se comportent exactement pareil
+    // qu'ouvertes depuis l'ancien onglet Inbox.
+    propList.filter(p => p.content_type === 'objection_response').forEach(d => {
+      if (d.prospect_id && prospectsById[d.prospect_id]) _inboxProspectsById[d.prospect_id] = prospectsById[d.prospect_id];
+      const _variants = Array.isArray(d.variants) ? d.variants.map(v => ({ angle: v.angle || '', text: _cleanVariantText(v.text) })) : [];
+      _inboxVariantsById[d.id] = _variants;
+      _inboxDraftOriginals[d.id] = _variants.length ? _variants[0].text : '';
+      _inboxSelectedVariantIndex[d.id] = _variants.length ? 0 : null;
+      if (d.raw_payload) _inboxRawPayloads[d.id] = d.raw_payload;
+    });
+    paList.forEach(a => { _pendingActionsById[a.id] = a; });
+
+    const items = [];
+    propList.forEach(prop => {
+      const isInbox = prop.content_type === 'objection_response';
+      const kind = isInbox ? 'inbox' : 'proposal';
+      items.push({
+        ts: prop.created_at,
+        cardId: isInbox ? ('inbox-card-' + prop.id) : ('proposal-card-' + prop.id),
+        html: isInbox ? _inboxCardHTML(prop, 'pending') : _renderProposalCard(prop, prospectsById[prop.prospect_id]),
+        typeKey: _reviewTypeKey(kind, prop.content_type),
+        why: _reviewWhyText(kind, prop.content_type, prospectsById[prop.prospect_id]?.icp_score)
+      });
+    });
+    paList.forEach(action => {
+      items.push({
+        ts: action.created_at,
+        cardId: 'pending-action-card-' + action.id,
+        html: _renderPendingActionCard(action),
+        typeKey: _reviewTypeKey('pending', action.action_type),
+        why: _reviewWhyText('pending', action.action_type, null)
+      });
+    });
+    items.sort((a, b) => new Date(b.ts) - new Date(a.ts));
+
+    _reviewItems = items;
+    _setReviewBadge(items.length);
+    _renderReviewItems();
+  } catch(e) {
+    console.error('[loadReviewView]', e);
+    container.innerHTML = `<div style="padding:40px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">${currentLang==='fr'?'Impossible de charger la revue pour le moment.':'Unable to load Review right now.'}</div>`;
+  }
+  _loadReviewHandled();
+}
+
+function _setReviewFilter(key) {
+  _reviewFilter = key;
+  ['all', 'opener', 'reply', 'followup', 'post'].forEach(k => {
+    const btn = document.getElementById('review-filter-' + k);
+    if (btn) btn.classList.toggle('active', k === key);
+  });
+  _renderReviewItems();
+}
+
+function _renderReviewItems() {
+  const container = document.getElementById('review-container');
+  if (!container) return;
+  const fr = currentLang === 'fr';
+  const visible = _reviewFilter === 'all' ? _reviewItems : _reviewItems.filter(it => it.typeKey === _reviewFilter);
+  if (!visible.length) {
+    container.innerHTML = `<div style="padding:28px 24px;background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius-md);font-size:var(--fs-sm);color:var(--muted);">${fr ? 'Rien dans cette catégorie n\'attend votre validation.' : 'Nothing in this category waits on you.'}</div>`;
+    return;
+  }
+  container.innerHTML = visible.map(it => it.html).join('');
+  // Injecte "WHY YOU" comme PREMIER ENFANT de chaque carte reelle (pas un wrapper exterieur) :
+  // _removeProposalCard()/_removePendingActionCard()/le card.remove() d'_inboxSend()/_inboxDismiss()
+  // ne retirent que l'id de la carte elle-meme -- en enfant, la ligne WHY YOU part avec au clic sur
+  // Approuver/Rejeter, jamais de coquille vide qui reste affichee derriere.
+  visible.forEach(it => {
+    const el = document.getElementById(it.cardId);
+    if (el) el.insertAdjacentHTML('afterbegin', _reviewWhyHTML(it.why));
+  });
+}
+
+// "Handled without you today" : reutilise EXACTEMENT la meme fenetre temporelle et la meme table
+// (agent_activity_log) que _loadTodayStats()/_loadAgentsAtWork() -- pas de nouvelle definition de
+// "aujourd'hui", pas de decomposition auto/manuel fabriquee (meme limitation honnete documentee
+// sur le bloc stats Today : sequences/interactions ne distinguent pas encore le canal d'envoi).
+async function _loadReviewHandled() {
+  const el = document.getElementById('review-handled-container');
+  if (!el) return;
+  const fr = currentLang === 'fr';
+  try {
+    const todayStart = new Date().toISOString().slice(0, 10) + 'T00:00:00.000Z';
+    const tomorrowStart = new Date(Date.now() + 86400000).toISOString().slice(0, 10) + 'T00:00:00.000Z';
+    let q = sbClient.from('agent_activity_log')
+      .select('agent_name, action_summary, occurred_at')
+      .eq('client_id', CLIENT_ID)
+      .gte('occurred_at', todayStart).lt('occurred_at', tomorrowStart)
+      .order('occurred_at', { ascending: false })
+      .limit(50);
+    if (activeMandateId && activeMandateId !== '__ALL__') q = q.eq('mandate_id', activeMandateId);
+    const { data, error } = await q;
+    if (error) throw error;
+    if (!data || !data.length) {
+      el.innerHTML = `<div style="padding:20px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">${fr ? 'Aucune activité enregistrée aujourd\'hui pour le moment.' : 'No activity logged today yet.'}</div>`;
+      return;
+    }
+    el.innerHTML = '<div style="background:#fff;border:1px solid var(--border);border-radius:var(--radius-panel);overflow:hidden;">' +
+      data.map((r, i) => {
+        const _meta = _AGENT_META[_agentKeyFromName(r.agent_name)];
+        const _color = (_meta && _meta.color) || 'var(--blue-brand)';
+        return '<div style="padding:10px 16px;' + (i > 0 ? 'border-top:1px solid var(--border);' : '') + 'display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;">'
+          + '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:9px;letter-spacing:.1em;color:' + _color + ';flex:0 0 140px;">' + _esc(_agentDisplayName(r.agent_name).toUpperCase()) + '</span>'
+          + '<span style="font-size:13px;color:var(--text);flex:1 1 220px;">' + _esc(_actionSummaryDisplay(r.action_summary)) + '</span>'
+          + '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:9px;color:var(--muted);white-space:nowrap;">' + _relTimeShort(r.occurred_at) + '</span>'
+          + '</div>';
+      }).join('') + '</div>';
+  } catch(e) {
+    console.warn('[_loadReviewHandled]', e);
+    el.innerHTML = '';
+  }
 }
 
 function _inboxShowRaw(draftId) {
