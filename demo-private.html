@@ -630,18 +630,24 @@ button, [role="button"], select, input { min-height: 28px; }
 .actor-row-main .ac-name { font-size:var(--fs-sm); font-weight:700; color:var(--ink); }
 .actor-row-main .ac-desc { font-size:var(--fs-xs); color:var(--muted); line-height:1.4; }
 .actor-row-main .agent-card-footer-status { font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.04em; }
-.actor-autonomy-pills { display:flex; flex-direction:column; gap:3px; align-items:flex-end; flex:0 0 auto; }
-/* FIX 29/09 (go Thomas, retour terrain) : desormais un <button> cliquable (cycle de niveau), plus
-   un <span> -- reset des styles bouton par defaut du navigateur (font/cursor/appearance). */
-.autonomy-pill {
-  font-family:'IBM Plex Mono',monospace; font-size:9px; letter-spacing:0.06em; text-transform:uppercase;
-  padding:2px 8px; border-radius:var(--radius-pill,999px); white-space:nowrap;
-  cursor:pointer; -webkit-appearance:none; appearance:none; transition:background .15s,border-color .15s;
+/* FIX 29/09 (go Thomas, 2e retour terrain) : remplace la pastille-cycle (1 bouton, niveau cache)
+   par un selecteur a 3 positions toujours visibles -- occupe toute la largeur sous le nom/
+   description plutot qu'une colonne etroite a droite (Copywriter a 3 lignes a afficher, ca ne
+   tenait pas proprement en colonne). */
+.actor-autonomy-pills { display:flex; flex-direction:column; gap:8px; flex:1 1 100%; margin-top:2px; padding-top:10px; border-top:1px solid var(--border); }
+.actor-autonomy-item { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.actor-autonomy-label { font-size:var(--fs-xs); color:var(--muted); flex:0 0 190px; }
+.autonomy-selector { display:flex; border:1px solid var(--border); border-radius:7px; padding:2px; background:#f5f7fa; gap:2px; }
+.autonomy-seg {
+  font-family:'IBM Plex Mono',monospace; font-size:9px; letter-spacing:0.05em; text-transform:uppercase;
+  padding:5px 10px; border-radius:5px; border:none; background:transparent; color:var(--muted);
+  cursor:pointer; -webkit-appearance:none; appearance:none; transition:background .15s,color .15s;
 }
-.autonomy-pill.lvl-autopilot { background:#e8f7ef; color:#166b48; border:1px solid #b8e6cd; }
-.autonomy-pill.lvl-assist    { background:#fef6e6; color:#8a5a00; border:1px solid #f5dca3; }
-.autonomy-pill.lvl-approve   { background:#eef1f6; color:var(--muted); border:1px solid var(--border); }
-@media(max-width:600px) { .agent-actor-row { flex-wrap:wrap; } .actor-autonomy-pills { align-items:flex-start; flex-direction:row; flex-wrap:wrap; } }
+.autonomy-seg.active.lvl-autopilot { background:#e8f7ef; color:#166b48; }
+.autonomy-seg.active.lvl-assist    { background:#fef6e6; color:#8a5a00; }
+.autonomy-seg.active.lvl-approve   { background:#fff; color:var(--ink); box-shadow:0 1px 2px rgba(14,26,46,.08); }
+.autonomy-seg:not(.active):hover { background:rgba(0,0,0,.05); }
+@media(max-width:600px) { .agent-actor-row { flex-wrap:wrap; } .actor-autonomy-label { flex-basis:100%; } }
 .agent-card-footer {
   display:flex; align-items:center; justify-content:space-between; gap:6px; flex-wrap:wrap;
   margin-top:6px; padding-top:8px; border-top:1px solid var(--border);
@@ -5959,32 +5965,46 @@ const _AUTONOMY_LEVEL_CYCLE = ['approve', 'assist', 'autopilot'];
 function _autonomyLevelLabel(level, fr) {
   return { approve: fr ? 'Approbation' : 'Approve', assist: fr ? 'Assisté' : 'Assist', autopilot: 'Autopilot' }[level] || level;
 }
-// FIX 29/09 (go Thomas, retour terrain apres deploiement Phase 4) : pastille cliquable (cycle
-// Approve -> Assist -> Autopilot -> Approve au clic, decision Thomas). event.stopPropagation()
-// obligatoire ici -- la ligne entiere (.agent-actor-row) a son propre onclick vers
-// _activateAgent() (ouvre la conversation), sans ce stopPropagation un clic sur la pastille
-// aurait bascule le niveau ET navigue vers le chat au meme clic.
-function _autonomyPillHTML(levelOrNull, actionType, icpTier, label) {
+// FIX 29/09 (go Thomas, 2e retour terrain) : le cycle au clic cachait les 3 etats (un clic depuis
+// Autopilot sautait directement a Approve sans jamais montrer Assist au passage) -- remplace par
+// un selecteur explicite a 3 positions TOUJOURS visibles (Approve/Assist/Autopilot), on clique
+// directement celle voulue. Le libelle de l'action (ex. "Message LinkedIn (ICP<8)") est desormais
+// affiche en texte visible au-dessus du selecteur, plus seulement en tooltip -- necessaire des
+// qu'un agent a plusieurs lignes (Copywriter en a 3) pour savoir laquelle on regle.
+// event.stopPropagation() obligatoire : la ligne entiere (.agent-actor-row) a son propre onclick
+// vers _activateAgent() (ouvre la conversation), sans ca un clic sur le selecteur naviguerait vers
+// le chat en plus de regler le niveau. Double handler onTouchEnd(preventDefault)+onClick, mobile
+// tactile (regle CLAUDE.md) -- preventDefault empeche le synthetic click qui suivrait sinon un
+// touchend et deverrait la meme ecriture 2 fois.
+function _autonomySelectorHTML(levelOrNull, actionType, icpTier, label) {
   const fr = currentLang === 'fr';
-  const level = levelOrNull || 'approve';
+  const current = levelOrNull || 'approve';
   const icpTierArg = icpTier === null ? 'null' : `'${icpTier}'`;
-  return `<button type="button" class="autonomy-pill lvl-${_esc(level)}" title="${_esc(label)}"
-    onclick="event.stopPropagation(); _cycleAutonomyLevel('${actionType}', ${icpTierArg}, '${level}', '${_esc(label)}')"
-    >${_esc(_autonomyLevelLabel(level, fr))}</button>`;
+  const segs = _AUTONOMY_LEVEL_CYCLE.map(lvl => {
+    const call = `_setAutonomyLevel('${actionType}', ${icpTierArg}, '${lvl}', '${current}', '${_esc(label)}')`;
+    return `<button type="button" class="autonomy-seg lvl-${lvl}${lvl === current ? ' active' : ''}"
+      ontouchend="event.preventDefault(); event.stopPropagation(); ${call}"
+      onclick="event.stopPropagation(); ${call}"
+      >${_esc(_autonomyLevelLabel(lvl, fr))}</button>`;
+  }).join('');
+  return `<div class="actor-autonomy-item">
+    <div class="actor-autonomy-label">${_esc(label)}</div>
+    <div class="autonomy-selector">${segs}</div>
+  </div>`;
 }
 // Ecriture reelle (go Thomas 29/09) : upsert sur la cle (client_id, mandate_id, action_type,
 // icp_tier) -- constraint corrigee en NULLS NOT DISTINCT le 29/09 (meme piege que
 // signals_feed_cache, cf. migration autonomy_settings_writable_by_owner) avant d'ecrire cette
 // fonction, pour qu'un client sans mandat (mandate_id toujours NULL, cas de thomas) mette bien a
 // jour la ligne existante au lieu d'en creer une nouvelle a chaque clic. Confirmation NOMMEE
-// uniquement en passant a Autopilot (decision Thomas) : c'est le seul sens qui fait reellement
-// partir un envoi sans validation humaine -- resserrer le controle (Autopilot -> Approve/Assist)
-// n'a besoin d'aucune friction.
-async function _cycleAutonomyLevel(actionType, icpTier, currentLevel, label) {
+// uniquement en ciblant Autopilot (decision Thomas) : c'est le seul sens qui fait reellement
+// partir un envoi sans validation humaine -- cibler Approve/Assist n'a besoin d'aucune friction.
+// Rien ecrit si on clique le niveau deja actif (targetLevel === currentLevel) -- pas de requete,
+// pas de toast, pas de confirm pour un non-changement.
+async function _setAutonomyLevel(actionType, icpTier, targetLevel, currentLevel, label) {
+  if (targetLevel === currentLevel) return;
   const fr = currentLang === 'fr';
-  const idx = _AUTONOMY_LEVEL_CYCLE.indexOf(currentLevel);
-  const nextLevel = _AUTONOMY_LEVEL_CYCLE[(idx + 1) % _AUTONOMY_LEVEL_CYCLE.length];
-  if (nextLevel === 'autopilot') {
+  if (targetLevel === 'autopilot') {
     const msg = fr
       ? `Passer « ${label} » en Autopilot ? Les envois correspondants partiront automatiquement, sans validation humaine.`
       : `Set "${label}" to Autopilot? Matching sends will go out automatically, without human review.`;
@@ -5994,14 +6014,14 @@ async function _cycleAutonomyLevel(actionType, icpTier, currentLevel, label) {
   try {
     const { error } = await sbClient.from('autonomy_settings')
       .upsert(
-        { client_id: CLIENT_ID, mandate_id: mandateId, action_type: actionType, icp_tier: icpTier, level: nextLevel, updated_at: new Date().toISOString() },
+        { client_id: CLIENT_ID, mandate_id: mandateId, action_type: actionType, icp_tier: icpTier, level: targetLevel, updated_at: new Date().toISOString() },
         { onConflict: 'client_id,mandate_id,action_type,icp_tier' }
       );
-    if (error) { console.error('[_cycleAutonomyLevel]', error); showToast(fr ? 'Erreur lors de la mise à jour du niveau d\'autonomie' : 'Error updating autonomy level'); return; }
-    showToast(fr ? `« ${label} » réglé sur ${_autonomyLevelLabel(nextLevel, fr)} ✓` : `"${label}" set to ${_autonomyLevelLabel(nextLevel, fr)} ✓`);
+    if (error) { console.error('[_setAutonomyLevel]', error); showToast(fr ? 'Erreur lors de la mise à jour du niveau d\'autonomie' : 'Error updating autonomy level'); return; }
+    showToast(fr ? `« ${label} » réglé sur ${_autonomyLevelLabel(targetLevel, fr)} ✓` : `"${label}" set to ${_autonomyLevelLabel(targetLevel, fr)} ✓`);
     _loadActorAutonomy();
   } catch(e) {
-    console.error('[_cycleAutonomyLevel]', e);
+    console.error('[_setAutonomyLevel]', e);
     showToast(fr ? 'Erreur réseau' : 'Network error');
   }
 }
@@ -6012,7 +6032,7 @@ async function _loadActorAutonomy() {
     const el = document.getElementById('autonomy-' + key);
     if (!el) continue;
     if (!queries.length) {
-      el.innerHTML = `<span class="autonomy-pill lvl-approve">${fr ? 'Toujours manuel' : 'Always manual'}</span>`;
+      el.innerHTML = `<div class="actor-autonomy-item"><span style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:0.05em;text-transform:uppercase;padding:5px 10px;border-radius:5px;background:#eef1f6;color:var(--muted);">${fr ? 'Toujours manuel' : 'Always manual'}</span></div>`;
       continue;
     }
     try {
@@ -6023,7 +6043,7 @@ async function _loadActorAutonomy() {
         if (r.error) { console.warn('[_loadActorAutonomy]', key, queries[i].action_type, r.error); return ''; }
         const level = r.data?.level || null;
         const q = queries[i];
-        return _autonomyPillHTML(level, q.action_type, q.icp_tier, fr ? q.label.fr : q.label.en);
+        return _autonomySelectorHTML(level, q.action_type, q.icp_tier, fr ? q.label.fr : q.label.en);
       }).join('');
     } catch(e) {
       console.warn('[_loadActorAutonomy]', key, e);
@@ -6120,6 +6140,39 @@ function renderMarkdown(text) {
     .replace(/\n/g, ' ');
 }
 
+// FIX 29/09 (go Thomas : "les titres de l'intelligence societe et de l'intelligence personne sont
+// en anglais") : les prompts du Scanner (scan ICP, recherche libre, fiche contact) imposent des
+// en-tetes "## " litteraux en anglais et demandent au modele de les "utiliser exactement tels
+// quels" -- necessaire pour que _scanFullText.match(/^## BUYING TRIGGERS/) et
+// .split(/\n##\s*BUYING TRIGGERS/) (extraction fiable des sections Buying Triggers/Behavioural
+// Profile plus bas dans ce fichier) continuent de fonctionner sur un texte source PREVISIBLE --
+// demander au modele de traduire l'en-tete lui-meme aurait rendu cette extraction fragile (un
+// modele peut reformuler legerement une traduction, jamais un texte fixe qu'on lui demande de
+// recopier). Traduction cote client A L'AFFICHAGE uniquement : la VALEUR retournee par callAI()
+// (utilisee par ces regex) reste intacte en anglais, seul le HTML rendu a l'ecran est traduit.
+// Remplacement par correspondance exacte (dictionnaire) -- un en-tete non repertorie (utilise par
+// un autre agent que le Scanner) traverse sans etre touche.
+const _SCAN_HEADER_FR = {
+  'WHY NOW': 'POURQUOI MAINTENANT',
+  'PAIN POINTS': 'POINTS DE DOULEUR',
+  'OPENING ANGLE': "ANGLE D'APPROCHE",
+  'BUYING TRIGGERS': "DÉCLENCHEURS D'ACHAT",
+  'BEHAVIOURAL PROFILE & STRATEGY': 'PROFIL COMPORTEMENTAL & STRATÉGIE',
+  'WHO THEY ARE': 'QUI ILS SONT',
+  'SIGNAL': 'SIGNAL',
+  'ANGLE': 'ANGLE',
+  'THEIR PRIORITIES': 'LEURS PRIORITÉS',
+  'HOW TO APPROACH': "COMMENT ABORDER",
+  'ONLINE PRESENCE': 'PRÉSENCE EN LIGNE',
+};
+function _localizeScanHeaders(text) {
+  if (currentLang !== 'fr' || !text) return text;
+  return text.replace(/^(#{1,3})\s+([A-Z][A-Z &']*?)\s*$/gm, (m, hashes, h) => {
+    const fr = _SCAN_HEADER_FR[h.trim()];
+    return fr ? (hashes + ' ' + fr) : m;
+  });
+}
+
 // ── API CALL ──
 async function callAI(prompt, outputEl, spinnerId, maxTokens = 1000, renderAsText = false) {
   const spinner = document.getElementById(spinnerId);
@@ -6149,7 +6202,9 @@ async function callAI(prompt, outputEl, spinnerId, maxTokens = 1000, renderAsTex
     const text = Array.isArray(data.content)
       ? (data.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim() || 'No response.')
       : 'No response.';
-    if (renderAsText) { outputEl.textContent = text; } else { outputEl.innerHTML = renderMarkdown(text); }
+    // FIX 29/09 : _localizeScanHeaders() applique uniquement a l'affichage -- la valeur RETOURNEE
+    // (ligne "return text" plus bas) reste intacte en anglais pour les regex d'extraction en aval.
+    if (renderAsText) { outputEl.textContent = _localizeScanHeaders(text); } else { outputEl.innerHTML = renderMarkdown(_localizeScanHeaders(text)); }
     outputEl.classList.add('loaded');
     return text;
   } catch (e) {
@@ -6423,7 +6478,7 @@ Language instruction: Write your entire response in ${currentLang === 'fr' ? 'Fr
   // que callAI() a affiche un message d'erreur dans _scanEl, on n'y touche pas.
   if (_scanRawText && _scanEl) {
     const _scanCoreText = _scanFullText.split(/\n##\s*BUYING TRIGGERS/i)[0].trim();
-    _scanEl.innerHTML = renderMarkdown(_scanCoreText);
+    _scanEl.innerHTML = renderMarkdown(_localizeScanHeaders(_scanCoreText));
   }
   // Buying Triggers / Behavioural Profile & Strategy (README ext.) : extraits de _scanFullText
   // (texte BRUT complet, ## intact) -- jamais de _scanEl.textContent/aiTxt (## deja perdu au
@@ -6435,8 +6490,8 @@ Language instruction: Write your entire response in ${currentLang === 'fr' ? 'Fr
   const strategyMatch = _scanFullText.match(/^## BEHAVIOURAL PROFILE & STRATEGY\s*\n([\s\S]*?)(?=\n##\s|$)/mi);
   const _scanTriggersEl = document.getElementById('scanner-triggers-output');
   const _scanStrategyEl = document.getElementById('scanner-strategy-output');
-  if (_scanTriggersEl) _scanTriggersEl.innerHTML = triggersMatch ? renderMarkdown(triggersMatch[1].trim()) : '';
-  if (_scanStrategyEl) _scanStrategyEl.innerHTML = strategyMatch ? renderMarkdown(strategyMatch[1].trim()) : '';
+  if (_scanTriggersEl) _scanTriggersEl.innerHTML = triggersMatch ? renderMarkdown(_localizeScanHeaders(triggersMatch[1].trim())) : '';
+  if (_scanStrategyEl) _scanStrategyEl.innerHTML = strategyMatch ? renderMarkdown(_localizeScanHeaders(strategyMatch[1].trim())) : '';
   // Extract buying signals from the completed brief -- _scanFullText (texte brut complet), PAS
   // scanner-ai-output.textContent : ce bloc ne contient plus que WHY NOW/PAIN POINTS/OPENING
   // ANGLE depuis la troncature d'affichage ci-dessus, ce qui ferait perdre les signaux
