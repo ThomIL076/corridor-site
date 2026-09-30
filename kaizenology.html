@@ -1322,15 +1322,13 @@ body.new-nav { padding-left: 220px; }
     <button class="snav-item" data-nav="inbox" onclick="_switchNewNav('inbox')">
       <span class="snav-icon">📩</span><span data-en="Inbox" data-fr="Boîte de réception">Inbox</span>
     </button>
-    <button class="snav-item" data-nav="pending-actions" onclick="_switchNewNav('pending-actions')">
-      <span class="snav-icon">✅</span><span data-en="Approvals" data-fr="Actions en attente">Approvals</span>
-      <span class="send-badge-count" id="pending-actions-badge"><span id="pending-actions-count">–</span></span>
-    </button>
-    <!-- F15 point 2 (port kaizenology) : renomme depuis "Proposals" -- collision de mot avec le
-         stage pipeline "Proposal", meme raison que demo-private.html. -->
-    <button class="snav-item" data-nav="proposals" onclick="_switchNewNav('proposals')">
-      <span class="snav-icon">📝</span><span data-en="Drafts &amp; approvals" data-fr="Brouillons et validations">Drafts &amp; approvals</span>
-      <span class="send-badge-count" id="proposals-badge"><span id="proposals-count">–</span></span>
+    <!-- Refonte v2 (portage demo-private.html -> Kaizenology, Phase K2, 30/09, go Thomas) :
+         fusionne Approvals + Drafts & approvals en Review. Inbox INCHANGEE (toggle Pending/
+         History reel, meme raison que wominds.html). English hardcoded (pas de data-en/data-fr,
+         nettoyage du toggle bilingue = chantier separe). -->
+    <button class="snav-item" data-nav="review" onclick="_switchNewNav('review')">
+      <span class="snav-icon">🗂️</span><span>Review</span>
+      <span class="send-badge-count" id="review-badge"><span id="review-count">–</span></span>
     </button>
   </div>
   <div class="snav-section">
@@ -1567,6 +1565,17 @@ body.new-nav { padding-left: 220px; }
             <div class="ac-bar"></div>
           </button>
         </div>
+      </div>
+
+      <!-- Refonte v2 (portage demo-private.html -> Kaizenology, Phase K3, 30/09, go Thomas) : bloc
+           autonomie SEPARE, pas attache aux cartes agent ci-dessus -- verifie en base que les
+           seules lignes reelles autonomy_settings pour kaizenology (linkedin_invite,
+           buying_committee_map) sont des actions d'execution/envoi sans correspondance avec les
+           agents de contenu/chat affiches. Meme decision que wominds.html (bloc separe). English
+           hardcoded (pas de data-en/data-fr, nettoyage du toggle bilingue = chantier separe). -->
+      <div class="agent-group">
+        <div class="agent-group-label" style="color:var(--navy);">Autonomy</div>
+        <div id="autonomy-settings-block"></div>
       </div>
     </div>
     <div id="agents-back-bar" class="agent-back-bar" style="display:none;">
@@ -1806,6 +1815,7 @@ body.new-nav { padding-left: 220px; }
         </div>
         <div id="agents-at-work-list" style="font-size:var(--fs-sm);color:var(--muted);overflow-wrap:anywhere;word-break:break-word;" data-en="Loading..." data-fr="Chargement…">Loading...</div>
       </div>
+      <div class="pipe-stats-row" id="today-stats-row" style="margin-bottom:16px;"></div>
       <div class="section-sub"><span id="priorities-queued-count">0</span><span data-en=" actions queued by your agents. Work top to bottom. The system re-ranks after each send." data-fr=" actions en file par vos agents. Traitez-les de haut en bas. Le système reclasse après chaque envoi."> actions queued by your agents. Work top to bottom. The system re-ranks after each send.</span></div>
       <div id="priorities-container"></div>
     </div>
@@ -1838,6 +1848,24 @@ body.new-nav { padding-left: 220px; }
         <div class="section-sub" data-en="Content drafted by agents, waiting for a variant to be approved or rejected." data-fr="Contenu rédigé par les agents, en attente qu'une variante soit approuvée ou rejetée.">Content drafted by agents, waiting for a variant to be approved or rejected.</div>
       </div>
       <div id="proposals-container"></div>
+    </div>
+  </div>
+
+  <!-- ══ TAB: REVIEW (Refonte v2, Phase K2, go Thomas) ══ Fuses Approvals + Drafts & approvals.
+       Inbox stays separate (real Pending/History toggle, not a fusion candidate). ══ -->
+  <div class="tab-panel" id="tab-review">
+    <div style="padding:24px 16px 0;max-width:800px;margin:0 auto;">
+      <div class="module-header">
+        <div class="module-title">Review</div>
+        <div class="section-sub">Drafts and actions waiting for your review, all types combined.</div>
+      </div>
+      <div id="review-filter-bar" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;">
+        <button id="review-filter-all" onclick="_setReviewFilter('all')" style="padding:5px 14px;border-radius:var(--radius-pill);font-size:var(--fs-sm);font-weight:600;cursor:pointer;border:1px solid var(--navy);background:var(--navy);color:#fff;">All</button>
+        <button id="review-filter-opener" onclick="_setReviewFilter('opener')" style="padding:5px 14px;border-radius:var(--radius-pill);font-size:var(--fs-sm);font-weight:600;cursor:pointer;border:1px solid var(--border);background:none;color:var(--text);">Openers</button>
+        <button id="review-filter-followup" onclick="_setReviewFilter('followup')" style="padding:5px 14px;border-radius:var(--radius-pill);font-size:var(--fs-sm);font-weight:600;cursor:pointer;border:1px solid var(--border);background:none;color:var(--text);">Follow-ups</button>
+        <button id="review-filter-post" onclick="_setReviewFilter('post')" style="padding:5px 14px;border-radius:var(--radius-pill);font-size:var(--fs-sm);font-weight:600;cursor:pointer;border:1px solid var(--border);background:none;color:var(--text);">Posts</button>
+      </div>
+      <div id="review-container"></div>
     </div>
   </div>
 
@@ -2454,17 +2482,10 @@ body.new-nav { padding-left: 220px; }
       <button class="more-row" onclick="_switchNewNav('clients')"><span><span class="snav-icon">🏢</span><span data-en="Clients" data-fr="Clients">Clients</span></span><span class="more-chevron">›</span></button>
       <button class="more-row" onclick="_switchNewNav('integrations')"><span><span class="snav-icon">🔗</span><span data-en="Integrations" data-fr="Intégrations">Integrations</span></span><span class="more-chevron">›</span></button>
       <button class="more-row" onclick="_switchNewNav('stats')"><span><span class="snav-icon">📈</span><span data-en="Stats" data-fr="Stats">Stats</span></span><span class="more-chevron">›</span></button>
-      <button class="more-row" onclick="_switchNewNav('proposals')">
+      <button class="more-row" onclick="_switchNewNav('review')">
         <span style="display:flex;align-items:center;gap:8px;">
-          <span class="snav-icon">📝</span><span data-en="Drafts &amp; approvals" data-fr="Brouillons et validations">Drafts &amp; approvals</span>
-          <span class="mtab-badge" id="mtab-badge-proposals"></span>
-        </span>
-        <span class="more-chevron">›</span>
-      </button>
-      <button class="more-row" onclick="_switchNewNav('pending-actions')">
-        <span style="display:flex;align-items:center;gap:8px;">
-          <span class="snav-icon">✅</span><span data-en="Approvals" data-fr="Actions en attente">Approvals</span>
-          <span class="mtab-badge" id="mtab-badge-pending-actions"></span>
+          <span class="snav-icon">🗂️</span><span>Review</span>
+          <span class="mtab-badge" id="mtab-badge-review"></span>
         </span>
         <span class="more-chevron">›</span>
       </button>
@@ -3651,11 +3672,12 @@ function switchTab(name, fromClick = false) {
   // .snav-item/.mtab-item, y compris pour les appels programmatiques a switchTab).
   if (name === 'pipeline') { const sh = document.getElementById('kanban-swipe-hint'); if (sh) { sh.style.opacity = '1'; setTimeout(() => { sh.style.opacity = '0'; }, 3000); } }
   if (name === 'send') loadSendView();
-  if (name === 'agents') _showAgentsMap();
+  if (name === 'agents') { _showAgentsMap(); _loadKaizAutonomy(); }
   if (name === 'inbox') loadInboxDrafts();
   if (name === 'proposals') loadProposalsView();
   if (name === 'pending-actions') loadPendingActionsView();
-  if (name === 'priorities') { loadDailyPriorities(); _loadAgentsAtWork(); _fetchTodaySendCounts().catch(err => console.error('_fetchTodaySendCounts:', err)); }
+  if (name === 'review') loadReviewView();
+  if (name === 'priorities') { loadDailyPriorities(); _loadAgentsAtWork(); _fetchTodaySendCounts().catch(err => console.error('_fetchTodaySendCounts:', err)); _loadTodayStats(); }
   if (name === 'stats') { if (!_kanbanLoaded) { loadKanban().then(() => renderStats()); } else { renderStats(); } }
   if (name === 'clients') loadClientsKanban();
   if (name === 'integrations') loadIntegrationsTab();
@@ -3765,6 +3787,66 @@ function _showAgentsMap() {
   const backBar = document.getElementById('agents-back-bar');
   if (backBar) backBar.style.display = 'none';
   _renderAgentsStatus();
+}
+
+// FIX 30/09 (portage Refonte v2 demo-private.html -> Kaizenology, Phase K3, go Thomas) : bloc
+// autonomie independant, PAS attache aux cartes agent ci-dessus -- verifie en base (SQL,
+// autonomy_settings client_id='kaizenology') que les 2 seules lignes reelles (linkedin_invite,
+// buying_committee_map) sont des actions d'execution/envoi, aucun icp_tier (toujours NULL sur ce
+// client), meme decision que wominds.html (bloc separe, pas de fausse association carte-agent).
+const _KAIZ_AUTONOMY_QUERIES = [
+  { action_type: 'linkedin_invite', icp_tier: null, label: 'LinkedIn invitations' },
+  { action_type: 'buying_committee_map', icp_tier: null, label: 'Buying committee mapping' },
+];
+async function _loadKaizAutonomy() {
+  const el = document.getElementById('autonomy-settings-block');
+  if (!el) return;
+  try {
+    const results = await Promise.all(_KAIZ_AUTONOMY_QUERIES.map(function (q) {
+      return sbClient.rpc('resolve_autonomy_level', { p_client_id: CLIENT_ID, p_mandate_id: activeMandateId && activeMandateId !== '__ALL__' ? activeMandateId : null, p_action_type: q.action_type, p_icp_tier: q.icp_tier });
+    }));
+    el.innerHTML = _KAIZ_AUTONOMY_QUERIES.map(function (q, i) {
+      const r = results[i];
+      const level = (r && r.data && r.data.level) ? r.data.level : null;
+      return _autonomySelectorHTML(level, q.action_type, q.icp_tier, q.label);
+    }).join('');
+  } catch (e) {
+    console.error('[_loadKaizAutonomy]', e);
+    el.innerHTML = '';
+  }
+}
+const _AUTONOMY_LEVEL_CYCLE = ['approve', 'assist', 'autopilot'];
+function _autonomyLevelLabel(level) {
+  return level === 'autopilot' ? 'Autopilot' : (level === 'assist' ? 'Assisted' : 'Approve');
+}
+function _autonomySelectorHTML(level, actionType, icpTier, label) {
+  const tierArg = (icpTier === null || icpTier === undefined) ? 'null' : ("'" + icpTier + "'");
+  const curArg = level ? ("'" + level + "'") : 'null';
+  const labelArg = label.replace(/'/g, "\\'");
+  const segs = _AUTONOMY_LEVEL_CYCLE.map(function (l) {
+    return '<button class="agent-card-footer-action" style="cursor:pointer;padding:3px 10px;border-radius:var(--radius-pill);border:1px solid ' + (l === level ? 'var(--navy)' : 'var(--border)') + ';background:' + (l === level ? 'var(--navy)' : 'none') + ';color:' + (l === level ? '#fff' : 'var(--text)') + ';margin-right:4px;" onclick="_setAutonomyLevel(\'' + actionType + '\', ' + tierArg + ', \'' + l + '\', ' + curArg + ', \'' + labelArg + '\')">' + _autonomyLevelLabel(l) + '</button>';
+  }).join('');
+  return '<div style="padding:10px 4px;"><div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:6px;">' + _esc(label) + '</div><div style="display:flex;flex-wrap:wrap;">' + segs + '</div></div>';
+}
+async function _setAutonomyLevel(actionType, icpTier, targetLevel, currentLevel, label) {
+  if (targetLevel === currentLevel) return;
+  if (targetLevel === 'autopilot') {
+    const ok = await _confirmModal('Switch "' + label + '" to Autopilot? Actions will be executed automatically, without approval.');
+    if (!ok) return;
+  }
+  try {
+    const mandateArg = activeMandateId && activeMandateId !== '__ALL__' ? activeMandateId : null;
+    const { error } = await sbClient.from('autonomy_settings').upsert({
+      client_id: CLIENT_ID, mandate_id: mandateArg, action_type: actionType, icp_tier: icpTier,
+      level: targetLevel, updated_at: new Date().toISOString(),
+    }, { onConflict: 'client_id,mandate_id,action_type,icp_tier' });
+    if (error) throw error;
+    showToast('Level updated.');
+    _loadKaizAutonomy();
+  } catch (e) {
+    console.error('[_setAutonomyLevel]', e);
+    showToast('Error updating level.');
+  }
 }
 
 // heroAwaiting/heroRun/heroActions (agent-hero-*, spine-count-send/reply) : elements absents du
@@ -6967,6 +7049,160 @@ function _removePendingActionCard(id) {
   _setPendingActionsBadge(document.querySelectorAll('.pending-action-card').length);
 }
 
+// ══ REVIEW (Refonte v2, portage demo-private.html -> Kaizenology, Phase K2, go Thomas) ══
+// Fusionne Approvals (pending_actions) + Drafts & approvals (agent_proposals, hors
+// objection_response) en une seule file filtrable. Inbox INCHANGEE, non fusionnee : verifie en
+// base (loadInboxDrafts, toggle Pending/History reel via inbox-toggle-pending/history) que ce
+// fichier a la MEME fonctionnalite dediee que wominds.html (pas juste "pas de _inboxSend" comme
+// suppose par le plan initial -- kaizenology a bien _inboxSend, mais un vrai sous-onglet
+// Pending/History qui ne rentre pas dans le pattern liste-filtre de Review, meme raison que
+// wominds). Reutilise TELS QUELS les rendus et actions existants (_renderPendingActionCard/
+// _paApprove/_paReject, _renderProposalCard/_proposalRejectStart/_proposalSendViaLinkedIn/
+// _proposalUseVariant) -- aucune nouvelle logique d'envoi/approbation. _applyMandateFilter()
+// applique (contrairement a wominds.html qui n'a pas de concept de mandat) -- meme filtre que
+// loadPendingActionsView/loadProposalsView. Textes en dur en anglais uniquement (pas de
+// data-en/data-fr) : meme convention que Phase K1 (_loadTodayStats), le nettoyage du toggle
+// bilingue de ce fichier reste un chantier separe.
+let _reviewItems = [];
+let _reviewFilter = 'all';
+
+function _reviewTypeKey(kind, subtype) {
+  if (kind === 'proposal') {
+    if (subtype === 'outreach_opener') return 'opener';
+    if (subtype === 'linkedin_post') return 'post';
+    return 'other';
+  }
+  if (kind === 'pending') {
+    if (subtype === 'email_j5') return 'followup';
+    if (subtype === 'linkedin_invite' || subtype === 'linkedin_message') return 'opener';
+    return 'other';
+  }
+  return 'other';
+}
+
+function _reviewWhyText(kind, subtype, icpScore) {
+  if (typeof icpScore === 'number' && icpScore >= 8) return 'Tier A account — first touch';
+  if (kind === 'pending' && subtype === 'email_j5') return 'Follow-up scheduled for J+5';
+  if (kind === 'pending' && (subtype === 'linkedin_invite' || subtype === 'linkedin_message')) return 'Automated action waiting for your approval';
+  if (kind === 'proposal' && subtype === 'outreach_opener') return 'First message drafted, ready to review';
+  if (kind === 'proposal') return 'Content drafted by an agent, waiting for review';
+  return 'Waiting for your review';
+}
+
+function _reviewWhyHTML(text) {
+  return '<div style="display:flex;align-items:center;gap:6px;font-size:var(--fs-xs);color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;"><span style="width:6px;height:6px;border-radius:50%;background:var(--accent);flex-shrink:0;"></span>' + _esc(text) + '</div>';
+}
+
+function _setReviewBadge(n) {
+  const el = document.getElementById('review-count');
+  if (el) el.textContent = n;
+  const mtabEl = document.getElementById('mtab-badge-review');
+  if (mtabEl) mtabEl.textContent = n > 0 ? n : '';
+}
+
+async function loadReviewView() {
+  const container = document.getElementById('review-container');
+  if (!container) return;
+  container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">Loading...</div>';
+  try {
+    let _propQuery = sbClient.from('agent_proposals').select('*')
+      .eq('client_id', CLIENT_ID).eq('status', 'pending').neq('content_type', 'objection_response');
+    _propQuery = _applyMandateFilter(_propQuery);
+    let _actQuery = sbClient.from('pending_actions').select('*')
+      .eq('client_id', CLIENT_ID).eq('status', 'pending');
+    _actQuery = _applyMandateFilter(_actQuery);
+    const [{ data: proposals, error: propErr }, { data: actions, error: actErr }] = await Promise.all([
+      _propQuery.order('created_at', { ascending: false }).limit(200),
+      _actQuery.order('created_at', { ascending: true }).limit(200),
+    ]);
+    if (propErr) throw propErr;
+    if (actErr) throw actErr;
+
+    const prospectIds = [...new Set([
+      ...(proposals || []).map(p => p.prospect_id),
+      ...(actions || []).map(a => a.prospect_id),
+    ].filter(Boolean))];
+    const prospectsById = {};
+    if (prospectIds.length) {
+      const { data: pRows, error: pErr } = await sbClient.from('prospects')
+        .select('id,name,company,identity_verdict,icp_score,linkedin,linkedin_tag')
+        .eq('client_id', CLIENT_ID).in('id', prospectIds);
+      if (pErr) console.error('[loadReviewView] prospects batch-fetch error:', pErr);
+      (pRows || []).forEach(p => { prospectsById[p.id] = p; _cacheProspectRow(p, true); });
+    }
+
+    _reviewItems = [];
+    (proposals || []).forEach(prop => {
+      const prospect = prospectsById[prop.prospect_id];
+      _reviewItems.push({
+        ts: prop.created_at,
+        typeKey: _reviewTypeKey('proposal', prop.content_type),
+        why: _reviewWhyText('proposal', prop.content_type, prospect ? prospect.icp_score : null),
+        domId: 'proposal-card-' + prop.id,
+        html: _renderProposalCard(prop, prospect),
+      });
+    });
+    // FIX (revue de code avant application) : _paApprove() lit _pendingActionsById[id] pour
+    // decider d'afficher ou non la confirmation "identite CONTRADICTED" (garde d'identite
+    // elargie, cf. loadPendingActionsView:6892-6901) -- sans peupler ce cache ici, approuver une
+    // action depuis Review sauterait silencieusement cette confirmation de securite. Meme
+    // decoration _identityVerdict que loadPendingActionsView, pas une nouvelle logique.
+    (actions || []).forEach(action => {
+      const prospect = prospectsById[action.prospect_id];
+      _pendingActionsById[action.id] = Object.assign({}, action, { _identityVerdict: prospect ? prospect.identity_verdict : null });
+      _reviewItems.push({
+        ts: action.created_at,
+        typeKey: _reviewTypeKey('pending', action.action_type),
+        why: _reviewWhyText('pending', action.action_type, prospect ? prospect.icp_score : null),
+        domId: 'pending-action-card-' + action.id,
+        html: _renderPendingActionCard(action, prospect ? prospect.identity_verdict : null),
+      });
+    });
+    _reviewItems.sort((a, b) => new Date(b.ts) - new Date(a.ts));
+    _reviewFilter = 'all';
+    document.querySelectorAll('#review-filter-bar button').forEach(b => _setReviewFilterBtnActive(b, b.id === 'review-filter-all'));
+    _renderReviewItems();
+  } catch (e) {
+    console.error('[loadReviewView]', e);
+    container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">Unable to load review items right now.</div>';
+  }
+}
+
+// Boutons de filtre sans classe partagee dans ce fichier (pas de .toggle-pill comme wominds.html)
+// -- reutilise le style inline exact des boutons inbox-toggle-pending/history (seul pattern actif
+// existant), applique/retire au lieu d'une classe CSS.
+function _setReviewFilterBtnActive(btn, active) {
+  btn.style.border = active ? '1px solid var(--navy)' : '1px solid var(--border)';
+  btn.style.background = active ? 'var(--navy)' : 'none';
+  btn.style.color = active ? '#fff' : 'var(--text)';
+}
+
+function _setReviewFilter(key) {
+  _reviewFilter = key;
+  document.querySelectorAll('#review-filter-bar button').forEach(b => _setReviewFilterBtnActive(b, b.id === 'review-filter-' + key));
+  _renderReviewItems();
+}
+
+function _renderReviewItems() {
+  const container = document.getElementById('review-container');
+  if (!container) return;
+  const items = _reviewFilter === 'all' ? _reviewItems : _reviewItems.filter(it => it.typeKey === _reviewFilter);
+  _setReviewBadge(_reviewItems.length);
+  if (!items.length) {
+    container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">Nothing in this category.</div>';
+    return;
+  }
+  container.innerHTML = items.map(it => it.html).join('');
+  // Injecte la ligne "why you" comme PREMIER ENFANT de chaque carte (pas un wrapper exterieur) :
+  // quand _paApprove/_paReject/_proposalRejectConfirm retire la carte via
+  // document.getElementById(id).remove(), la ligne disparait avec elle -- meme raison que
+  // demo-private.html/wominds.html (evite une ligne "why you" orpheline apres traitement).
+  items.forEach(it => {
+    const card = document.getElementById(it.domId);
+    if (card) card.insertAdjacentHTML('afterbegin', _reviewWhyHTML(it.why));
+  });
+}
+
 // Tri EMEA d'abord, puis ICP décroissant
 function _sortEMEAFirst(arr) {
   return [...arr].sort((a, b) => {
@@ -7879,6 +8115,46 @@ async function _fetchTodaySendCounts() {
   _todaySendCounts.invitesSent = (invRows || []).length;
   _todaySendCounts.emailsSent  = (emRows  || []).length;
   _updateSentCounter();
+}
+
+// FIX 30/09 (portage Refonte v2 demo-private.html -> Kaizenology, go Thomas) : bloc stats
+// "Today's run" au-dessus de la liste de priorites -- meme logique que demo-private.html
+// (_loadTodayStats), _applyMandateFilter() reutilise (kaizenology a le meme concept de mandat
+// que demo-private.html, active/activeMandateId:3029). Textes en dur en anglais uniquement (pas
+// de data-en/data-fr) : ce fichier a encore l'echafaudage bilingue actif (currentLang), mais son
+// nettoyage est un chantier separe (go Thomas) -- ces nouveaux elements visent directement
+// l'etat final 100% EN sans en dependre. content_type <> objection_response : meme convention
+// que loadProposalsView (6486), pas celle de demo-private.html qui l'inclut.
+async function _loadTodayStats() {
+  const el = document.getElementById('today-stats-row');
+  if (!el) return;
+  try {
+    const todayStart = new Date().toISOString().slice(0, 10) + 'T00:00:00.000Z';
+    const tomorrowStart = new Date(Date.now() + 86400000).toISOString().slice(0, 10) + 'T00:00:00.000Z';
+    const [{ count: signalsFound }, { count: messagesDrafted }] = await Promise.all([
+      _applyMandateFilter(sbClient.from('prospects').select('id', { count: 'exact', head: true })
+        .eq('client_id', CLIENT_ID).eq('archived', false)
+        .gte('signal_date', todayStart).lt('signal_date', tomorrowStart)),
+      _applyMandateFilter(sbClient.from('agent_proposals').select('id', { count: 'exact', head: true })
+        .eq('client_id', CLIENT_ID).neq('content_type', 'objection_response')
+        .gte('created_at', todayStart).lt('created_at', tomorrowStart)),
+    ]);
+    await _fetchTodaySendCounts().catch(() => {});
+    const sentToday = (_todaySendCounts.invitesSent || 0) + (_todaySendCounts.emailsSent || 0);
+    const waitingOnYou = _priorityShownProspects.length;
+    const stats = [
+      { label: 'SIGNALS FOUND', value: signalsFound || 0 },
+      { label: 'MESSAGES DRAFTED', value: messagesDrafted || 0 },
+      { label: 'SENT TODAY', value: sentToday },
+      { label: 'WAITING ON YOU', value: waitingOnYou },
+    ];
+    el.innerHTML = stats.map(function (s) {
+      return '<div class="pipe-stat"><span class="pipe-stat-val">' + s.value + '</span><span class="pipe-stat-label">' + s.label + '</span></div>';
+    }).join('');
+  } catch (e) {
+    console.error('[_loadTodayStats]', e);
+    el.innerHTML = '';
+  }
 }
 
 async function _markSent(pid, touch, auto = false, msgText = '', elPrefix = '') {
