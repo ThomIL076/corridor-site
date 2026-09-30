@@ -2068,6 +2068,19 @@ body.new-nav { padding-left: 220px; }
       <span style="font-size:var(--fs-sm);color:var(--muted)" data-en="messages due today">messages due today</span>
     </div>
     <div id="send-capacity-bars" style="max-width:280px;margin-bottom:18px;"></div>
+    <!-- FIX 30/09 (porte depuis wominds.html, go Thomas) : invitations LinkedIn envoyees en attente
+         d'acceptation -- linkedin_tag='invite-sent' est deja mis a jour en temps reel par le
+         webhook n8n de suivi des connexions LinkedIn (-> 'connection-accepted') des qu'une
+         connexion est acceptee, donc cette liste se vide toute seule au prochain chargement de
+         l'onglet, aucun polling necessaire cote dashboard. English hardcoded (pas de data-en/
+         data-fr, nettoyage du toggle bilingue deja fait sur ce fichier). -->
+    <div class="card" style="margin-bottom:18px;max-width:460px;">
+      <div class="card-header" style="margin-bottom:10px;padding-bottom:10px;display:flex;align-items:center;justify-content:space-between;">
+        <span class="card-title">Pending connections</span>
+        <span class="send-badge-count" id="pending-connections-badge"><span id="pending-connections-count">–</span></span>
+      </div>
+      <div id="pending-connections-list" style="font-size:var(--fs-sm);color:var(--muted);">Loading...</div>
+    </div>
     <div id="send-filters" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;align-items:center;">
       <select id="send-filter-region" onchange="_applySendFilters()" style="padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:var(--fs-sm);font-family:inherit;color:var(--text);background:#fff;">
         <option value="" data-en="All regions">All regions</option>
@@ -6447,6 +6460,7 @@ async function loadSendView() {
     _fetchTodaySendCounts().catch(err => console.error('_fetchTodaySendCounts:', err));
     _applySendFilters();
     _loadRecentlySent().catch(err => console.error('_loadRecentlySent:', err));
+    _loadPendingConnections().catch(err => console.error('_loadPendingConnections:', err));
 
   } catch(e) {
     console.error('loadSendView:', e);
@@ -6457,6 +6471,51 @@ async function loadSendView() {
 // Version simplifiee de demo-private.html : invite/j0 uniquement, pas de bloc
 // Object.entries(_sendJ5Sent) -- cette variable n'existe pas ici (loadSendView() de
 // kaizenology.html ne pagine pas les sequences status='sent', pas de suivi J+5 cote client).
+// FIX 30/09 (porte depuis wominds.html, go Thomas) : invitations LinkedIn envoyees en attente
+// d'acceptation -- linkedin_tag='invite-sent' est deja mis a jour en temps reel par le webhook
+// n8n actif de suivi des connexions LinkedIn (-> 'connection-accepted') des qu'une connexion est
+// acceptee, donc cette liste se vide toute seule au prochain chargement de l'onglet, aucun
+// polling necessaire ici. Reutilise _sendProspects (deja charge par loadSendView, inclut
+// linkedin_tag) -- pas de requete prospects supplementaire, juste sequences pour la date d'envoi
+// (touch='invite', status='sent'). _applyMandateFilter() applique comme le reste de ce fichier.
+async function _loadPendingConnections() {
+  const listEl = document.getElementById('pending-connections-list');
+  const countEl = document.getElementById('pending-connections-count');
+  if (!listEl) return;
+  try {
+    const pending = (_sendProspects || []).filter(p => p.linkedin_tag === 'invite-sent');
+    if (countEl) countEl.textContent = pending.length;
+    if (!pending.length) {
+      listEl.innerHTML = '<div style="padding:8px 0;">No pending invitations.</div>';
+      return;
+    }
+    const ids = pending.map(p => p.id);
+    let q = sbClient.from('sequences')
+      .select('prospect_id, sent_at, created_at')
+      .eq('client_id', CLIENT_ID).eq('touch', 'invite').eq('status', 'sent')
+      .in('prospect_id', ids);
+    q = _applyMandateFilter(q);
+    const { data: seqs, error } = await q;
+    if (error) throw error;
+    const sentAtById = {};
+    (seqs || []).forEach(s => { sentAtById[s.prospect_id] = s.sent_at || s.created_at; });
+    const items = pending.map(p => ({ p, sentAt: sentAtById[p.id] || null }))
+      .sort((a, b) => new Date(b.sentAt || 0) - new Date(a.sentAt || 0));
+    listEl.innerHTML = items.map(({ p, sentAt }) => `<div class="card send-card" style="margin-bottom:8px;">
+      <div class="send-row">
+        <div class="send-avatar" style="background:${_sendAvatarColor(p.name)}">${_esc(_sendInitials(p.name))}</div>
+        <div class="send-id">
+          <div class="send-name">${_esc(p.name)}</div>
+          <div class="send-company">${_esc(p.company || '')}</div>
+        </div>
+        <span style="font-size:var(--fs-xs);color:var(--muted);white-space:nowrap;">${sentAt ? _esc(_relTimeShort(sentAt)) : 'Sent'}</span>
+      </div>
+    </div>`).join('');
+  } catch (e) {
+    console.error('[_loadPendingConnections]', e);
+    listEl.innerHTML = '<div style="padding:8px 0;color:var(--red);">Error loading.</div>';
+  }
+}
 async function _loadRecentlySent() {
   const container = document.getElementById('send-recently-sent');
   const divider = document.getElementById('send-recently-divider');
