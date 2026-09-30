@@ -14884,6 +14884,10 @@ async function _saveLinkedIn(pid, url, source) {
 async function _savePhone(pid, phone, source) {
   const p = _prospectsById[pid];
   if (!p) return;
+  // FullEnrich may return an object ({ number, region }) : never store "[object Object]"
+  if (phone && typeof phone === 'object') phone = phone.number || phone.phone || phone.value || '';
+  phone = String(phone || '').trim();
+  if (!phone) return;
   p.phone = phone;
   const phoneInput = document.getElementById('ed-phone');
   if (phoneInput) phoneInput.value = phone;

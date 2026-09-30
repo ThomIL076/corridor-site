@@ -80,7 +80,9 @@ export default async function handler(req, res) {
         || (contact.most_probable_work_email && contact.most_probable_work_email.email)
         || null;
       const email = (best && best.email) || mpe || null;
-      const phone = contact.most_probable_phone || null;
+      // most_probable_phone can be an object ({ number, region }) : always return a plain string
+      const _mpp = contact.most_probable_phone;
+      const phone = (typeof _mpp === 'string' ? _mpp : (_mpp && (_mpp.number || _mpp.phone || _mpp.value))) || null;
       return res.status(200).json({ status: 'done', email, phone });
     } catch (e) {
       Sentry.captureException(e);
