@@ -2929,7 +2929,7 @@ body.new-nav { padding-left: 220px; }
       </div>
       <div class="card" style="margin-top:16px;">
         <div class="card-header"><span class="card-title" data-en="Stage conversion" data-fr="Conversion des étapes">Stage conversion</span></div>
-        <div id="stage-conversion-list" style="font-size:var(--fs-sm);color:var(--muted);">Loading...</div>
+        <div id="stage-conversion-list" style="font-size:var(--fs-sm);color:var(--muted);" data-en="Loading..." data-fr="Chargement…">Loading...</div>
       </div>
     </div>
 
@@ -3514,9 +3514,9 @@ async function _submitSignalFeedback(btn, vote, idx, stableKey) {
         capsule.style.cssText = 'margin-top:8px;padding:8px 10px;background:var(--bg);border-radius:var(--radius-sm);border:1px solid var(--border);';
         capsule.innerHTML =
           '<div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">' + (currentLang==="fr" ? 'Qu’est-ce qui n’était pas pertinent ?' : "What wasn't relevant?") + ' <em style="font-style:normal;opacity:.7">(optional)</em></div>' +
-          '<textarea rows="2" maxlength="500" placeholder="e.g. wrong sector, weak signal..." style="width:100%;box-sizing:border-box;font-size:12px;padding:6px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-panel);color:var(--text-primary);resize:vertical;"></textarea>' +
+          '<textarea rows="2" maxlength="500" placeholder="' + (currentLang==="fr" ? 'ex. mauvais secteur, signal faible...' : 'e.g. wrong sector, weak signal...') + '" style="width:100%;box-sizing:border-box;font-size:12px;padding:6px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-panel);color:var(--text-primary);resize:vertical;"></textarea>' +
           '<div style="display:flex;justify-content:flex-end;margin-top:6px;">' +
-          '<button style="font-size:12px;padding:3px 12px;border:none;border-radius:var(--radius-sm);background:var(--accent);color:#fff;cursor:pointer;">Send</button>' +
+          '<button style="font-size:12px;padding:3px 12px;border:none;border-radius:var(--radius-sm);background:var(--accent);color:#fff;cursor:pointer;">' + (currentLang==="fr" ? 'Envoyer' : 'Send') + '</button>' +
           '</div>';
         capsule.querySelector('button').addEventListener('click', function() { _sendSignalComment(capsule); });
         card.appendChild(capsule);
@@ -5653,6 +5653,17 @@ function setLang(lang) {
   if (typeof _renderReminderBacklogRows === 'function') _renderReminderBacklogRows(_reminderBacklogProspects);
   const _todayBacklogCountEl = document.getElementById('today-backlog-count');
   if (_todayBacklogCountEl) _todayBacklogCountEl.textContent = _reminderBacklogTotal ? _reminderBacklogTotal + (currentLang === 'fr' ? ' en retard' : ' overdue') : '';
+  // FIX 30/09 (meme classe de bug que FIX 24/09-25/09 juste au-dessus, repere par Thomas sur
+  // Review : "POURQUOI VOUS"/labels de type restaient en FR apres bascule vers EN) : Review/Today
+  // stats/pastilles d'autonomie (refonte v2, 29/09) construits en JS avec currentLang au moment du
+  // fetch, jamais ajoutes a cette liste de retraduction -- contrairement aux sections ci-dessus,
+  // leur HTML est deja rendu et mis en cache (_reviewItems), pas de simple re-rendu possible depuis
+  // un cache de donnees brutes : un vrai re-fetch est necessaire ici (chaque fonction se protege
+  // deja elle-meme si son conteneur n'existe pas, meme garde-fou que le reste de cette liste).
+  if (typeof loadReviewView === 'function') loadReviewView();
+  if (typeof _loadTodayStats === 'function') _loadTodayStats();
+  if (typeof _loadActorAutonomy === 'function') _loadActorAutonomy();
+  if (typeof _loadAgentsAtWork === 'function') _loadAgentsAtWork();
 }
 
 function _relTimeShort(iso) {
@@ -12546,13 +12557,15 @@ function _inboxCardHTML(draft, view = 'pending') {
       // 'dismissed') apres migration agent_proposals -- libelle affiche inchange.
       let badgeHtml;
       if (draft.status === 'rejected') {
-        badgeHtml = `<span style="font-size:var(--fs-xs);font-weight:700;padding:2px 8px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-pill);color:var(--muted);">Dismissed</span>`;
+        badgeHtml = `<span style="font-size:var(--fs-xs);font-weight:700;padding:2px 8px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-pill);color:var(--muted);">${fr ? 'Rejeté' : 'Dismissed'}</span>`;
       } else if (fb?.vote === 'unlike' && fb?.comment === 'Edited before sending') {
-        badgeHtml = `<span style="font-size:var(--fs-xs);font-weight:700;padding:2px 8px;background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:var(--radius-pill);color:var(--accent);">Sent (edited)</span>`;
+        badgeHtml = `<span style="font-size:var(--fs-xs);font-weight:700;padding:2px 8px;background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:var(--radius-pill);color:var(--accent);">${fr ? 'Envoyé (modifié)' : 'Sent (edited)'}</span>`;
       } else {
-        badgeHtml = `<span style="font-size:var(--fs-xs);font-weight:700;padding:2px 8px;background:var(--success-bg);border:1px solid var(--success-border);border-radius:var(--radius-pill);color:var(--success);">Sent</span>`;
+        badgeHtml = `<span style="font-size:var(--fs-xs);font-weight:700;padding:2px 8px;background:var(--success-bg);border:1px solid var(--success-border);border-radius:var(--radius-pill);color:var(--success);">${fr ? 'Envoyé' : 'Sent'}</span>`;
       }
-      const dateStr = draft.updated_at ? new Date(draft.updated_at).toLocaleDateString(undefined, { day:'numeric', month:'short', year:'numeric' }) : '';
+      // FIX 30/09 (residu bilingue) : toLocaleDateString(undefined, ...) suivait la locale du
+      // navigateur, pas currentLang -- affichait potentiellement un format EN meme en mode FR.
+      const dateStr = draft.updated_at ? new Date(draft.updated_at).toLocaleDateString(fr ? 'fr-FR' : 'en-GB', { day:'numeric', month:'short', year:'numeric' }) : '';
       return `<div class="priority-card" id="inbox-card-${draft.id}"
           style="background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius-md);padding:18px 20px;margin-bottom:12px;opacity:0.85;">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
