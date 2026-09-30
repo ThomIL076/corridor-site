@@ -1,7 +1,7 @@
 import { resolveClientId } from './_auth.js';
 import { Sentry } from './_sentry.js';
 
-const FE_BASE = 'https://app.fullenrich.com/api/v1/contact/enrich/bulk';
+const FE_BASE = 'https://app.fullenrich.com/api/v2/contact/enrich/bulk';
 
 // Fix securite 2026-09-21 : POST lancait un enrichissement payant et GET le sondait sans aucune
 // authentification. Jeton de session Supabase (Authorization: Bearer) verifie cote serveur ET appartenance
@@ -100,8 +100,8 @@ export default async function handler(req, res) {
   const lastname = nameParts.slice(1).join(' ') || '';
 
   const contact = { enrich_fields: ['contact.work_emails', 'contact.phones'] };
-  if (firstname) contact.firstname = firstname;
-  if (lastname) contact.lastname = lastname;
+  if (firstname) contact.first_name = firstname;
+  if (lastname) contact.last_name = lastname;
   if (company) contact.company_name = company;
   if (domain) contact.domain = domain;
   if (linkedin) contact.linkedin_url = linkedin;
@@ -112,7 +112,7 @@ export default async function handler(req, res) {
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
       body: JSON.stringify({
         name: 'Find Email - ' + (name || company || 'prospect'),
-        datas: [contact]
+        data: [contact]
       })
     });
     const data = await r.json();
