@@ -1485,14 +1485,13 @@ body.new-nav { padding-left: 220px; }
     <button class="snav-item" data-nav="inbox" onclick="switchTab('inbox')">
       <span>Boîte de réception</span>
     </button>
-    <button class="snav-item" data-nav="pending-actions" onclick="switchTab('pending-actions')">
-      <span>Actions en attente</span>
-      <span class="send-badge-count" id="pending-actions-badge"><span id="pending-actions-count">–</span></span>
-    </button>
-    <!-- F15 point 2 (port wominds) : renomme depuis "Propositions" -- collision de mot avec le
-         stage pipeline "Proposal", meme raison que demo-private.html/kaizenology.html. -->
-    <button class="snav-item" data-nav="proposals" onclick="switchTab('proposals')">
-      <span>Brouillons et validations</span>
+    <!-- Refonte v2 (portage demo-private.html -> Wominds, 30/09, go Thomas) : fusionne "Actions
+         en attente" et "Brouillons et validations" en Revue -- memes actions reelles, juste
+         affichage fusionne + filtre. Boite de reception INCHANGEE, non fusionnee (bascule
+         Pending/Historique reelle, distincte du pattern carte-liste-filtre de Revue). -->
+    <button class="snav-item" data-nav="review" onclick="switchTab('review')">
+      <span>Revue</span>
+      <span class="send-badge-count" id="review-badge"><span id="review-count">–</span></span>
     </button>
   </div>
   <div class="snav-section">
@@ -1639,6 +1638,7 @@ body.new-nav { padding-left: 220px; }
         <h2 style="font-size:var(--fs-lg);font-weight:700;color:var(--navy);margin:0;">Aujourd'hui</h2>
       </div>
       <div class="section-sub"><span id="today-queued-count">0</span><span id="today-queued-sub"> prospects prioritaires, triés par score ICP décroissant.</span></div>
+      <div class="pipe-stats-row" id="today-stats-row" style="margin-bottom:16px;"></div>
       <div class="today-layout">
         <div class="today-main">
           <div id="today-priorities-container"></div>
@@ -1936,6 +1936,29 @@ body.new-nav { padding-left: 220px; }
     </div>
   </div>
 
+  <!-- ══ ONGLET : REVUE (Refonte v2, portage demo-private.html -> Wominds, 30/09, go Thomas) ══
+       Fusionne Actions en attente + Brouillons et validations. Boite de reception INCHANGEE
+       (nav distincte, cf. commentaire nav ci-dessus). -->
+  <div class="tab-panel" id="tab-review">
+    <div style="padding:24px 16px 0;max-width:800px;margin:0 auto;">
+      <div class="module-header" style="margin-bottom:20px;">
+        <div class="module-title">Revue</div>
+        <div class="section-sub">Actions et brouillons en attente de votre validation, tous types confondus.</div>
+      </div>
+      <div id="review-filter-bar" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
+        <button id="review-filter-all" class="toggle-pill active" onclick="_setReviewFilter('all')">Tout</button>
+        <button id="review-filter-opener" class="toggle-pill" onclick="_setReviewFilter('opener')">Ouvertures</button>
+        <button id="review-filter-followup" class="toggle-pill" onclick="_setReviewFilter('followup')">Relances</button>
+        <button id="review-filter-post" class="toggle-pill" onclick="_setReviewFilter('post')">Contenu</button>
+      </div>
+      <div id="review-container"></div>
+      <div class="module-header" style="margin:28px 0 12px;">
+        <div class="module-title" style="font-size:var(--fs-base);">Traité sans vous aujourd'hui</div>
+      </div>
+      <div id="review-handled-container"></div>
+    </div>
+  </div>
+
   <!-- ══ ONGLET : ACTIONS EN ATTENTE (autonomie "approve") ══ -->
   <div class="tab-panel" id="tab-pending-actions">
     <div style="padding:24px 16px 0;max-width:800px;margin:0 auto;">
@@ -1988,6 +2011,16 @@ body.new-nav { padding-left: 220px; }
       <div class="agent-grid" id="agents-grid"></div>
     </div>
     <div id="agents-detail" class="agent-panel"></div>
+    <!-- Refonte v2 (portage demo-private.html -> Wominds, Phase W3, 30/09, go Thomas) : bloc
+         autonomie SEPARE, pas attache aux 4 cartes agent ci-dessus -- verifie en base que les
+         seules lignes reelles autonomy_settings pour wominds (linkedin_invite, linkedin_message,
+         buying_committee_map) sont des actions d'execution/envoi sans correspondance avec les
+         agents de redaction de contenu. Decision Thomas (AskUserQuestion) : bloc independant. -->
+    <div class="module-header" style="margin:28px 0 10px;">
+      <div class="module-title" style="font-size:var(--fs-base);">Autonomie</div>
+      <div class="section-sub">Niveau d'automatisation des actions d'envoi, indépendant des agents de rédaction ci-dessus.</div>
+    </div>
+    <div id="autonomy-settings-block"></div>
   </div>
 
   <!-- ══ ONGLET : SIGNAUX ══ Parite demo-private.html:2606-2643 (brief 2026-09-12, 241 prospects
@@ -2141,14 +2174,15 @@ body.new-nav { padding-left: 220px; }
   <div class="tab-panel" id="tab-more">
     <h2 style="font-size:var(--fs-lg);font-weight:700;color:var(--navy);margin:0 0 16px;">Plus</h2>
     <div class="more-list">
-      <button class="more-row" onclick="switchTab('pending-actions')">
+      <!-- Refonte v2 (portage Wominds, 30/09) : "Actions en attente" + "Propositions" fusionnes
+           en Revue, meme raison que la nav desktop (snav-section "Conversations"). -->
+      <button class="more-row" onclick="switchTab('review')">
         <span style="display:flex;align-items:center;gap:8px;">
-          <span>Actions en attente</span>
-          <span class="mtab-badge" id="mtab-badge-pending-actions-more"></span>
+          <span>Revue</span>
+          <span class="mtab-badge" id="mtab-badge-review-more"></span>
         </span>
         <span class="more-chevron">›</span>
       </button>
-      <button class="more-row" onclick="switchTab('proposals')"><span>Propositions</span><span class="more-chevron">›</span></button>
       <button class="more-row" onclick="switchTab('agents')"><span>Agents</span><span class="more-chevron">›</span></button>
       <button class="more-row" onclick="switchTab('signals')"><span>Signaux</span><span class="more-chevron">›</span></button>
       <button class="more-row" onclick="switchTab('pipeintel')"><span>Santé du pipeline</span><span class="more-chevron">›</span></button>
@@ -2461,14 +2495,15 @@ function switchTab(name){
   _closeSnav();
   window.scrollTo({ top: 0, behavior: 'instant' });
   _updateSpineActive(name);
-  if (name === 'today') loadDailyPriorities(); // decisions du Morning Scan du jour, repli sur loadTodayRun
+  if (name === 'today') { loadDailyPriorities(); _loadTodayStats(); } // decisions du Morning Scan du jour, repli sur loadTodayRun
   if (name === 'pipeline') loadKanban();
   if (name === 'send') loadSendView();
   if (name === 'inbox') loadInboxDrafts();
   if (name === 'mandate') loadMandateView();
   if (name === 'pending-actions') loadPendingActionsView();
   if (name === 'proposals') loadProposalsView();
-  if (name === 'agents') renderAgentsScreen();
+  if (name === 'review') loadReviewView();
+  if (name === 'agents') { renderAgentsScreen(); _loadWomindsAutonomy(); }
   if (name === 'pipeintel') loadPipelineHealth();
   if (name === 'reports') _loadWeeklyReports();
   if (name === 'seo') loadSeoTab();
@@ -6833,6 +6868,200 @@ async function _fetchTodaySendCounts() {
   _updateSentCounter();
 }
 
+// FIX 30/09 (portage Refonte v2 demo-private.html -> Wominds, go Thomas) : bloc stats "Aujourd'hui"
+// au-dessus de la liste de priorites -- meme principe que _loadTodayStats (demo-private.html:5753-
+//5807), adapte a wominds.html : pas de _applyMandateFilter/activeMandateId ici (vue consolidee,
+// cf. commentaire wominds.html:3722-3726), _fetchTodaySendCounts() deja existante reutilisee telle
+// quelle, "en attente de vous" lu directement sur #today-queued-count (deja rempli par
+// loadDailyPriorities/loadTodayRun, pas de _priorityShownProspects sur ce fichier).
+async function _loadTodayStats() {
+  const el = document.getElementById('today-stats-row');
+  if (!el) return;
+  try {
+    const todayStart = new Date().toISOString().slice(0, 10) + 'T00:00:00.000Z';
+    const tomorrowStart = new Date(Date.now() + 86400000).toISOString().slice(0, 10) + 'T00:00:00.000Z';
+    const [{ count: signalsFound }, { count: messagesDrafted }] = await Promise.all([
+      sbClient.from('prospects').select('id', { count: 'exact', head: true })
+        .eq('client_id', CLIENT_ID).eq('archived', false)
+        .gte('signal_date', todayStart).lt('signal_date', tomorrowStart),
+      sbClient.from('agent_proposals').select('id', { count: 'exact', head: true })
+        .eq('client_id', CLIENT_ID).neq('content_type', 'objection_response')
+        .gte('created_at', todayStart).lt('created_at', tomorrowStart),
+    ]);
+    await _fetchTodaySendCounts().catch(() => {});
+    const sentToday = (_todaySendCounts.invitesSent || 0) + (_todaySendCounts.emailsSent || 0);
+    const waitingEl = document.getElementById('today-queued-count');
+    const waitingOnYou = waitingEl ? (parseInt(waitingEl.textContent, 10) || 0) : 0;
+    const stats = [
+      { label: 'Signaux trouvés', value: signalsFound || 0 },
+      { label: 'Messages rédigés', value: messagesDrafted || 0 },
+      { label: "Envoyés aujourd'hui", value: sentToday },
+      { label: 'En attente de vous', value: waitingOnYou },
+    ];
+    el.innerHTML = stats.map(s =>
+      '<div class="pipe-stat"><span class="pipe-stat-val">' + s.value + '</span><span class="pipe-stat-label">' + s.label + '</span></div>'
+    ).join('');
+  } catch (e) {
+    console.error('[_loadTodayStats]', e);
+    el.innerHTML = '';
+  }
+}
+
+// ══ REVUE (Refonte v2, portage demo-private.html -> Wominds, 30/09, go Thomas) ══
+// Fusionne Actions en attente (pending_actions) + Brouillons et validations (agent_proposals,
+// hors objection_response) en une seule file filtrable. Reutilise TELS QUELS les rendus et
+// actions deja reels de ce fichier (_renderPendingActionCard/_paApprove/_paReject,
+// _renderProposalCard/_proposalRejectStart/_proposalSendViaLinkedIn) -- aucune nouvelle logique
+// d'envoi/approbation, uniquement l'affichage fusionne + filtre + "pourquoi vous".
+// Pas de type "reply" (Boite de reception) : _inboxSend n'existe pas sur ce fichier (webhook
+// sans conversationId exploitable, cf. commentaire loadInboxDrafts) -- la Boite de reception
+// garde son propre acces nav, distinct de Revue (bascule Pending/Historique reelle, pas un
+// simple bouton mort a masquer comme Approvals/Drafts l'etaient).
+let _reviewItems = [];
+let _reviewFilter = 'all';
+
+function _reviewTypeKey(kind, subtype) {
+  if (kind === 'proposal') {
+    if (subtype === 'outreach_opener') return 'opener';
+    if (subtype === 'linkedin_post' || subtype === 'content_idea' || subtype === 'repurposed_content') return 'post';
+    return 'other';
+  }
+  if (kind === 'pending') {
+    if (subtype === 'email_j5') return 'followup';
+    if (subtype === 'linkedin_invite' || subtype === 'linkedin_message') return 'opener';
+    return 'other';
+  }
+  return 'other';
+}
+
+function _reviewWhyText(kind, subtype, icpScore) {
+  if (typeof icpScore === 'number' && icpScore >= 8) return 'Compte Tier A — premier contact';
+  if (kind === 'pending' && subtype === 'email_j5') return 'Relance planifiée à J+5';
+  if (kind === 'pending' && (subtype === 'linkedin_invite' || subtype === 'linkedin_message')) return 'Action automatisée en attente de votre validation';
+  if (kind === 'proposal' && subtype === 'outreach_opener') return 'Premier message rédigé, prêt à valider';
+  if (kind === 'proposal') return 'Contenu rédigé par un agent, en attente de validation';
+  return 'En attente de votre validation';
+}
+
+function _reviewWhyHTML(text) {
+  return '<div style="display:flex;align-items:center;gap:6px;font-size:var(--fs-xs);color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;"><span style="width:6px;height:6px;border-radius:50%;background:var(--accent);flex-shrink:0;"></span>' + _esc(text) + '</div>';
+}
+
+function _setReviewBadge(n) {
+  const el = document.getElementById('review-count');
+  if (el) el.textContent = n;
+  const mtabEl = document.getElementById('mtab-badge-review-more');
+  if (mtabEl) mtabEl.textContent = n > 0 ? n : '';
+}
+
+async function loadReviewView() {
+  const container = document.getElementById('review-container');
+  if (!container) return;
+  container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">Chargement…</div>';
+  try {
+    const [{ data: proposals, error: propErr }, { data: actions, error: actErr }] = await Promise.all([
+      sbClient.from('agent_proposals').select('*')
+        .eq('client_id', CLIENT_ID).eq('status', 'pending').neq('content_type', 'objection_response')
+        .order('created_at', { ascending: false }).limit(200),
+      sbClient.from('pending_actions').select('*')
+        .eq('client_id', CLIENT_ID).eq('status', 'pending')
+        .order('created_at', { ascending: true }).limit(200),
+    ]);
+    if (propErr) throw propErr;
+    if (actErr) throw actErr;
+
+    const prospectIds = [...new Set([
+      ...(proposals || []).map(p => p.prospect_id),
+      ...(actions || []).map(a => (a.payload || {}).prospect_id).filter(Boolean),
+    ].filter(Boolean))];
+    const prospectsById = {};
+    if (prospectIds.length) {
+      const { data: pRows } = await sbClient.from('prospects')
+        .select('id,name,company,linkedin,linkedin_tag,identity_verdict,icp_score')
+        .eq('client_id', CLIENT_ID).in('id', prospectIds);
+      (pRows || []).forEach(p => { prospectsById[p.id] = p; _cacheProspectRow(p, true); });
+    }
+
+    _reviewItems = [];
+    (proposals || []).forEach(prop => {
+      const prospect = prospectsById[prop.prospect_id];
+      _reviewItems.push({
+        ts: prop.created_at,
+        typeKey: _reviewTypeKey('proposal', prop.content_type),
+        why: _reviewWhyText('proposal', prop.content_type, prospect ? prospect.icp_score : null),
+        domId: 'proposal-card-' + prop.id,
+        html: _renderProposalCard(prop, prospect),
+      });
+    });
+    (actions || []).forEach(action => {
+      const prospect = prospectsById[(action.payload || {}).prospect_id];
+      _reviewItems.push({
+        ts: action.created_at,
+        typeKey: _reviewTypeKey('pending', action.action_type),
+        why: _reviewWhyText('pending', action.action_type, prospect ? prospect.icp_score : null),
+        domId: 'pending-action-card-' + action.id,
+        html: _renderPendingActionCard(action),
+      });
+    });
+    _reviewItems.sort((a, b) => new Date(b.ts) - new Date(a.ts));
+    _reviewFilter = 'all';
+    document.querySelectorAll('#review-filter-bar button').forEach(b => b.classList.toggle('active', b.id === 'review-filter-all'));
+    _renderReviewItems();
+    _loadReviewHandled();
+  } catch (e) {
+    console.error('[loadReviewView]', e);
+    container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">Impossible de charger la revue pour le moment.</div>';
+  }
+}
+
+function _setReviewFilter(key) {
+  _reviewFilter = key;
+  document.querySelectorAll('#review-filter-bar button').forEach(b => b.classList.toggle('active', b.id === 'review-filter-' + key));
+  _renderReviewItems();
+}
+
+function _renderReviewItems() {
+  const container = document.getElementById('review-container');
+  if (!container) return;
+  const items = _reviewFilter === 'all' ? _reviewItems : _reviewItems.filter(it => it.typeKey === _reviewFilter);
+  _setReviewBadge(_reviewItems.length);
+  if (!items.length) {
+    container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">Rien dans cette catégorie.</div>';
+    return;
+  }
+  container.innerHTML = items.map(it => it.html).join('');
+  // Injecte la ligne "pourquoi vous" comme PREMIER ENFANT de chaque carte (pas un wrapper
+  // exterieur) : quand _paApprove/_paReject/_proposalRejectConfirm retire la carte via
+  // document.getElementById(id).remove(), la ligne disparait avec elle -- meme raison que
+  // demo-private.html (evite une ligne "pourquoi vous" orpheline apres approbation/rejet).
+  items.forEach(it => {
+    const card = document.getElementById(it.domId);
+    if (card) card.insertAdjacentHTML('afterbegin', _reviewWhyHTML(it.why));
+  });
+}
+
+// "Traite sans vous aujourd'hui" : reutilise _fetchTodaySendCounts() (deja existante, meme
+// source que le bloc stats Today, Phase W1) -- total honnete (invites + emails), pas de detail
+// par ligne agent/SENT_BY_YOU vs SENT_AUTOMATICALLY : ces distinctions n'existent pas dans les
+// donnees reelles disponibles sur Wominds a ce jour (pas de champ "sent_via_autopilot" ou
+// equivalent verifie en base), donc pas de liste detaillee inventee.
+async function _loadReviewHandled() {
+  const el = document.getElementById('review-handled-container');
+  if (!el) return;
+  try {
+    await _fetchTodaySendCounts().catch(() => {});
+    const invites = _todaySendCounts.invitesSent || 0;
+    const emails = _todaySendCounts.emailsSent || 0;
+    const total = invites + emails;
+    el.innerHTML = total > 0
+      ? '<div style="padding:14px 16px;border:1px solid var(--border);border-radius:8px;font-size:var(--fs-sm);color:var(--text);">' + total + ' envoi(s) aujourd\'hui (' + invites + ' invitation(s) LinkedIn, ' + emails + ' email(s) de relance).</div>'
+      : '<div style="padding:14px 16px;color:var(--muted);font-size:var(--fs-sm);">Rien d’envoyé aujourd’hui pour l’instant.</div>';
+  } catch (e) {
+    console.error('[_loadReviewHandled]', e);
+    el.innerHTML = '';
+  }
+}
+
 // ── AUJOURD'HUI ─────────────────────────────────────────────────────────────
 // Colonnes prospects des cartes Aujourd'hui -- partagees par loadDailyPriorities (decisions du
 // Morning Scan) et loadTodayRun (repli), pour que les deux alimentent _prospectsById avec la
@@ -8191,6 +8420,69 @@ function _agentStatus(key) {
   const days = (Date.now() - new Date(iso).getTime()) / 86400000;
   return { text: 'Dernière proposition : ' + (_relDate(iso) || 'récemment'), active: days <= _AGENT_ACTIVE_WINDOW_DAYS };
 }
+
+// FIX 30/09 (portage Refonte v2 demo-private.html -> Wominds, Phase W3, go Thomas) : bloc
+// autonomie independant, PAS attache aux 4 cartes agent de contenu ci-dessus -- verifie en base
+// (SQL, autonomy_settings client_id='wominds') que les 3 seules lignes reelles (linkedin_invite,
+// linkedin_message, buying_committee_map) sont des actions d'execution/envoi, aucun icp_tier
+// (toujours NULL sur ce client, pas de scission gte8/lt8 comme sur demo-private.html), aucun
+// mandat (wominds n'a qu'une vue consolidee, mandate_id toujours NULL). Decision Thomas
+// (AskUserQuestion, 30/09) : bloc separe sous la grille d'agents, pas de fausse association.
+const _WOMINDS_AUTONOMY_QUERIES = [
+  { action_type: 'linkedin_invite', icp_tier: null, label: 'Invitations LinkedIn' },
+  { action_type: 'linkedin_message', icp_tier: null, label: 'Messages LinkedIn' },
+  { action_type: 'buying_committee_map', icp_tier: null, label: "Cartographie comité d'achat" },
+];
+const _AUTONOMY_LEVEL_CYCLE = ['approve', 'assist', 'autopilot'];
+function _autonomyLevelLabel(level) {
+  return level === 'autopilot' ? 'Autopilot' : (level === 'assist' ? 'Assisté' : 'Approbation');
+}
+function _autonomySelectorHTML(level, actionType, icpTier, label) {
+  const tierArg = (icpTier === null || icpTier === undefined) ? 'null' : ("'" + icpTier + "'");
+  const curArg = level ? ("'" + level + "'") : 'null';
+  const labelArg = label.replace(/'/g, "\\'");
+  const segs = _AUTONOMY_LEVEL_CYCLE.map(function (l) {
+    return '<button class="toggle-pill' + (l === level ? ' active' : '') + '" onclick="_setAutonomyLevel(\'' + actionType + '\', ' + tierArg + ', \'' + l + '\', ' + curArg + ', \'' + labelArg + '\')">' + _autonomyLevelLabel(l) + '</button>';
+  }).join('');
+  return '<div style="margin-bottom:14px;"><div class="pipe-stat-label" style="margin-bottom:6px;">' + _esc(label) + '</div><div style="display:flex;gap:4px;flex-wrap:wrap;">' + segs + '</div></div>';
+}
+async function _setAutonomyLevel(actionType, icpTier, targetLevel, currentLevel, label) {
+  if (targetLevel === currentLevel) return;
+  if (targetLevel === 'autopilot') {
+    const ok = await _confirmModal('Passer "' + label + '" en Autopilot ? Les actions seront exécutées automatiquement, sans validation.');
+    if (!ok) return;
+  }
+  try {
+    const { error } = await sbClient.from('autonomy_settings').upsert({
+      client_id: CLIENT_ID, mandate_id: null, action_type: actionType, icp_tier: icpTier,
+      level: targetLevel, updated_at: new Date().toISOString(),
+    }, { onConflict: 'client_id,mandate_id,action_type,icp_tier' });
+    if (error) throw error;
+    showToast('Niveau mis à jour.');
+    _loadWomindsAutonomy();
+  } catch (e) {
+    console.error('[_setAutonomyLevel]', e);
+    showToast('Erreur lors de la mise à jour.');
+  }
+}
+async function _loadWomindsAutonomy() {
+  const el = document.getElementById('autonomy-settings-block');
+  if (!el) return;
+  try {
+    const results = await Promise.all(_WOMINDS_AUTONOMY_QUERIES.map(function (q) {
+      return sbClient.rpc('resolve_autonomy_level', { p_client_id: CLIENT_ID, p_mandate_id: null, p_action_type: q.action_type, p_icp_tier: q.icp_tier });
+    }));
+    el.innerHTML = _WOMINDS_AUTONOMY_QUERIES.map(function (q, i) {
+      const r = results[i];
+      const level = (r && r.data && r.data.level) ? r.data.level : null;
+      return _autonomySelectorHTML(level, q.action_type, q.icp_tier, q.label);
+    }).join('');
+  } catch (e) {
+    console.error('[_loadWomindsAutonomy]', e);
+    el.innerHTML = '';
+  }
+}
+
 async function renderAgentsScreen() {
   const grid = document.getElementById('agents-grid');
   if (!grid) return;
