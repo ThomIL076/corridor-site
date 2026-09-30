@@ -4824,13 +4824,13 @@ function _mscDecisionCardHTML(d, live) {
   const linksHtml = links.length ? `<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px 12px;font-size:var(--fs-xs);">${links.join('')}</div>` : '';
 
   const structured = isEntry && (d.facts || d.action);
-  // FIX 23/09 (mecanisme bilingue, Morning Scan Corridor : decisions_json[].summary -> summary_fr/summary_en,
-  // un seul appel Claude produit les deux langues) : prefere le champ de la langue active (currentLang),
-  // repli sur l'ancien champ "summary" (fiches deja en base avant ce FIX, jamais retraduites tant que le
-  // backfill du stock n'est pas fait -- separement chiffre, pas dans ce perimetre) puis, en dernier
-  // recours, sur l'AUTRE langue plutot que de n'afficher aucun resume. market_mention garde "summary"
-  // seul (perimetre non touche par ce FIX) : couvert par le meme repli.
-  const summaryText = fr ? (d.summary_fr || d.summary || d.summary_en) : (d.summary_en || d.summary || d.summary_fr);
+  // FIX 30/09 (go Thomas) : l'ancien repli "en dernier recours, sur l'AUTRE langue plutot que de
+  // n'afficher aucun resume" pouvait afficher du francais en mode EN (ou l'inverse) -- meme fuite
+  // que _bilingualReasonText/pick() ci-dessus, corrigee au meme principe. "summary" legacy (fiches
+  // d'avant le chantier bilingue du 23/09) est de langue francaise par defaut (Corridor est
+  // francais-premier historiquement) -- fiable comme repli en mode FR, PAS fiable en mode EN (on ne
+  // peut pas garantir sa langue), donc plus de repli dessus en mode EN.
+  const summaryText = fr ? (d.summary_fr || d.summary) : d.summary_en;
   const summary = summaryText && !structured ? `<div style="margin-top:4px;font-size:var(--fs-sm);color:var(--text-secondary);line-height:1.4;">${_esc(summaryText)}</div>` : '';
   const factsBlock = isEntry && d.facts
     ? `<div style="margin-top:4px;font-size:var(--fs-sm);color:var(--text-secondary);line-height:1.4;"><span style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;opacity:.6;">${fr ? 'Faits' : 'Facts'}</span><div>${_esc(cleanText(d.facts))}</div></div>`
@@ -8796,14 +8796,17 @@ function showToast(msg){
   _toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
 }
 function _esc(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
-// Chantier bilingue Corridor (23/09, GO Thomas) : icp_reason_en/signal_interpretation_en/
-// hard_criteria_met_en n'existent (et ne sont ecrits par ICP Score Batch) que pour client_id='thomas'
-// -- perimetre BILINGUAL_CLIENTS cote n8n, jamais Wominds/Kaizenology. Repli sur la colonne de base
-// des que la colonne _en est vide (beaucoup de fiches historiques ne l'auront jamais) : ne jamais
-// casser l'affichage pour elles plutot que d'exiger une traduction qui n'existe pas.
+// FIX 30/09 (go Thomas, chantier contenu bilingue) : ancien comportement retombait sur le champ
+// FRANCAIS de base des que _en etait vide, MEME en mode EN -- exactement la fuite que Thomas
+// voyait ("je trouve encore du FR sur la version EN"). Decision explicite de Thomas : demo-private
+// (seul client concerne -- Kaizenology est 100% EN, Wominds 100% FR, aucun des deux n'a besoin de
+// _en, allowlist BILINGUAL_CLIENTS=['thomas'] cote n8n VOLONTAIREMENT pas etendue) doit n'afficher
+// QUE du francais en mode FR et QUE de l'anglais en mode EN -- jamais de repli croise. En mode EN,
+// si _en n'existe pas encore pour cette fiche (chantier n8n de couverture, separe, toujours en
+// cours), le champ n'affiche RIEN plutot que du francais deguise en contenu -- honnete, jamais faux.
 function _bilingualReasonText(p, baseField, enField) {
   if (!p) return '';
-  if (CLIENT_ID === 'thomas' && currentLang === 'en' && p[enField]) return p[enField];
+  if (currentLang === 'en') return p[enField] || '';
   return p[baseField] || '';
 }
 function _sanitizeSignal(str) {
@@ -10471,10 +10474,12 @@ const _VERDICT_COLORS = {
 // ne jamais recalculer une logique existante ailleurs). En-tetes de section volontairement laisses
 // en anglais fixe, meme convention que les labels "Why now"/"Channel" de _renderNextActionHTML --
 // seul le contenu genere par le modele change de langue, pas les libelles structurels.
+// FIX 30/09 (go Thomas) : plus de repli croise sur les 3 champs -- meme fuite que
+// _bilingualReasonText, corrigee au meme principe (rien plutot que la mauvaise langue).
 function _composeDebriefBody(obj, fr) {
-  const kd = (fr ? obj.key_decisions_fr : obj.key_decisions_en) || obj.key_decisions_en || obj.key_decisions_fr || '';
-  const ns = (fr ? obj.next_steps_fr : obj.next_steps_en) || obj.next_steps_en || obj.next_steps_fr || '';
-  const oq = (fr ? obj.open_questions_fr : obj.open_questions_en) || obj.open_questions_en || obj.open_questions_fr || '';
+  const kd = (fr ? obj.key_decisions_fr : obj.key_decisions_en) || '';
+  const ns = (fr ? obj.next_steps_fr : obj.next_steps_en) || '';
+  const oq = (fr ? obj.open_questions_fr : obj.open_questions_en) || '';
   return [
     kd ? 'KEY DECISIONS: ' + kd : '',
     ns ? 'NEXT STEPS: ' + ns : '',
@@ -11700,6 +11705,17 @@ function _parseNextActionJSON(raw) {
   return null;
 }
 
+// FIX 30/09 (go Thomas, chantier contenu bilingue) : les 5 libellés de champ (Channel/Why now/
+// Why this person/Why this action/What not to say) etaient codes en dur en anglais dans les 3
+// formats de cache (v1/v2/v3) -- meme le format v3 (deja bilingue pour le CONTENU des champs)
+// affichait ses propres libellés toujours en anglais. Traduction au RENDU uniquement (comme le
+// choix de langue du contenu juste en dessous) -- aucune migration de cache necessaire, ces
+// libellés ne sont jamais stockes en base, juste affiches.
+const _NEXT_ACTION_LABEL_FR = {
+  'Channel': 'Canal', 'Why now': 'Pourquoi maintenant', 'Why this person': 'Pourquoi cette personne',
+  'Why this action': 'Pourquoi cette action', 'What not to say': 'À ne pas dire',
+};
+function _naLabel(label) { return currentLang === 'fr' ? (_NEXT_ACTION_LABEL_FR[label] || label) : label; }
 function _renderNextActionHTML(raw, linkColor) {
   if (!raw) return null;
   const linkify = html => html.replace(
@@ -11707,17 +11723,21 @@ function _renderNextActionHTML(raw, linkColor) {
     '<a href="mailto:$1" style="color:' + linkColor + ';text-decoration:underline">$1</a>'
   );
   const parsed = _parseNextActionJSON(raw);
-  const channelHTML = ch => ch ? '<div style="display:flex;align-items:center;gap:8px;"><span style="font-family:\'IBM Plex Mono\',monospace;font-size:10.5px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);">Channel</span><span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:var(--radius-pill);background:var(--chip-bg);color:var(--indigo);">' + _esc(ch) + '</span></div>' : '';
+  const channelHTML = ch => ch ? '<div style="display:flex;align-items:center;gap:8px;"><span style="font-family:\'IBM Plex Mono\',monospace;font-size:10.5px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);">' + _naLabel('Channel') + '</span><span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:var(--radius-pill);background:var(--chip-bg);color:var(--indigo);">' + _esc(ch) + '</span></div>' : '';
   if (parsed && parsed.format === 'v3') {
-    // Choix de langue au RENDU (pas a la generation) : currentLang peut changer entre deux
-    // affichages du meme cache -- repli sur l'autre langue si le champ choisi est absent (garde
-    // contre un JSON partiel ou un champ que le modele aurait laisse a null dans une seule langue).
-    const pick = (frVal, enVal) => (currentLang === 'fr' ? frVal : enVal) || enVal || frVal;
+    // FIX 30/09 (go Thomas, meme principe que _bilingualReasonText juste au-dessus) : l'ancien
+    // repli croisee (retombe sur l'autre langue si le champ choisi est vide) pouvait afficher du
+    // francais en mode EN si le modele avait laisse un champ _en a null dans un JSON par ailleurs
+    // valide -- exactement la fuite que Thomas ne veut plus voir. Choix de langue au RENDU (pas a
+    // la generation, currentLang peut changer entre deux affichages du meme cache) SANS repli
+    // croise : un champ absent dans la langue demandee est simplement omis (deja gere par le
+    // .filter(([, v]) => v) plus bas), jamais remplace par l'autre langue.
+    const pick = (frVal, enVal) => currentLang === 'fr' ? frVal : enVal;
     const fields = [
-      ['Why now', pick(parsed.why_now_fr, parsed.why_now_en)],
-      ['Why this person', pick(parsed.why_this_person_fr, parsed.why_this_person_en)],
-      ['Why this action', pick(parsed.why_this_action_fr, parsed.why_this_action_en)],
-      ['What not to say', pick(parsed.what_not_to_say_fr, parsed.what_not_to_say_en)],
+      [_naLabel('Why now'), pick(parsed.why_now_fr, parsed.why_now_en)],
+      [_naLabel('Why this person'), pick(parsed.why_this_person_fr, parsed.why_this_person_en)],
+      [_naLabel('Why this action'), pick(parsed.why_this_action_fr, parsed.why_this_action_en)],
+      [_naLabel('What not to say'), pick(parsed.what_not_to_say_fr, parsed.what_not_to_say_en)],
     ].filter(([, v]) => v);
     return '<div style="display:flex;flex-direction:column;gap:6px;">'
       + channelHTML(parsed.channel)
@@ -11729,10 +11749,10 @@ function _renderNextActionHTML(raw, linkColor) {
   }
   if (parsed && parsed.format === 'v2') {
     const fields = [
-      ['Why now', parsed.why_now],
-      ['Why this person', parsed.why_this_person],
-      ['Why this action', parsed.why_this_action],
-      ['What not to say', parsed.what_not_to_say],
+      [_naLabel('Why now'), parsed.why_now],
+      [_naLabel('Why this person'), parsed.why_this_person],
+      [_naLabel('Why this action'), parsed.why_this_action],
+      [_naLabel('What not to say'), parsed.what_not_to_say],
     ].filter(([, v]) => v);
     return '<div style="display:flex;flex-direction:column;gap:6px;">'
       + channelHTML(parsed.channel)
@@ -13571,7 +13591,9 @@ function _discoveryBriefHTML(note) {
     try {
       const obj = JSON.parse(s);
       if (obj && typeof obj === 'object' && (obj.brief_fr || obj.brief_en)) {
-        return (currentLang === 'fr' ? obj.brief_fr : obj.brief_en) || obj.brief_en || obj.brief_fr || '';
+        // FIX 30/09 (go Thomas) : plus de repli croise -- retournait l'autre langue si celle
+        // demandee etait absente, meme fuite que _bilingualReasonText.
+        return (currentLang === 'fr' ? obj.brief_fr : obj.brief_en) || '';
       }
     } catch(_) {}
   }
@@ -16836,7 +16858,8 @@ function _crmStepLabelText(raw) {
     try {
       const obj = JSON.parse(s);
       if (obj && typeof obj === 'object' && (obj.fr || obj.en)) {
-        return (currentLang === 'fr' ? obj.fr : obj.en) || obj.en || obj.fr || '';
+        // FIX 30/09 (go Thomas) : plus de repli croise, meme principe que _bilingualReasonText.
+        return (currentLang === 'fr' ? obj.fr : obj.en) || '';
       }
     } catch(_) {}
   }
@@ -16965,11 +16988,17 @@ async function _autoGenerateCsSteps(row) {
     // que _parseNextActionJSON/_parseDebrief, detecte a l'affichage par _crmStepLabelText(). Une
     // etape ajoutee/editee a la main (_crmSaveStep) continue d'ecrire une chaine simple, jamais du
     // JSON -- les deux formes coexistent dans la meme colonne sans se marcher dessus.
+    // FIX 30/09 (go Thomas) : le prompt ci-dessus exige deja les 2 langues a chaque etape --
+    // ceci n'est qu'un filet pour le cas rare ou le modele desobeit et n'en fournit qu'une. Avant :
+    // le texte de la langue presente etait recopie sous l'AUTRE cle (ex. label_en stocke aussi sous
+    // "fr") -- exactement le bug que corrige ce chantier, sous une autre forme (a l'ecriture plutot
+    // qu'a l'affichage). Desormais : chaine vide si le modele n'a pas fourni cette langue precise,
+    // jamais l'autre langue recopiee dessous.
     const inserts = steps.filter(s => s && (s.label_fr || s.label_en)).map(s => ({
       crm_client_id: row.id,
       label: JSON.stringify({
-        fr: String(s.label_fr || s.label_en || '').slice(0, 200),
-        en: String(s.label_en || s.label_fr || '').slice(0, 200),
+        fr: String(s.label_fr || '').slice(0, 200),
+        en: String(s.label_en || '').slice(0, 200),
       }),
       status: 'Suggested'
     }));
