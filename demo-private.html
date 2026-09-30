@@ -9312,18 +9312,28 @@ async function _loadPendingConnections() {
       listEl.innerHTML = `<div style="padding:8px 0;">${currentLang==='fr'?'Aucune invitation en attente.':'No pending invitations.'}</div>`;
       return;
     }
+    // FIX 30/09 (bug repere par Thomas, 1184 invitations en attente sur ce compte) : un seul
+    // .in('prospect_id', ids) avec plus d'une centaine d'UUID depasse la longueur d'URL acceptee
+    // par PostgREST/le proxy -- "Erreur de chargement" silencieuse. Decoupe en lots de 150.
     const ids = pending.map(p => p.id);
-    let q = sbClient.from('sequences')
-      .select('prospect_id, sent_at, created_at')
-      .eq('client_id', CLIENT_ID).eq('touch', 'invite').eq('status', 'sent')
-      .in('prospect_id', ids);
-    q = _applyMandateFilter(q);
-    const { data: seqs, error } = await q;
-    if (error) throw error;
+    const CHUNK = 150;
     const sentAtById = {};
-    (seqs || []).forEach(s => { sentAtById[s.prospect_id] = s.sent_at || s.created_at; });
+    for (let i = 0; i < ids.length; i += CHUNK) {
+      const chunk = ids.slice(i, i + CHUNK);
+      let q = sbClient.from('sequences')
+        .select('prospect_id, sent_at, created_at')
+        .eq('client_id', CLIENT_ID).eq('touch', 'invite').eq('status', 'sent')
+        .in('prospect_id', chunk);
+      q = _applyMandateFilter(q);
+      const { data: seqs, error } = await q;
+      if (error) throw error;
+      (seqs || []).forEach(s => { sentAtById[s.prospect_id] = s.sent_at || s.created_at; });
+    }
+    // Affichage plafonne aux 50 plus recentes (meme discipline que _loadRecentlySent) -- le badge
+    // garde le vrai total (pending.length), deja pose plus haut.
     const items = pending.map(p => ({ p, sentAt: sentAtById[p.id] || null }))
-      .sort((a, b) => new Date(b.sentAt || 0) - new Date(a.sentAt || 0));
+      .sort((a, b) => new Date(b.sentAt || 0) - new Date(a.sentAt || 0))
+      .slice(0, 50);
     listEl.innerHTML = items.map(({ p, sentAt }) => `<div class="card send-card" style="margin-bottom:8px;">
       <div class="send-row">
         <div class="send-avatar" style="background:${_sendAvatarColor(p.name)}">${_esc(_sendInitials(p.name))}</div>
