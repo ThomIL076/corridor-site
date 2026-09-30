@@ -14884,7 +14884,7 @@ async function _saveLinkedIn(pid, url, source) {
 async function _savePhone(pid, phone, source) {
   const p = _prospectsById[pid];
   if (!p) return;
-  // FullEnrich may return an object ({ number, region }) : never store "[object Object]"
+  // The enrichment provider may return an object ({ number, region }) : never store "[object Object]"
   if (phone && typeof phone === 'object') phone = phone.number || phone.phone || phone.value || '';
   phone = String(phone || '').trim();
   if (!phone) return;
@@ -17433,12 +17433,25 @@ async function loadMandateView(){
       // _mandateCardHTML (les champs absents/null -- ex. signals ici -- sont deja filtres par la
       // fonction elle-meme, jamais affiches en brut).
       const { data: icpParams, error: icpErr } = await sbClient.from('client_icp_params')
-        .select('icp_criteria, decision_makers, sectors, geography, signals, exclusions, min_employees, max_employees')
+        .select('icp_criteria, icp_criteria_en, decision_makers, decision_makers_en, sectors, sectors_en, geography, geography_en, signals, exclusions, exclusions_en, min_employees, max_employees')
         .eq('client_id', CLIENT_ID)
         .maybeSingle();
       if (!icpErr && icpParams) {
         const accountLabel = (_clientProfile && (_clientProfile.company_name || _clientProfile.display_name)) || (fr ? 'Ce compte' : 'This account');
-        container.innerHTML = _mandateCardHTML({ ...icpParams, name: accountLabel }, fr);
+        // FIX 30/09 (go Thomas) : client_icp_params est desormais bilingue (icp_criteria_en/
+        // decision_makers_en/sectors_en/geography_en/exclusions_en) -- resout ici, jamais de
+        // repli vers l'autre langue (meme discipline que _bilingualReasonText).
+        const _icpBi = {
+          icp_criteria: fr ? icpParams.icp_criteria : (icpParams.icp_criteria_en || ''),
+          decision_makers: fr ? icpParams.decision_makers : (icpParams.decision_makers_en || ''),
+          sectors: fr ? icpParams.sectors : (icpParams.sectors_en || ''),
+          geography: fr ? icpParams.geography : (icpParams.geography_en || ''),
+          exclusions: fr ? icpParams.exclusions : (icpParams.exclusions_en || ''),
+          signals: icpParams.signals,
+          min_employees: icpParams.min_employees,
+          max_employees: icpParams.max_employees,
+        };
+        container.innerHTML = _mandateCardHTML({ ..._icpBi, name: accountLabel }, fr);
         return;
       }
       container.innerHTML = `<div style="padding:40px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">${fr ? 'Aucun mandat actif trouvé.' : 'No active mandate found.'}</div>`;
