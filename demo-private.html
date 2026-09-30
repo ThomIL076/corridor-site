@@ -5664,6 +5664,10 @@ function setLang(lang) {
   if (typeof _loadTodayStats === 'function') _loadTodayStats();
   if (typeof _loadActorAutonomy === 'function') _loadActorAutonomy();
   if (typeof _loadAgentsAtWork === 'function') _loadAgentsAtWork();
+  // FIX 30/09 (meme classe de bug, repere par Thomas sur Mandat & ICP : contenu reste dans la
+  // langue de premier chargement de l'onglet apres bascule) : oublie de cette liste au moment du
+  // passage en bilingue de client_icp_params, memes garde-fous que les fonctions ci-dessus.
+  if (typeof loadMandateView === 'function') loadMandateView();
 }
 
 function _relTimeShort(iso) {
