@@ -4980,6 +4980,7 @@ function _mscDecisionFromProspect(p) {
   const chips = {
     today_action: `<span style="${base}color:var(--red);background:var(--red-bg);border:1px solid var(--red-light);" title="${fr ? 'Signalé pour action par le scan de ce matin' : "Flagged for action by this morning's scan"}">${fr ? '⚡ Aujourd\'hui' : '⚡ Today'}</span>`,
     opportunistic_connection: `<span style="${base}color:#6b7280;background:#f3f4f6;border:1px solid #d1d5db;" title="${fr ? 'Connexion opportuniste signalée par le scan de ce matin' : "Opportunistic connection flagged by this morning's scan"}">${fr ? '🔗 Opportuniste' : '🔗 Opportunistic'}</span>`,
+    carryover: `<span style="${base}color:#92400e;background:#fef3c7;border:1px solid #fcd34d;" title="${fr ? 'Action déjà signalée les jours précédents, pas encore traitée' : 'Action flagged on previous days, not yet handled'}">${fr ? '↩ Reportée' : '↩ Carried over'}</span>`,
   };
   const d = _mscEntryToDecision({
     prospect_id: p.id, name: p.name, company: p.company, linkedin: p.linkedin,
@@ -7889,6 +7890,47 @@ function _loadDeprioritizedTypes() {
 function _effectiveSignalStrength(p) {
   if (p && p.signal_type && _deprioTypes && _deprioTypes.has(p.signal_type)) return 0;
   return p ? p.score_signal_strength : null;
+}
+// AJOUT 03/10 (audit persona QA : "preuve que les preferences apprises influencent le classement") : decompose le score
+// de priorite de la liste Today (MEME formule que loadDailyPriorities : (ICP*0.7 + force_effective*recence*0.3) * penalite
+// identite) et montre l'effet de la preference apprise (type de signal deprioritise -> force effective 0). Lecture seule,
+// aucune nouvelle requete : _deprioTypes est deja charge par loadDailyPriorities ; non charge -> ligne preference omise.
+function _priDecayFactor(d) {
+  if (!d) return 0.05;
+  const days = (Date.now() - new Date(d).getTime()) / 86400000;
+  if (days <= 2) return 1.0;
+  if (days <= 7) return 0.8;
+  if (days <= 14) return 0.5;
+  if (days <= 30) return 0.2;
+  return 0.05;
+}
+function _priorityWeightHTML(p, fr) {
+  if (!p || p.icp_score == null) return '';
+  const icp = Number(p.icp_score) || 0;
+  const raw = Number(p.score_signal_strength) || 0;
+  const eff = Number(_effectiveSignalStrength(p)) || 0;
+  const decay = _priDecayFactor(p.signal_date);
+  const idPen = p.identity_confidence === 'low' ? 0.85 : 1.0;
+  const f1 = n => (Math.round(n * 10) / 10).toFixed(1);
+  const icpPart = icp * 0.7;
+  const sigPart = eff * decay * 0.3;
+  const total = (icpPart + sigPart) * idPen;
+  const prefApplies = !!(p.signal_type && _deprioTypes && _deprioTypes.has(p.signal_type));
+  const lost = prefApplies ? raw * decay * 0.3 * idPen : 0;
+  let prefLine = '';
+  if (prefApplies) {
+    prefLine = `<div style="margin-top:6px;color:#92400e;font-weight:600">${fr ? 'Préférence apprise appliquée' : 'Learned preference applied'} : ${fr ? 'les signaux de type' : 'signals of type'} « ${_esc(p.signal_type)} » ${fr ? 'sont déprioritisés, la force du signal passe de' : 'are deprioritised, signal strength goes from'} ${f1(raw)} ${fr ? 'à' : 'to'} 0 (−${f1(lost)} ${fr ? 'pt de score' : 'pts of score'}).</div>`;
+  } else if (_deprioTypes && p.signal_type) {
+    prefLine = `<div style="margin-top:6px;color:var(--muted)">${fr ? 'Aucune préférence apprise ne s’applique au type de signal' : 'No learned preference applies to signal type'} « ${_esc(p.signal_type)} ».</div>`;
+  }
+  return `<div style="margin-top:8px;background:var(--chip-bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--ink);line-height:1.5">
+    <span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:11px;opacity:0.65;display:block;margin-bottom:3px">${fr ? 'Pondération du classement Today' : 'Today ranking weight'}</span>
+    ICP ${f1(icp)} × 0,7 = ${f1(icpPart)}<br>
+    ${fr ? 'Signal' : 'Signal'} ${f1(eff)} × ${fr ? 'récence' : 'recency'} ${decay} × 0,3 = ${f1(sigPart)}<br>
+    ${idPen < 1 ? (fr ? 'Pénalité identité faible' : 'Low identity penalty') + ' × ' + idPen + '<br>' : ''}
+    <strong>${fr ? 'Score de classement' : 'Ranking score'} : ${f1(total)}</strong>
+    ${prefLine}
+  </div>`;
 }
 
 async function _buildPipelineSnapshot() {
@@ -10942,6 +10984,7 @@ async function openDrawer(card, initialTab = 'activity') {
   const _lastCheckedAt = [_p.identity_verdict_checked_at, _p.company_checked_at].filter(Boolean).sort((a, b) => new Date(b) - new Date(a))[0] || null;
   const priorityReasonHTML = `
     ${_icpReasonHTML ? `<div style="background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--ink);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:11px;opacity:0.65;display:block;margin-bottom:3px">✦ ${currentLang==='fr'?'Justification du score':'Score rationale'}</span>${_icpReasonHTML}</div>` : `<div class="pd-empty">${currentLang==='fr'?'Aucune justification de score enregistrée pour le moment.':'No score rationale recorded yet.'}</div>`}
+    ${_priorityWeightHTML(_p, currentLang === 'fr')}
     ${_lastCheckedAt ? `<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:8px">${currentLang==='fr'?'Dernière vérification :':'Last verified:'} ${_esc(_relDate(_lastCheckedAt) || '')}</div>` : ''}
   `;
 
@@ -12087,6 +12130,34 @@ async function loadDailyPriorities() {
         .filter(p => (p.priority_batch_number || 0) !== _priorityCurrentBatch)
         .map(p => { p._morningScanCategory = _decisionByProspect[p.id] || null; return p; })
         .sort((a, b) => (_catRank[a._morningScanCategory] ?? 2) - (_catRank[b._morningScanCategory] ?? 2));
+      // Fix 2026-10-03 (audit persona QA : "un seul prospect surface" alors que Elucid et Tokenovate avaient
+      // une tache due le 02/10 non executee). Cause : des qu'UNE decision Morning Scan du jour se resolvait,
+      // la liste Today se limitait a elle (MintMCP seul ; FlowLinker archive -> ecarte), et les actions deja
+      // signalees les jours precedents (le scan ne les redecide pas : "deja signale 02/10") disparaissaient de
+      // Today. On complete avec les actions reportees : ICP >= 7, tache due dans les 3 derniers jours (ou
+      // aujourd'hui), non archivee, pas deja traitee dans ce batch, plafonnee a N au total.
+      if (_priorityShownProspects.length > 0 && _priorityShownProspects.length < N) {
+        try {
+          const _todayIso = new Date().toISOString().slice(0, 10);
+          const _sinceIso = new Date(Date.now() - 3 * 86400000).toISOString().slice(0, 10);
+          let carryQ = sbClient.from('prospects_scan_window').select(COLS)
+            .eq('client_id', CLIENT_ID).eq('archived', false)
+            .neq('stage', 'Proposal').neq('stage', 'Closed').neq('stage', 'Archived')
+            .gte('icp_score', 7)
+            .not('next_action', 'is', null).neq('next_action', '')
+            .gte('next_action_date', _sinceIso).lte('next_action_date', _todayIso)
+            .order('icp_score', { ascending: false }).limit(N * 2);
+          carryQ = _applyMandateFilter(carryQ);
+          const { data: carryRows, error: errCarry } = await carryQ;
+          if (errCarry) throw errCarry;
+          const _have = new Set(_priorityShownProspects.map(p => p.id));
+          const _haveKeys = new Set(_priorityShownProspects.map(p => _mscPersonKey(p.name, p.company)));
+          (carryRows || [])
+            .filter(p => (p.priority_batch_number || 0) !== _priorityCurrentBatch && !_have.has(p.id) && !_haveKeys.has(_mscPersonKey(p.name, p.company)))
+            .slice(0, N - _priorityShownProspects.length)
+            .forEach(p => { p._morningScanCategory = 'carryover'; _haveKeys.add(_mscPersonKey(p.name, p.company)); _priorityShownProspects.push(p); });
+        } catch (e) { console.warn('[loadDailyPriorities] actions reportees:', e); }
+      }
       // Repli 2026-09-20 (incident reel : les 4 decisions du scan du matin, re-scorees a ICP 5 par ICP Score
       // Batch juste apres, ont ete auto-archivees -> prospects_scan_window (qui exclut les archives) ne
       // renvoyait plus rien -> "Today" vide alors que le calcul arithmetique ci-dessous avait de vrais
