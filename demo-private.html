@@ -2603,6 +2603,7 @@ body.new-nav { padding-left: 220px; }
       <span class="send-badge-count" id="send-badge"><span id="send-count">–</span></span>
       <span style="font-size:var(--fs-sm);color:var(--muted)" data-en="messages due today" data-fr="messages à envoyer aujourd'hui">messages due today</span>
     </div>
+    <div id="send-queue-def" style="margin:-12px 0 16px;font-size:var(--fs-sm);color:var(--muted);"></div>
     <!-- TODAY'S CAPACITY (README) : meme composant partage que Today, _renderCapacityBars(),
          zero retouche a la fonction -- deuxieme containerId monte ici. Remplace le texte plat
          #sent-counter. -->
@@ -9012,6 +9013,7 @@ async function loadSendView() {
     _sendProspects.forEach(p => _cacheProspectRow(p));
 
     _fetchTodaySendCounts().catch(err => console.error('_fetchTodaySendCounts:', err));
+    _loadSendQueueDef();
     _applySendFilters();
     _loadRecentlySent().catch(err => console.error('_loadRecentlySent:', err));
     _loadPendingConnections().catch(err => console.error('_loadPendingConnections:', err));
@@ -10142,6 +10144,30 @@ let _todaySendCounts = { invitesSent: 0, messagesSent: 0, emailsSent: 0 };
 // tourne une fois (ex: arrivee directe sur Today) ; pas un bug, meme convention que
 // _todaySendCounts avant son premier _fetchTodaySendCounts().
 let _todayJ5PendingCount = 0;
+
+// Compteurs communs avec le Morning Scan par e-mail : vue SQL send_queue_counts (une seule definition :
+// "a envoyer" = du aujourd'hui, "brouillons" = sequences draft non archivees, jour calcule en heure d'Israel).
+// Affichage informatif et date : le badge/la liste restent calcules par _applySendFilters (filtres de l'ecran) ;
+// si leur total differe de celui-ci, c'est la preuve d'un filtre actif ou d'un envoi posterieur au calcul.
+async function _loadSendQueueDef() {
+  const el = document.getElementById('send-queue-def');
+  if (!el) return;
+  try {
+    const { data, error } = await sbClient.from('send_queue_counts').select('*').eq('client_id', CLIENT_ID).maybeSingle();
+    if (error) throw error;
+    if (!data) { el.textContent = ''; return; }
+    const fr = currentLang === 'fr';
+    let hhmm = '';
+    try { hhmm = new Date(data.computed_at).toLocaleTimeString(fr ? 'fr-FR' : 'en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jerusalem' }); } catch (e) {}
+    el.textContent = fr
+      ? `Dû aujourd'hui : ${data.due_total} (invitations ${data.due_invite}, J+0 ${data.due_j0}, J+5 ${data.due_j5_high}) · ${data.drafts} brouillons · calculé à ${hhmm} (heure d'Israël), même définition que le Morning Scan par e-mail.`
+      : `Due today: ${data.due_total} (invitations ${data.due_invite}, J+0 ${data.due_j0}, J+5 ${data.due_j5_high}) · ${data.drafts} drafts · computed at ${hhmm} (Israel time), same definition as the Morning Scan email.`;
+  } catch (e) {
+    // Jamais bloquant : le libelle est informatif. Erreur visible en console, pas de toast (la file reste utilisable).
+    console.error('[_loadSendQueueDef] send_queue_counts:', e);
+    el.textContent = '';
+  }
+}
 
 function _updateSentCounter() {
   const { invitesSent: inv, emailsSent: em } = _todaySendCounts;
