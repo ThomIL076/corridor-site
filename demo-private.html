@@ -12282,6 +12282,16 @@ async function loadDailyPriorities() {
     // (merged vide -- zero prospect scorable trouve, qu'il n'y en ait aucun en base ou qu'aucun
     // ne remplisse les criteres). Le message "Lot suivant" n'a de sens que dans le premier cas.
     _renderPriorityCards(_priorityShownProspects, merged.length === 0 ? 'none-eligible' : 'batch-exhausted');
+    // AJOUT 04/10 (audit Kaizenology) : aucune decision du scan pour aujourd'hui -> cette liste est un classement par score,
+    // pas des actions recommandees. Sans ce bandeau, elle contredit l'email (« aucune action »).
+    if (!(decisionRows && decisionRows.length > 0) && _priorityShownProspects.length > 0) {
+      const _fb = document.createElement('div');
+      _fb.style.cssText = 'margin:0 0 12px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:var(--fs-sm);color:var(--muted);';
+      _fb.textContent = currentLang === 'fr'
+        ? "Le scan du matin n'a retenu aucune action aujourd'hui. Cette liste est un classement par score (ICP et signal), pas des actions recommandées."
+        : "The morning scan retained no action today. This list is a score ranking (ICP and signal), not recommended actions.";
+      container.insertBefore(_fb, container.firstChild);
+    }
     _updatePrioritiesNextBtn();
 
   } catch(e) {
