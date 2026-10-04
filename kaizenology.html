@@ -3868,7 +3868,7 @@ function renderMarkdown(text) {
 }
 
 // ── API CALL ──
-async function callAI(prompt, outputEl, spinnerId, maxTokens = 1000, renderAsText = false) {
+async function callAI(prompt, outputEl, spinnerId, maxTokens = 2500, renderAsText = false) {
   const spinner = document.getElementById(spinnerId);
   if (spinner) { spinner.classList.add('active'); }
   outputEl.textContent = '';

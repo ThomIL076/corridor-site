@@ -6204,7 +6204,10 @@ function _localizeScanHeaders(text) {
 }
 
 // ── API CALL ──
-async function callAI(prompt, outputEl, spinnerId, maxTokens = 1000, renderAsText = false) {
+// FIX 04/10 : defaut 1000 -> 2500. Company Intelligence (5 sections, "max 420 words", en francais + recherche web)
+// depassait 1000 tokens et la reponse etait coupee en plein mot (stop_reason 'max_tokens', ex. "Absence probable de play").
+// Plafond serveur /api/generate = 16000, donc 2500 reste largement en dessous.
+async function callAI(prompt, outputEl, spinnerId, maxTokens = 2500, renderAsText = false) {
   const spinner = document.getElementById(spinnerId);
   if (spinner) { spinner.classList.add('active'); }
   outputEl.textContent = '';
@@ -6236,6 +6239,14 @@ async function callAI(prompt, outputEl, spinnerId, maxTokens = 1000, renderAsTex
     // (ligne "return text" plus bas) reste intacte en anglais pour les regex d'extraction en aval.
     if (renderAsText) { outputEl.textContent = _localizeScanHeaders(text); } else { outputEl.innerHTML = renderMarkdown(_localizeScanHeaders(text)); }
     outputEl.classList.add('loaded');
+    // Reponse coupee par la limite de tokens : le dire plutot que d'afficher une phrase tronquee sans prevenir.
+    if (data.stop_reason === 'max_tokens') {
+      console.warn('[callAI] response truncated: stop_reason=max_tokens, max_tokens=', maxTokens);
+      const note = document.createElement('div');
+      note.style.cssText = 'margin-top:8px;font-size:var(--fs-sm);color:#92400e;';
+      note.textContent = currentLang === 'fr' ? 'Réponse tronquée (limite de longueur atteinte). Relancez l\'analyse.' : 'Response truncated (length limit reached). Run the analysis again.';
+      outputEl.appendChild(note);
+    }
     return text;
   } catch (e) {
     console.error('[callAI]', e);
