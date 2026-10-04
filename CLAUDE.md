@@ -11,6 +11,14 @@ smoke tests, exactement le problème que `deploy.sh` corrige (roadmap
 "empêcher la récurrence", point 5, 2026-09-10 : le test existait déjà mais
 restait déclenché manuellement, donc oubliable).
 
+**Après un changement de variable d'environnement Vercel : ne pas cliquer sur
+« Redeploy » dans le dashboard** — ça redéploie l'ANCIEN déploiement de prod tel
+quel (ancien code) et, s'il arrive après `npm run deploy`, reprend le domaine
+(incident 2026-10-04 : la vue Revue > Publications n'apparaissait pas). Lancer
+directement `npm run deploy`. Garde-fou : l'étape 3/3 de `deploy.sh` compare
+`demo-private.html` et `kaizenology.html` servis par `corridor.systems` aux
+fichiers locaux et sort en erreur en cas d'écart.
+
 Un échec de smoke test n'annule/ne rollback rien automatiquement — il est
 juste rendu impossible à manquer (code de sortie non-zéro, bloc affiché en
 évidence). Décision de rollback toujours manuelle.
