@@ -6628,12 +6628,24 @@ async function loadProposalsView() {
 }
 
 const _PROPOSAL_CONTENT_TYPE_LABELS = () => currentLang==='fr'
-  ? { outreach_opener: 'Message de prospection', linkedin_post: 'Publication LinkedIn' }
-  : { outreach_opener: 'Outreach opener', linkedin_post: 'LinkedIn post' };
+  ? { outreach_opener: 'Message de prospection', linkedin_post: 'Publication LinkedIn', repurposed_content: 'Contenu recyclé' }
+  : { outreach_opener: 'Outreach opener', linkedin_post: 'LinkedIn post', repurposed_content: 'Repurposed content' };
 
 function _renderProposalCard(prop, prospect) {
-  const name = (prospect && prospect.name) || '—';
-  const company = (prospect && prospect.company) || '';
+  let name = (prospect && prospect.name) || '—';
+  let company = (prospect && prospect.company) || '';
+  // repurposed_content : aucune fiche prospect -- l'en-tete montre la publication source (debut du
+  // texte + lien) a la place du couple nom/entreprise.
+  let _sourceLinkHtml = '';
+  if (prop.content_type === 'repurposed_content') {
+    const _rp = prop.raw_payload || {};
+    const _snippet = String(_rp.post_text || '').replace(/\s+/g, ' ').trim().slice(0, 90);
+    name = currentLang==='fr' ? 'Publication source' : 'Source post';
+    company = _snippet ? (_snippet + (String(_rp.post_text || '').length > 90 ? '…' : '')) : '';
+    if (/^https:\/\/(www\.)?linkedin\.com\//.test(_rp.post_url || '')) {
+      _sourceLinkHtml = `<a href="${_esc(_rp.post_url)}" target="_blank" rel="noopener" style="font-size:var(--fs-sm);color:var(--navy);text-decoration:underline;">${currentLang==='fr'?'Voir la publication':'View post'}</a>`;
+    }
+  }
   // Garde d'identite elargie : badge visible quand la fiche liee a la proposition est CONTRADICTED (meme gabarit que le Comite
   // d'achat / la carte Morning Scan -- source unique _identityContradictedBadgeHTML/NoteHTML, pas une 2e logique).
   const _propContradicted = !!prospect && prospect.identity_verdict === 'CONTRADICTED';
@@ -6663,7 +6675,7 @@ function _renderProposalCard(prop, prospect) {
       <div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px;">${_esc(v.angle || ((currentLang==='fr'?'Variante ':'Variant ') + (idx + 1)))}</div>
       <div${textIdAttr} style="font-size:var(--fs-sm);color:var(--text);line-height:1.5;white-space:pre-wrap;">${_esc(_cleanVariantText(v.text))}</div>
       <button onclick="_proposalUseVariant('${prop.id}', ${idx})"
-        style="margin-top:8px;padding:6px 14px;border-radius:var(--radius-pill);background:var(--navy);color:#fff;border:none;font-size:var(--fs-sm);font-weight:600;cursor:pointer;">${currentLang==='fr'?'Utiliser':'Use this'}</button>${sendBtn}
+        style="margin-top:8px;padding:6px 14px;border-radius:var(--radius-pill);background:var(--navy);color:#fff;border:none;font-size:var(--fs-sm);font-weight:600;cursor:pointer;">${prop.content_type==='repurposed_content' ? (currentLang==='fr'?'Copier':'Copy') : (currentLang==='fr'?'Utiliser':'Use this')}</button>${sendBtn}
     </div>`;
   }).join('');
   return `<div class="priority-card proposal-card" id="proposal-card-${prop.id}"
@@ -6671,6 +6683,7 @@ function _renderProposalCard(prop, prospect) {
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
       <span style="font-weight:700;font-size:var(--fs-base);color:var(--navy);">${_esc(name)}</span>
       ${company ? `<span style="font-size:var(--fs-sm);color:var(--muted);">${_esc(company)}</span>` : ''}
+      ${_sourceLinkHtml}
       ${_propBadgeHtml}
       <span class="card-badge badge-auto" style="margin-left:auto;">${_esc(contentTypeLbl.toUpperCase())}</span>
     </div>
@@ -6735,7 +6748,7 @@ async function _proposalUseVariant(id, variantIndex) {
   if (!(await _confirmIfContradicted(_propP))) return;
   const variantText = (Array.isArray(prop.variants) && prop.variants[variantIndex]) ? (prop.variants[variantIndex].text || '') : '';
 
-  if (prop.content_type === 'linkedin_post') {
+  if (prop.content_type === 'linkedin_post' || prop.content_type === 'repurposed_content') {
     try {
       await navigator.clipboard.writeText(variantText);
       showToast(currentLang==='fr'?"Copié dans le presse-papiers ✓":"Copied to clipboard ✓");
@@ -7094,7 +7107,7 @@ let _reviewFilter = 'all';
 function _reviewTypeKey(kind, subtype) {
   if (kind === 'proposal') {
     if (subtype === 'outreach_opener') return 'opener';
-    if (subtype === 'linkedin_post') return 'post';
+    if (subtype === 'linkedin_post' || subtype === 'repurposed_content') return 'post';
     return 'other';
   }
   if (kind === 'pending') {
@@ -7110,6 +7123,7 @@ function _reviewWhyText(kind, subtype, icpScore) {
   if (kind === 'pending' && subtype === 'email_j5') return 'Follow-up scheduled for J+5';
   if (kind === 'pending' && (subtype === 'linkedin_invite' || subtype === 'linkedin_message')) return 'Automated action waiting for your approval';
   if (kind === 'proposal' && subtype === 'outreach_opener') return 'First message drafted, ready to review';
+  if (kind === 'proposal' && subtype === 'repurposed_content') return 'Repurposed from your latest post, review before use';
   if (kind === 'proposal') return 'Content drafted by an agent, waiting for review';
   return 'Waiting for your review';
 }
