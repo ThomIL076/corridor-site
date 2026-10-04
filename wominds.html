@@ -9450,6 +9450,11 @@ async function openScannerPanel(source) {
   const co = document.getElementById('scanner-contact-output'); if (co) co.textContent = 'La fiche apparaîtra ici...';
   const cmo = document.getElementById('scanner-committee-output'); if (cmo) cmo.textContent = 'Cliquez pour cartographier...';
   const out = document.getElementById('scanner-ai-output'); if (out) out.textContent = 'L\'analyse apparaîtra ici...';
+  // Fix 2026-10-04 : declencheurs, strategie, signaux et score du scan precedent restaient affiches (seuls analyse/contact/comite etaient remis a zero).
+  ['scanner-triggers-output','scanner-strategy-output'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = ''; });
+  ['scanner-triggers-card','scanner-strategy-card'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+  const _slW = document.getElementById('scanner-signals-list'); if (_slW) _slW.innerHTML = '';
+  const _stW = document.getElementById('sc-total'); if (_stW) { _stW.textContent = 'N/D'; _stW.removeAttribute('title'); }
   const btnLabel = document.getElementById('scanner-btn-label'); if (btnLabel) btnLabel.textContent = 'Analyser';
   _scannerLastResult = null;
   _scannerSource = source === 'drawer' ? 'drawer' : null;
@@ -9475,6 +9480,8 @@ async function openScannerPanel(source) {
   if (_scannerSource === 'drawer' && _pid) {
     try {
       const { data } = await sbClient.from('prospects').select('scan_intelligence').eq('id', _pid).eq('client_id', CLIENT_ID).maybeSingle();
+      // Fix 2026-10-04 : si l'utilisateur a ferme/change de fiche pendant la lecture, ne pas afficher le scan d'une autre fiche.
+      if (_drawerPid() !== _pid || !document.getElementById('scanner-panel').classList.contains('open')) return;
       const stored = (data?.scan_intelligence || '').trim();
       if (stored) {
         const [_storedCompany, _storedContact] = stored.split(/\n---\n/);

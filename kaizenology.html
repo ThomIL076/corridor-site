@@ -9511,6 +9511,22 @@ function closeDrawer() {
   _drawerInteractions = [];
   if (_drawerPollInterval) { clearInterval(_drawerPollInterval); _drawerPollInterval = null; }
 }
+// Fix 2026-10-04 (bug recurrent : les resultats du scan precedent restaient affiches en ouvrant le Scanner depuis une autre fiche) :
+// seul le comite d'achat etait remis a zero a l'ouverture ; signaux, intelligence societe/contact, declencheurs, strategie, score et
+// detail du score gardaient le scan precedent (et le bloc resultats est reaffiche des qu'une fiche a un icp_score). On remet donc a zero
+// TOUS les blocs de sortie a chaque ouverture, avec leur texte par defaut (data-fr / data-en selon la langue).
+function _resetScannerOutputs() {
+  const _lang = (typeof currentLang !== 'undefined') ? currentLang : 'en';
+  const _dflt = (el) => ((_lang === 'fr' && el.dataset.fr) || el.dataset.en || '');
+  ['scanner-ai-output','scanner-contact-output','scanner-triggers-output','scanner-strategy-output','scanner-committee-output'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.textContent = _dflt(el);
+  });
+  const _sl = document.getElementById('scanner-signals-list'); if (_sl) _sl.innerHTML = '';
+  const _bp = document.getElementById('breakdown-panel'); if (_bp) { _bp.innerHTML = ''; _bp.style.display = 'none'; }
+  const _cc = document.getElementById('scanner-contact-card'); if (_cc) _cc.style.display = 'none';
+  const _ir = document.getElementById('scanner-intel-row'); if (_ir) _ir.className = '';
+  ['sc-total','sc-signals'].forEach(id => { const el = document.getElementById(id); if (el) { el.textContent = '\u2014'; el.removeAttribute('title'); } });
+}
 function openScannerPanel(source) {
   const ctx = (source === 'drawer') ? _scannerPreFill : null;
   ['scanner-company','scanner-person','scanner-sector','scanner-stage','scanner-funding','scanner-url','scanner-context'].forEach(id => {
@@ -9518,6 +9534,7 @@ function openScannerPanel(source) {
   });
   const _sr = document.getElementById('scanner-results'); if (_sr) _sr.style.display = 'none';
   const _pa = document.getElementById('scanner-pipeline-action'); if (_pa) _pa.remove();
+  _resetScannerOutputs();
   if (ctx) {
     const _set = (id, v) => { const el = document.getElementById(id); if (el && v) el.value = v; };
     _set('scanner-company', ctx.company);
