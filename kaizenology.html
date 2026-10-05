@@ -10196,6 +10196,18 @@ async function loadDailyPriorities() {
         .in('id', Object.keys(_decisionByProspect))
         .or('linkedin_tag.is.null,linkedin_tag.neq.invite-sent');
       if (errDP) throw errDP;
+      // FIX 05/10 (meme defaut que demo-private.html) : decisions du scan dont l'invitation LinkedIn est deja envoyee = TRAITEES, pas
+      // "inexploitables". Sans ce comptage, quand toutes etaient en attente de connexion, le repli ci-dessous affichait un classement par
+      // score sans signal. Compte seulement : n'ajoute aucune ligne a la liste.
+      let _decisionsPending = 0;
+      {
+        const { count: _pc, error: _pcErr } = await sbClient.from('prospects_scan_window')
+          .select('id', { count: 'exact', head: true })
+          .eq('client_id', CLIENT_ID).eq('linkedin_tag', 'invite-sent')
+          .in('id', Object.keys(_decisionByProspect));
+        if (_pcErr) console.warn('[loadDailyPriorities] comptage invitations en attente:', _pcErr);
+        else _decisionsPending = _pc || 0;
+      }
       const _catRank = { today_action: 0, opportunistic_connection: 1 };
       _priorityShownProspects = (decisionProspects || [])
         .map(p => { p._morningScanCategory = _decisionByProspect[p.id] || null; return p; })
@@ -10214,6 +10226,20 @@ async function loadDailyPriorities() {
         // Rien a parcourir par lots sur une liste de decisions du scan -- pas de priority_batch_number
         // a avancer ici, donc pas de _updatePrioritiesNextBtn() (sa logique allActionable est concue
         // pour le calcul arithmetique). Pas de bouton Skip a traiter : n'existe pas dans ce fichier.
+        if (_nextBtn) { _nextBtn.disabled = true; _nextBtn.style.opacity = '0.4'; _nextBtn.style.display = 'none'; }
+        return;
+      }
+      // FIX 05/10 : toutes les decisions affichables sont des invitations deja envoyees -> rien a traiter, pas de repli sur le classement par score.
+      if (_decisionsPending > 0) {
+        const _fr = currentLang === 'fr';
+        const _other = Math.max(0, Object.keys(_decisionByProspect).length - _decisionsPending);
+        const _pqcEl2 = document.getElementById('priorities-queued-count');
+        if (_pqcEl2) _pqcEl2.textContent = 0;
+        container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">' + (_fr
+          ? 'Rien à traiter pour le moment : ' + _decisionsPending + ' invitation(s) LinkedIn du scan du matin déjà envoyée(s), en attente de connexion.'
+            + (_other ? ' ' + _other + ' autre(s) décision(s) du scan sans fiche affichable (pas encore scorées ou archivées).' : '')
+          : 'Nothing to do right now: ' + _decisionsPending + ' LinkedIn invitation(s) from the morning scan already sent, awaiting connection.'
+            + (_other ? ' ' + _other + ' other scan decision(s) have no displayable record (not yet scored or archived).' : '')) + '</div>';
         if (_nextBtn) { _nextBtn.disabled = true; _nextBtn.style.opacity = '0.4'; _nextBtn.style.display = 'none'; }
         return;
       }
