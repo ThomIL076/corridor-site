@@ -305,6 +305,38 @@ nav {
   .journey-spine { min-width: 0; }
   .spine-stage { flex: 0 0 110px; }
 }
+/* Bandeau mobile (polish 05/10/2026) : rail de puces defilantes pensees pour le pouce. Etape active centree par _updateSpineActive,
+   fondu aux deux bords (mask-image : le contenu s'estompe, pas de degrade gris par-dessus), cibles de 44px, libelles de 12px.
+   La note (« a qualifier », « dus aujourd'hui »...) reste lue par les lecteurs d'ecran mais n'est plus affichee : le compteur en
+   pastille a cote du libelle suffit. Bureau (> 768px) inchange. */
+@media (max-width: 768px) {
+  .journey-spine {
+    min-width: 0; gap: 8px; align-items: center; padding: 10px 36px 10px 16px;
+    overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; scroll-padding-inline: 16px;
+    scrollbar-width: none; -webkit-overflow-scrolling: touch;
+    -webkit-mask-image: linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 32px), transparent 100%);
+            mask-image: linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 32px), transparent 100%);
+  }
+  .journey-spine::-webkit-scrollbar { display: none; }
+  .spine-stage, .spine-stage + .spine-stage {
+    flex: 0 0 auto; display: flex; align-items: center; gap: 8px; min-height: 44px; margin-left: 0; padding: 0 14px;
+    border: 1px solid var(--border); border-radius: 999px; background: #fff; scroll-snap-align: center; white-space: nowrap;
+    -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+    transition: background-color .15s ease-out, border-color .15s ease-out;
+  }
+  .spine-stage:active { background: var(--chip-bg, #f0f3fb); }
+  .spine-dot { margin: 0; flex: none; }
+  .spine-label { display: inline; margin: 0; font-size: 12px; letter-spacing: 0.08em; color: var(--text); }
+  .spine-row { display: contents; }
+  .spine-count { min-width: 24px; padding: 2px 8px; border-radius: 999px; background: var(--chip-bg, #f0f3fb); font-size: 12px; line-height: 1.4; text-align: center; color: var(--ink); }
+  .spine-count:empty { display: none; }
+  .spine-note { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .spine-rail { display: none; }
+  .spine-stage.active { background: var(--ink); border-color: var(--ink); }
+  .spine-stage.active .spine-label { color: #fff; }
+  .spine-stage.active .spine-count { background: var(--accent); color: #fff; }
+}
+@media (max-width: 768px) and (prefers-reduced-motion: reduce) { .spine-stage { transition: none; } }
 
 /* ── Today: layout (README) : contenu + rail 296px, passe en colonne sous 1180px. Structure
    statique -- classes CSS ici, contrairement aux cartes generees en JS (priority-card) qui
@@ -3421,12 +3453,18 @@ const SPINE_ACTIVE_MAP = {
 function _updateSpineActive(key) {
   const spine = document.getElementById('journey-spine');
   if (!spine) return;
-  spine.querySelectorAll('.spine-stage').forEach(el => el.classList.remove('active'));
+  spine.querySelectorAll('.spine-stage').forEach(el => { el.classList.remove('active'); el.removeAttribute('aria-current'); });
   const active = SPINE_ACTIVE_MAP[key];
   if (active) {
     const el = spine.querySelector('.spine-stage[data-spine="' + active + '"]');
-    if (el) el.classList.add('active');
+    if (el) { el.classList.add('active'); el.setAttribute('aria-current', 'step'); _centerSpineStage(spine, el); }
   }
+}
+// Mobile (rail defilant) : ramene l'etape active au centre du bandeau, sans jamais faire defiler la page elle-meme.
+function _centerSpineStage(spine, el) {
+  if (!window.matchMedia('(max-width: 768px)').matches || spine.scrollWidth <= spine.clientWidth) return;
+  const left = el.getBoundingClientRect().left - spine.getBoundingClientRect().left + spine.scrollLeft - (spine.clientWidth - el.offsetWidth) / 2;
+  spine.scrollTo({ left: Math.max(0, left), behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
 }
 
 let _morningItems = [];
