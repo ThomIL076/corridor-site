@@ -58,7 +58,17 @@ export default async function handler(req, res) {
       const r = await fetch(FE_BASE + '/' + enrichment_id, {
         headers: { 'Authorization': 'Bearer ' + apiKey }
       });
-      const data = await r.json();
+      // FIX 05/10 (Sentry CORRIDOR-SITE-2) : un 504 amont renvoie une page HTML ; r.json() levait alors
+      // SyntaxError -> 500 cote tableau de bord. Corps lu en texte : reponse non JSON en 5xx = panne
+      // passagere de FullEnrich, traitee comme "en cours" (le tableau de bord re-sonde), sans exception Sentry.
+      const rawText = await r.text();
+      let data = null;
+      try { data = JSON.parse(rawText); } catch (_) { data = null; }
+      if (data === null || typeof data !== 'object') {
+        console.error('[fullenrich] GET reponse non JSON', r.status, String(rawText).slice(0, 200));
+        if (r.status >= 500) return res.status(200).json({ status: 'in_progress' });
+        throw new Error('FullEnrich: reponse non JSON (HTTP ' + r.status + ')');
+      }
       if (!r.ok) console.error('[fullenrich] GET non-2xx response', r.status, JSON.stringify(data));
 
       // Status field varies by API version — try common names
