@@ -4073,6 +4073,17 @@ function _applyMandateFilter(query) {
   return query.is('mandate_id', null); // vue consolidée = IS NULL explicite
 }
 
+// AJOUT 05/10 (demande Thomas) : un prospect dont l'invitation LinkedIn est en attente
+// (linkedin_tag = 'invite-sent', pas encore 'connection-accepted') ne reste pas dans la vue Today
+// tant que la connexion n'est pas acceptee -- il n'y a rien a faire dessus (pas de message possible).
+// Filtre SQL (et non JS) pour que le compteur exact du backlog reste juste. IS NULL explicite :
+// un simple .neq() exclurait aussi les prospects sans tag (NULL), ce qui viderait la vue.
+// Utilise par loadDailyPriorities() (les 4 requetes) et _loadFollowUpsDue() (due + backlog) ;
+// les vues Send/Kanban/fiche ne l'utilisent pas.
+function _excludePendingInvite(query) {
+  return query.or('linkedin_tag.is.null,linkedin_tag.neq.invite-sent');
+}
+
 async function _onMandateChange() {
   const sel = document.getElementById('mandate-select');
   const val = sel ? sel.value : '';
@@ -12172,7 +12183,8 @@ async function loadDailyPriorities() {
         .from('prospects_scan_window').select(COLS)
         .eq('client_id', CLIENT_ID)
         .not('icp_score', 'is', null)
-        .in('id', Object.keys(_decisionByProspect));
+        .in('id', Object.keys(_decisionByProspect))
+        .or('linkedin_tag.is.null,linkedin_tag.neq.invite-sent');
       if (errDP) throw errDP;
       const _catRank = { today_action: 0, opportunistic_connection: 1 };
       // Fix 2026-09-29 (Thomas) : un envoi (_markSent/_startEmailSeq, LinkedIn ou email, depuis la
@@ -12205,6 +12217,7 @@ async function loadDailyPriorities() {
             .gte('next_action_date', _sinceIso).lte('next_action_date', _todayIso)
             .order('icp_score', { ascending: false }).limit(N * 2);
           carryQ = _applyMandateFilter(carryQ);
+          carryQ = _excludePendingInvite(carryQ);
           const { data: carryRows, error: errCarry } = await carryQ;
           if (errCarry) throw errCarry;
           const _have = new Set(_priorityShownProspects.map(p => p.id));
@@ -12256,6 +12269,7 @@ async function loadDailyPriorities() {
       .not('icp_score', 'is', null)
       .lte('icp_rank_in_mandate', 60);
     qA = _applyMandateFilter(qA);
+    qA = _excludePendingInvite(qA);
 
     let qB = sbClient.from('prospects_scan_window').select(COLS)
       .eq('client_id', CLIENT_ID).eq('archived', false)
@@ -12263,6 +12277,7 @@ async function loadDailyPriorities() {
       .not('icp_score', 'is', null)
       .lte('signal_rank_in_mandate', 60);
     qB = _applyMandateFilter(qB);
+    qB = _excludePendingInvite(qB);
 
     const [{ data: rowsA, error: errA }, { data: rowsB, error: errB }] = await Promise.all([qA, qB]);
     if (errA) throw errA;
@@ -12409,6 +12424,7 @@ async function _loadFollowUpsDue() {
       .gte('reminder_date', sevenAgoStr).lte('reminder_date', todayStr)
       .neq('stage', 'Closed').neq('stage', 'Archived');
     dueQ = _applyMandateFilter(dueQ);
+    dueQ = _excludePendingInvite(dueQ);
 
     // count:'exact' -- seule requete du fichier a s'en servir : le badge doit refleter le vrai
     // total du backlog (ex. 162), pas seulement les 50 lignes rendues ci-dessous.
@@ -12418,6 +12434,7 @@ async function _loadFollowUpsDue() {
       .lt('reminder_date', sevenAgoStr)
       .neq('stage', 'Closed').neq('stage', 'Archived');
     backlogQ = _applyMandateFilter(backlogQ);
+    backlogQ = _excludePendingInvite(backlogQ);
 
     const [dueRes, backlogRes] = await Promise.all([
       dueQ.order('reminder_date', { ascending: true }).limit(100),
