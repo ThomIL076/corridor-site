@@ -17982,8 +17982,9 @@ async function loadClientProfile() {
       currentLang = 'en';
       window._langLocked = 'en';
       document.querySelectorAll('.lang-btn').forEach(b => { b.style.display = 'none'; });
-      if (typeof applyLang === 'function') applyLang();
-      if (typeof renderWelcome === 'function') renderWelcome();
+      // setLang('en') (et non applyLang seul) : retraduit aussi les blocs construits en JS (bandeau Today, cartes, Review...)
+      // deja rendus en FR avant que le profil ne soit charge.
+      if (typeof setLang === 'function') setLang('en');
     }
     const name = data.display_name || data.contact_name.split(' ')[0];
     document.getElementById('nav-display-name').textContent = name;
