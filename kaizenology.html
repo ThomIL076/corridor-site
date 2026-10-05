@@ -10193,7 +10193,8 @@ async function loadDailyPriorities() {
         .from('prospects_scan_window').select(COLS)
         .eq('client_id', CLIENT_ID)
         .not('icp_score', 'is', null)
-        .in('id', Object.keys(_decisionByProspect));
+        .in('id', Object.keys(_decisionByProspect))
+        .or('linkedin_tag.is.null,linkedin_tag.neq.invite-sent');
       if (errDP) throw errDP;
       const _catRank = { today_action: 0, opportunistic_connection: 1 };
       _priorityShownProspects = (decisionProspects || [])
@@ -10231,12 +10232,14 @@ async function loadDailyPriorities() {
     // plus du tri -- le vrai fix est le webhook de scoring desormais declenche a l'insert
     // (addProspect/importCSV ci-dessus), ce filtre reste un filet si un futur bug fait a nouveau
     // echapper un prospect au scoring automatique.
+// AJOUT 05/10 (demande Thomas, meme regle que demo-private.html) : un prospect dont l'invitation LinkedIn est en attente (linkedin_tag='invite-sent') ne reste pas dans Today tant que la connexion n'est pas acceptee. IS NULL explicite : un .neq() seul exclurait les prospects sans tag.
     let qA = sbClient.from('prospects_scan_window').select(COLS)
       .eq('client_id', CLIENT_ID).eq('archived', false)
       .neq('stage', 'Proposal').neq('stage', 'Closed').neq('stage', 'Archived')
       .not('icp_score', 'is', null)
       .lte('icp_rank_in_mandate', 60);
     qA = _applyMandateFilter(qA);
+    qA = qA.or('linkedin_tag.is.null,linkedin_tag.neq.invite-sent');
 
     let qB = sbClient.from('prospects_scan_window').select(COLS)
       .eq('client_id', CLIENT_ID).eq('archived', false)
@@ -10244,6 +10247,7 @@ async function loadDailyPriorities() {
       .not('icp_score', 'is', null)
       .lte('signal_rank_in_mandate', 60);
     qB = _applyMandateFilter(qB);
+    qB = qB.or('linkedin_tag.is.null,linkedin_tag.neq.invite-sent');
 
     const [{ data: rowsA, error: errA }, { data: rowsB, error: errB }] = await Promise.all([qA, qB]);
     if (errA) throw errA;
