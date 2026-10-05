@@ -190,6 +190,54 @@ echo "  ou corps traite), pas 500 (crash de la fonction Vercel elle-meme, ex : i
 echo "  ni timeout."
 
 # ------------------------------------------------------------
+# TEST 5 — priority_batches : écriture réelle avec mandate_id NULL (vue « tous mandats »)
+# ------------------------------------------------------------
+# Règle CLAUDE.md (« Fiabilité — écritures upsert silencieuses ») : un upsert avec onConflict sur une
+# clé contenant une colonne nullable doit être COUVERT par un test qui vérifie qu'une écriture réelle
+# avec mandate_id NULL réussit -- pas seulement que la requête ne lève pas d'exception côté client
+# (c'est exactement ce qui a laissé 3 bugs de schéma coexister sur signals_feed_cache). Wominds,
+# Kaizenology et Corridor écrivent tous ainsi via /api/priority-batches-advance (service_role,
+# onConflict 'client_id,mandate_id', mandate_id null en vue consolidée) : ce test rejoue la même
+# écriture en service_role, avec un client_id factice dédié (aucune donnée réelle touchée, aucune
+# clé étrangère sur la table), puis nettoie. Il couvre l'index unique NULLS NOT DISTINCT et la
+# nullabilité de mandate_id (bugs 2 et 3 de l'incident). Il NE couvre PAS les GRANT du rôle
+# 'authenticated' : le chemin réel ne les utilise pas (écriture service_role côté serveur) et ce
+# script n'a pas de session utilisateur -- à vérifier avec test-rls-adversarial.sh si on réintroduit
+# une écriture directe depuis le navigateur.
+echo ""
+echo "--- TEST 5 : priority_batches, écriture réelle avec mandate_id NULL ---"
+if [ -z "$SUPABASE_SECRET_KEY" ]; then
+  echo "  ⚠ NON EXÉCUTÉ : SUPABASE_SECRET_KEY n'est pas définie (service_role requise, ce script n'a pas"
+  echo "    de session utilisateur pour tester autrement). Aucun résultat à lire pour ce test."
+else
+  PB_URL="$SUPABASE_URL/rest/v1/priority_batches"
+  PB_CLIENT="__smoke_test__"
+  _pb_call() { # méthode, URL, corps éventuel, en-tête Prefer éventuel
+    curl -s -X "$1" "$2" -H "apikey: $SUPABASE_SECRET_KEY" -H "Authorization: Bearer $SUPABASE_SECRET_KEY" \
+      -H "Content-Type: application/json" ${4:+-H "Prefer: $4"} ${3:+-d "$3"}
+  }
+  _pb_call DELETE "$PB_URL?client_id=eq.$PB_CLIENT" > /dev/null   # reliquat éventuel d'un run interrompu
+  PB_UPSERT="$PB_URL?on_conflict=client_id,mandate_id"
+  PB_R1=$(_pb_call POST "$PB_UPSERT" "{\"client_id\":\"$PB_CLIENT\",\"mandate_id\":null,\"current_batch\":1}" "resolution=merge-duplicates,return=minimal")
+  PB_R2=$(_pb_call POST "$PB_UPSERT" "{\"client_id\":\"$PB_CLIENT\",\"mandate_id\":null,\"current_batch\":2}" "resolution=merge-duplicates,return=minimal")
+  PB_READ=$(_pb_call GET "$PB_URL?client_id=eq.$PB_CLIENT&mandate_id=is.null&select=current_batch")
+  _pb_call DELETE "$PB_URL?client_id=eq.$PB_CLIENT" > /dev/null
+  PB_LEFT=$(_pb_call GET "$PB_URL?client_id=eq.$PB_CLIENT&select=client_id")
+  if echo "$PB_R1$PB_R2" | grep -q '"code"'; then
+    echo "  ❌ upsert priority_batches (mandate_id NULL) REFUSE -- $PB_R1 $PB_R2"
+    FAILED=$((FAILED + 1))
+  elif [ "$PB_READ" != '[{"current_batch":2}]' ]; then
+    echo "  ❌ relecture inattendue (attendu : une seule ligne, current_batch=2 -- deux upserts sur la même clé"
+    echo "     doivent mettre à jour, pas dupliquer) -- reçu : $PB_READ"
+    FAILED=$((FAILED + 1))
+  elif [ "$PB_LEFT" != "[]" ]; then
+    echo "  ⚠ écriture OK mais NETTOYAGE incomplet (client_id '$PB_CLIENT' encore présent) : $PB_LEFT"
+  else
+    echo "  ✅ upsert avec mandate_id NULL : 2 écritures sur la même clé = 1 seule ligne (current_batch=2), nettoyée"
+  fi
+fi
+
+# ------------------------------------------------------------
 # TEST 4 — Rappel manuel (non automatisable simplement)
 # ------------------------------------------------------------
 echo ""

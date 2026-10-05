@@ -836,6 +836,7 @@ footer a { color:var(--navy); text-decoration:none; font-weight:600; }
 .today-step-divider:first-child { margin-top: 0; }
 .today-step-label { font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
 .today-step-rule { flex: 1; height: 1px; background: var(--border); }
+.today-step-count { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--dim); white-space: nowrap; }
 .send-card { display:flex; flex-direction:column; gap:10px; }
 .send-row { display:flex; align-items:center; gap:12px; }
 .send-avatar { width:38px; height:38px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:700; color:#fff; }
@@ -1630,25 +1631,58 @@ body.new-nav { padding-left: 220px; }
 
 <main class="main" id="main-content" aria-label="Corridor - Wominds">
 
-  <!-- ══ ONGLET : AUJOURD'HUI (Today's run, simplifie -- pas de cycle de batch/priority_batches
-       ni de rail "Agents at work", cf. arbitrage Thomas 2026-09-12 : ce mecanisme depend d'une
-       table dont le schema n'est pas confirme (CLAUDE.md), et aucun agent n'existe pour Wominds.
-       Cartes triees par score ICP + capacite du jour reelle (zero au demarrage, pas invente). ══ -->
+  <!-- ══ ONGLET : AUJOURD'HUI (parité totale avec demo-private.html, règle « Parité produit totale pour
+       tout nouveau client » -- remplace la version simplifiée du 2026-09-12, abrogée). Même structure,
+       mêmes ids et mêmes composants que Corridor ; seuls les textes (FR uniquement) et les sources de
+       données propres à Wominds diffèrent. Pas de panneau « Capacité du jour » ici (décision Thomas). ══ -->
   <div class="tab-panel active" id="tab-today">
     <div style="padding:24px 16px 0;max-width:1120px;margin:0 auto;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
         <h2 style="font-size:var(--fs-lg);font-weight:700;color:var(--navy);margin:0;">Aujourd'hui</h2>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <button id="priorities-skip-btn" class="btn-secondary" onclick="_prioritiesSkip()">
+            <span>Passer ce lot</span>
+          </button>
+          <button id="priorities-next-btn" onclick="_prioritiesNext()" disabled
+            style="padding:8px 18px;border-radius:var(--radius-pill);background:var(--navy);color:#fff;border:none;font-size:var(--fs-sm);font-weight:600;cursor:pointer;opacity:0.4;">
+            <span>Lot suivant →</span>
+          </button>
+        </div>
       </div>
-      <div class="section-sub"><span id="today-queued-count">0</span><span id="today-queued-sub"> prospects prioritaires, triés par score ICP décroissant.</span></div>
-      <div class="pipe-stats-row" id="today-stats-row" style="margin-bottom:16px;"></div>
+      <!-- Bloc stats réelles, rempli par _loadTodayStats(). Vide tant que le JS n'a pas tourné (pas de donnée d'exemple). -->
+      <div id="today-stats-row" style="display:flex;flex-wrap:wrap;margin-bottom:16px;background:#fff;border:1px solid var(--border);border-radius:var(--radius-panel);overflow:hidden;"></div>
+      <div class="section-sub"><span id="priorities-queued-count">0</span><span> actions en file aujourd'hui. Traitez-les de haut en bas. Le système reclasse après chaque envoi.</span></div>
       <div class="today-layout">
         <div class="today-main">
-          <div id="today-priorities-container"></div>
+          <div class="today-step-divider">
+            <span class="today-step-label">Étape 1 · Signaux à forte conviction</span>
+            <span class="today-step-rule"></span>
+          </div>
+          <div id="priorities-container"></div>
+          <!-- Étape 2 : masquée par défaut, révélée par _loadFollowUpsDue() seulement s'il existe au moins
+               un prospect avec reminder_date <= aujourd'hui. -->
+          <div class="today-step-divider" id="today-followup-divider" hidden>
+            <span class="today-step-label">Étape 2 · À traiter maintenant</span>
+            <span class="today-step-rule"></span>
+            <span class="today-step-count" id="today-followup-count"></span>
+          </div>
+          <div id="today-followups-container"></div>
+          <!-- Backlog (reminder_date < J-7) séparé de « À traiter maintenant » : replié par défaut, compteur réel (count exact). -->
+          <div class="today-step-divider" id="today-backlog-divider" hidden style="cursor:pointer" onclick="_toggleReminderBacklog()">
+            <span class="today-step-label">À revalider</span>
+            <span class="today-step-rule"></span>
+            <span class="today-step-count" id="today-backlog-count"></span>
+            <span id="today-backlog-chevron" style="margin-left:6px;color:var(--muted);">▸</span>
+          </div>
+          <div id="today-backlog-container" hidden></div>
         </div>
         <div class="today-rail">
-          <div class="card">
-            <div class="card-header"><span class="card-title">Capacité du jour</span></div>
-            <div id="today-capacity-bars" style="font-size:var(--fs-sm);color:var(--muted);">Chargement…</div>
+          <div class="card" style="margin-bottom:16px;">
+            <div class="card-header" style="display:flex;align-items:center;gap:8px;">
+              <span class="card-title">Agents en action</span>
+              <span class="card-badge badge-auto">EN DIRECT</span>
+            </div>
+            <div id="agents-at-work-list" style="font-size:var(--fs-sm);color:var(--muted);overflow-wrap:anywhere;word-break:break-word;">Chargement…</div>
           </div>
         </div>
       </div>
@@ -2510,7 +2544,7 @@ function switchTab(name){
   _closeSnav();
   window.scrollTo({ top: 0, behavior: 'instant' });
   _updateSpineActive(name);
-  if (name === 'today') { loadDailyPriorities(); _loadTodayStats(); } // decisions du Morning Scan du jour, repli sur loadTodayRun
+  if (name === 'today') { loadDailyPriorities(); _loadAgentsAtWork(); _fetchTodaySendCounts().catch(err => console.error('_fetchTodaySendCounts:', err)); _loadFollowUpsDue(); _loadTodayStats(); }
   if (name === 'pipeline') loadKanban();
   if (name === 'send') loadSendView();
   if (name === 'inbox') loadInboxDrafts();
@@ -3089,25 +3123,8 @@ function _mscIcpStateChipHTML(state) {
   const tip = (typeof currentLang === 'undefined' || currentLang === 'fr') ? _MSC_ICP_STATE_TIP : _MSC_ICP_STATE_TIP_EN;
   return `<span title="${_esc(tip)}" style="display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;${tone}white-space:normal;max-width:100%;box-sizing:border-box;">${_esc(state.label)}</span>`;
 }
-// Garde d'identite / fiabilite de la carte (etape A, unification Today/Signals, decision Thomas 21/09 : NON
-// NEGOCIABLE -- une fiche CONTRADICTED doit etre explicitement visible partout ou une carte est affichee, la
-// personne qui approuve doit voir l'identite). Regle UNIQUE = _scoreReliabilityBadge (company_verified === false,
-// identity_confidence 'low', identity_verdict CONTRADICTED/UNVERIFIABLE), jamais recalculee ici : memes libelles,
-// meme icone. Pastille : danger pour CONTRADICTED, ambre pour entreprise non confirmee, neutre sinon. Le titre
-// combine de _scoreReliabilityBadge (entreprise ET identite non confirmees) masquerait « contredite » : pour un
-// verdict CONTRADICTED le mot reste toujours nomme. Rien si aucune donnee d'identite (ligne sans ces colonnes,
-// personne pas en base, fiche fiable).
-function _mscReliabilityChipHTML(row) {
-  const rel = row ? _scoreReliabilityBadge(row) : null;
-  if (!rel) return '';
-  if (rel.contradicted) return _contradictedBadgeHTML(_contradictedLabelFor(rel));
-  const tone = row.company_verified === false
-    ? 'background:var(--amber-bg);border:1px solid var(--amber-border);color:var(--amber);font-weight:600;'
-    : 'background:var(--chip-bg);border:1px solid var(--border);color:var(--muted);font-weight:600;';
-  return `<span style="display:inline-block;font-size:var(--fs-micro);padding:2px 8px;border-radius:999px;${tone}white-space:normal;max-width:100%;box-sizing:border-box;">${rel.icon} ${_esc(rel.title)}</span>`;
-}
 // Badge « identite contredite » (identity_verdict = CONTRADICTED) : gabarit UNIQUE, ROUGE « danger » (decision Thomas 21/09 : toutes les surfaces
-// d'action, comite d'achat compris, un seul style). Appele par la carte Morning Scan (_mscReliabilityChipHTML), le tiroir prospect et le comite
+// d'action, comite d'achat compris, un seul style). Appele par la carte partagee (_mscDecisionCardHTML), le tiroir prospect et le comite
 // d'achat ; la pastille compacte de _scoreReliabilityBadge reprend le meme jeton --danger. label facultatif (defaut : _contradictedLabel),
 // echappe. Jamais tronque : le retour a la ligne est autorise.
 function _contradictedLabel() { return 'Identité contredite'; }
@@ -3158,61 +3175,82 @@ function _mscDecisionCardHTML(d, live) {
   const pid = _mscSafeId(d.id);
   const name = _esc((live && live.name) || d.name || 'Personne inconnue');
   const company = (live && live.company) || d.company || '';
-  // Fiche d'ou viennent secteur, email et garde d'identite (etape A) : la fiche live quand la carte en recoit
-  // une, sinon la fiche mise en cache par _mscFetchLiveProspects (repli decisions_json : les cartes « Personnes
-  // vues sur le marche » n'y recoivent pas de live, mais une personne deja en base doit montrer son identite).
+  // Fiche d'ou viennent secteur, email et garde d'identite (etape A) : la fiche live quand la carte en recoit une, sinon la fiche mise
+  // en cache par _mscFetchLiveProspects (repli decisions_json : les cartes « Personnes vues sur le marche » n'y recoivent pas de live,
+  // mais une personne deja en base doit montrer son identite).
   const ref = live || (pid && typeof _prospectsById !== 'undefined' ? _prospectsById[pid] : null) || null;
   const sector = ref && typeof ref.sector === 'string' ? ref.sector.trim() : '';
-  const email = ref ? _mscSafeEmail(ref.email) : '';
-  const companyLine = [company, sector].filter(Boolean).join(' · ');
+  const emailAddr = ref ? _mscSafeEmail(ref.email) : '';
+  // GARDE D'IDENTITE (non negociable, decision Thomas 21/09) : une fiche CONTRADICTED est toujours signalee par le badge explicite
+  // (_contradictedBadgeHTML) ; les autres alertes (societe non confirmee, identite a verifier / inverifiable) viennent de
+  // _scoreReliabilityBadge, unique calcul. Pour ne pas doubler le badge, le verdict CONTRADICTED est retire de la copie passee a
+  // _scoreReliabilityBadge (les autres declencheurs restent evalues).
+  const contradicted = !!ref && ref.identity_verdict === 'CONTRADICTED';
+  const rel = ref ? _scoreReliabilityBadge(contradicted ? Object.assign({}, ref, { identity_verdict: null }) : ref) : null;
+  const relTone = rel && rel.icon === '⚠' ? 'background:var(--amber-bg);border:1px solid var(--amber-border);' : 'background:var(--chip-bg);border:1px solid var(--border);';
+  const identityHtml = (contradicted ? _contradictedBadgeHTML() : '')
+    + (rel ? `<span title="${_esc(rel.title)}" style="display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;${relTone}color:${rel.color};white-space:normal;max-width:100%;box-sizing:border-box;">${rel.icon}${rel.both ? '?' : ''} ${_esc(rel.title)}</span>` : '');
+  const sectorHtml = sector ? `<span style="font-size:var(--fs-xs);font-weight:600;padding:2px 8px;background:var(--chip-bg);border-radius:var(--radius-pill);color:var(--indigo);max-width:100%;overflow-wrap:anywhere;">${_esc(sector)}</span>` : '';
   const icpScore = live && live.icp_score != null ? live.icp_score : null;
   const cleanText = s => String(s).replace(/<[^>]*>/g, '').trim();
   const signalSrc = (live && live.signal) || (isEntry && d.signal && d.signal.text) || '';
   const signal = signalSrc ? _mscCleanSignalText(signalSrc) : '';
   const interpSrc = (isEntry && d.interpretation) || (live && live.signal_interpretation) || '';
   const signalInterp = interpSrc ? cleanText(interpSrc) : '';
-  const nextActionHtml = live && live.next_action_cache ? _renderNextActionHTML(live.next_action_cache, 'var(--muted)') : null;
+  const nextActionHtml = live && live.next_action_cache ? _renderNextActionHTML(live.next_action_cache, 'var(--text-secondary)') : null;
   const scanAction = isEntry && d.action ? cleanText(d.action) : '';
-  const actionBody = scanAction
-    ? `<div style="font-size:var(--fs-xs);line-height:1.5;color:var(--muted);">${_esc(scanAction)}</div>`
-    : nextActionHtml;
 
   const links = [];
-  // Liens de secours (entrees scan_entries ET repli decisions_json, 21/09) : la fiche live comble un lien
-  // MANQUANT -- linkedin (prospects.linkedin) ; source = prospects.signal_url en dernier recours, voir
-  // _mscResolveSource. Jamais un lien deja present retire ou remplace ; toujours _mscSafeUrl (http/https).
+  // Liens de secours (entrees scan_entries ET repli decisions_json, 21/09) : la fiche live comble un lien MANQUANT -- linkedin
+  // (prospects.linkedin) ; source = prospects.signal_url en dernier recours, voir _mscResolveSource. Jamais un lien deja present retire
+  // ou remplace ; toujours _mscSafeUrl (http/https).
   const linkedinUrl = _mscSafeUrl(d.linkedin) || _mscSafeUrl(live && live.linkedin);
   const source = _mscResolveSource(d, live);
-  if (linkedinUrl) links.push(`<a href="${_esc(linkedinUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:var(--fill-accent);text-decoration:none;font-weight:600;white-space:nowrap;">LinkedIn</a>`);
-  if (source) links.push(`<a href="${_esc(source.url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:var(--fill-accent);text-decoration:none;font-weight:600;min-width:0;word-break:normal;overflow-wrap:break-word;">${_esc(source.label)}</a>`);
-  if (email) links.push(`<a href="mailto:${_esc(email)}" onclick="event.stopPropagation()" style="color:var(--fill-accent);text-decoration:none;font-weight:600;min-width:0;overflow-wrap:anywhere;">${_esc(email)}</a>`);
+  if (linkedinUrl) links.push(`<a href="${_esc(linkedinUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:var(--accent);text-decoration:none;font-weight:600;white-space:nowrap;">LinkedIn</a>`);
+  if (emailAddr) links.push(`<a href="mailto:${_esc(emailAddr)}" title="${_esc(emailAddr)}" onclick="event.stopPropagation()" style="color:var(--accent);text-decoration:none;font-weight:600;white-space:nowrap;">Email</a>`);
+  if (source) links.push(`<a href="${_esc(source.url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:var(--accent);text-decoration:none;font-weight:600;min-width:0;word-break:normal;overflow-wrap:break-word;">${_esc(source.label)}</a>`);
   const linksHtml = links.length ? `<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px 12px;font-size:var(--fs-xs);">${links.join('')}</div>` : '';
 
   const structured = isEntry && (d.facts || d.action);
-  const summary = d.summary && !structured ? `<div style="margin-top:4px;font-size:var(--fs-sm);color:var(--muted);line-height:1.4;">${_esc(d.summary)}</div>` : '';
+  const summaryText = d.summary_fr || d.summary;
+  const summary = summaryText && !structured ? `<div style="margin-top:4px;font-size:var(--fs-sm);color:var(--text-secondary);line-height:1.4;">${_esc(summaryText)}</div>` : '';
   const factsBlock = isEntry && d.facts
-    ? `<div style="margin-top:4px;font-size:var(--fs-sm);color:var(--muted);line-height:1.4;"><span style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;opacity:.6;">Faits</span><div>${_esc(cleanText(d.facts))}</div></div>`
+    ? `<div style="margin-top:4px;font-size:var(--fs-sm);color:var(--text-secondary);line-height:1.4;"><span style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;opacity:.6;">Faits</span><div>${_esc(cleanText(d.facts))}</div></div>`
     : '';
-  const mandateHtml = isEntry && d.mandate ? `<span style="font-size:var(--fs-xs);color:var(--muted);">Mandat : ${_esc(d.mandate)}</span>` : '';
-  const sigBadge = isEntry && typeof _sigBadge === 'function' ? _sigBadge((d.signal && d.signal.type) || (live && live.signal_type) || '') : '';
+  const mandateHtml = isEntry && d.mandate ? `<span style="font-size:var(--fs-xs);color:var(--text-secondary);">Mandat : ${_esc(d.mandate)}</span>` : '';
+  const sigType = isEntry ? ((d.signal && d.signal.type) || (live && live.signal_type) || '') : '';
+  const sigBadge = sigType && typeof _sigBadge === 'function' ? _sigBadge(sigType) : '';
+  // Force (0-10) et date du signal : uniquement dans l'instantane du scan (la force n'a pas de colonne live equivalente ; la date live
+  // comble le trou).
+  const sigMetaParts = [];
+  if (isEntry && d.signal && Number.isFinite(d.signal.strength)) sigMetaParts.push(`Force ${d.signal.strength}${d.signal.strength >= 0 && d.signal.strength <= 10 ? '/10' : ''}`);
+  const sigDateLabel = isEntry ? _mscFmtDate((d.signal && d.signal.date) || (live && live.signal_date)) : '';
+  if (sigDateLabel) sigMetaParts.push(sigDateLabel);
+  const sigMeta = sigMetaParts.join(' · ');
   const confidenceHtml = _mscConfidenceBadge(d.confidence);
-  const reliabilityChip = _mscReliabilityChipHTML(ref);
   const icpStateChip = _mscIcpStateChipHTML(_mscIcpState(d, live));
-  // Infobulle uniquement quand une fiche live existe (icpScore != null n'est possible que dans ce
-  // cas) ; carte sans enrichissement (id null) = ni badge ni infobulle, rien a montrer.
+  // Infobulle uniquement quand une fiche live existe (icpScore != null n'est possible que dans ce cas) ; carte sans enrichissement
+  // (id null) = ni badge ni infobulle, rien a montrer.
   const icpChip = icpScore != null
     ? _icpBadgeWithTooltipHTML(`<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:var(--radius-pill);background:var(--chip-bg);color:var(--indigo);">ICP ${_esc(String(icpScore))}</span>`, icpScore, live.icp_reason, 'left')
     : '';
-  const signalBlock = (signal || signalInterp)
-    ? `<div style="margin-top:6px;font-size:var(--fs-xs);color:var(--muted);line-height:1.4;">${signal ? `<strong>Signal :</strong> ${_esc(signal)}` : ''}${signal && signalInterp ? '<br>' : ''}${signalInterp ? `<strong>Interprétation :</strong> ${_esc(signalInterp)}` : ''}</div>`
+  const signalLabel = '<strong>Signal :</strong>';
+  const signalHead = signal
+    ? `${signalLabel} ${_esc(signal)}${sigMeta ? ` <span style="opacity:.75;">(${_esc(sigMeta)})</span>` : ''}`
+    : (sigMeta ? `${signalLabel} ${_esc(sigMeta)}` : '');
+  const signalBlock = (signalHead || signalInterp)
+    ? `<div style="margin-top:6px;font-size:var(--fs-xs);color:var(--text-secondary);line-height:1.4;">${signalHead}${signalHead && signalInterp ? '<br>' : ''}${signalInterp ? `<strong>Interprétation :</strong> ${_esc(signalInterp)}` : ''}</div>`
     : '';
+  const actionBody = scanAction
+    ? `<div style="font-size:var(--fs-xs);line-height:1.5;color:var(--text-secondary);">${_esc(scanAction)}</div>`
+    : nextActionHtml;
   const actionBlock = actionBody
-    ? `<div style="margin-top:6px;"><div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);opacity:.6;margin-bottom:2px;">Action recommandée</div>${actionBody}</div>`
+    ? `<div style="margin-top:6px;"><div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-secondary);opacity:.6;margin-bottom:2px;">Action recommandée</div>${actionBody}</div>`
     : '';
 
   const cardStyleBase = 'display:flex;gap:10px;padding:10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:#fff;';
   const cardAttrs = pid
-    ? ` onclick="openProspectDetail('${pid}')" style="${cardStyleBase}cursor:pointer;" onmouseover="this.style.borderColor='var(--ink)'" onmouseout="this.style.borderColor='var(--border)'"`
+    ? ` onclick="openProspectDetail('${pid}')" style="${cardStyleBase}cursor:pointer;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'"`
     : ` style="${cardStyleBase}"`;
 
   return `
@@ -3221,9 +3259,9 @@ function _mscDecisionCardHTML(d, live) {
       <div style="flex:1;min-width:0;">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
           <span style="font-weight:700;font-size:var(--fs-sm);color:var(--ink);">${name}</span>
-          ${companyLine ? `<span style="font-size:var(--fs-xs);color:var(--muted);">${_esc(companyLine)}</span>` : ''}${mandateHtml}
-          ${reliabilityChip}${icpChip}${icpStateChip}${sigBadge}${typeof d._extraChips === 'function' ? d._extraChips() : ''}
-          ${confidenceHtml}
+          ${company ? `<span style="font-size:var(--fs-xs);color:var(--text-secondary);">${_esc(company)}</span>` : ''}${sectorHtml}${identityHtml}${mandateHtml}
+          ${icpChip}${icpStateChip}${sigBadge}
+          ${confidenceHtml}${typeof d._extraChips === 'function' ? d._extraChips() : ''}
         </div>
         ${factsBlock}${summary}
         ${signalBlock}
@@ -3232,12 +3270,21 @@ function _mscDecisionCardHTML(d, live) {
       </div>
     </div>`;
 }
+// Date courte (FR) d'un timestamp ISO ; vide si absent ou invalide.
+function _mscFmtDate(iso) {
+  if (!iso) return '';
+  const dt = new Date(iso);
+  if (isNaN(dt)) return '';
+  const opts = { day: 'numeric', month: 'short' };
+  if (dt.getFullYear() !== new Date().getFullYear()) opts.year = 'numeric';
+  return dt.toLocaleDateString('fr-FR', opts);
+}
 // Enrichissement live (une seule requete par lot sur la TABLE prospects, sous RLS -- jamais la vue
 // prospects_scan_window -- et jamais une requete par carte) -- partage par le rendu scan_entries v1 et par la
 // chaine de repli decisions_json (fonction commune avec demo-private.html et kaizenology.html, 21/09).
 // archived n'est PAS filtre : une fiche archivee depuis le scan doit rester visible avec son etat.
 // Etape A (unification Today/Signals, 21/09) : + sector, email (lignes de la carte) et company_verified,
-// identity_confidence, identity_verdict (garde d'identite, lue par _scoreReliabilityBadge via _mscReliabilityChipHTML).
+// identity_confidence, identity_verdict (garde d'identite, lue par _scoreReliabilityBadge via _mscDecisionCardHTML).
 const _MSC_LIVE_COLS = 'id, name, company, stage, icp_score, icp_reason, archived, signal, signal_type, signal_date, signal_url, signal_interpretation, next_action_cache, linkedin, sector, email, company_verified, identity_confidence, identity_verdict';
 async function _mscFetchLiveProspects(ids) {
   const liveById = {};
@@ -6823,8 +6870,7 @@ function _removePendingActionCard(id) {
 // AUJOURD'HUI / ENVOYER / BOITE DE RECEPTION (parite d'ecrans, brief 2026-09-12)
 // Simplifications volontaires vs. demo-private.html/kaizenology.html, toutes signalees a
 // Thomas dans la reponse plutot que decidees en silence :
-// - Aujourd'hui : pas de cycle de batch (priority_batches, schema non confirme) ni de rail
-//   "Agents at work" (aucun agent Wominds).
+// - Aujourd'hui : simplifications levees le 2026-10-05 (parite totale avec demo-private.html, cf. bloc AUJOURD'HUI plus bas).
 // - Envoyer/Boite de reception : structure complete et fonctionnelle (generation, brouillons,
 //   Mark ready, Mark as sent, Dismiss), mais le bouton d'ENVOI REEL est desactive avec bandeau
 //   explicatif (option (a) choisie par Thomas) -- HeyReach/Smartlead Wominds n'existent pas.
@@ -6835,10 +6881,10 @@ function _removePendingActionCard(id) {
 // envoi LinkedIn reel active sur Envoyer (bandeau retire) ; bandeau statique Boite de reception
 // retire (jamais lie aux donnees, agent de classification desormais cable) ; voix de marque
 // Wominds disponible via clients.messaging_playbook (ecran Agents). Reste vrai tel quel : pas
-// de rail "Agents at work"/priority_batches sur Aujourd'hui, envoi email toujours desactive.
+// envoi email toujours desactive.
 // ══════════════════════════════════════════════════════════════════════════
 
-// ── Capacite partagee Aujourd'hui/Envoyer (identique demo-private.html:7916-7963, generique) ──
+// ── Capacite d'envoi (panneau de la vue Envoyer ; plus de panneau sur Aujourd'hui) ──
 const INVITE_DAILY_LIMIT = 30;
 const EMAIL_DAILY_LIMIT = 40;
 let _todaySendCounts = { invitesSent: 0, emailsSent: 0 };
@@ -6867,7 +6913,6 @@ function _updateSentCounter() {
   const { invitesSent: inv, emailsSent: em } = _todaySendCounts;
   const followUpsCleared = em;
   const followUpsDue = _todayJ5PendingCount + em;
-  _renderCapacityBars('today-capacity-bars', inv, em, followUpsCleared, followUpsDue);
   _renderCapacityBars('send-capacity-bars', inv, em, followUpsCleared, followUpsDue);
 }
 async function _fetchTodaySendCounts() {
@@ -6883,19 +6928,17 @@ async function _fetchTodaySendCounts() {
   _updateSentCounter();
 }
 
-// FIX 30/09 (portage Refonte v2 demo-private.html -> Wominds, go Thomas) : bloc stats "Aujourd'hui"
-// au-dessus de la liste de priorites -- meme principe que _loadTodayStats (demo-private.html:5753-
-//5807), adapte a wominds.html : pas de _applyMandateFilter/activeMandateId ici (vue consolidee,
-// cf. commentaire wominds.html:3722-3726), _fetchTodaySendCounts() deja existante reutilisee telle
-// quelle, "en attente de vous" lu directement sur #today-queued-count (deja rempli par
-// loadDailyPriorities/loadTodayRun, pas de _priorityShownProspects sur ce fichier).
+// Bloc stats « Aujourd'hui » (portage de _loadTodayStats, demo-private.html) : 4 chiffres réels, aucune donnée d'exemple. « Envoyés
+// aujourd'hui » = invitations LinkedIn + emails de relance (_fetchTodaySendCounts, seules sources de données d'envoi de Wominds).
+// « En attente de vous » est écrit par _updateQueuedCount() (seule source de vérité, appelée au bon moment par les deux chargeurs de
+// listes) ; valeur initiale = ce qui est déjà connu au moment du rendu.
 async function _loadTodayStats() {
   const el = document.getElementById('today-stats-row');
   if (!el) return;
   try {
     const todayStart = new Date().toISOString().slice(0, 10) + 'T00:00:00.000Z';
     const tomorrowStart = new Date(Date.now() + 86400000).toISOString().slice(0, 10) + 'T00:00:00.000Z';
-    const [{ count: signalsFound }, { count: messagesDrafted }] = await Promise.all([
+    const [{ count: signalsCount, error: errSig }, { count: draftsCount, error: errDrafts }] = await Promise.all([
       sbClient.from('prospects').select('id', { count: 'exact', head: true })
         .eq('client_id', CLIENT_ID).eq('archived', false)
         .gte('signal_date', todayStart).lt('signal_date', tomorrowStart),
@@ -6903,19 +6946,29 @@ async function _loadTodayStats() {
         .eq('client_id', CLIENT_ID).neq('content_type', 'objection_response')
         .gte('created_at', todayStart).lt('created_at', tomorrowStart),
     ]);
+    if (errSig) console.warn('[_loadTodayStats] signals:', errSig);
+    if (errDrafts) console.warn('[_loadTodayStats] drafts:', errDrafts);
     await _fetchTodaySendCounts().catch(() => {});
     const sentToday = (_todaySendCounts.invitesSent || 0) + (_todaySendCounts.emailsSent || 0);
-    const waitingEl = document.getElementById('today-queued-count');
-    const waitingOnYou = waitingEl ? (parseInt(waitingEl.textContent, 10) || 0) : 0;
+    const waitingCount = _priorityShownProspects.length + _reminderShownProspects.length;
+
     const stats = [
-      { label: 'Signaux trouvés', value: signalsFound || 0 },
-      { label: 'Messages rédigés', value: messagesDrafted || 0 },
-      { label: "Envoyés aujourd'hui", value: sentToday },
-      { label: 'En attente de vous', value: waitingOnYou },
+      { label: 'SIGNAUX TROUVÉS', value: signalsCount ?? 0, note: "aujourd'hui" },
+      { label: 'MESSAGES RÉDIGÉS', value: draftsCount ?? 0, note: 'ouvertures, posts, contenus' },
+      { label: "ENVOYÉS AUJOURD'HUI", value: sentToday, note: 'invitations + emails', color: '#166b48' }
     ];
-    el.innerHTML = stats.map(s =>
-      '<div class="pipe-stat"><span class="pipe-stat-val">' + s.value + '</span><span class="pipe-stat-label">' + s.label + '</span></div>'
-    ).join('');
+
+    el.innerHTML = stats.map((s, i) => `
+      <div style="flex:1 1 120px;min-width:110px;padding:12px 16px;box-sizing:border-box;${i > 0 ? 'border-left:1px solid var(--border);' : ''}">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.1em;color:var(--muted);">${_esc(s.label)}</div>
+        <div style="margin-top:4px;font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;letter-spacing:-.02em;color:${s.color || 'var(--ink)'};">${s.value}</div>
+        <div style="margin-top:2px;font-size:11px;color:var(--muted);">${_esc(s.note)}</div>
+      </div>`).join('')
+      + `<div style="flex:1 1 120px;min-width:110px;padding:12px 16px;box-sizing:border-box;border-left:1px solid var(--border);">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.1em;color:var(--muted);">EN ATTENTE DE VOUS</div>
+        <div id="today-stat-waiting-value" style="margin-top:4px;font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;letter-spacing:-.02em;color:${waitingCount ? 'var(--navy)' : '#166b48'};">${waitingCount}</div>
+        <div id="today-stat-waiting-note" style="margin-top:2px;font-size:11px;color:var(--muted);">${_esc(waitingCount ? 'classées ci-dessous · objectif ' + _todayDailyCount + ' par jour' : 'rien en attente')}</div>
+      </div>`;
   } catch (e) {
     console.error('[_loadTodayStats]', e);
     el.innerHTML = '';
@@ -7078,199 +7131,657 @@ async function _loadReviewHandled() {
 }
 
 // ── AUJOURD'HUI ─────────────────────────────────────────────────────────────
-// Colonnes prospects des cartes Aujourd'hui -- partagees par loadDailyPriorities (decisions du
-// Morning Scan) et loadTodayRun (repli), pour que les deux alimentent _prospectsById avec la
-// meme fiche complete.
-const _TODAY_PROSPECT_COLS = 'id,name,company,title,sector,stage,icp_score,icp_reason,signal,signal_url,signal_type,signal_interpretation,signal_interpretation_updated_at,signal_date,created_at,email,phone,linkedin,website_url,region,country,country_code,company_size,funding_stage,last_funding_date,total_funding,hard_criteria_met,company_verified,identity_confidence,identity_verdict,identity_verdict_checked_at,company_checked_at,score_role,score_size,score_signal_strength,score_recency,score_mandate_fit,score_completeness,reminder_date,deal_value,deal_currency,deal_structure,deal_weighted,next_action,next_action_date,next_action_cache,next_action_generated_at,origin';
-// Port de loadDailyPriorities (demo-private.html) -- oubli de clonage constate le 2026-09-21 :
-// Wominds affichait toujours le classement arithmetique (loadTodayRun) meme quand le Morning Scan
-// du jour avait deja produit des decisions. Priorite au scan : morning_scan_decisions du jour
-// (scan_date UTC, comme demo-private.html), fiches chargees en UNE requete, today_action avant
-// opportunistic_connection. Liste resolue vide (aucune decision, fiches archivees/introuvables/
-// masquees par le filtre pays) ou erreur : REPLI sur loadTodayRun, comportement inchange.
-// Source des fiches : la table prospects (non archives) et non la vue prospects_scan_window : meme
-// resultat (la vue = prospects WHERE archived = false) mais RLS respectee (la vue n'est pas
-// security_invoker), et memes colonnes que loadTodayRun.
-// AJOUT 05/10 (demande Thomas, meme regle que demo-private.html) : un prospect dont l'invitation LinkedIn est en attente (linkedin_tag='invite-sent') ne reste pas dans Today tant que la connexion n'est pas acceptee. IS NULL explicite : un .neq() seul exclurait les prospects sans tag.
+// Parité totale avec demo-private.html (règle « Parité produit totale pour tout nouveau client », décision du
+// 2026-09-12 « Today simplifié pour Wominds » abrogée) : mêmes fonctions, mêmes ids, même ordre
+// (décisions du Morning Scan, puis actions reportées, puis classement arithmétique). Adaptations propres à Wominds :
+//  - FR uniquement (pas de currentLang) ; vue consolidée, mandate_id = NULL pour priority_batches (cf. CLAUDE.md) ;
+//  - source des fiches = la TABLE prospects (RLS respectée : la vue prospects_scan_window n'est pas security_invoker),
+//    donc pas de icp_rank_in_mandate/signal_rank_in_mandate : le classement arithmétique trie côté client ;
+//  - filtre « invitation en attente » (_excludePendingInvite) et filtre pays (_passesCountryFilter) sur TOUTES les listes ;
+//  - client_id = CLIENT_ID (Wominds), nombre de priorités du jour = mandates.daily_priority_count du mandat Wominds.
+// Colonnes prospects des cartes Aujourd'hui (partagées par toutes les listes ci-dessous, pour que chacune alimente
+// _prospectsById avec la même fiche complète).
+const _TODAY_PROSPECT_COLS = 'id,name,company,title,sector,stage,icp_score,icp_reason,signal,signal_url,signal_type,signal_interpretation,signal_interpretation_updated_at,signal_date,created_at,email,phone,linkedin,website_url,region,country,country_code,company_size,funding_stage,last_funding_date,total_funding,hard_criteria_met,company_verified,identity_confidence,identity_verdict,identity_verdict_checked_at,company_checked_at,score_role,score_size,score_signal_strength,score_recency,score_mandate_fit,score_completeness,reminder_date,last_contact,priority_batch_number,deal_value,deal_currency,deal_structure,deal_weighted,next_action,next_action_date,next_action_cache,next_action_generated_at,origin';
+let _priorityCurrentBatch = 1;
+let _priorityShownProspects = [];
+// « À traiter maintenant » (reminder_date de J-7 à aujourd'hui) et backlog (reminder_date < J-7) : tableaux distincts pour que
+// « N actions en file » ne compte jamais le backlog. _reminderBacklogTotal = count exact Supabase (peut dépasser les lignes rendues).
+let _reminderShownProspects = [];
+let _reminderBacklogProspects = [];
+let _reminderBacklogTotal = 0;
+
+// Un prospect dont l'invitation LinkedIn est en attente (linkedin_tag='invite-sent') ne reste pas dans Today tant que la connexion
+// n'est pas acceptée. Filtre SQL (et non JS) pour que le compteur exact du backlog reste juste. IS NULL explicite : un .neq() seul
+// exclurait aussi les prospects sans tag.
+function _excludePendingInvite(query) {
+  return query.or('linkedin_tag.is.null,linkedin_tag.neq.invite-sent');
+}
+// Même règle que _passesCountryFilter (DISPLAY_COUNTRY_FILTER), côté SQL : pour que le compteur exact du backlog ne compte pas
+// les prospects masqués. country_code absent = visible (cf. _passesCountryFilter).
+function _restrictDisplayCountry(query) {
+  return DISPLAY_COUNTRY_FILTER ? query.or('country_code.is.null,country_code.eq.' + DISPLAY_COUNTRY_FILTER) : query;
+}
+
+// ── Force de signal EFFECTIVE : préférences apprises appliquées au classement (miroir navigateur de la vue SQL
+// prospects_effective, réservée à service_role ; identique à demo-private.html). effective = 0 si prospect.signal_type figure dans
+// learned_preferences.deprioritized_types (client, mandate_id NULL, agent 'signal_interpretation', ligne la plus récente), sinon la
+// force stockée. Lecture impossible = repli sur la force stockée, jamais un blocage de l'écran.
+let _deprioTypes = null;      // Set des types déprioritisés, null = pas chargé
+let _deprioClientId = null;   // client pour lequel le Set a été chargé (CLIENT_ID est résolu dynamiquement)
+let _deprioPromise = null;
+function _loadDeprioritizedTypes() {
+  if (_deprioPromise && _deprioClientId === CLIENT_ID) return _deprioPromise;
+  const forClient = CLIENT_ID;
+  _deprioClientId = forClient;
+  _deprioPromise = (async () => {
+    try {
+      const { data, error } = await sbClient.from('learned_preferences').select('deprioritized_types')
+        .eq('client_id', forClient).is('mandate_id', null).eq('agent_name', 'signal_interpretation')
+        .order('generated_at', { ascending: false, nullsFirst: false }).limit(1);
+      if (error) throw error;
+      const arr = (data && data[0] && Array.isArray(data[0].deprioritized_types)) ? data[0].deprioritized_types : [];
+      _deprioTypes = new Set(arr);
+    } catch (e) {
+      console.warn('[_loadDeprioritizedTypes]', e);
+      _deprioTypes = null;
+      _deprioPromise = null; // nouvel essai au prochain appel
+    }
+    return _deprioTypes;
+  })();
+  return _deprioPromise;
+}
+// À appeler après `await _loadDeprioritizedTypes()`. Prospect sans signal_type ou types non chargés : force stockée.
+function _effectiveSignalStrength(p) {
+  if (p && p.signal_type && _deprioTypes && _deprioTypes.has(p.signal_type)) return 0;
+  return p ? p.score_signal_strength : null;
+}
+// Clé de dédoublonnage nom|société normalisée (minuscules, sans accents, espaces réduits).
+function _mscPersonKey(name, company) {
+  const n = s => _mscNorm(s || '').replace(/\s+/g, ' ');
+  return n(name) + '|' + n(company);
+}
+
+// « N actions en file » : Step 1 + Step 2 (À traiter maintenant uniquement, jamais le backlog), mêmes tableaux que ceux qui alimentent
+// _renderPriorityCards()/_updatePrioritiesNextBtn() et #today-followup-count -- pas un second comptage. Appelée par
+// loadDailyPriorities() ET _loadFollowUpsDue() (chargées en parallèle au switch d'onglet), donc toujours à jour quel que soit l'ordre
+// de résolution. Seule source de vérité du chiffre « En attente de vous » du bloc stats.
+// capacité du jour = mandates.daily_priority_count du mandat Wominds (simple note, pas de panneau) : _todayDailyCount, repli 10.
+let _todayDailyCount = 10;
+function _updateQueuedCount() {
+  const n = _priorityShownProspects.length + _reminderShownProspects.length;
+  const el = document.getElementById('priorities-queued-count');
+  if (el) el.textContent = n;
+  const valEl = document.getElementById('today-stat-waiting-value');
+  const noteEl = document.getElementById('today-stat-waiting-note');
+  if (valEl) { valEl.textContent = n; valEl.style.color = n ? 'var(--navy)' : '#166b48'; }
+  if (noteEl) noteEl.textContent = n ? 'classées ci-dessous · objectif ' + _todayDailyCount + ' par jour' : 'rien en attente';
+}
+
 async function loadDailyPriorities() {
-  const container = document.getElementById('today-priorities-container');
+  const container = document.getElementById('priorities-container');
   if (!container) return;
-  container.innerHTML = '<div style="padding:32px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">Chargement…</div>';
-  const subEl = document.getElementById('today-queued-sub');
-  if (subEl) {
-    if (subEl.dataset.def === undefined) subEl.dataset.def = subEl.textContent;
-    subEl.textContent = subEl.dataset.def;
-  }
+  container.innerHTML = '<div style="padding:32px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">Chargement des priorités…</div>';
+
   try {
+    // Vue consolidée Wominds : mandate_id = NULL pour priority_batches (index unique (client_id, mandate_id) NULLS NOT DISTINCT).
+    const { data: batchData, error: errBatch } = await sbClient.from('priority_batches').select('current_batch')
+      .eq('client_id', CLIENT_ID).is('mandate_id', null).maybeSingle();
+    if (errBatch) console.warn('[loadDailyPriorities] priority_batches:', errBatch);
+    _priorityCurrentBatch = batchData ? Math.max(batchData.current_batch, 1) : 1;
+
+    let N = 10;
+    const { data: mdata, error: errMandate } = await sbClient.from('mandates').select('daily_priority_count')
+      .eq('client_id', CLIENT_ID).limit(1);
+    if (errMandate) console.warn('[loadDailyPriorities] mandates:', errMandate);
+    if (mdata && mdata[0] && mdata[0].daily_priority_count) N = mdata[0].daily_priority_count;
+    _todayDailyCount = N;
+
+    // Priorité Morning Scan : si le scan du jour a déjà produit des décisions explicites (today_action/opportunistic_connection),
+    // elles remplacent entièrement le calcul arithmétique ci-dessous. Repli sur le calcul arithmétique si le scan n'a pas encore
+    // tourné aujourd'hui ou n'a produit aucune décision exploitable.
     const { data: decisionRows, error: errDecisions } = await sbClient.from('morning_scan_decisions')
       .select('prospect_id, category, mandate_id')
       .eq('client_id', CLIENT_ID)
       .eq('scan_date', new Date().toISOString().slice(0, 10));
-    if (errDecisions) throw errDecisions;
-    const _catRank = { today_action: 0, opportunistic_connection: 1 };
-    const rankOf = c => (_catRank[c] !== undefined ? _catRank[c] : 2);
-    // Un prospect present dans plusieurs categories garde la mieux classee.
-    const categoryByProspect = {};
-    (decisionRows || []).forEach(r => {
-      if (!r || !r.prospect_id) return;
-      const cur = categoryByProspect[r.prospect_id];
-      if (cur === undefined || rankOf(r.category) < rankOf(cur)) categoryByProspect[r.prospect_id] = r.category;
-    });
-    const ids = Object.keys(categoryByProspect);
-    let prospects = [];
-    if (ids.length) {
-      const { data: rows, error: errDP } = await sbClient.from('prospects')
-        .select(_TODAY_PROSPECT_COLS)
+    if (errDecisions) console.warn('[loadDailyPriorities] morning_scan_decisions:', errDecisions);
+
+    const _nextBtn = document.getElementById('priorities-next-btn');
+    const _skipBtn = document.getElementById('priorities-skip-btn');
+
+    if (decisionRows && decisionRows.length > 0) {
+      const _catRank = { today_action: 0, opportunistic_connection: 1 };
+      const _rankOf = c => (_catRank[c] !== undefined ? _catRank[c] : 2);
+      // Un prospect présent dans plusieurs catégories garde la mieux classée.
+      const _decisionByProspect = {};
+      decisionRows.forEach(r => {
+        if (!r || !r.prospect_id) return;
+        const cur = _decisionByProspect[r.prospect_id];
+        if (cur === undefined || _rankOf(r.category) < _rankOf(cur)) _decisionByProspect[r.prospect_id] = r.category;
+      });
+      // icp_score NULL exclu explicitement : jamais de « 0.0 ICP » affiché.
+      let decisionQ = sbClient.from('prospects').select(_TODAY_PROSPECT_COLS)
         .eq('client_id', CLIENT_ID).eq('archived', false)
-        // icp_score NULL exclu (meme filet que loadTodayRun) : jamais de "0.0 ICP" affiche.
         .not('icp_score', 'is', null)
-        .in('id', ids)
-        .or('linkedin_tag.is.null,linkedin_tag.neq.invite-sent');
+        .in('id', Object.keys(_decisionByProspect));
+      decisionQ = _excludePendingInvite(decisionQ);
+      const { data: decisionProspects, error: errDP } = await decisionQ;
       if (errDP) throw errDP;
-      prospects = (rows || []).filter(_passesCountryFilter)
-        .sort((a, b) => (rankOf(categoryByProspect[a.id]) - rankOf(categoryByProspect[b.id])) || ((b.icp_score || 0) - (a.icp_score || 0)));
-    }
-    if (!prospects.length) {
-      // FIX 05/10 (meme defaut que demo-private.html) : decisions du scan dont l'invitation LinkedIn est deja envoyee = TRAITEES. Sans ce
-      // comptage, quand toutes etaient en attente de connexion, le repli sur loadTodayRun affichait un classement par score sans signal.
-      if (ids.length) {
+      // FIX 05/10 (meme defaut que demo-private.html) : decisions du scan dont l'invitation LinkedIn est deja envoyee (linkedin_tag='invite-sent')
+      // = TRAITEES, pas « inexploitables ». Sans ce comptage, quand toutes etaient en attente de connexion, le repli affichait un classement par
+      // score sans signal. Compte seulement : n'ajoute aucune ligne a la liste.
+      let _decisionsPending = 0;
+      {
         const { count: _pc, error: _pcErr } = await sbClient.from('prospects')
           .select('id', { count: 'exact', head: true })
           .eq('client_id', CLIENT_ID).eq('archived', false).eq('linkedin_tag', 'invite-sent')
-          .in('id', ids);
+          .in('id', Object.keys(_decisionByProspect));
         if (_pcErr) console.warn('[loadDailyPriorities] comptage invitations en attente:', _pcErr);
-        else if (_pc > 0) {
-          const _other = Math.max(0, ids.length - _pc);
-          document.getElementById('today-queued-count').textContent = 0;
-          container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">Rien à traiter pour le moment : ' + _pc + ' invitation(s) LinkedIn du scan du matin déjà envoyée(s), en attente de connexion.'
-            + (_other ? ' ' + _other + ' autre(s) décision(s) du scan sans fiche affichable (pas encore scorées ou archivées).' : '') + '</div>';
-          return;
-        }
+        else _decisionsPending = _pc || 0;
       }
-      if (ids.length) console.warn('[loadDailyPriorities] ' + ids.length + ' decision(s) Morning Scan du jour, aucune fiche exploitable (archivees/introuvables) -- repli sur loadTodayRun.');
-      return loadTodayRun();
+      // Un envoi (LinkedIn ou email) pose déjà priority_batch_number = _priorityCurrentBatch sur la fiche : signal « traité dans ce
+      // lot, ne plus le remontrer ».
+      _priorityShownProspects = (decisionProspects || [])
+        .filter(_passesCountryFilter)
+        .filter(p => (p.priority_batch_number || 0) !== _priorityCurrentBatch)
+        .map(p => { p._morningScanCategory = _decisionByProspect[p.id] || null; return p; })
+        .sort((a, b) => (_rankOf(a._morningScanCategory) - _rankOf(b._morningScanCategory)) || ((b.icp_score || 0) - (a.icp_score || 0)));
+      // Complète avec les actions reportées : ICP >= 7, tâche due dans les 3 derniers jours (ou aujourd'hui), non archivée, pas déjà
+      // traitée dans ce lot, plafonnée à N au total.
+      if ((_priorityShownProspects.length > 0 || _decisionsPending > 0) && _priorityShownProspects.length < N) {
+        try {
+          const _todayIso = new Date().toISOString().slice(0, 10);
+          const _sinceIso = new Date(Date.now() - 3 * 86400000).toISOString().slice(0, 10);
+          let carryQ = sbClient.from('prospects').select(_TODAY_PROSPECT_COLS)
+            .eq('client_id', CLIENT_ID).eq('archived', false)
+            .neq('stage', 'Proposal').neq('stage', 'Closed').neq('stage', 'Archived')
+            .gte('icp_score', 7)
+            .not('next_action', 'is', null).neq('next_action', '')
+            .gte('next_action_date', _sinceIso).lte('next_action_date', _todayIso)
+            .order('icp_score', { ascending: false }).limit(N * 2);
+          carryQ = _excludePendingInvite(carryQ);
+          const { data: carryRows, error: errCarry } = await carryQ;
+          if (errCarry) throw errCarry;
+          const _have = new Set(_priorityShownProspects.map(p => p.id));
+          const _haveKeys = new Set(_priorityShownProspects.map(p => _mscPersonKey(p.name, p.company)));
+          (carryRows || [])
+            .filter(_passesCountryFilter)
+            .filter(p => (p.priority_batch_number || 0) !== _priorityCurrentBatch && !_have.has(p.id) && !_haveKeys.has(_mscPersonKey(p.name, p.company)))
+            .slice(0, N - _priorityShownProspects.length)
+            .forEach(p => { p._morningScanCategory = 'carryover'; _haveKeys.add(_mscPersonKey(p.name, p.company)); _priorityShownProspects.push(p); });
+        } catch (e) { console.warn('[loadDailyPriorities] actions reportées:', e); }
+      }
+      // Liste de décisions résolue VIDE (fiches archivées/introuvables) = on ne s'y arrête pas, on retombe sur le calcul arithmétique.
+      if (_priorityShownProspects.length > 0) {
+        _priorityShownProspects.forEach(p => _cacheProspectRow(p));
+        _updateQueuedCount();
+        _renderPriorityCards(_priorityShownProspects);
+        // Rien à parcourir par lots sur une liste de décisions du scan : les deux boutons sont masqués.
+        if (_nextBtn) { _nextBtn.disabled = true; _nextBtn.style.opacity = '0.4'; _nextBtn.style.display = 'none'; }
+        if (_skipBtn) { _skipBtn.disabled = true; _skipBtn.style.opacity = '0.4'; _skipBtn.style.display = 'none'; }
+        return;
+      }
+      // FIX 05/10 : toutes les decisions affichables sont des invitations deja envoyees -> rien a traiter, pas de repli sur le classement par score.
+      if (_decisionsPending > 0) {
+        const _other = Math.max(0, Object.keys(_decisionByProspect).length - _decisionsPending);
+        _updateQueuedCount();
+        container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">Rien à traiter pour le moment : ' + _decisionsPending + ' invitation(s) LinkedIn du scan du matin déjà envoyée(s), en attente de connexion.'
+          + (_other ? ' ' + _other + ' autre(s) décision(s) du scan sans fiche affichable (pas encore scorées ou archivées).' : '') + '</div>';
+        if (_nextBtn) { _nextBtn.disabled = true; _nextBtn.style.opacity = '0.4'; _nextBtn.style.display = 'none'; }
+        if (_skipBtn) { _skipBtn.disabled = true; _skipBtn.style.opacity = '0.4'; _skipBtn.style.display = 'none'; }
+        return;
+      }
+      console.warn('[loadDailyPriorities] ' + decisionRows.length + ' décision(s) Morning Scan du jour, aucune fiche exploitable (archivées/introuvables) -- repli sur le calcul arithmétique.');
     }
-    prospects.forEach(p => _cacheProspectRow(p));
-    document.getElementById('today-queued-count').textContent = prospects.length;
-    if (subEl) subEl.textContent = ' prospects prioritaires du Morning Scan du jour : actions du jour d\'abord, puis connexions opportunistes.';
-    container.innerHTML = prospects.map(_todaySharedCardHTML).join('');
-    _fetchTodaySendCounts().catch(err => console.error('_fetchTodaySendCounts:', err));
-  } catch (e) {
-    console.warn('[loadDailyPriorities] repli sur loadTodayRun :', e);
-    return loadTodayRun();
-  }
-}
-async function loadTodayRun() {
-  const container = document.getElementById('today-priorities-container');
-  if (!container) return;
-  container.innerHTML = '<div style="padding:32px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">Chargement…</div>';
-  try {
-    const { data, error } = await sbClient.from('prospects')
-      .select(_TODAY_PROSPECT_COLS)
+
+    if (_nextBtn) _nextBtn.style.display = '';
+    if (_skipBtn) { _skipBtn.style.display = ''; _skipBtn.disabled = false; _skipBtn.style.opacity = '1'; }
+
+    // Classement arithmétique. icp_score NULL exclu explicitement (filet défensif : jamais de « 0.0 ICP » pour une fiche jamais scorée).
+    // demo-private.html fusionne le top 60 par rang ICP et le top 60 par rang de signal (colonnes de la vue) ; ici on lit la table et on
+    // trie côté client : les 200 meilleurs ICP suffisent largement pour un pipeline de cette taille.
+    // ponytail: plafond 200 lignes, à relever (ou à reprendre en vue security_invoker) si le pipeline Wominds dépasse ce volume.
+    let q = sbClient.from('prospects').select(_TODAY_PROSPECT_COLS)
       .eq('client_id', CLIENT_ID).eq('archived', false)
-      .neq('stage', 'Proposal').neq('stage', 'Negotiation').neq('stage', 'Closed')
-      // Fix 2026-09-15 (URGENT, filet defensif -- backstop, pas le vrai fix) : exclusion EXPLICITE
-      // des icp_score NULL, pas seulement un tri decroissant. Un ORDER BY ne suffit pas a empecher
-      // un prospect jamais score de remonter et de s'afficher "0.0 ICP" (confirme reel sur Hanane El
-      // Hamraoui ce soir, icp_score NULL depuis sa creation via l'ajout manuel jusqu'a une
-      // intervention manuelle). Le vrai fix est le webhook de scoring desormais declenche a l'insert
-      // (saveProspectForm/importCSV ci-dessus) -- ce filtre reste un filet si un futur bug fait a
-      // nouveau echapper un prospect au scoring automatique.
+      .neq('stage', 'Proposal').neq('stage', 'Closed').neq('stage', 'Archived')
       .not('icp_score', 'is', null)
-      .or('linkedin_tag.is.null,linkedin_tag.neq.invite-sent')
-      .order('icp_score', { ascending: false })
-      .limit(100);
-    if (error) throw error;
-    // Sur-fetch (100 au lieu des 20 affiches) car _passesCountryFilter() retire des lignes
-    // apres coup -- sans cette marge, filtrer un .limit(20) pourrait afficher moins de 20
-    // prospects meme quand la base en contient davantage (cf. DISPLAY_COUNTRY_FILTER plus haut).
-    const prospects = (data || []).filter(_passesCountryFilter).slice(0, 20);
-    prospects.forEach(p => _cacheProspectRow(p));
-    document.getElementById('today-queued-count').textContent = prospects.length;
-    if (!prospects.length) {
-      container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">Aucun prospect pour l\'instant. Cette vue se remplira dès que la prospection automatique commencera à qualifier des prospects (ICP ≥ 6).</div>';
-    } else {
-      container.innerHTML = prospects.map(_todaySharedCardHTML).join('');
+      .order('icp_score', { ascending: false }).limit(200);
+    q = _excludePendingInvite(q);
+    const { data: rows, error: errRows } = await q;
+    if (errRows) throw errRows;
+    const merged = (rows || []).filter(_passesCountryFilter);
+
+    function _priDecay(d) {
+      if (!d) return 0.05;
+      const days = (Date.now() - new Date(d).getTime()) / 86400000;
+      if (days <= 2) return 1.0;
+      if (days <= 7) return 0.8;
+      if (days <= 14) return 0.5;
+      if (days <= 30) return 0.2;
+      return 0.05;
     }
-    _fetchTodaySendCounts().catch(err => console.error('_fetchTodaySendCounts:', err));
+    await _loadDeprioritizedTypes();
+    merged.forEach(p => {
+      const _idPenalty = p.identity_confidence === 'low' ? 0.85 : 1.0;
+      p._combinedScore = ((p.icp_score || 0) * 0.7
+        + ((_effectiveSignalStrength(p) || 0) * _priDecay(p.signal_date)) * 0.3) * _idPenalty;
+    });
+    merged.sort((a, b) => b._combinedScore - a._combinedScore);
+
+    const eligible = merged.filter(p => (p.priority_batch_number || 0) === 0);
+    _priorityShownProspects = eligible.slice(0, N);
+    _priorityShownProspects.forEach(p => { _cacheProspectRow(p); p._morningScanCategory = null; });
+
+    _updateQueuedCount();
+
+    // Distingue « rien dans CE lot, il y en a d'autres à paginer » (merged non vide, tout déjà montré) de « rien d'éligible du tout »
+    // (merged vide) : le message « Lot suivant » n'a de sens que dans le premier cas.
+    _renderPriorityCards(_priorityShownProspects, merged.length === 0 ? 'none-eligible' : 'batch-exhausted');
+    // Aucune décision du scan pour aujourd'hui -> cette liste est un classement par score, pas des actions recommandées.
+    if (!(decisionRows && decisionRows.length > 0) && _priorityShownProspects.length > 0) {
+      const _fb = document.createElement('div');
+      _fb.style.cssText = 'margin:0 0 12px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:var(--fs-sm);color:var(--muted);';
+      _fb.textContent = "Le scan du matin n'a retenu aucune action aujourd'hui. Cette liste est un classement par score (ICP et signal), pas des actions recommandées.";
+      container.insertBefore(_fb, container.firstChild);
+    }
+    _updatePrioritiesNextBtn();
+
   } catch(e) {
-    console.error('[loadTodayRun]', e);
-    container.innerHTML = '<div style="padding:32px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">Impossible de charger les priorités du jour pour le moment.</div>';
+    console.error('[loadDailyPriorities]', e);
+    if (container) container.innerHTML =
+      `<div style="padding:32px;text-align:center;color:var(--muted);">Erreur : ${_esc(e.message || 'inconnue')}</div>`;
   }
 }
-// ── Etape B (unification Today/Signals, 21/09) : la vue Aujourd'hui rend ses cartes avec le composant PARTAGE _mscDecisionCardHTML (celui des
-// cartes Morning Scan / Signaux) au lieu de _todayCardHTML (ancien gabarit, retiree le 22/09 -- nettoyage code mort, item #3). Decisions de Thomas : pied
-// « Generer » propre a Aujourd'hui (option A) ; infobulle = icp_reason ; ligne de provenance abandonnee (Wominds n'en a pas) ; le repli
-// arithmetique (loadTodayRun) rend la meme carte.
-// Adaptateur (meme NOM et meme forme sur les 3 dashboards) : ligne prospects chargee par Aujourd'hui -> pseudo-entree scan_entries (_scanEntry:true,
-// signal {text,type,date}, JAMAIS de confidence : aucun badge de confiance invente). Le texte du signal passe par _mscCleanSignalText (TB-11,
-// meme helper que le composant depuis le 22/09 : retire « (mot-cle : ...) » et remplace « votre profil » par le nom du client, en texte brut).
+
+// ── Cartes ──────────────────────────────────────────────────────────────────────────────────────
+// Objet « décision » d'une ligne prospect de Today : pseudo-entrée scan_entries (_scanEntry:true) portant signal{text,type,date,url} ->
+// badge de type de signal et date sur la carte partagée ; AUCUNE confiance (Today n'en a pas : jamais un « Spéculatif » inventé).
+// Conversion déléguée à _mscEntryToDecision. La ligne Today elle-même est passée comme fiche « live » à _mscDecisionCardHTML.
+// Puces propres à Today (catégorie du Morning Scan) passées par le crochet d._extraChips, une FONCTION au texte constant ; catégorie
+// inconnue ou hostile (__proto__, constructor...) ou absente (repli arithmétique) = aucune puce.
 function _mscDecisionFromProspect(p) {
-  const sig = _mscCleanSignalText(p && p.signal);
-  return {
-    _scanEntry: true,
-    id: p ? _mscSafeId(p.id) || null : null,
-    name: p && p.name ? String(p.name) : null,
-    company: p && p.company ? String(p.company) : null,
-    title: p && p.title ? String(p.title) : null,
-    linkedin: p ? _mscSafeUrl(p.linkedin) || null : null,
-    signal: { text: sig || null, type: p && p.signal_type ? String(p.signal_type) : null, date: p && p.signal_date ? String(p.signal_date) : null },
+  const base = 'font-size:11px;font-weight:700;padding:2px 8px;border-radius:var(--radius-pill);white-space:nowrap;';
+  const chips = {
+    today_action: `<span style="${base}color:var(--red);background:var(--red-bg);border:1px solid var(--red-light);" title="Signalé pour action par le scan de ce matin">⚡ Aujourd'hui</span>`,
+    opportunistic_connection: `<span style="${base}color:#6b7280;background:#f3f4f6;border:1px solid #d1d5db;" title="Connexion opportuniste signalée par le scan de ce matin">🔗 Opportuniste</span>`,
+    carryover: `<span style="${base}color:#92400e;background:#fef3c7;border:1px solid #fcd34d;" title="Action déjà signalée les jours précédents, pas encore traitée">↩ Reportée</span>`,
   };
+  const d = _mscEntryToDecision({
+    prospect_id: p.id, name: p.name, company: p.company, linkedin: p.linkedin,
+    signal: { text: p.signal, type: p.signal_type, date: p.signal_date, url: p.signal_url },
+  });
+  const cat = p._morningScanCategory;
+  if (Object.prototype.hasOwnProperty.call(chips, cat)) { d.category = cat; d._extraChips = () => chips[cat]; }
+  return d;
 }
-// Carte d'Aujourd'hui = carte partagee + pied « Generer » (seulement sans action en cache : avec une action en cache, la carte partagee l'affiche deja
-// dans « Action recommandee », jamais deux blocs action). TB-16 (22/09) : le pied est desormais injecte A L'INTERIEUR de la colonne de contenu
-// (flex:1;min-width:0) de _mscDecisionCardHTML, juste apres ${linksHtml} -- PAS concatene apres le div carte (qui est lui-meme display:flex en
-// ligne [avatar][contenu] : y ajouter un 3e enfant en aurait fait une 3e COLONNE a droite, pas un bloc sous le texte). La carte se termine
-// toujours par exactement deux </div> imbriques (fermeture de la colonne de contenu puis de la carte) ; on cible le premier des deux pour
-// retomber dans la colonne, comme actionBlock/linksHtml deja presents. Avant ce fix : FRERE de la carte (hors du cadre borde), ce qui faisait
-// deborder le resultat sous la bordure. onclick="event.stopPropagation()" pose sur le pied (remplace l'ancienne protection par simple
-// fraternite) pour qu'un clic sur « Generer » ou sur le resultat n'atteigne plus le onclick d'ouverture du tiroir porte par le div carte. La
-// carte lit live.signal AVANT d.signal.text : la ligne passee en « live » porte le texte NETTOYE (copie, _prospectsById reste intact).
-// _todayGenerate et les ids today-gen-/today-action- sont ceux de l'ancienne carte (aucune logique nouvelle). Bouton compact (retour de Thomas
-// 22/09 : la grosse barre pleine largeur heritee de l'ancien Aujourd'hui est disproportionnee sur la carte partagee) -- style REUTILISE tel
-// quel (aucun nouveau style invente) : identique au bouton « + Ajouter au pipeline » du comite d'achat (_renderCommitteeCards, .sh-add-btn),
-// seul bouton d'action deja pose au bas d'une carte compacte dans ce fichier ; auto-largeur (aucun width defini), jamais pleine largeur.
-function _todaySharedCardHTML(p) {
-  const d = _mscDecisionFromProspect(p);
-  const card = _mscDecisionCardHTML(d, Object.assign({}, p, { signal: d.signal.text }));
-  const pid = d.id;
-  const footer = pid && !p.next_action_cache
-    ? `<div id="today-action-${pid}" style="margin-top:6px;font-size:var(--fs-xs);line-height:1.5;" onclick="event.stopPropagation()">
-         <button id="today-gen-${pid}" onclick="_todayGenerate('${pid}')"
-           style="font-size:var(--fs-xs);padding:4px 11px;background:var(--navy);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer">
-           Générer
-         </button>
-       </div>`
-    : '';
-  const merged = footer ? card.replace(/(\s*<\/div>\s*<\/div>)\s*$/, footer + '$1') : card;
-  return `<div style="margin-bottom:10px;">${merged}</div>`;
+
+// Libellé du bouton d'action principal : reflète l'état réel (_scoreReliabilityBadge) plutôt que d'impliquer une confiance totale.
+// Ne bloque jamais le clic, même gestionnaire derrière (_priorityGenerate).
+function _actionButtonLabel(p, cachedLabel, freshLabel) {
+  if (_scoreReliabilityBadge(p)) return '⚠ Vérifier la source d\'abord';
+  return p.next_action_cache ? cachedLabel : freshLabel;
 }
-async function _todayGenerate(prospectId) {
-  const btn = document.getElementById('today-gen-' + prospectId);
-  const actionDiv = document.getElementById('today-action-' + prospectId);
+
+// Pied « Générer » injecté À L'INTÉRIEUR du div cliquable retourné par _mscDecisionCardHTML (cf. _renderPriorityCards) pour que le
+// résultat généré reste dans le cadre de la carte -- onclick="event.stopPropagation()" pour qu'un clic sur le bouton ou sur le
+// résultat n'atteigne pas le onclick d'ouverture du tiroir porté par le div parent. Id non sûr (_mscSafeId vide) -> pas de bouton.
+// Bouton compact, largeur au contenu, jamais 100%.
+function _priorityFooterHTML(p) {
+  const pid = _mscSafeId(p.id);
+  if (!pid || p.next_action_cache) return '';
+  return `<div class="pri-action" id="pri-action-${pid}" style="margin-top:6px;" onclick="event.stopPropagation()">
+    <button id="pri-gen-${pid}" onclick="_priorityGenerate('${pid}')"
+      style="font-size:var(--fs-xs);padding:4px 11px;background:var(--navy);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer">
+      ${_actionButtonLabel(p, 'Régénérer', 'Générer')}
+    </button>
+  </div>`;
+}
+
+function _renderPriorityCards(prospects, emptyReason = 'batch-exhausted') {
+  const container = document.getElementById('priorities-container');
+  if (!container) return;
+
+  if (!prospects.length) {
+    // « Lot suivant » est trompeur quand il n'y a rien à paginer -- réservé au cas où un lot a bien été épuisé.
+    container.innerHTML =
+      '<div style="padding:40px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">' +
+      (emptyReason === 'none-eligible'
+        ? 'Aucun prospect éligible pour le moment. Cette vue se remplira au fil des imports et du prochain scan du matin.'
+        : 'Aucun prospect éligible dans ce lot. Cliquez sur « Lot suivant » pour continuer.') + '</div>';
+    const btn = document.getElementById('priorities-next-btn');
+    if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+    return;
+  }
+
+  // La carte de Today EST la carte partagée _mscDecisionCardHTML (même rendu que Morning Scan / Signaux), même rendu en mode
+  // décisions du scan et en repli arithmétique. Le pied est injecté dans la colonne de contenu : la carte se termine toujours par
+  // exactement deux </div> imbriqués (colonne de contenu puis carte) ; on cible le premier des deux. L'enveloppe .priority-card[data-id]
+  // est conservée.
+  container.innerHTML = prospects.map(p => {
+    const cardHtml = _mscDecisionCardHTML(_mscDecisionFromProspect(p), p);
+    const footerHtml = _priorityFooterHTML(p);
+    const merged = footerHtml ? cardHtml.replace(/(\s*<\/div>\s*<\/div>)\s*$/, footerHtml + '$1') : cardHtml;
+    return `<div class="priority-card" data-id="${_esc(_mscSafeId(p.id))}" style="margin-bottom:12px;">${merged}</div>`;
+  }).join('');
+}
+
+async function _priorityGenerate(prospectId) {
+  const btn = document.getElementById('pri-gen-' + prospectId);
+  const actionDiv = document.getElementById('pri-action-' + prospectId);
   const p = _prospectsById[prospectId];
   if (!p || !actionDiv) return;
   if (btn) { btn.disabled = true; btn.textContent = 'Génération…'; }
+
   try {
     const { data: ints } = await sbClient.from('interactions')
       .select('id,type,note,created_at').eq('prospect_id', prospectId)
       .order('created_at', { ascending: false }).limit(30);
     _drawerInteractions = ints || [];
   } catch(_) { _drawerInteractions = []; }
+
   try {
     const text = await _generateNextAction(p);
     if (!text.trim()) {
-      console.error('[_todayGenerate] réponse vide pour', p.name, p.company);
+      console.error('[_priorityGenerate] réponse vide pour', p.name, p.company);
       actionDiv.innerHTML = `<span style="color:var(--muted);font-size:var(--fs-xs);">Pas de réponse de l'IA, réessayez.</span>`;
       if (btn) { btn.disabled = false; btn.textContent = 'Générer'; }
       return;
     }
     actionDiv.innerHTML = _renderNextActionHTML(text, 'var(--navy)');
+    actionDiv.style.fontSize = 'var(--fs-sm)';
+    actionDiv.style.lineHeight = '1.65';
+    actionDiv.style.color = 'var(--navy)';
     actionDiv.classList.add('loaded');
+    if (btn) { btn.disabled = false; btn.textContent = 'Régénérer'; }
+    if (_prospectsById[prospectId]) _prospectsById[prospectId].next_action_cache = text;
+    const sp = _priorityShownProspects.find(x => x.id === prospectId);
+    if (sp) sp.next_action_cache = text;
+    _updatePrioritiesNextBtn();
   } catch(e) {
-    console.error('[_todayGenerate] erreur :', e);
+    console.error('[_priorityGenerate] erreur :', e);
     actionDiv.innerHTML = `<span style="color:var(--muted);font-size:var(--fs-xs);">Erreur : ${_esc(e.message || 'inconnue')}</span>`;
     if (btn) { btn.disabled = false; btn.textContent = 'Générer'; }
+  }
+}
+
+// ── Lot suivant / Passer ce lot ──────────────────────────────────────────────────────────────────
+function _updatePrioritiesNextBtn() {
+  const btn = document.getElementById('priorities-next-btn');
+  if (!btn) return;
+  if (!_priorityShownProspects.length) {
+    btn.disabled = false; btn.style.opacity = '1'; return;
+  }
+  const allActionable = _priorityShownProspects.every(p =>
+    (p.stage && p.stage !== 'Identified') || !!p.last_contact
+  );
+  btn.disabled = !allActionable;
+  btn.style.opacity = allActionable ? '1' : '0.4';
+}
+
+// Écriture priority_batches par /api/priority-batches-advance (service_role côté serveur, client_id = celui du jeton de session, jamais
+// celui fourni par l'appelant) -- même chemin que demo-private.html, voir CLAUDE.md « Fiabilité - écritures upsert silencieuses ».
+// mandate_id = null (vue consolidée Wominds). Toute erreur est surfacée par showToast en plus du console.error, jamais un catch purement
+// console. L'API met à jour priority_batch_number des prospects affichés ET priority_batches, puis la liste est rechargée.
+async function _advancePriorityBatch(action, btnId) {
+  const btn = document.getElementById(btnId);
+  if (btn) { btn.disabled = true; btn.style.opacity = '0.4'; }
+
+  const newBatch = _priorityCurrentBatch + 1;
+  const shownIds = _priorityShownProspects.map(p => p.id);
+
+  try {
+    const resp = await _authFetch('/api/priority-batches-advance', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, new_batch: newBatch, mandate_id: null, prospect_ids: shownIds })
+    });
+    const json = await resp.json();
+    if (!resp.ok || !json.ok) throw new Error(json.error || 'request failed');
+  } catch(e) {
+    console.error('[_advancePriorityBatch:' + action + '] échec :', e.message);
+    showToast('Erreur : le passage au lot suivant a échoué');
+  } finally {
+    // « Passer ce lot » reste cliquable même si rien n'a été envoyé ; « Lot suivant » est réévalué par le rechargement.
+    if (action === 'skip' && btn) { btn.disabled = false; btn.style.opacity = '1'; }
+  }
+
+  await loadDailyPriorities();
+}
+function _prioritiesNext() { return _advancePriorityBatch('next', 'priorities-next-btn'); }
+function _prioritiesSkip() { return _advancePriorityBatch('skip', 'priorities-skip-btn'); }
+
+// ── Étape 2 : « À traiter maintenant » + backlog « À revalider » ───────────────────────────────────
+// Critère : reminder_date <= aujourd'hui, stages fermés exclus. « À traiter maintenant » (J-7 -> aujourd'hui) n'est jamais évincé par le
+// backlog (reminder_date < J-7), qui vit dans sa propre section repliée ; compteur du backlog = count exact, pas seulement les lignes rendues.
+async function _loadFollowUpsDue() {
+  const el = document.getElementById('today-followups-container');
+  const divider = document.getElementById('today-followup-divider');
+  const countEl = document.getElementById('today-followup-count');
+  const backlogEl = document.getElementById('today-backlog-container');
+  const backlogDivider = document.getElementById('today-backlog-divider');
+  const backlogCountEl = document.getElementById('today-backlog-count');
+  if (!el) return;
+  try {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const sevenAgoStr = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+    const COLS = 'id,name,company,icp_score,stage,reminder_date,last_contact,linkedin,email,country_code';
+
+    let dueQ = sbClient.from('prospects').select(COLS)
+      .eq('client_id', CLIENT_ID).eq('archived', false)
+      .gte('reminder_date', sevenAgoStr).lte('reminder_date', todayStr)
+      .neq('stage', 'Closed').neq('stage', 'Archived');
+    dueQ = _restrictDisplayCountry(_excludePendingInvite(dueQ));
+
+    let backlogQ = sbClient.from('prospects').select(COLS, { count: 'exact' })
+      .eq('client_id', CLIENT_ID).eq('archived', false)
+      .lt('reminder_date', sevenAgoStr)
+      .neq('stage', 'Closed').neq('stage', 'Archived');
+    backlogQ = _restrictDisplayCountry(_excludePendingInvite(backlogQ));
+
+    const [dueRes, backlogRes] = await Promise.all([
+      dueQ.order('reminder_date', { ascending: true }).limit(100),
+      backlogQ.order('reminder_date', { ascending: true }).limit(50),
+    ]);
+    if (dueRes.error) throw dueRes.error;
+    if (backlogRes.error) throw backlogRes.error;
+
+    const rows = _reminderShownProspects = (dueRes.data || []).filter(_passesCountryFilter);
+    rows.forEach(p => _cacheProspectRow(p, true));
+    await _hydrateJ5EligibilityFor(rows.map(p => p.id));
+    const fiveDaysAgo = new Date(Date.now() - 5 * 86400000).toISOString().slice(0, 10);
+    rows.forEach(p => { p._j5Eligible = _isJ5Eligible(p, fiveDaysAgo); });
+    if (divider) divider.hidden = rows.length === 0;
+    if (countEl) countEl.textContent = rows.length ? rows.length + ' à traiter' : '';
+    _renderFollowUpRows(rows);
+
+    const backlogRows = _reminderBacklogProspects = (backlogRes.data || []).filter(_passesCountryFilter);
+    backlogRows.forEach(p => _cacheProspectRow(p, true));
+    _reminderBacklogTotal = backlogRes.count != null ? backlogRes.count : backlogRows.length;
+    if (backlogDivider) backlogDivider.hidden = _reminderBacklogTotal === 0;
+    if (backlogCountEl) backlogCountEl.textContent = _reminderBacklogTotal ? _reminderBacklogTotal + ' en retard' : '';
+    if (backlogEl) backlogEl.hidden = true; // toujours repliée au (re)chargement, même si déjà ouverte avant
+    const chevronEl = document.getElementById('today-backlog-chevron');
+    if (chevronEl) chevronEl.textContent = '▸';
+    _renderReminderBacklogRows(backlogRows);
+
+    _updateQueuedCount();
+  } catch(e) {
+    console.warn('[_loadFollowUpsDue]', e);
+    if (divider) divider.hidden = true;
+    if (backlogDivider) backlogDivider.hidden = true;
+    el.innerHTML = '';
+    if (backlogEl) backlogEl.innerHTML = '';
+  }
+}
+
+// Version légère de la portion de loadSendView() qui alimente _sendJ5Sent/_sendSequences -- évalue _isJ5Eligible() sur une poignée de
+// prospects sans payer le coût d'un chargement complet de la file Envoyer. Mêmes tables/filtres que loadSendView(), restreints aux ids
+// demandés : pas une deuxième règle d'éligibilité, juste une hydratation ciblée des mêmes globals.
+async function _hydrateJ5EligibilityFor(ids) {
+  if (!ids || !ids.length) return;
+  const [{ data: seqs }, { data: j5ints }, { data: j5seqsSent }] = await Promise.all([
+    sbClient.from('sequences').select('id, prospect_id, touch, body, status, sent_at')
+      .eq('client_id', CLIENT_ID).in('prospect_id', ids).in('status', ['draft', 'ready']),
+    sbClient.from('interactions').select('prospect_id, created_at')
+      .eq('client_id', CLIENT_ID).eq('type', 'email_j5').in('prospect_id', ids),
+    sbClient.from('sequences').select('prospect_id, sent_at, created_at')
+      .eq('client_id', CLIENT_ID).eq('touch', 'j5').eq('status', 'sent').in('prospect_id', ids),
+  ]);
+  (seqs || []).forEach(s => {
+    if (!_sendSequences[s.prospect_id]) _sendSequences[s.prospect_id] = [];
+    if (!_sendSequences[s.prospect_id].some(x => x.id === s.id)) _sendSequences[s.prospect_id].push(s);
+  });
+  (j5ints || []).forEach(i => { if (!_sendJ5Sent[i.prospect_id]) _sendJ5Sent[i.prospect_id] = i; });
+  (j5seqsSent || []).forEach(s => { if (!_sendJ5Sent[s.prospect_id]) _sendJ5Sent[s.prospect_id] = { prospect_id: s.prospect_id, created_at: s.sent_at || s.created_at }; });
+}
+
+function _renderFollowUpRows(rows) {
+  const el = document.getElementById('today-followups-container');
+  if (!el) return;
+  el.innerHTML = rows.map(p => {
+    const initials = _esc((p.name || '?').trim().split(/\s+/).map(s => s[0] || '').slice(0, 2).join('').toUpperCase() || '?');
+    const rem = _fmtReminder(p.reminder_date);
+    // Seuls les prospects réellement _isJ5Eligible() ont droit au bouton « Envoyer la relance » -> _goToJ5Followup(), qui suppose une
+    // carte J+5 existante côté Envoyer. Pour les autres, on ouvre le tiroir à la place (mêmes actions log/rappel déjà disponibles là).
+    const actionBtn = p._j5Eligible
+      ? `<button onclick="_goToJ5Followup('${p.id}')" style="flex-shrink:0;padding:6px 14px;border-radius:var(--radius-pill);background:#f2f9f5;border:1px solid #cfe0d8;color:#166b48;font-size:var(--fs-sm);font-weight:600;cursor:pointer;">Envoyer la relance</button>`
+      : `<button onclick="openProspectDetail('${p.id}')" style="flex-shrink:0;padding:6px 14px;border-radius:var(--radius-pill);background:none;border:1px solid var(--border);color:var(--text);font-size:var(--fs-sm);font-weight:600;cursor:pointer;">Voir le prospect</button>`;
+    return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);">
+      <div style="width:30px;height:30px;border-radius:50%;background:var(--navy-light);color:var(--ink);font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${initials}</div>
+      <div style="min-width:0;flex:1;">
+        <button onclick="openProspectDetail('${p.id}')" style="background:none;border:none;padding:0;cursor:pointer;font-weight:700;font-size:var(--fs-base);color:var(--navy);text-decoration:underline;">${_esc(p.name || '—')}</button>
+        <span style="font-size:var(--fs-sm);color:var(--muted);margin-left:6px;">${_esc(p.company || '—')}</span>
+        ${rem ? `<div style="font-family:'IBM Plex Mono',monospace;font-size:var(--fs-xs);color:${rem.overdue ? 'var(--danger)' : 'var(--muted)'};margin-top:2px;">${_esc(rem.label)}</div>` : ''}
+      </div>
+      ${actionBtn}
+    </div>`;
+  }).join('');
+}
+
+// « Envoyer la relance » ne doit pas appeler _startEmailSeq directement (exige un brouillon déjà généré+prêt). Le critère d'éligibilité
+// de Today (reminder_date <= aujourd'hui) et celui de la file Envoyer (_isJ5Eligible) ne se recouvrent pas systématiquement : la carte
+// peut ne pas exister dans Envoyer au moment du clic, d'où la vérification explicite plutôt qu'un scroll vers rien. (Les cartes Envoyer de
+// Wominds sont toujours dépliées : pas de _toggleSendCard.)
+async function _goToJ5Followup(id) {
+  switchTab('send');
+  await loadSendView();
+  const card = document.getElementById('sc-' + id) || document.getElementById('sc-j5-' + id);
+  if (!card) {
+    showToast("Plus dans la file d'envoi actuellement — l'étape a peut-être changé, ou l'email a déjà été envoyé.");
+    return;
+  }
+  card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  card.style.outline = '2px solid #f59e0b';
+  card.style.outlineOffset = '2px';
+  setTimeout(() => { card.style.outline = ''; card.style.outlineOffset = ''; }, 2000);
+}
+
+// Replier/déplier la section backlog -- purement visuel, aucun rechargement.
+function _toggleReminderBacklog() {
+  const el = document.getElementById('today-backlog-container');
+  const chevron = document.getElementById('today-backlog-chevron');
+  if (!el) return;
+  el.hidden = !el.hidden;
+  if (chevron) chevron.textContent = el.hidden ? '▸' : '▾';
+}
+
+// Rendu du backlog (reminder_date < J-7) : même structure de ligne que _renderFollowUpRows(), mais 4 actions rapides.
+function _renderReminderBacklogRows(rows) {
+  const el = document.getElementById('today-backlog-container');
+  if (!el) return;
+  el.innerHTML = rows.map(p => {
+    const initials = _esc((p.name || '?').trim().split(/\s+/).map(s => s[0] || '').slice(0, 2).join('').toUpperCase() || '?');
+    const rem = _fmtReminder(p.reminder_date);
+    return `<div id="backlog-row-${p.id}" style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);">
+      <div style="width:30px;height:30px;border-radius:50%;background:var(--navy-light);color:var(--ink);font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${initials}</div>
+      <div style="min-width:0;flex:1;">
+        <button onclick="openProspectDetail('${p.id}')" style="background:none;border:none;padding:0;cursor:pointer;font-weight:700;font-size:var(--fs-base);color:var(--navy);text-decoration:underline;">${_esc(p.name || '—')}</button>
+        <span style="font-size:var(--fs-sm);color:var(--muted);margin-left:6px;">${_esc(p.company || '—')}</span>
+        ${rem ? `<div style="font-family:'IBM Plex Mono',monospace;font-size:var(--fs-xs);color:var(--danger);margin-top:2px;">${_esc(rem.label)}</div>` : ''}
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;">
+        <button onclick="openProspectDetail('${p.id}')" style="padding:5px 10px;border-radius:var(--radius-pill);background:none;border:1px solid var(--border);color:var(--text);font-size:var(--fs-xs);font-weight:600;cursor:pointer;">Réactiver</button>
+        <button onclick="_reminderSnooze('${p.id}', 7)" style="padding:5px 10px;border-radius:var(--radius-pill);background:none;border:1px solid var(--border);color:var(--text);font-size:var(--fs-xs);font-weight:600;cursor:pointer;">+7j</button>
+        <button onclick="_reminderSnooze('${p.id}', 30)" style="padding:5px 10px;border-radius:var(--radius-pill);background:none;border:1px solid var(--border);color:var(--text);font-size:var(--fs-xs);font-weight:600;cursor:pointer;">+30j</button>
+        <button onclick="_reminderClose('${p.id}')" style="padding:5px 10px;border-radius:var(--radius-pill);background:none;border:1px solid var(--border);color:var(--muted);font-size:var(--fs-xs);font-weight:600;cursor:pointer;">Clôturer</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// Décrémente le compteur/retire la ligne après une action rapide sur le backlog -- aucun nouvel appel réseau.
+function _removeReminderBacklogRow(id) {
+  document.getElementById('backlog-row-' + id)?.remove();
+  _reminderBacklogProspects = _reminderBacklogProspects.filter(p => p.id !== id);
+  _reminderBacklogTotal = Math.max(0, _reminderBacklogTotal - 1);
+  const countEl = document.getElementById('today-backlog-count');
+  if (countEl) countEl.textContent = _reminderBacklogTotal ? _reminderBacklogTotal + ' en retard' : '';
+  const divider = document.getElementById('today-backlog-divider');
+  if (divider && _reminderBacklogTotal === 0) divider.hidden = true;
+}
+
+// « +7j/+30j » : toujours calculé depuis aujourd'hui, pas depuis l'ancienne reminder_date (déjà dans le passé pour tout le backlog).
+async function _reminderSnooze(id, days) {
+  const iso = new Date(Date.now() + days * 86400000).toISOString();
+  const { error } = await sbClient.from('prospects')
+    .update({ reminder_date: iso }).eq('id', id).eq('client_id', CLIENT_ID);
+  if (error) { showToast('Erreur lors du report du rappel'); return; }
+  _patchProspectCaches(id, { reminder_date: iso });
+  showToast('Rappel reporté');
+  _removeReminderBacklogRow(id);
+}
+
+// « Clôturer » : réutilise archiveProspect() telle quelle (déjà stage->Archived) ; le retrait optimiste de la ligne évite d'attendre le
+// rechargement complet pour voir l'effet.
+async function _reminderClose(id) {
+  await archiveProspect(id);
+  _removeReminderBacklogRow(id);
+}
+
+// ── Rail « Agents en action » ────────────────────────────────────────────────────────────────────
+// Source réelle : agent_activity_log (client_id Wominds), les 5 dernières lignes, écrites par les workflows n8n Wominds (copywriter
+// sdr_general/barometre_it_tech/transparence_salaires, ghostwriter_elodie, Daily Digest, Morning Scan...). agent_name est une clé
+// technique (jamais traduite : sert au repli de couleur) ; libellé d'affichage SÉPARÉ via _AGENTS_WOMINDS (nom + couleur de l'agent) ou
+// les tables ci-dessous, repli sur la valeur brute si non répertoriée -- jamais un texte inventé. Aucune ligne = état vide explicite.
+const _AGENT_DISPLAY_FR = {
+  'Daily Digest': 'Digest quotidien',
+  'Outlook Reply Capture': 'Capture réponses Outlook',
+};
+const _ACTION_SUMMARY_DISPLAY_FR = {
+  'Published daily digest': 'Digest quotidien publié',
+  'Drafted a proposal': 'Proposition rédigée',
+  'Drafted content ideas for the week': 'Idées de contenu de la semaine rédigées',
+  'Enriched this week content ideas': 'Idées de contenu de la semaine enrichies',
+  'Repurposed 1 LinkedIn post into multiple formats': 'Post LinkedIn décliné en plusieurs formats',
+};
+function _agentDisplay(name) {
+  const known = _AGENTS_WOMINDS.find(a => a.key === name);
+  return { label: known ? known.name : (_AGENT_DISPLAY_FR[name] || name || ''), color: (known && known.color) || 'var(--blue-brand)' };
+}
+async function _loadAgentsAtWork() {
+  const el = document.getElementById('agents-at-work-list');
+  if (!el) return;
+  try {
+    const { data, error } = await sbClient.from('agent_activity_log')
+      .select('agent_name, action_summary, occurred_at')
+      .eq('client_id', CLIENT_ID)
+      .order('occurred_at', { ascending: false })
+      .limit(5);
+    if (error) throw error;
+    if (!data || !data.length) {
+      el.innerHTML = '<div style="color:var(--muted);">Aucune activité d\'agent enregistrée pour l\'instant — elle apparaîtra dès qu\'un agent s\'exécute.</div>';
+      return;
+    }
+    el.innerHTML = data.map(r => {
+      const a = _agentDisplay(r.agent_name);
+      return '<div style="border-left:2px solid ' + a.color + ';padding:4px 0 4px 10px;margin-bottom:8px;">'
+        + '<div style="font-family:monospace;font-size:var(--fs-xs);font-weight:600;color:' + a.color + ';text-transform:uppercase;letter-spacing:0.04em;">' + _esc(a.label) + '</div>'
+        + '<div style="color:var(--text);font-size:var(--fs-sm);">' + _esc(_ACTION_SUMMARY_DISPLAY_FR[r.action_summary] || r.action_summary || '') + '</div>'
+        + '<div style="font-family:monospace;font-size:var(--fs-xs);color:var(--muted);">' + _relTimeShort(r.occurred_at) + '</div>'
+        + '</div>';
+    }).join('');
+  } catch(e) {
+    console.warn('[agents-at-work]', e);
+    el.innerHTML = '<div style="color:var(--muted);">Impossible de charger l\'activité des agents pour le moment.</div>';
   }
 }
 
