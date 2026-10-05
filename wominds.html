@@ -7091,6 +7091,7 @@ const _TODAY_PROSPECT_COLS = 'id,name,company,title,sector,stage,icp_score,icp_r
 // Source des fiches : la table prospects (non archives) et non la vue prospects_scan_window : meme
 // resultat (la vue = prospects WHERE archived = false) mais RLS respectee (la vue n'est pas
 // security_invoker), et memes colonnes que loadTodayRun.
+// AJOUT 05/10 (demande Thomas, meme regle que demo-private.html) : un prospect dont l'invitation LinkedIn est en attente (linkedin_tag='invite-sent') ne reste pas dans Today tant que la connexion n'est pas acceptee. IS NULL explicite : un .neq() seul exclurait les prospects sans tag.
 async function loadDailyPriorities() {
   const container = document.getElementById('today-priorities-container');
   if (!container) return;
@@ -7123,7 +7124,8 @@ async function loadDailyPriorities() {
         .eq('client_id', CLIENT_ID).eq('archived', false)
         // icp_score NULL exclu (meme filet que loadTodayRun) : jamais de "0.0 ICP" affiche.
         .not('icp_score', 'is', null)
-        .in('id', ids);
+        .in('id', ids)
+        .or('linkedin_tag.is.null,linkedin_tag.neq.invite-sent');
       if (errDP) throw errDP;
       prospects = (rows || []).filter(_passesCountryFilter)
         .sort((a, b) => (rankOf(categoryByProspect[a.id]) - rankOf(categoryByProspect[b.id])) || ((b.icp_score || 0) - (a.icp_score || 0)));
@@ -7159,6 +7161,7 @@ async function loadTodayRun() {
       // (saveProspectForm/importCSV ci-dessus) -- ce filtre reste un filet si un futur bug fait a
       // nouveau echapper un prospect au scoring automatique.
       .not('icp_score', 'is', null)
+      .or('linkedin_tag.is.null,linkedin_tag.neq.invite-sent')
       .order('icp_score', { ascending: false })
       .limit(100);
     if (error) throw error;
