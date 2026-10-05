@@ -7131,6 +7131,22 @@ async function loadDailyPriorities() {
         .sort((a, b) => (rankOf(categoryByProspect[a.id]) - rankOf(categoryByProspect[b.id])) || ((b.icp_score || 0) - (a.icp_score || 0)));
     }
     if (!prospects.length) {
+      // FIX 05/10 (meme defaut que demo-private.html) : decisions du scan dont l'invitation LinkedIn est deja envoyee = TRAITEES. Sans ce
+      // comptage, quand toutes etaient en attente de connexion, le repli sur loadTodayRun affichait un classement par score sans signal.
+      if (ids.length) {
+        const { count: _pc, error: _pcErr } = await sbClient.from('prospects')
+          .select('id', { count: 'exact', head: true })
+          .eq('client_id', CLIENT_ID).eq('archived', false).eq('linkedin_tag', 'invite-sent')
+          .in('id', ids);
+        if (_pcErr) console.warn('[loadDailyPriorities] comptage invitations en attente:', _pcErr);
+        else if (_pc > 0) {
+          const _other = Math.max(0, ids.length - _pc);
+          document.getElementById('today-queued-count').textContent = 0;
+          container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">Rien à traiter pour le moment : ' + _pc + ' invitation(s) LinkedIn du scan du matin déjà envoyée(s), en attente de connexion.'
+            + (_other ? ' ' + _other + ' autre(s) décision(s) du scan sans fiche affichable (pas encore scorées ou archivées).' : '') + '</div>';
+          return;
+        }
+      }
       if (ids.length) console.warn('[loadDailyPriorities] ' + ids.length + ' decision(s) Morning Scan du jour, aucune fiche exploitable (archivees/introuvables) -- repli sur loadTodayRun.');
       return loadTodayRun();
     }
