@@ -4868,6 +4868,16 @@ function _mscIcpStateChipHTML(state) {
 // Crochet optionnel d._extraChips (etape B, vue Today) = FONCTION renvoyant le HTML de puces supplementaires, posees en fin de ligne d'en-tete.
 // Une fonction, jamais une chaine : le repli decisions_json passe a cette carte l'objet JSON de la base TEL QUEL, et un objet JSON ne peut pas
 // porter de fonction -- aucun HTML venant de la donnee n'atteint la carte par cette voie. Absent = aucun effet (HTML de Signals / Morning Scan inchange).
+// Pays de la fiche pour la carte (polish 05/10/2026) : nom localise via Intl.DisplayNames quand country_code est un code ISO valide, sinon le texte
+// de prospects.country ; chaine vide (rien d'affiche, pas de tiret) si l'une et l'autre sont absents ou vides.
+function _mscCountryLabel(row, fr) {
+  if (!row) return '';
+  const code = typeof row.country_code === 'string' ? row.country_code.trim().toUpperCase() : '';
+  if (/^[A-Z]{2}$/.test(code)) {
+    try { const n = new Intl.DisplayNames([fr ? 'fr' : 'en'], { type: 'region' }).of(code); if (n && n !== code) return n; } catch (_) {}
+  }
+  return typeof row.country === 'string' ? row.country.trim() : '';
+}
 function _mscDecisionCardHTML(d, live) {
   const isEntry = !!d._scanEntry;
   const pid = _mscSafeId(d.id);
@@ -4887,6 +4897,8 @@ function _mscDecisionCardHTML(d, live) {
   const identityHtml = (contradicted ? _contradictedBadgeHTML(fr) : '')
     + (rel ? `<span title="${_esc(rel.title)}" style="display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;${relTone}color:${rel.color};white-space:normal;max-width:100%;box-sizing:border-box;">${rel.icon}${rel.both ? '?' : ''} ${_esc(rel.title)}</span>` : '');
   const sectorHtml = sector ? `<span style="font-size:var(--fs-xs);font-weight:600;padding:2px 8px;background:var(--chip-bg);border-radius:var(--radius-pill);color:var(--indigo);max-width:100%;overflow-wrap:anywhere;">${_esc(sector)}</span>` : '';
+  const countryLabel = _mscCountryLabel(live, fr);
+  const countryHtml = countryLabel ? `<span style="font-size:var(--fs-xs);font-weight:500;padding:2px 8px;border:1px solid var(--border);border-radius:var(--radius-pill);color:var(--text-secondary);max-width:100%;overflow-wrap:anywhere;">${_esc(countryLabel)}</span>` : '';
   const icpScore = live && live.icp_score != null ? live.icp_score : null;
   const cleanText = s => String(s).replace(/<[^>]*>/g, '').trim();
   // FIX 25/09 (audit Thomas, bug bilingue confirme en live sur Uscreen/Allison Yazdian) : signal
@@ -4947,6 +4959,9 @@ function _mscDecisionCardHTML(d, live) {
   const signalHead = signal
     ? `${signalLabel} ${_esc(signal)}${sigMeta ? ` <span style="opacity:.75;">(${_esc(sigMeta)})</span>` : ''}`
     : (sigMeta ? `${signalLabel} ${_esc(sigMeta)}` : '');
+  // Raison ICP visible (en plus de l'infobulle, invisible au toucher) : 2 lignes max, texte complet en title.
+  const reasonText = icpScore != null ? cleanText(_bilingualReasonText(live, 'icp_reason', 'icp_reason_en')) : '';
+  const reasonHtml = reasonText ? `<div title="${_esc(reasonText)}" style="margin-top:4px;font-size:var(--fs-xs);color:var(--text-secondary);line-height:1.4;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden;overflow-wrap:anywhere;">${_esc(reasonText)}</div>` : '';
   const signalBlock = (signalHead || signalInterp)
     ? `<div style="margin-top:6px;font-size:var(--fs-xs);color:var(--text-secondary);line-height:1.4;">${signalHead}${signalHead && signalInterp ? '<br>' : ''}${signalInterp ? `<strong>${fr ? 'Interprétation' : 'Interpretation'}${colon}</strong> ${_esc(signalInterp)}` : ''}</div>`
     : '';
@@ -4969,11 +4984,11 @@ function _mscDecisionCardHTML(d, live) {
       <div style="flex:1;min-width:0;">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
           <span style="font-weight:700;font-size:var(--fs-sm);color:var(--ink);">${name}</span>
-          ${company ? `<span style="font-size:var(--fs-xs);color:var(--text-secondary);">${_esc(company)}</span>` : ''}${sectorHtml}${identityHtml}${mandateHtml}
+          ${company ? `<span style="font-size:var(--fs-xs);color:var(--text-secondary);">${_esc(company)}</span>` : ''}${sectorHtml}${countryHtml}${identityHtml}${mandateHtml}
           ${icpChip}${icpStateChip}${sigBadge}
           ${confidenceHtml}${typeof d._extraChips === 'function' ? d._extraChips() : ''}
         </div>
-        ${factsBlock}${summary}
+        ${reasonHtml}${factsBlock}${summary}
         ${signalBlock}
         ${actionBlock}
         ${linksHtml}
@@ -5011,7 +5026,7 @@ const _MSC_V1_DEDUPE_PRIORITY = { today_action: 0, opportunistic_connection: 1, 
 // icp_reason_en/signal_interpretation_en/hard_criteria_met_en ajoutes (chantier bilingue Corridor,
 // 23/09, GO Thomas) : colonnes EN paralleles, perimetre client_id='thomas' uniquement (voir
 // _bilingualReasonText). Toujours NULL pour les autres clients -- select sans risque partout.
-const _MSC_LIVE_COLS = 'id, name, company, stage, icp_score, icp_reason, icp_reason_en, archived, signal, signal_type, signal_date, signal_url, signal_interpretation, signal_interpretation_en, next_action_cache, linkedin, sector, email, company_verified, identity_confidence, identity_verdict, hard_criteria_met, hard_criteria_met_en, score_completeness';
+const _MSC_LIVE_COLS = 'id, name, company, stage, icp_score, icp_reason, icp_reason_en, archived, signal, signal_type, signal_date, signal_url, signal_interpretation, signal_interpretation_en, next_action_cache, linkedin, sector, country, country_code, email, company_verified, identity_confidence, identity_verdict, hard_criteria_met, hard_criteria_met_en, score_completeness';
 // scan_entries valide (objet v:1, entries tableau, au moins une entree exploitable) -> tableau
 // d'entrees, sinon null : l'appelant retombe alors sur la chaine existante (decisions_json, iframe).
 function _mscValidScanEntries(se) {
@@ -12219,7 +12234,7 @@ async function loadDailyPriorities() {
     // company_verified/identity_confidence/score_completeness deja presents.
     // icp_reason/signal_url/identity_verdict_checked_at/company_checked_at ajoutes (F16,
     // 2026-09-17) : tiroir "Pourquoi Corridor, maintenant" / "Raison de la priorite" ci-dessous.
-    const COLS = 'id,name,company,sector,icp_score,icp_confidence,icp_reason,score_signal_strength,score_role,score_size,score_recency,score_mandate_fit,score_completeness,signal,signal_type,signal_interpretation,signal_interpretation_updated_at,signal_date,signal_url,mandate_id,stage,next_action_cache,next_action_generated_at,priority_batch_number,last_priority_shown_at,last_surfaced_in_scan_at,email,reminder_date,last_contact,linkedin,company_verified,identity_confidence,identity_verdict,identity_verdict_checked_at,company_checked_at,hard_criteria_met,website_url';
+    const COLS = 'id,name,company,sector,country,icp_score,icp_confidence,icp_reason,score_signal_strength,score_role,score_size,score_recency,score_mandate_fit,score_completeness,signal,signal_type,signal_interpretation,signal_interpretation_updated_at,signal_date,signal_url,mandate_id,stage,next_action_cache,next_action_generated_at,priority_batch_number,last_priority_shown_at,last_surfaced_in_scan_at,email,reminder_date,last_contact,linkedin,company_verified,identity_confidence,identity_verdict,identity_verdict_checked_at,company_checked_at,hard_criteria_met,website_url';
 
     // Priorite Morning Scan (arbitrage Thomas, meme fix que kaizenology.html) : si le scan du jour
     // a deja produit des decisions explicites (today_action/opportunistic_connection), elles

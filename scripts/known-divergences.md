@@ -241,3 +241,7 @@ Différences restantes, toutes de page :
 9 côté kaizenology.html, ce dernier chiffre ayant augmenté de 1 avec l'introduction de
 `_addSignalStakeholderToPipeline` lors du fix de collision) — 4 catégories, aucune
 non triée.*
+
+## Carte partagée `_mscDecisionCardHTML` : pays et raison ICP (2026-10-05)
+
+`_mscCountryLabel` (nouveau) est identique dans demo-private.html, kaizenology.html et wominds.html. La carte de Kaizenology reste structurellement différente de celle de Corridor/Wominds : pas de puce secteur séparée (le secteur est dans `companyLine`, texte « société · secteur »), chips d'identité `contradictedChip`/`reliabChip` propres, date du signal en `sigDateChip` ; le chip pays est donc placé juste après `companyLine`, et la raison ICP (2 lignes max) juste avant `contradictedNote`/`factsBlock`. **DÉLIBÉRÉ pour ce lot** : refonte de la carte de Kaizenology non faite (hors périmètre), à traiter avec la parité de rendu.
