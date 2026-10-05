@@ -5721,12 +5721,13 @@ function renderWelcome() {
   });
 }
 function setLang(lang) {
+  if (window._langLocked) lang = window._langLocked; // client EN-only : aucune bascule possible
   currentLang = lang;
   // FIX 22/09 (chantier langue tiroir, changement de direction GO Thomas) : persiste le choix
   // explicite -- ne retombe plus jamais sur le defaut a chaque rechargement une fois qu'un choix
   // reel a ete fait. try/catch : localStorage indisponible ne doit jamais bloquer la bascule
   // elle-meme, juste ne pas persister pour cette session.
-  try { localStorage.setItem('corridor_lang', lang); } catch (e) { /* pas de persistance possible, bascule quand meme */ }
+  if (!window._langLocked) { try { localStorage.setItem('corridor_lang', lang); } catch (e) { /* pas de persistance possible, bascule quand meme */ } }
   document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.textContent.trim().toLowerCase() === lang));
   applyLang();
   renderWelcome();
@@ -17973,6 +17974,17 @@ async function loadClientProfile() {
     }
     CLIENT_ID = data.client_id;
     _clientProfile = data;
+    // 05/10 (Thomas : SignaTrust est americain, "uniquement en EN") : un client dont clients.language = 'en' n'a
+    // jamais l'interface en francais -- pas de bascule EN/FR, pas de repli sur le defaut FR au premier chargement,
+    // et le choix 'fr' persiste dans localStorage par un autre compte sur le meme navigateur est ignore (en memoire
+    // seulement, jamais ecrit dans localStorage : le compte de Thomas, language='fr', garde sa bascule).
+    if (data.language === 'en') {
+      currentLang = 'en';
+      window._langLocked = 'en';
+      document.querySelectorAll('.lang-btn').forEach(b => { b.style.display = 'none'; });
+      if (typeof applyLang === 'function') applyLang();
+      if (typeof renderWelcome === 'function') renderWelcome();
+    }
     const name = data.display_name || data.contact_name.split(' ')[0];
     document.getElementById('nav-display-name').textContent = name;
     document.getElementById('nav-company').textContent = data.company_name;

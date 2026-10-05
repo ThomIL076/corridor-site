@@ -23,7 +23,7 @@ const SECRET_FIELDS = [
 // par le helper : il n'est pas repete ici.
 const SELECT_FIELDS = [
   'contact_name', 'company_name', 'display_name', 'avatar_url', 'sender_bio',
-  'owner_inbox_email', 'email_campaign_id', 'messaging_playbook',
+  'owner_inbox_email', 'email_campaign_id', 'messaging_playbook', 'language',
   'hubspot_api_key', 'hubspot_stage_mapping', 'hubspot_last_sync',
   'salesforce_enabled', 'salesforce_client_id', 'salesforce_client_secret', 'salesforce_username',
   'salesforce_password', 'salesforce_instance_url', 'salesforce_stage_mapping', 'salesforce_last_sync',
