@@ -202,6 +202,38 @@ body.new-nav .top-chrome-wrapper { left: 220px; }
   .spine-stage { flex: 0 0 110px; }
   .module-title { font-size:21px; }
 }
+/* Bandeau mobile (polish 05/10/2026) : rail de puces defilantes pensees pour le pouce. Etape active centree par _updateSpineActive,
+   fondu aux deux bords (mask-image : le contenu s'estompe, pas de degrade gris par-dessus), cibles de 44px, libelles de 12px.
+   La note (« a qualifier », « dus aujourd'hui »...) reste lue par les lecteurs d'ecran mais n'est plus affichee : le compteur en
+   pastille a cote du libelle suffit. Bureau (> 768px) inchange. */
+@media (max-width: 768px) {
+  .journey-spine {
+    min-width: 0; gap: 8px; align-items: center; padding: 10px 36px 10px 16px;
+    overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; scroll-padding-inline: 16px;
+    scrollbar-width: none; -webkit-overflow-scrolling: touch;
+    -webkit-mask-image: linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 32px), transparent 100%);
+            mask-image: linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 32px), transparent 100%);
+  }
+  .journey-spine::-webkit-scrollbar { display: none; }
+  .spine-stage, .spine-stage + .spine-stage {
+    flex: 0 0 auto; display: flex; align-items: center; gap: 8px; min-height: 44px; margin-left: 0; padding: 0 14px;
+    border: 1px solid var(--border); border-radius: 999px; background: #fff; scroll-snap-align: center; white-space: nowrap;
+    -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+    transition: background-color .15s ease-out, border-color .15s ease-out;
+  }
+  .spine-stage:active { background: var(--chip-bg, #f0f3fb); }
+  .spine-dot { margin: 0; flex: none; }
+  .spine-label { display: inline; margin: 0; font-size: 12px; letter-spacing: 0.08em; color: var(--text); }
+  .spine-row { display: contents; }
+  .spine-count { min-width: 24px; padding: 2px 8px; border-radius: 999px; background: var(--chip-bg, #f0f3fb); font-size: 12px; line-height: 1.4; text-align: center; color: var(--ink); }
+  .spine-count:empty { display: none; }
+  .spine-note { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .spine-rail { display: none; }
+  .spine-stage.active { background: var(--ink); border-color: var(--ink); }
+  .spine-stage.active .spine-label { color: #fff; }
+  .spine-stage.active .spine-count { background: var(--accent); color: #fff; }
+}
+@media (max-width: 768px) and (prefers-reduced-motion: reduce) { .spine-stage { transition: none; } }
 
 /* ── NAV ── */
 nav {
@@ -1287,21 +1319,49 @@ body.new-nav { padding-left: 220px; }
   body.new-nav .new-sidebar,
   body.new-nav .snav-backdrop { display: none !important; }
   body.new-nav nav { padding-left: 48px; }
+  /* Barre du bas (polish mobile 05/10/2026) : 64px de cible + zone sure iOS (env() vaut 0 tant que le <meta viewport> n'a pas
+     viewport-fit=cover, la barre reste alors a 64px). Tokens locaux --mtab-* : fond/accent/police propres a chaque fichier. */
   .mobile-tabbar {
+    --mtab-bg: var(--sidebar-bg); --mtab-bar: var(--sidebar-accent); --mtab-badge: var(--accent);
     display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 210;
-    height: 58px; background: var(--sidebar-bg); border-top: 1px solid rgba(255,255,255,.1);
+    height: calc(64px + env(safe-area-inset-bottom, 0px)); padding: 0 0 env(safe-area-inset-bottom, 0px); gap: 0; justify-content: stretch;
+    background: var(--mtab-bg); border-top: 1px solid rgba(255,255,255,.1);
+    transition: transform .18s ease-out;
   }
-  .main { padding-bottom: 74px; } /* 58px tab bar + marge, evite qu'elle recouvre le bas du contenu */
+  body.new-nav .mobile-tabbar { padding-left: 0; } /* annule body.new-nav nav { padding-left } et nav { padding } qui visaient aussi cette <nav> */
+  .main { padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px) + 16px); } /* hauteur de la barre + marge : rien ne passe dessous */
+  /* Clavier ouvert dans un champ de saisie : la barre s'efface pour ne pas recouvrir le champ ni se coller au clavier. */
+  body:has(input:not([type=checkbox]):not([type=radio]):not([type=button]):not([type=submit]):not([type=range]):not([type=file]):not([type=color]):focus, textarea:focus, select:focus) .mobile-tabbar { transform: translateY(100%); }
+  /* Panneaux coulissants fermes (hors ecran a droite) : leur box-shadow debordait sur le bord droit de l'ecran (degrade gris). */
+  #drawer:not(.open), #scanner-panel:not(.open), #ask-panel:not(.open) { box-shadow: none; }
 }
+/* Items de la barre du bas : cible 64px de haut / 64px mini de large, icone + libelle 12px. */
 .mtab-item {
-  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-  background: none; border: none; height: 58px; cursor: pointer;
-  font-family: 'Plus Jakarta Sans', sans-serif; font-size: 11px; font-weight: 500;
-  color: rgba(255,255,255,.72);
+  flex: 1 1 0; min-width: 64px; height: 64px; position: relative;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  padding: 6px 2px 4px; background: none; border: none; cursor: pointer;
+  font-family: 'Plus Jakarta Sans', sans-serif; font-size: 12px; font-weight: 500; line-height: 1.15; text-align: center;
+  color: rgba(255,255,255,.74);
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+  transition: background-color .12s ease-out, color .12s ease-out;
 }
+.mtab-item:active { background: rgba(255,255,255,.10); }
 .mtab-item.active { color: #fff; font-weight: 600; }
+/* Indicateur d'onglet actif : barre de 3px collee au bord haut de la barre (en plus de la couleur et du poids). */
+.mtab-item.active::before { content: ''; position: absolute; top: 0; left: 50%; width: 32px; height: 3px; margin-left: -16px; border-radius: 0 0 3px 3px; background: var(--mtab-bar, currentColor); }
+.mtab-ico { position: relative; display: inline-flex; width: 24px; height: 24px; flex: none; }
+.mtab-ico svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+.mtab-item.active .mtab-ico svg { stroke-width: 2.25; }
+.mtab-label { display: block; max-width: 100%; text-wrap: balance; overflow-wrap: normal; }
+/* .mtab-badge hors barre (lignes du panneau « Plus ») : style inchange. Dans la barre : pastille posee sur l'icone. */
 .mtab-badge { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--sidebar-accent); }
 .mtab-badge:empty { display: none; }
+.mobile-tabbar .mtab-badge {
+  position: absolute; top: -6px; left: calc(100% - 8px); min-width: 18px; height: 18px; padding: 0 5px;
+  border-radius: 9px; background: var(--mtab-badge); color: #fff;
+  font-size: 11px; font-weight: 600; line-height: 18px; text-align: center; box-shadow: 0 0 0 2px var(--mtab-bg);
+}
+@media (prefers-reduced-motion: reduce) { .mobile-tabbar, .mtab-item { transition: none; } }
 .more-list { display: flex; flex-direction: column; }
 .more-row {
   display: flex; align-items: center; justify-content: space-between;
@@ -1549,13 +1609,11 @@ body.new-nav { padding-left: 220px; }
 <!-- BARRE D'ONGLETS MOBILE (4 principaux, meme decoupage que demo-private.html/kaizenology.html
      -- le reste dans "Plus" plutot que d'entasser 6 boutons dans une barre de 58px) -->
 <nav class="mobile-tabbar" id="mobile-tabbar" aria-label="Navigation mobile">
-  <button class="mtab-item" data-nav="today" onclick="switchTab('today')">Aujourd'hui</button>
-  <button class="mtab-item" data-nav="pipeline" onclick="switchTab('pipeline')">Pipeline</button>
-  <button class="mtab-item" data-nav="send" onclick="switchTab('send')">
-    <span>Envoyer</span><span class="mtab-badge" id="mtab-badge-send"></span>
-  </button>
-  <button class="mtab-item" data-nav="inbox" onclick="switchTab('inbox')">Boîte de réception</button>
-  <button class="mtab-item" id="mtab-more-btn" onclick="switchTab('more')">Plus</button>
+  <button class="mtab-item" data-nav="today" onclick="switchTab('today')"><span class="mtab-ico"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3" y="4.5" width="18" height="16.5" rx="2.5"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4M9 15l2 2 4-4"/></svg></span><span class="mtab-label">Aujourd'hui</span></button>
+  <button class="mtab-item" data-nav="pipeline" onclick="switchTab('pipeline')"><span class="mtab-ico"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3.5" y="3.5" width="17" height="17" rx="3"/><path d="M8.5 7.5v6M12 7.5v9M15.5 7.5v4"/></svg></span><span class="mtab-label">Pipeline</span></button>
+  <button class="mtab-item" data-nav="send" onclick="switchTab('send')"><span class="mtab-ico"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M21 3 10.5 13.5M21 3l-6.5 18-4-7.5L3 9.5 21 3z"/></svg><span class="mtab-badge" id="mtab-badge-send"></span></span><span class="mtab-label">Envoyer</span></button>
+  <button class="mtab-item" data-nav="inbox" onclick="switchTab('inbox')"><span class="mtab-ico"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3.5 13.5 6.1 6.3A2 2 0 0 1 8 5h8a2 2 0 0 1 1.9 1.3l2.6 7.2V18a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2v-4.5zM3.5 13.5H8a1 1 0 0 1 1 1 3 3 0 0 0 6 0 1 1 0 0 1 1-1h4.5"/></svg></span><span class="mtab-label">Boîte de réception</span></button>
+  <button class="mtab-item" id="mtab-more-btn" onclick="switchTab('more')"><span class="mtab-ico"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="5.5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="18.5" cy="12" r="1.3"/></svg></span><span class="mtab-label">Plus</span></button>
 </nav>
 
 <!-- NAV -->
@@ -2541,6 +2599,7 @@ function switchTab(name){
     const moreBtn = document.getElementById('mtab-more-btn');
     if (moreBtn) moreBtn.classList.add('active');
   }
+  document.querySelectorAll('.mtab-item').forEach(el => { if (el.classList.contains('active')) el.setAttribute('aria-current', 'page'); else el.removeAttribute('aria-current'); }); // etat actif expose aux lecteurs d'ecran
   _closeSnav();
   window.scrollTo({ top: 0, behavior: 'instant' });
   _updateSpineActive(name);
@@ -2564,12 +2623,18 @@ const SPINE_ACTIVE_MAP = { 'today': 'today', 'pipeline': 'qualify', 'send': 'sen
 function _updateSpineActive(key) {
   const spine = document.getElementById('journey-spine');
   if (!spine) return;
-  spine.querySelectorAll('.spine-stage').forEach(el => el.classList.remove('active'));
+  spine.querySelectorAll('.spine-stage').forEach(el => { el.classList.remove('active'); el.removeAttribute('aria-current'); });
   const active = SPINE_ACTIVE_MAP[key];
   if (active) {
     const el = spine.querySelector('.spine-stage[data-spine="' + active + '"]');
-    if (el) el.classList.add('active');
+    if (el) { el.classList.add('active'); el.setAttribute('aria-current', 'step'); _centerSpineStage(spine, el); }
   }
+}
+// Mobile (rail defilant) : ramene l'etape active au centre du bandeau, sans jamais faire defiler la page elle-meme.
+function _centerSpineStage(spine, el) {
+  if (!window.matchMedia('(max-width: 768px)').matches || spine.scrollWidth <= spine.clientWidth) return;
+  const left = el.getBoundingClientRect().left - spine.getBoundingClientRect().left + spine.scrollLeft - (spine.clientWidth - el.offsetWidth) / 2;
+  spine.scrollTo({ left: Math.max(0, left), behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
 }
 function _toggleSnavMenu(){ document.body.classList.toggle('snav-open'); }
 function _closeSnav(){ document.body.classList.remove('snav-open'); }
@@ -6784,7 +6849,7 @@ function _setPendingActionsBadge(n) {
   // "Actions en attente" vit desormais dans le panneau "Plus" sur mobile (6 destinations au
   // total, plus de place directe en barre) -- badge renomme en consequence.
   const mtabEl = document.getElementById('mtab-badge-pending-actions-more');
-  if (mtabEl) mtabEl.textContent = n > 0 ? n : '';
+  if (mtabEl) mtabEl.textContent = n > 0 ? (n > 99 ? '99+' : n) : '';
 }
 async function loadPendingActionsView() {
   const container = document.getElementById('pending-actions-container');
@@ -7019,7 +7084,7 @@ function _setReviewBadge(n) {
   const el = document.getElementById('review-count');
   if (el) el.textContent = n;
   const mtabEl = document.getElementById('mtab-badge-review-more');
-  if (mtabEl) mtabEl.textContent = n > 0 ? n : '';
+  if (mtabEl) mtabEl.textContent = n > 0 ? (n > 99 ? '99+' : n) : '';
 }
 
 async function loadReviewView() {
@@ -7821,7 +7886,7 @@ function _sendDefaultLang() { return document.getElementById('send-filter-lang')
 function _setSendBadge(n) {
   ['send-count','send-count-2'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = n; });
   const mtabEl = document.getElementById('mtab-badge-send');
-  if (mtabEl) mtabEl.textContent = n > 0 ? n : '';
+  if (mtabEl) mtabEl.textContent = n > 0 ? (n > 99 ? '99+' : n) : '';
   const spineEl = document.getElementById('spine-count-send');
   if (spineEl) spineEl.textContent = n;
 }
