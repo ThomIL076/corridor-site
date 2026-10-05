@@ -15,9 +15,12 @@ restait déclenché manuellement, donc oubliable).
 « Redeploy » dans le dashboard** — ça redéploie l'ANCIEN déploiement de prod tel
 quel (ancien code) et, s'il arrive après `npm run deploy`, reprend le domaine
 (incident 2026-10-04 : la vue Revue > Publications n'apparaissait pas). Lancer
-directement `npm run deploy`. Garde-fou : l'étape 3/3 de `deploy.sh` compare
-`demo-private.html` et `kaizenology.html` servis par `corridor.systems` aux
-fichiers locaux et sort en erreur en cas d'écart.
+directement `npm run deploy`. Garde-fou : l'étape 3/3 de `deploy.sh` écrit un
+tampon unique (`deploy-stamp.txt` : commit + heure UTC + PID) avant le déploiement,
+le déploie avec le code, puis le relit sur `corridor.systems` et sort en erreur s'il
+diffère (ou 404). Le tampon est supprimé en fin de script, jamais commité.
+(Avant le 05/10 le garde-fou comparait `demo-private.html`/`kaizenology.html` : écart
+permanent, car `middleware.js` ne sert à une requête anonyme que le shell de connexion.)
 
 Un échec de smoke test n'annule/ne rollback rien automatiquement — il est
 juste rendu impossible à manquer (code de sortie non-zéro, bloc affiché en

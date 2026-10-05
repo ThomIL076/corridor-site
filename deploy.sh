@@ -19,6 +19,16 @@ set -uo pipefail
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$DIR"
 
+# Tampon de deploiement (05/10) : fichier statique unique par lancement, deploye AVEC le code,
+# puis relu sur le domaine de prod a l'etape 3/3. Remplace la comparaison d'empreinte de
+# demo-private.html / kaizenology.html, qui ne pouvait jamais correspondre : middleware.js ne sert
+# a une requete anonyme que le shell de connexion pour ces deux pages. Le tampon est hors du
+# matcher du middleware (public) et ne contient aucun secret. Supprime en sortie (trap), jamais commite.
+STAMP_FILE="deploy-stamp.txt"
+STAMP_VALUE="corridor-deploy $(git rev-parse --verify -q HEAD 2>/dev/null || echo nogit) $(date -u +%Y-%m-%dT%H:%M:%SZ) $$"
+printf '%s\n' "$STAMP_VALUE" > "$STAMP_FILE"
+trap 'rm -f "$DIR/$STAMP_FILE"' EXIT
+
 echo "============================================================"
 echo "ETAPE 1/3 — DEPLOIEMENT (vercel --prod --force)"
 echo "============================================================"
@@ -54,34 +64,31 @@ echo "============================================================"
 # Incident 2026-10-04 : apres un changement de variable d'environnement, un clic sur
 # "Redeploy" dans le dashboard Vercel redeploie l'ANCIEN deploiement de prod tel quel. S'il
 # arrive apres ce script, corridor.systems repasse silencieusement sur l'ancien code sans
-# qu'aucun test ne le voie (les smoke tests passaient). Ici : on compare l'empreinte des pages
-# servies par le domaine de prod a celle des fichiers locaux. Une difference = le domaine ne
-# sert pas ce qu'on vient de deployer. Surchargeable : PROD_URL=https://... ./deploy.sh
+# qu'aucun test ne le voie (les smoke tests passaient). Ici : on relit sur le domaine de prod le
+# tampon ecrit a l'etape 1 ; un autre contenu (ou un 404) = le domaine ne sert pas ce qu'on vient
+# de deployer. Surchargeable : PROD_URL=https://... ./deploy.sh
 PROD_URL="${PROD_URL:-https://corridor.systems}"
-VERIFY_FILES=(demo-private.html kaizenology.html)
-
-_sha() { if command -v sha256sum >/dev/null 2>&1; then sha256sum | cut -d' ' -f1; else shasum -a 256 | cut -d' ' -f1; fi; }
 
 VERIFY_EXIT=0
 VERIFY_DETAIL=""
-for f in "${VERIFY_FILES[@]}"; do
-  [ -f "$f" ] || continue
-  LOCAL_SHA="$(_sha < "$f")"
-  REMOTE_SHA=""
-  # Jusqu'a 3 essais (propagation du domaine apres le deploiement)
-  for attempt in 1 2 3; do
-    REMOTE_SHA="$(curl -fsS --max-time 30 "$PROD_URL/$f?verify=$(date +%s)" 2>/dev/null | _sha)"
-    [ "$REMOTE_SHA" = "$LOCAL_SHA" ] && break
-    sleep 5
-  done
-  if [ "$REMOTE_SHA" = "$LOCAL_SHA" ]; then
-    echo "  ✅ $f identique en prod"
-  else
-    echo "  ❌ $f DIFFERENT en prod (local ${LOCAL_SHA:0:12}…, prod ${REMOTE_SHA:0:12}…)"
-    VERIFY_EXIT=1
-    VERIFY_DETAIL="$VERIFY_DETAIL $f"
-  fi
+REMOTE_STAMP=""
+# Jusqu'a 3 essais (propagation du domaine apres le deploiement)
+for attempt in 1 2 3; do
+  REMOTE_STAMP="$(curl -fsS --max-time 30 "$PROD_URL/$STAMP_FILE?verify=$(date +%s)" 2>/dev/null | tr -d '\r' | head -n1)"
+  [ "$REMOTE_STAMP" = "$STAMP_VALUE" ] && break
+  sleep 5
 done
+if [ "$DEPLOY_EXIT" -ne 0 ]; then
+  echo "  ⚠️  Deploiement en echec : verification du tampon ignoree (la prod porte l'ancien code)."
+  VERIFY_EXIT=1
+  VERIFY_DETAIL="deploiement-echoue"
+elif [ "$REMOTE_STAMP" = "$STAMP_VALUE" ]; then
+  echo "  ✅ la prod sert bien ce deploiement (tampon identique)"
+else
+  echo "  ❌ tampon DIFFERENT en prod (attendu '$STAMP_VALUE', recu '${REMOTE_STAMP:-<vide/404>}')"
+  VERIFY_EXIT=1
+  VERIFY_DETAIL="$STAMP_FILE"
+fi
 if [ "$VERIFY_EXIT" -ne 0 ]; then
   echo ""
   echo "  Le domaine ne sert PAS le code qui vient d'etre deploye. Cause probable : un autre"
