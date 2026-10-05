@@ -517,6 +517,8 @@ button, [role="button"], select, input { min-height: var(--btn-h-sm); }
 .pipe-stat-val.warn { color:var(--amber); }
 .pipe-stat-label { font-family:'IBM Plex Mono',monospace; font-size:10.5px; font-weight:400; color:var(--dim); letter-spacing:.16em; text-transform:uppercase; margin-top:4px; display:block; }
 @media (max-width:480px) { .pipe-stat { padding:0 12px; } }
+.pipe-funnel-title { font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--muted); margin-top:18px; cursor:help; }
+.pipe-funnel-title + .pipe-funnel-bar { margin-top:6px; }
 .pipe-funnel-bar { display:flex; gap:2px; height:9px; margin-top:18px; }
 .pipe-funnel-seg { border-radius:5px; }
 .pipe-funnel-legend { display:flex; gap:2px; margin-top:8px; }
@@ -1765,6 +1767,7 @@ body.new-nav { padding-left: 220px; }
             <span class="pipe-stat-label">France / Inconnu</span>
           </div>
         </div>
+        <div class="pipe-funnel-title" title="Prospects par étape actuelle, pas un entonnoir cumulatif">Répartition actuelle</div>
         <div class="pipe-funnel-bar" id="pipe-funnel-bar"></div>
         <div class="pipe-funnel-legend" id="pipe-funnel-legend"></div>
       </div>
