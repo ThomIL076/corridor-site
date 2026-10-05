@@ -431,8 +431,6 @@ button, [role="button"], select, input { min-height: var(--btn-h-sm); }
 @media (max-width:480px) { .pipe-stat { padding:0 12px; } }
 .pipe-funnel-title { font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--muted); margin-top:18px; cursor:help; }
 .pipe-funnel-title + .pipe-funnel-bar { margin-top:6px; }
-.pipe-funnel-title { font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--muted); margin-top:18px; cursor:help; }
-.pipe-funnel-title + .pipe-funnel-bar { margin-top:6px; }
 .pipe-funnel-bar { display:flex; gap:2px; height:9px; margin-top:18px; }
 .pipe-funnel-seg { border-radius:5px; }
 .pipe-funnel-legend { display:flex; gap:2px; margin-top:8px; }
@@ -1923,7 +1921,6 @@ body.new-nav { padding-left: 220px; }
         </div>
       </div>
       <div class="pipe-funnel-title" title="Prospects per current stage, not a cumulative funnel">Current stage breakdown</div>
-      <div class="pipe-funnel-title" data-en="Current stage breakdown" title="Prospects per current stage, not a cumulative funnel">Current stage breakdown</div>
       <div class="pipe-funnel-bar" id="pipe-funnel-bar"></div>
       <div class="pipe-funnel-legend" id="pipe-funnel-legend"></div>
     </div>
@@ -2165,7 +2162,6 @@ body.new-nav { padding-left: 220px; }
     <!-- Section A: Funnel -->
     <div class="card stats-section">
       <div class="card-header"><span class="card-title" title="Prospects per current stage, not a cumulative funnel">Current stage breakdown</span><span class="card-badge badge-auto" data-en="LIVE">LIVE</span></div>
-      <div style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--muted);margin:0 0 8px;cursor:help;" data-en="Current stage breakdown" title="Prospects per current stage, not a cumulative funnel">Current stage breakdown</div>
       <div id="stats-funnel"></div>
     </div>
 
@@ -10196,7 +10192,7 @@ async function loadDailyPriorities() {
 
     // Etape B (2026-09-21) : + icp_reason, signal_interpretation, signal_url, identity_verdict, lues par la carte partagee _mscDecisionCardHTML (la ligne est
     // passee comme fiche « live »). Les 4 colonnes existent dans la vue prospects_scan_window (information_schema verifie) : vue security_invoker sur prospects.
-    const COLS = 'id,name,company,sector,country,country_code,icp_score,icp_confidence,score_signal_strength,signal,signal_type,signal_date,mandate_id,stage,next_action_cache,next_action_generated_at,priority_batch_number,last_priority_shown_at,email,reminder_date,last_contact,linkedin,company_verified,identity_confidence,icp_reason,signal_interpretation,signal_interpretation_updated_at,signal_url,identity_verdict';
+    const COLS = 'id,name,company,sector,country,icp_score,icp_confidence,score_signal_strength,signal,signal_type,signal_date,mandate_id,stage,next_action_cache,next_action_generated_at,priority_batch_number,last_priority_shown_at,email,reminder_date,last_contact,linkedin,company_verified,identity_confidence,icp_reason,signal_interpretation,signal_interpretation_updated_at,signal_url,identity_verdict';
 
     // Priorite Morning Scan (arbitrage Thomas) : si le scan du jour a deja produit des decisions
     // explicites (today_action/opportunistic_connection), elles remplacent entierement le calcul

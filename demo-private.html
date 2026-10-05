@@ -12234,7 +12234,7 @@ async function loadDailyPriorities() {
     // company_verified/identity_confidence/score_completeness deja presents.
     // icp_reason/signal_url/identity_verdict_checked_at/company_checked_at ajoutes (F16,
     // 2026-09-17) : tiroir "Pourquoi Corridor, maintenant" / "Raison de la priorite" ci-dessous.
-    const COLS = 'id,name,company,sector,country,country_code,icp_score,icp_confidence,icp_reason,score_signal_strength,score_role,score_size,score_recency,score_mandate_fit,score_completeness,signal,signal_type,signal_interpretation,signal_interpretation_updated_at,signal_date,signal_url,mandate_id,stage,next_action_cache,next_action_generated_at,priority_batch_number,last_priority_shown_at,last_surfaced_in_scan_at,email,reminder_date,last_contact,linkedin,company_verified,identity_confidence,identity_verdict,identity_verdict_checked_at,company_checked_at,hard_criteria_met,website_url';
+    const COLS = 'id,name,company,sector,country,icp_score,icp_confidence,icp_reason,score_signal_strength,score_role,score_size,score_recency,score_mandate_fit,score_completeness,signal,signal_type,signal_interpretation,signal_interpretation_updated_at,signal_date,signal_url,mandate_id,stage,next_action_cache,next_action_generated_at,priority_batch_number,last_priority_shown_at,last_surfaced_in_scan_at,email,reminder_date,last_contact,linkedin,company_verified,identity_confidence,identity_verdict,identity_verdict_checked_at,company_checked_at,hard_criteria_met,website_url';
 
     // Priorite Morning Scan (arbitrage Thomas, meme fix que kaizenology.html) : si le scan du jour
     // a deja produit des decisions explicites (today_action/opportunistic_connection), elles
