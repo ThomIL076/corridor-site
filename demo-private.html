@@ -5819,8 +5819,37 @@ const _ACTION_SUMMARY_DISPLAY_FR = {
 function _agentDisplayName(name) {
   return (currentLang === 'fr' && _AGENT_DISPLAY_FR[name]) ? _AGENT_DISPLAY_FR[name] : (name || '');
 }
+// FIX 05/10 (Agents at work ne changeait pas de langue) : agent_activity_log a maintenant action_summary_en.
+// EN : action_summary_en, sinon repli sur action_summary avec la mention "FR" SI le texte est reellement
+// francais (les logs anglais d'origine n'ont pas de _en et ne recoivent pas de badge).
+// FR : gabarits anglais connus traduits par regles ci-dessous ; sinon texte brut (jamais invente).
+const _ACTION_SUMMARY_RULES_FR = [
+  [/^Found (\d+) new signals?$/i, (m) => m[1] === '0' ? 'Aucun nouveau signal trouvé' : (m[1] === '1' ? '1 nouveau signal trouvé' : m[1] + ' nouveaux signaux trouvés')],
+  [/^Repurposed (\d+) LinkedIn posts? into (\d+) formats?$/i, (m) => m[1] + ' post LinkedIn décliné en ' + m[2] + ' formats'],
+  [/^Drafted (\d+) reply options?$/i, (m) => m[1] + ' options de réponse rédigées'],
+  [/^Drafted (\d+) content ideas for the week$/i, (m) => m[1] + ' idées de contenu rédigées pour la semaine'],
+  [/^Reviewed pipeline: (\d+) at risk, (\d+) to watch$/i, (m) => 'Pipeline revu : ' + m[1] + ' à risque, ' + m[2] + ' à surveiller'],
+  [/^Published weekly report$/i, () => 'Rapport hebdomadaire publié'],
+  [/^Enriched this week's content ideas with title tags and AEO citations$/i, () => 'Idées de contenu de la semaine enrichies (balises titre et citations AEO)'],
+  [/^Answered: ([\s\S]*)$/i, (m) => 'Réponse : ' + m[1]],
+  [/^Reply from (.+?) \((.+?)\) -- (\w+) -- ([\s\S]*)$/i, (m) => 'Réponse de ' + m[1] + ' (' + m[2] + ') -- ' + m[3] + ' -- ' + m[4]],
+];
+function _looksFrench(t) {
+  return /[àâäçéèêëîïôöùûüœ]/i.test(t || '') || /\b(le|la|les|des|du|et|pour|avec|dans|une|est|aucun|classe|reponse|reçu)\b/i.test(t || '');
+}
 function _actionSummaryDisplay(text) {
-  return (currentLang === 'fr' && _ACTION_SUMMARY_DISPLAY_FR[text]) ? _ACTION_SUMMARY_DISPLAY_FR[text] : (text || '');
+  if (currentLang !== 'fr') return text || '';
+  if (_ACTION_SUMMARY_DISPLAY_FR[text]) return _ACTION_SUMMARY_DISPLAY_FR[text];
+  for (const [re, fn] of _ACTION_SUMMARY_RULES_FR) { const m = (text || '').match(re); if (m) return fn(m); }
+  return text || '';
+}
+function _actionSummaryHTML(r) {
+  if (currentLang === 'en') {
+    if (r.action_summary_en) return _esc(r.action_summary_en);
+    const fr = r.action_summary || '';
+    return (_looksFrench(fr) ? _frFallbackBadgeHTML() : '') + _esc(fr);
+  }
+  return _esc(_actionSummaryDisplay(r.action_summary));
 }
 
 async function _loadAgentsAtWork() {
@@ -5829,7 +5858,7 @@ async function _loadAgentsAtWork() {
   const fr = currentLang === 'fr';
   try {
     let q = sbClient.from('agent_activity_log')
-      .select('agent_name, action_summary, occurred_at')
+      .select('agent_name, action_summary, action_summary_en, occurred_at')
       .eq('client_id', CLIENT_ID)
       .order('occurred_at', { ascending: false })
       .limit(5);
@@ -5847,7 +5876,7 @@ async function _loadAgentsAtWork() {
       const _color = (_meta && _meta.color) || 'var(--blue-brand)';
       return '<div style="border-left:2px solid ' + _color + ';padding:4px 0 4px 10px;margin-bottom:8px;">'
         + '<div style="font-family:monospace;font-size:var(--fs-xs);font-weight:600;color:' + _color + ';text-transform:uppercase;letter-spacing:0.04em;">' + _esc(_agentDisplayName(r.agent_name)) + '</div>'
-        + '<div style="color:var(--text);font-size:var(--fs-sm);">' + _esc(_actionSummaryDisplay(r.action_summary)) + '</div>'
+        + '<div style="color:var(--text);font-size:var(--fs-sm);">' + _actionSummaryHTML(r) + '</div>'
         + '<div style="font-family:monospace;font-size:var(--fs-xs);color:var(--muted);">' + _relTimeShort(r.occurred_at) + '</div>'
         + '</div>';
     }).join('');
@@ -13838,7 +13867,7 @@ async function _loadReviewHandled() {
     const todayStart = new Date().toISOString().slice(0, 10) + 'T00:00:00.000Z';
     const tomorrowStart = new Date(Date.now() + 86400000).toISOString().slice(0, 10) + 'T00:00:00.000Z';
     let q = sbClient.from('agent_activity_log')
-      .select('agent_name, action_summary, occurred_at')
+      .select('agent_name, action_summary, action_summary_en, occurred_at')
       .eq('client_id', CLIENT_ID)
       .gte('occurred_at', todayStart).lt('occurred_at', tomorrowStart)
       .order('occurred_at', { ascending: false })
@@ -13856,7 +13885,7 @@ async function _loadReviewHandled() {
         const _color = (_meta && _meta.color) || 'var(--blue-brand)';
         return '<div style="padding:10px 16px;' + (i > 0 ? 'border-top:1px solid var(--border);' : '') + 'display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;">'
           + '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:9px;letter-spacing:.1em;color:' + _color + ';flex:0 0 140px;">' + _esc(_agentDisplayName(r.agent_name).toUpperCase()) + '</span>'
-          + '<span style="font-size:13px;color:var(--text);flex:1 1 220px;">' + _esc(_actionSummaryDisplay(r.action_summary)) + '</span>'
+          + '<span style="font-size:13px;color:var(--text);flex:1 1 220px;">' + _actionSummaryHTML(r) + '</span>'
           + '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:9px;color:var(--muted);white-space:nowrap;">' + _relTimeShort(r.occurred_at) + '</span>'
           + '</div>';
       }).join('') + '</div>';
