@@ -3235,6 +3235,16 @@ function _mscCleanSignalText(s) {
 // Crochet optionnel d._extraChips (etape B, meme nom sur les 3 dashboards) : FONCTION sans argument renvoyant du HTML DEJA construit et echappe par l'appelant, ajoutee
 // apres les puces existantes ; absent ou non fonction (dont toute CHAINE : le repli decisions_json passe l'objet JSON de la base tel quel, une chaine y serait
 // un HTML non echappe = XSS stocke ; un objet JSON ne porte jamais de fonction) = aucun effet (Signaux / Morning Scan ne le renseignent jamais).
+// Pays de la fiche pour la carte (polish 05/10/2026) : nom localise via Intl.DisplayNames quand country_code est un code ISO valide, sinon le texte
+// de prospects.country ; chaine vide (rien d'affiche, pas de tiret) si l'une et l'autre sont absents ou vides.
+function _mscCountryLabel(row, fr) {
+  if (!row) return '';
+  const code = typeof row.country_code === 'string' ? row.country_code.trim().toUpperCase() : '';
+  if (/^[A-Z]{2}$/.test(code)) {
+    try { const n = new Intl.DisplayNames([fr ? 'fr' : 'en'], { type: 'region' }).of(code); if (n && n !== code) return n; } catch (_) {}
+  }
+  return typeof row.country === 'string' ? row.country.trim() : '';
+}
 function _mscDecisionCardHTML(d, live) {
   const isEntry = !!d._scanEntry;
   const pid = _mscSafeId(d.id);
@@ -3256,6 +3266,8 @@ function _mscDecisionCardHTML(d, live) {
   const identityHtml = (contradicted ? _contradictedBadgeHTML() : '')
     + (rel ? `<span title="${_esc(rel.title)}" style="display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;${relTone}color:${rel.color};white-space:normal;max-width:100%;box-sizing:border-box;">${rel.icon}${rel.both ? '?' : ''} ${_esc(rel.title)}</span>` : '');
   const sectorHtml = sector ? `<span style="font-size:var(--fs-xs);font-weight:600;padding:2px 8px;background:var(--chip-bg);border-radius:var(--radius-pill);color:var(--indigo);max-width:100%;overflow-wrap:anywhere;">${_esc(sector)}</span>` : '';
+  const countryLabel = _mscCountryLabel(ref, true);
+  const countryHtml = countryLabel ? `<span style="font-size:var(--fs-xs);font-weight:500;padding:2px 8px;border:1px solid var(--border);border-radius:var(--radius-pill);color:var(--text-secondary);max-width:100%;overflow-wrap:anywhere;">${_esc(countryLabel)}</span>` : '';
   const icpScore = live && live.icp_score != null ? live.icp_score : null;
   const cleanText = s => String(s).replace(/<[^>]*>/g, '').trim();
   const signalSrc = (live && live.signal) || (isEntry && d.signal && d.signal.text) || '';
@@ -3303,6 +3315,9 @@ function _mscDecisionCardHTML(d, live) {
   const signalHead = signal
     ? `${signalLabel} ${_esc(signal)}${sigMeta ? ` <span style="opacity:.75;">(${_esc(sigMeta)})</span>` : ''}`
     : (sigMeta ? `${signalLabel} ${_esc(sigMeta)}` : '');
+  // Raison ICP visible (en plus de l'infobulle, invisible au toucher) : 2 lignes max, texte complet en title.
+  const reasonText = icpScore != null ? cleanText(live.icp_reason || '') : '';
+  const reasonHtml = reasonText ? `<div title="${_esc(reasonText)}" style="margin-top:4px;font-size:var(--fs-xs);color:var(--text-secondary);line-height:1.4;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden;overflow-wrap:anywhere;">${_esc(reasonText)}</div>` : '';
   const signalBlock = (signalHead || signalInterp)
     ? `<div style="margin-top:6px;font-size:var(--fs-xs);color:var(--text-secondary);line-height:1.4;">${signalHead}${signalHead && signalInterp ? '<br>' : ''}${signalInterp ? `<strong>Interprétation :</strong> ${_esc(signalInterp)}` : ''}</div>`
     : '';
@@ -3324,11 +3339,11 @@ function _mscDecisionCardHTML(d, live) {
       <div style="flex:1;min-width:0;">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
           <span style="font-weight:700;font-size:var(--fs-sm);color:var(--ink);">${name}</span>
-          ${company ? `<span style="font-size:var(--fs-xs);color:var(--text-secondary);">${_esc(company)}</span>` : ''}${sectorHtml}${identityHtml}${mandateHtml}
+          ${company ? `<span style="font-size:var(--fs-xs);color:var(--text-secondary);">${_esc(company)}</span>` : ''}${sectorHtml}${countryHtml}${identityHtml}${mandateHtml}
           ${icpChip}${icpStateChip}${sigBadge}
           ${confidenceHtml}${typeof d._extraChips === 'function' ? d._extraChips() : ''}
         </div>
-        ${factsBlock}${summary}
+        ${reasonHtml}${factsBlock}${summary}
         ${signalBlock}
         ${actionBlock}
         ${linksHtml}
@@ -3350,7 +3365,7 @@ function _mscFmtDate(iso) {
 // archived n'est PAS filtre : une fiche archivee depuis le scan doit rester visible avec son etat.
 // Etape A (unification Today/Signals, 21/09) : + sector, email (lignes de la carte) et company_verified,
 // identity_confidence, identity_verdict (garde d'identite, lue par _scoreReliabilityBadge via _mscDecisionCardHTML).
-const _MSC_LIVE_COLS = 'id, name, company, stage, icp_score, icp_reason, archived, signal, signal_type, signal_date, signal_url, signal_interpretation, next_action_cache, linkedin, sector, email, company_verified, identity_confidence, identity_verdict';
+const _MSC_LIVE_COLS = 'id, name, company, stage, icp_score, icp_reason, archived, signal, signal_type, signal_date, signal_url, signal_interpretation, next_action_cache, linkedin, sector, country, country_code, email, company_verified, identity_confidence, identity_verdict';
 async function _mscFetchLiveProspects(ids) {
   const liveById = {};
   if (!ids.length) return liveById;

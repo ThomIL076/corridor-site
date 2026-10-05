@@ -10192,7 +10192,7 @@ async function loadDailyPriorities() {
 
     // Etape B (2026-09-21) : + icp_reason, signal_interpretation, signal_url, identity_verdict, lues par la carte partagee _mscDecisionCardHTML (la ligne est
     // passee comme fiche « live »). Les 4 colonnes existent dans la vue prospects_scan_window (information_schema verifie) : vue security_invoker sur prospects.
-    const COLS = 'id,name,company,sector,icp_score,icp_confidence,score_signal_strength,signal,signal_type,signal_date,mandate_id,stage,next_action_cache,next_action_generated_at,priority_batch_number,last_priority_shown_at,email,reminder_date,last_contact,linkedin,company_verified,identity_confidence,icp_reason,signal_interpretation,signal_interpretation_updated_at,signal_url,identity_verdict';
+    const COLS = 'id,name,company,sector,country,country_code,icp_score,icp_confidence,score_signal_strength,signal,signal_type,signal_date,mandate_id,stage,next_action_cache,next_action_generated_at,priority_batch_number,last_priority_shown_at,email,reminder_date,last_contact,linkedin,company_verified,identity_confidence,icp_reason,signal_interpretation,signal_interpretation_updated_at,signal_url,identity_verdict';
 
     // Priorite Morning Scan (arbitrage Thomas) : si le scan du jour a deja produit des decisions
     // explicites (today_action/opportunistic_connection), elles remplacent entierement le calcul
@@ -13619,6 +13619,16 @@ function _icpBadgeWithTooltipHTML(chipHtml, score, reason, align) {
 // Crochet optionnel d._extraChips (etape B, 2026-09-21 : vue Today) = FONCTION renvoyant le HTML de pastilles supplementaires, posees en fin de
 // rangee d'en-tete. Une fonction, jamais une chaine : un objet decisions_json lu en base est du JSON et ne peut pas en porter une, donc aucun HTML
 // venant de la donnee n'atteint la carte par cette voie. Absent = aucun effet (HTML de Signals / Morning Scan inchange).
+// Pays de la fiche pour la carte (polish 05/10/2026) : nom localise via Intl.DisplayNames quand country_code est un code ISO valide, sinon le texte
+// de prospects.country ; chaine vide (rien d'affiche, pas de tiret) si l'une et l'autre sont absents ou vides.
+function _mscCountryLabel(row, fr) {
+  if (!row) return '';
+  const code = typeof row.country_code === 'string' ? row.country_code.trim().toUpperCase() : '';
+  if (/^[A-Z]{2}$/.test(code)) {
+    try { const n = new Intl.DisplayNames([fr ? 'fr' : 'en'], { type: 'region' }).of(code); if (n && n !== code) return n; } catch (_) {}
+  }
+  return typeof row.country === 'string' ? row.country.trim() : '';
+}
 function _mscDecisionCardHTML(d, live) {
   const isEntry = !!d._scanEntry;
   const pid = _mscSafeId(d.id);
@@ -13650,6 +13660,8 @@ function _mscDecisionCardHTML(d, live) {
   const sector = live && typeof live.sector === 'string' ? live.sector.trim() : '';
   const companyLine = [company, sector].filter(Boolean).join(' · ');
   const emailAddr = _mscSafeEmail(live && live.email);
+  const countryLabel = _mscCountryLabel(live, fr);
+  const countryHtml = countryLabel ? `<span style="font-size:var(--fs-xs);font-weight:500;padding:2px 8px;border:1px solid var(--border);border-radius:var(--radius-pill);color:var(--text-secondary);max-width:100%;overflow-wrap:anywhere;">${_esc(countryLabel)}</span>` : '';
 
   const links = [];
   // Liens de secours (entrees scan_entries ET repli decisions_json, 21/09) : la fiche live comble un lien
@@ -13680,6 +13692,9 @@ function _mscDecisionCardHTML(d, live) {
   const icpChip = icpScore != null
     ? _icpBadgeWithTooltipHTML(`<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:var(--radius-pill);background:var(--chip-bg);color:var(--indigo);">ICP ${_esc(String(icpScore))}</span>`, icpScore, live.icp_reason, 'left')
     : '';
+  // Raison ICP visible (en plus de l'infobulle, invisible au toucher) : 2 lignes max, texte complet en title.
+  const reasonText = icpScore != null ? cleanText(live.icp_reason || '') : '';
+  const reasonHtml = reasonText ? `<div title="${_esc(reasonText)}" style="margin-top:4px;font-size:var(--fs-xs);color:var(--text-secondary);line-height:1.4;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden;overflow-wrap:anywhere;">${_esc(reasonText)}</div>` : '';
   const signalBlock = (signal || signalInterp)
     ? `<div style="margin-top:6px;font-size:var(--fs-xs);color:var(--dim);line-height:1.4;">${signal ? `<strong>Signal :</strong> ${_esc(signal)}` : ''}${signal && signalInterp ? '<br>' : ''}${signalInterp ? `<strong>${fr ? 'Interprétation' : 'Interpretation'} :</strong> ${_esc(signalInterp)}` : ''}</div>`
     : '';
@@ -13702,11 +13717,11 @@ function _mscDecisionCardHTML(d, live) {
       <div style="flex:1;min-width:0;">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
           <span style="font-weight:700;font-size:var(--fs-sm);color:var(--navy);">${name}</span>
-          ${companyLine ? `<span style="font-size:var(--fs-xs);color:var(--dim);">${_esc(companyLine)}</span>` : ''}${mandateHtml}
+          ${companyLine ? `<span style="font-size:var(--fs-xs);color:var(--dim);">${_esc(companyLine)}</span>` : ''}${countryHtml}${mandateHtml}
           ${contradictedChip}${reliabChip}${icpChip}${icpStateChip}${sigBadge}${sigDateChip}
           ${confidenceHtml}${typeof d._extraChips === 'function' ? d._extraChips() : ''}
         </div>
-        ${contradictedNote}${factsBlock}${summary}
+        ${reasonHtml}${contradictedNote}${factsBlock}${summary}
         ${signalBlock}
         ${actionBlock}
         ${linksHtml}
@@ -13890,7 +13905,7 @@ function _mscIcpStateChipHTML(state) {
 // PAS filtre : une fiche archivee depuis le scan doit rester lisible (etat ICP "Archivee depuis le scan").
 // + sector, email, company_verified, identity_confidence, identity_verdict (2026-09-21, etape A unification Today/Signals) : garde d'identite,
 // secteur et email de la carte partagee ; memes colonnes que le Pipeline, donc la ligne partielle mise en cache reste utilisable par le tiroir.
-const _MSC_LIVE_COLS = 'id, name, company, stage, icp_score, icp_reason, archived, signal, signal_type, signal_date, signal_url, signal_interpretation, next_action_cache, linkedin, sector, email, company_verified, identity_confidence, identity_verdict';
+const _MSC_LIVE_COLS = 'id, name, company, stage, icp_score, icp_reason, archived, signal, signal_type, signal_date, signal_url, signal_interpretation, next_action_cache, linkedin, sector, country, country_code, email, company_verified, identity_confidence, identity_verdict';
 async function _mscFetchLiveProspects(ids) {
   const liveById = {};
   if (!ids.length) return liveById;
