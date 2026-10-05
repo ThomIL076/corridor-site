@@ -27,6 +27,31 @@ Même taxonomie de statuts que `known-divergences.md` :
 
 ---
 
+## PORTÉ — vue « Aujourd'hui » (2026-10-05, parité totale avec demo-private.html)
+
+Règle permanente « Parité produit totale pour tout nouveau client » : la décision du
+2026-09-12 « Today simplifié pour Wominds » (pas de cycle de lots, pas de rail « Agents en
+action », cartes triées par ICP seul) est **abrogée** et la divergence **retirée** de ce document.
+Désormais identiques à demo-private.html (mêmes noms, même rendu, vérifié hors ligne sur 7 cas de
+cartes + chargement Chromium) : `loadDailyPriorities` (décisions du scan, puis actions reportées,
+puis classement arithmétique), `_renderPriorityCards`, `_priorityFooterHTML`, `_priorityGenerate`,
+`_mscDecisionCardHTML`, `_mscDecisionFromProspect`, `_updateQueuedCount`, `_prioritiesNext`,
+`_prioritiesSkip`, `_updatePrioritiesNextBtn`, `_loadFollowUpsDue` (+ backlog « À revalider »),
+`_loadAgentsAtWork`, `_loadTodayStats`. Supprimés côté Wominds : `loadTodayRun`,
+`_todaySharedCardHTML`, `_todayGenerate`, panneau « Capacité du jour » de l'onglet Aujourd'hui
+(la cible quotidienne `mandates.daily_priority_count` reste affichée comme simple note dans la
+rangée de stats).
+
+Écarts qui subsistent volontairement (Wominds) : FR uniquement (pas de `currentLang`) ; source des
+fiches = table `prospects` et non la vue `prospects_scan_window` (RLS : la vue n'est pas
+security_invoker), donc classement arithmétique trié côté client (200 meilleurs ICP) ;
+`mandate_id = NULL` partout (vue consolidée) ; filtre pays `_passesCountryFilter` ; ouverture de la
+fiche par `openProspectDetail` (et non `_openDrawerFromPriority`) ; helpers propres au client
+(`_icpBadgeWithTooltipHTML` sans mention Corridor, `_sigBadge` limité à la taxonomie du client,
+libellés de `_scoreReliabilityBadge`) ; libellés d'agents via `_AGENTS_WOMINDS` ; pas de
+`_priorityWeightHTML` (pondération du classement, tiroir seulement) ; « Envoyer la relance » ne
+déplie pas de carte (les cartes Envoyer de Wominds sont toujours dépliées).
+
 ## Méthodologie de cette passe
 
 1. `scripts/diff-functions-corridor-wominds.sh` (nouveau script, adapté de
@@ -273,16 +298,16 @@ Présentes uniquement dans demo-private.html (211, liste brute du script,
 `_findEmailDrawer` (qualifiée ci-dessus), `_findPhoneDrawer` (qualifiée
 ci-dessus), `_findSignalDecisionMaker`, `_formatPipelineInsights`,
 `_generateFromManualNotes`, `_generatePostCallMsg`,
-`_generateSignalInterpretation`, `_goToJ5Followup`, `_hsCopyKey`,
+`_generateSignalInterpretation`, `_hsCopyKey`,
 `_hsOnKeyInput`, `_hsRenderStageMapping`, `_hsRestoreMapping`,
 `_hsRevealKey`, `_hsSaveMapping`, `_hsTestConnection`,
-`_humanConnectionPoint`, `_hydrateJ5EligibilityFor`, `_inboxSend`,
+`_humanConnectionPoint`, `_inboxSend`,
 `_inboxShowRaw`, `_inferRegion`, `_initAgentPanelHeaders`,
 `_initHpFilters`, `_initKanbanFilterOptions`, `_intClosePanel`,
 `_intOpenPanel`, `_intRenderGrid`, `_interpretSignal`,
 `_isPipelinePerfQuestion`, `_isProspectStalled`, `_j5BadgeClick`,
-`_kanbanCols`, `_langLine`, `_loadAgentsAtWork`, `_loadCrmEmptyStats`,
-`_loadDealOptions`, `_loadFollowUpsDue`, `_loadLearnedPreferences`,
+`_kanbanCols`, `_langLine`, `_loadCrmEmptyStats`,
+`_loadDealOptions`, `_loadLearnedPreferences`,
 `_loadMandateOptions`, `_loadStageConversion`, `_mandateContext`,
 `_mapStakeholders`, `_markPostCallSent`, `_mockMomentum`, `_newNavActive`,
 `_onCardSelect`, `_onDealChange`, `_onMandateChange`, `_openAskFromMandate`,
@@ -292,12 +317,12 @@ ci-dessus), `_findSignalDecisionMaker`, `_formatPipelineInsights`,
 ci-dessus), `_pdRefreshMessageHistory`, `_pdToggleCompose`,
 `_pdToggleLogInteraction`, `_pdrvCopyKey`, `_pdrvOnKeyInput`,
 `_pdrvRenderStageMapping`, `_pdrvRevealKey`, `_pdrvSaveMapping`,
-`_pdrvTestConnection`, `_prOpenProspect`, `_prioritiesNext`,
-`_prioritiesSkip`, `_priorityGenerate`, `_priorityScore`,
+`_pdrvTestConnection`, `_prOpenProspect`,
+`_priorityScore`,
 `_promoteContact`, `_proposalUseVariant`, `_regionTag`,
 `_removeProposalCard`, `_renderAgentsStatus`, `_renderCrmDrawerContent`,
-`_renderFollowUpRows`, `_renderInboxCards`, `_renderJ5LowSection`,
-`_renderPriorityCards`, `_renderSignalLearningSummary`, `_renderSignalLink`,
+`_renderInboxCards`, `_renderJ5LowSection`,
+`_renderSignalLearningSummary`, `_renderSignalLink`,
 `_replyIntel`, `_resetCrmFilters`, `_resetZoom`, `_resolveMandate`,
 `_resolveViaEnrichment`, `_runFreeSearch`, `_runPipelineReview`,
 `_runPostCallWorkflow`, `_saveEmail`, `_savePhone`, `_scannerSetMode`,
@@ -312,7 +337,7 @@ ci-dessus), `_pdRefreshMessageHistory`, `_pdToggleCompose`,
 `_switchSysTab`, `_syncNavHeight`, `_toggleDebrief`, `_toggleManualDebrief`,
 `_toggleReplyIntel`, `_toggleSendCard`, `_updateBulkBar`,
 `_updateIntelRowLayout`, `_updateKpiCards`, `_updateMobileTabActive`,
-`_updatePrioritiesNextBtn`, `_updateQueuedCount`, `_viewInPipeline`,
+`_viewInPipeline`,
 `addKanbanLegends`, `addProspect`, `applyDealBadges`, `applyLang`,
 `applyMomentum`, `buildCard`, `callAI`, `cleanAIOutput`, `clearAgent`,
 `closeAddMandate`, `closeCallPrep`, `closeDrawer`, `copyCallPrep`,
@@ -332,9 +357,9 @@ Présentes uniquement dans wominds.html (29, liste brute du script,
 `_pdMessageHistoryHTML`, `_pdNextActionHTML` (qualifiée ci-dessus),
 `_pdSignalTimelineHTML` (qualifiée ci-dessus), `_populateKanbanFilterOptions`,
 `_prospectCardHTML`, `_renderDrawerInteractions`, `_renderInboxCard`,
-`_scannerAddToPipeline`, `_statsActiveProspects`, `_todayCardHTML`,
+`_scannerAddToPipeline`, `_statsActiveProspects`,
 `closeProspectDetail`, `loadClientsView`, `loadPipelineHealth`,
-`loadTodayRun`, `openProspectDetail`, `renderStatsCountry`,
+`openProspectDetail`, `renderStatsCountry`,
 `renderStatsSector`, `saveProspectForm`
 
 ## Passe d'harmonisation scan_entries v1 (2026-09-21) — divergences restantes, NON TRIÉES une à une
@@ -365,11 +390,9 @@ produit n'a été recherchée hors du chantier scan_entries.
 
 ### Famille « chantier sans lien avec scan_entries » (non investiguée)
 
-- demo-private.html uniquement : rappels `_reminderClose`, `_reminderSnooze`,
-  `_removeReminderBacklogRow`, `_renderReminderBacklogRows`, `_toggleReminderBacklog` ;
-  statut système `_loadSystemActiveStatus`, `_renderSystemActiveLabel` ; signaux et actions
-  `_actionButtonLabel`, `_effectiveSignalStrength`, `_loadDeprioritizedTypes`,
-  `_qualificationNote`, `_signalSourceLabel`.
+- demo-private.html uniquement : statut système `_loadSystemActiveStatus`,
+  `_renderSystemActiveLabel` ; signaux et actions `_qualificationNote`, `_signalSourceLabel`
+  (rappels et pondération de Today : portés le 2026-10-05, cf. section dédiée plus haut).
 - wominds.html uniquement : agents `_agExampleHTML`, `_agList`, `_agRow`,
   `_agentDetailBodyHTML`, `_agentStatus`, `_loadAgentLastProposals`, `_openAgentDetail`,
   `renderAgentsScreen` ; SEO `_seoCopyHostinger`, `_seoListHTML`, `_seoScoreColor`,
