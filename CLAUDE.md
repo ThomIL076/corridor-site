@@ -54,30 +54,18 @@ coexister indéfiniment.
 
 **Vérifié le même soir, même pattern trouvé ailleurs** :
 
-- `priority_batches` — **code confirmé identique à `signals_feed_cache` avant
-  son fix, schéma base PAS ENCORE vérifié** (pas de credentials service_role
-  valides à ce moment pour interroger la base directement — à vérifier
-  manuellement). Fonctions et points d'appel exacts :
-  - `_prioritiesNext()` — `demo-private.html:9997-10000`, `kaizenology.html:9200-9203`
-  - `_prioritiesSkip()` — `demo-private.html:10025-10028`, `kaizenology.html:9228-9231`
-
-  Dans les 4 sites, `mandate_id: _pbMandateId` où
-  `_pbMandateId = (activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null`
-  — donc explicitement `null` en vue consolidée ("tous mandats"), même rôle
-  exact que `_sfcId` dans `_saveFeedCache`. `onConflict: 'client_id,mandate_id'`
-  identique. Le try/catch n'aboutit qu'à un `console.error`, jamais surfacé.
-  La lecture correspondante (`loadDailyPriorities()`,
-  `demo-private.html:9116`/`kaizenology.html:8605`) utilise déjà
-  `.is('mandate_id', null)` pour ce cas — le code suppose donc bien que
-  `mandate_id = NULL` est une valeur légitime pour cette table.
-  **Priorité de vérification la plus haute** : cette table a déjà eu un vrai
-  bug GRANT trouvé et corrigé le 2026-09-10 (celui qui bloquait le bouton
-  "Send email" avant le fix `_markReady`) — même table, déjà un bug réel une
-  fois. À vérifier en base exactement comme `signals_feed_cache` l'a été
-  (contrainte unique sur `(client_id, mandate_id)` avec `NULLS NOT DISTINCT`,
-  `mandate_id` sans `NOT NULL`, pas de PK qui l'interdirait). Pas corrigé
-  ici — vérification et fix schéma laissés à Thomas.
-
+- `priority_batches` — **RÉSOLU (vérifié le 2026-10-05)**. Le code était identique à
+  `signals_feed_cache` avant son fix, mais : (1) le schéma en base est correct
+  (index unique `priority_batches_client_mandate_uniq` sur `(client_id, mandate_id)`
+  avec `NULLS NOT DISTINCT`, `mandate_id` nullable, GRANT SELECT/INSERT/UPDATE au
+  rôle `authenticated`, RLS owner) ; (2) depuis le 2026-09-24, `_prioritiesNext()` /
+  `_prioritiesSkip()` n'écrivent plus en upsert direct depuis le navigateur : ils
+  appellent `/api/priority-batches-advance` (écriture `service_role` côté serveur,
+  `client_id` pris du jeton de session, `mandate_id: null` en vue « tous mandats »),
+  sur demo-private, kaizenology et wominds, et les échecs sont surfacés par `showToast`.
+  La lecture (`loadDailyPriorities()`) utilise `.is('mandate_id', null)` pour ce cas.
+  Couvert par le TEST 5 de `smoke-tests-corridor.sh` (deux écritures `mandate_id` NULL
+  sur la même clé = une seule ligne, nettoyée ; nécessite `SUPABASE_SECRET_KEY`).
 - `buying_committee_members` (`_addStakeholderToPipeline()`/
   `_bcPersistFromScan()`, 2 sites par fichier, `onConflict: 'prospect_id,role'`)
   — même try/catch silencieux. Pas de colonne nullable dans la clé de conflit
