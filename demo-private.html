@@ -1857,30 +1857,30 @@ body.new-nav { padding-left: 220px; }
 
 <!-- ONGLETS DE SECTION (lot D phase 1) : remplace la barre de parcours (journey-spine) et les sous-onglets
      Signaux/Sante/Rapports. Les compteurs #spine-count-send/-reply/-client/-qualify/-indeal gardent leurs ids. -->
-<div class="sec-tabs" id="sec-tabs" role="tablist" hidden>
+<nav class="sec-tabs" id="sec-tabs" data-en-aria="Section views" data-fr-aria="Vues de la section" aria-label="Section views" hidden>
   <div class="sec-tabs-group" data-sec="prospects" hidden>
-    <button class="sec-tab" role="tab" data-view="pipeline" onclick="_navView('pipeline')"><span data-en="Pipeline" data-fr="Pipeline">Pipeline</span></button>
-    <button class="sec-tab" role="tab" data-view="system-signals" onclick="_navView('system-signals')"><span data-en="Signals" data-fr="Signaux">Signals</span></button>
-    <button class="sec-tab" role="tab" data-view="system-pipeintel" onclick="_navView('system-pipeintel')"><span data-en="Pipeline health" data-fr="Santé du pipeline">Pipeline health</span></button>
+    <button class="sec-tab" data-view="pipeline" onclick="_navView('pipeline')"><span data-en="Pipeline" data-fr="Pipeline">Pipeline</span></button>
+    <button class="sec-tab" data-view="system-signals" onclick="_navView('system-signals')"><span data-en="Signals" data-fr="Signaux">Signals</span></button>
+    <button class="sec-tab" data-view="system-pipeintel" onclick="_navView('system-pipeintel')"><span data-en="Pipeline health" data-fr="Santé du pipeline">Pipeline health</span></button>
   </div>
   <div class="sec-tabs-group" data-sec="conversations" hidden>
-    <button class="sec-tab" role="tab" data-view="review" onclick="_navView('review')"><span data-en="Review" data-fr="Revue">Review</span> <span class="sec-count" id="spine-count-reply"></span></button>
-    <button class="sec-tab" role="tab" data-view="send" onclick="_navView('send')"><span data-en="Send" data-fr="Envoi">Send</span> <span class="sec-count" id="spine-count-send"></span></button>
-    <button class="sec-tab" role="tab" data-view="inbox-history" onclick="_navView('inbox-history')"><span data-en="History" data-fr="Historique">History</span></button>
+    <button class="sec-tab" data-view="review" onclick="_navView('review')"><span data-en="Review" data-fr="Revue">Review</span> <span class="sec-count" id="spine-count-reply"></span></button>
+    <button class="sec-tab" data-view="send" onclick="_navView('send')"><span data-en="Send" data-fr="Envoi">Send</span> <span class="sec-count" id="spine-count-send"></span></button>
+    <button class="sec-tab" data-view="inbox-history" onclick="_navView('inbox-history')"><span data-en="History" data-fr="Historique">History</span></button>
   </div>
   <div class="sec-tabs-group" data-sec="results" hidden>
-    <button class="sec-tab" role="tab" data-view="stats" onclick="_navView('stats')"><span data-en="Stats" data-fr="Stats">Stats</span></button>
-    <button class="sec-tab" role="tab" data-view="system-weekly" onclick="_navView('system-weekly')"><span data-en="Reports" data-fr="Rapports">Reports</span></button>
-    <button class="sec-tab" role="tab" data-view="clients" onclick="_navView('clients')"><span data-en="Clients" data-fr="Clients">Clients</span> <span class="sec-count" id="spine-count-client"></span></button>
+    <button class="sec-tab" data-view="stats" onclick="_navView('stats')"><span data-en="Stats" data-fr="Stats">Stats</span></button>
+    <button class="sec-tab" data-view="system-weekly" onclick="_navView('system-weekly')"><span data-en="Reports" data-fr="Rapports">Reports</span></button>
+    <button class="sec-tab" data-view="clients" onclick="_navView('clients')"><span data-en="Clients" data-fr="Clients">Clients</span> <span class="sec-count" id="spine-count-client"></span></button>
   </div>
   <div class="sec-tabs-group" data-sec="settings" hidden>
-    <button class="sec-tab" role="tab" data-view="mandate" onclick="_navView('mandate')"><span data-en="Mandate & ICP" data-fr="Mandat & ICP">Mandate & ICP</span></button>
-    <button class="sec-tab" role="tab" data-view="integrations" onclick="_navView('integrations')"><span data-en="Integrations" data-fr="Intégrations">Integrations</span></button>
-    <button class="sec-tab" role="tab" data-view="agents" onclick="_navView('agents')"><span data-en="Agents" data-fr="Agents">Agents</span> <span class="sec-count" id="agents-count"></span></button>
+    <button class="sec-tab" data-view="mandate" onclick="_navView('mandate')"><span data-en="Mandate & ICP" data-fr="Mandat & ICP">Mandate & ICP</span></button>
+    <button class="sec-tab" data-view="integrations" onclick="_navView('integrations')"><span data-en="Integrations" data-fr="Intégrations">Integrations</span></button>
+    <button class="sec-tab" data-view="agents" onclick="_navView('agents')"><span data-en="Agents" data-fr="Agents">Agents</span> <span class="sec-count" id="agents-count"></span></button>
     <!-- Mobile uniquement : la sidebar (donc « Se deconnecter ») est inaccessible sous 768px depuis la suppression de la liste « Plus ». -->
     <button class="sec-tab sec-tab-mobile-only" onclick="signOut()"><span data-en="Sign out" data-fr="Se déconnecter">Sign out</span></button>
   </div>
-</div>
+</nav>
 
 </div><!-- /.top-chrome-wrapper -->
 
@@ -2391,7 +2391,7 @@ body.new-nav { padding-left: 220px; }
   <div class="tab-panel" id="tab-pipeline">
     <div class="module-header" style="margin-bottom:20px;">
       <div class="module-title" data-en="Pipeline" data-fr="Pipeline">Pipeline</div>
-      <div class="section-sub"><span id="pipeline-total-count">0</span><span id="pipeline-total-of"></span> <span data-en="prospects under management. Movement is written by agents, corrected by you." data-fr="prospects sous gestion. Les mouvements sont écrits par les agents, corrigés par vous.">prospects under management. Movement is written by agents, corrected by you.</span></div>
+      <div class="section-sub"><span id="pipeline-total-count">0</span><span id="pipeline-total-of"></span> <span id="pipeline-total-lbl" data-en="prospects under management. Movement is written by agents, corrected by you." data-fr="prospects sous gestion. Les mouvements sont écrits par les agents, corrigés par vous.">prospects under management. Movement is written by agents, corrected by you.</span></div>
     </div>
     <!-- Perimetre : remplace les etapes « Qualify » / « Engaged+ » de l'ancienne barre de parcours (memes comptes, memes ids). -->
     <div class="pipe-scope" role="group" data-en-aria="Pipeline scope" data-fr-aria="Périmètre du pipeline" aria-label="Pipeline scope">
@@ -2675,7 +2675,7 @@ body.new-nav { padding-left: 220px; }
         <option value="outbound" data-en="Outbound" data-fr="Sortant">Outbound</option>
       </select>
       <select id="send-filter-touch" onchange="_applySendFilters()" style="padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:var(--fs-sm);font-family:inherit;color:var(--text);background:#fff;">
-        <option value="all" data-en="All touches" data-fr="Tous les touches">All touches</option>
+        <option value="all" data-en="All touches" data-fr="Toutes les touches">All touches</option>
         <option value="invite" data-en="Invite" data-fr="Invitation">Invite</option>
         <option value="j0" data-en-title="J+0: first LinkedIn message, sent once the connection request is accepted (day 0)." data-fr-title="J+0 : premier message LinkedIn, envoyé dès que l'invitation est acceptée (jour 0).">J+0</option>
         <option value="j5" data-en-title="J+5: follow-up email about 5 days after the J+0." data-fr-title="J+5 : e-mail de relance environ 5 jours après le J+0.">J+5</option>
@@ -3415,7 +3415,7 @@ function _newNavActive(key) {
       g.querySelectorAll('.sec-tab').forEach(b => {
         const a = b.dataset.view === key;
         b.classList.toggle('active', a);
-        b.setAttribute('aria-selected', a ? 'true' : 'false');
+        if (a) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
       });
     });
     bar.hidden = !hasTabs; // Aujourd'hui : une seule vue, pas d'onglets
@@ -9458,7 +9458,7 @@ function _applySendFilters() {
   if (queue.length) {
     const dueNow = queue[0];
     const scheduled = queue.slice(1);
-    html += `<div class="today-step-divider"><span class="today-step-label">Due now</span><span class="today-step-rule"></span></div>`;
+    html += `<div class="today-step-divider"><span class="today-step-label">${currentLang==='fr' ? 'À envoyer maintenant' : 'Due now'}</span><span class="today-step-rule"></span></div>`;
     html += _sendCardHTML(dueNow.p, dueNow.touch, true);
     if (totalInvite > 25) html += `<div style="text-align:center;font-size:var(--fs-sm);color:var(--muted);padding:8px 0 16px">${_esc(currentLang==='fr'
       ? `${totalInvite - 25} invitation${totalInvite - 25 > 1 ? 's' : ''} supplémentaire${totalInvite - 25 > 1 ? 's' : ''} non affichée${totalInvite - 25 > 1 ? 's' : ''} -- augmentez le filtre ICP ou marquez-en comme envoyées pour voir le lot suivant.`
@@ -13056,8 +13056,8 @@ function _openDrawerFromPriority(prospectId, initialTab = 'activity') {
   fakeCard.dataset.reminderDate = p.reminder_date || '';
   fakeCard.dataset.clientId = CLIENT_ID;
   fakeCard.innerHTML =
-    `<span class="k-card-name">${_esc(p.name || '')}</span>` +
-    `<span class="k-card-company">${_esc(p.company || '')}</span>`;
+    `<span class="k-card-name" title="${_esc(p.name || '')}">${_esc(p.name || '')}</span>` +
+    `<span class="k-card-company" title="${_esc(p.company || '')}">${_esc(p.company || '')}</span>`;
   openDrawer(fakeCard, initialTab);
 }
 
@@ -16544,6 +16544,7 @@ function renderKanban(rows){
   // Header Pipeline (section-sub) : meme rows/total deja calcules ci-dessus pour les KPIs,
   // aucune requete ni recalcul supplementaire -- jamais un chiffre fige (cf. spine counts).
   setTxt('pipeline-total-count', total);
+  _pipeHeaderLabel(total);
   window._pipeBase = { active: activeRows.length, all: allRows.length };
   // Spine (Phase 1) : file d'attente par etape, jamais la population -- QUALIFY = uniquement
   // la colonne Kanban Identified, IN DEAL = Engaged ou au-dela hors Closed. Meme rows deja
@@ -17224,6 +17225,15 @@ function _resetKanbanFilters() {
   _resetArchivedFilter();
   _applyKanbanFilters();
 }
+// Libelle de l'en-tete Pipeline accorde au nombre (« 1 prospect sous gestion »).
+function _pipeHeaderLabel(n) {
+  const el = document.getElementById('pipeline-total-lbl');
+  if (!el) return;
+  const tail = { en: ' under management. Movement is written by agents, corrected by you.', fr: ' sous gestion. Les mouvements sont écrits par les agents, corrigés par vous.' };
+  el.dataset.en = (n === 1 ? 'prospect' : 'prospects') + tail.en;
+  el.dataset.fr = (n < 2 ? 'prospect' : 'prospects') + tail.fr;
+  el.textContent = currentLang === 'fr' ? el.dataset.fr : el.dataset.en;
+}
 function _updateKpiCards() {
   const cards = Array.from(document.querySelectorAll('.k-card'))
     .filter(c => !c.closest('#crm-board') && c.style.display !== 'none');
@@ -17260,6 +17270,7 @@ function _updateKpiCards() {
   const totalEl = document.getElementById('pipeline-total-count');
   if (totalEl) totalEl.textContent = total;
   // « 1 résultat sur 5 500 prospects » : le total vient des lignes chargées (renderKanban), jamais code en dur.
+  _pipeHeaderLabel(window._pipeBase && total !== (_showArchived ? window._pipeBase.all : window._pipeBase.active) ? (_showArchived ? window._pipeBase.all : window._pipeBase.active) : total);
   const ofEl = document.getElementById('pipeline-total-of');
   const base = window._pipeBase;
   if (ofEl && base) {
@@ -19741,7 +19752,7 @@ if ('serviceWorker' in navigator) {
   </div>
   <div class="ask-input-row">
     <textarea id="ask-input" rows="2" placeholder="Ask Corridor&#8230;" data-en-ph="Ask Corridor&#8230;" data-fr-ph="Demander à Corridor&#8230;" onkeydown="_askOnEnter(event)"></textarea>
-    <button class="btn-accent" id="ask-send-btn" onclick="_sendAskMessage()" style="height:44px;flex-shrink:0;">
+    <button class="btn-accent" id="ask-send-btn" onclick="_sendAskMessage()" aria-label="Send" data-en-aria="Send" data-fr-aria="Envoyer" style="height:44px;flex-shrink:0;">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 2L11 13"/><path d="M22 2L15 22 11 13 2 9l20-7z"/></svg>
     </button>
   </div>
