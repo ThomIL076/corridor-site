@@ -280,6 +280,17 @@ nav {
 .pipe-scope { display: flex; gap: 6px; flex-wrap: wrap; margin: -6px 0 16px; }
 .pipe-scope .toggle-pill { display: inline-flex; align-items: center; gap: 6px; }
 #tab-system .sys-tabs { display: none; } /* remplacees par les onglets de section (#sec-tabs) */
+/* Cibles tactiles >= 44 px sous 768 px (design pass). Aucun changement de logique. */
+@media (max-width: 768px) {
+  .lang-btn { min-width: 44px; min-height: 44px; }
+  #mandate-select, .toolbar-filters select, [id^="kanban-filter-"], [id^="send-filter-"]:not(input), #sl-p6 { min-height: 44px; }
+  [id^="hp-btn-"], [id^="sig-btn-"], [id^="review-filter-"], .toggle-pill { min-width: 44px; min-height: 44px; }
+  label:has(#send-filter-today) { min-height: 44px; align-items: center; }
+  #send-filter-today { width: 22px; height: 22px; }
+  .pd-link { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; padding: 0 6px; }
+  footer a { display: inline-flex; align-items: center; min-height: 44px; }
+  main button:not(.k-card button) { min-width: 44px; }
+}
 .sec-tab-mobile-only { display: none; }
 @media (max-width: 768px) {
   .sec-tabs { padding: 0 8px; }
