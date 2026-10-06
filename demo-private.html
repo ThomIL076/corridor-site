@@ -1905,7 +1905,7 @@ body.new-nav { padding-left: 220px; }
     <!-- F10 : "In deal" survendait la maturite reelle (le calcul reste stage rank >= Engaged,
          hors Closed -- inchange, cf. renderKanban plus bas). "Engaged+" est le titre principal
          desormais ; l'ancienne note "engaged +" devient redondante avec lui, retiree. -->
-    <span class="spine-label" data-en="Engaged+" data-fr="Engagé+">Engaged+</span>
+    <span class="spine-label" data-en="Engaged+" data-fr="Engagé+" data-en-title="Prospects at stage Engaged or beyond (Engaged, Replied, Proposal, Negotiation), excluding Closed." data-fr-title="Prospects à l'étape Engagé ou au-delà (Engagé, Répondu, Proposition, Négociation), hors Clôturés." title="Prospects at stage Engaged or beyond (Engaged, Replied, Proposal, Negotiation), excluding Closed.">Engaged+</span>
     <div class="spine-row"><span class="spine-count" id="spine-count-indeal"></span><span class="spine-note"></span></div>
     <span class="spine-rail"></span>
   </button>
@@ -2426,7 +2426,7 @@ body.new-nav { padding-left: 220px; }
   <div class="tab-panel" id="tab-pipeline">
     <div class="module-header" style="margin-bottom:20px;">
       <div class="module-title" data-en="Pipeline" data-fr="Pipeline">Pipeline</div>
-      <div class="section-sub"><span id="pipeline-total-count">0</span> <span data-en="prospects under management. Movement is written by agents, corrected by you." data-fr="prospects sous gestion. Les mouvements sont écrits par les agents, corrigés par vous.">prospects under management. Movement is written by agents, corrected by you.</span></div>
+      <div class="section-sub"><span id="pipeline-total-count">0</span><span id="pipeline-total-of"></span> <span data-en="prospects under management. Movement is written by agents, corrected by you." data-fr="prospects sous gestion. Les mouvements sont écrits par les agents, corrigés par vous.">prospects under management. Movement is written by agents, corrected by you.</span></div>
     </div>
     <div class="csv-actions" style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px;">
       <div class="toolbar-filters" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
@@ -2436,7 +2436,7 @@ body.new-nav { padding-left: 220px; }
           onfocus="this.style.borderColor='var(--accent)'"
           onblur="this.style.borderColor='var(--border)'; _applyKanbanFilters(); _resetZoom();">
         <button class="btn-md" id="sort-icp-btn" onclick="_toggleSortICP()" style="border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;color:var(--text);background:#fff;cursor:pointer;white-space:nowrap;display:flex;align-items:center;justify-content:space-between;gap:6px;"><span>ICP</span><span id="icp-sort-arrow">⇅</span></button>
-        <button class="btn-md" id="btn-rank-90d" onclick="_rank90d()" style="border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;color:var(--text);background:#fff;cursor:pointer;white-space:nowrap;"><span data-en="Rank 90d" data-fr="Score 90j">Rank 90d</span></button>
+        <button class="btn-md" id="btn-rank-90d" onclick="_rank90d()" data-en-title="Sorts cards by likelihood of progressing within 90 days (0-100), from stage, last contact, reminder, ICP score and origin." data-fr-title="Trie les cartes selon leur probabilité d'avancer sous 90 jours (0-100), d'après l'étape, le dernier contact, le rappel, le score ICP et l'origine." title="Sorts cards by likelihood of progressing within 90 days (0-100), from stage, last contact, reminder, ICP score and origin." style="border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;color:var(--text);background:#fff;cursor:pointer;white-space:nowrap;"><span data-en="Rank 90d" data-fr="Score 90j">Rank 90d</span></button>
         <select id="kanban-filter-sector" onchange="_applyKanbanFilters()" style="font-size:var(--fs-sm);padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--white);color:var(--text);cursor:pointer;max-width:180px;">
           <option value="" data-en="All sectors" data-fr="Tous les secteurs">All sectors</option>
           <option value="AdTech" data-en="AdTech" data-fr="AdTech">AdTech</option>
@@ -2550,10 +2550,12 @@ body.new-nav { padding-left: 220px; }
          Revenue/Signal Attribution/Signal Learning/Retainer restent dans tab-stats, inchanges,
          faute de destination precisee par le README pour eux. -->
     <div class="card" id="pipeline-stats-card" style="margin-bottom:20px;">
+      <div id="pipe-stats-scope" style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:8px;"></div>
       <div class="pipe-stats-row">
         <div class="pipe-stat">
           <span class="pipe-stat-val" id="pipe-conversion">—</span>
           <span class="pipe-stat-label" data-en="Conversion" data-fr="Conversion">Conversion</span>
+          <span id="pipe-conversion-sub" style="display:block;font-size:var(--fs-xs);color:var(--muted);margin-top:2px;"></span>
         </div>
         <div class="pipe-stat">
           <span class="pipe-stat-val" id="pipe-inconv">—</span>
@@ -2704,8 +2706,8 @@ body.new-nav { padding-left: 220px; }
       <select id="send-filter-touch" onchange="_applySendFilters()" style="padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:var(--fs-sm);font-family:inherit;color:var(--text);background:#fff;">
         <option value="all" data-en="All touches" data-fr="Tous les touches">All touches</option>
         <option value="invite" data-en="Invite" data-fr="Invitation">Invite</option>
-        <option value="j0">J+0</option>
-        <option value="j5">J+5</option>
+        <option value="j0" data-en-title="J+0: first LinkedIn message, sent once the connection request is accepted (day 0)." data-fr-title="J+0 : premier message LinkedIn, envoyé dès que l'invitation est acceptée (jour 0).">J+0</option>
+        <option value="j5" data-en-title="J+5: follow-up email about 5 days after the J+0." data-fr-title="J+5 : e-mail de relance environ 5 jours après le J+0.">J+5</option>
       </select>
       <select id="send-filter-lang" style="padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:var(--fs-sm);font-family:inherit;color:var(--text);background:#fff;">
         <option value="EN" selected>EN</option>
@@ -3686,11 +3688,17 @@ function _renderWeeklyList(reports, voteMap) {
   const latestTag = fr ? 'DERNIER' : 'LATEST';
   const weekTag = fr ? 'SEMAINE' : 'WEEK';
 
+  // Fraicheur : le rapport est attendu chaque vendredi -- au-dela de 9 jours sans nouveau, on le dit.
+  const _wkGen = new Date(latest.created_at || latest.week_start);
+  const _wkAge = isNaN(_wkGen) ? null : Math.max(0, Math.floor((Date.now() - _wkGen) / 86400000));
+  const _wkStale = _wkAge !== null && _wkAge > 9;
+  const freshHtml = _wkAge === null ? '' : `<div style="font-size:var(--fs-xs);color:${_wkStale ? 'var(--amber)' : 'var(--muted)'};margin-bottom:10px;">${fr ? 'Généré le ' : 'Generated on '}${_wkGen.toLocaleDateString(fr ? 'fr-FR' : 'en-GB',{day:'2-digit',month:'2-digit'})} · ${_relDate(latest.created_at || latest.week_start)}${_wkStale ? (fr ? ' — rapport en retard : un nouveau rapport est attendu chaque vendredi.' : ' — report overdue: a new one is expected every Friday.') : ''}</div>`;
   const latestHtml = `<div style="border:1px solid var(--border);border-radius:var(--radius-panel);padding:18px 20px;margin-bottom:16px;">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
       <span style="font-family:'IBM Plex Mono',monospace;font-size:var(--fs-xs);font-weight:700;letter-spacing:0.06em;color:var(--accent);">${latestTag} &middot; ${weekTag} ${_isoWeekNum(latestInfo.mon)}</span>
       <span style="font-size:var(--fs-xs);color:var(--muted);">${_esc(latestInfo.label)}</span>
     </div>
+    ${freshHtml}
     <div style="font-family:'Instrument Sans',sans-serif;font-size:19px;font-weight:600;letter-spacing:-.01em;line-height:1.4;color:var(--ink);margin-bottom:12px;max-width:42em;text-wrap:pretty;">${_esc(latest.summary || '')}</div>
     <div style="font-family:'Instrument Sans',sans-serif;font-size:var(--fs-base);line-height:1.6;max-width:42em;text-wrap:pretty;">${renderMarkdown(latest.full_report || '')}</div>
     ${_weeklyRecsHtml(latest, vm)}
@@ -5743,6 +5751,9 @@ function setLang(lang) {
   // n'existe pas), donc ces appels sont un no-op silencieux si l'onglet correspondant n'a jamais
   // ete visite -- meme principe que renderWelcome()/paintBlocked() juste au-dessus.
   if (typeof renderStatsRevenue === 'function') renderStatsRevenue();
+  if (typeof renderStatsRetainer === 'function') renderStatsRetainer();
+  if (window._pipeBase && typeof _updateKpiCards === 'function') _updateKpiCards();
+  if (typeof _loadWeeklyReports === 'function' && document.getElementById('weekly-reports-list')?.children.length) _loadWeeklyReports();
   if (typeof renderStatsLearning === 'function') renderStatsLearning();
   if (typeof _renderSignalLearningSummary === 'function') _renderSignalLearningSummary();
   if (typeof _loadStageConversion === 'function') _loadStageConversion();
@@ -5795,15 +5806,16 @@ function setLang(lang) {
   if (typeof _loadLastMorningScanEmail === 'function' && window._mscShownScanDate !== undefined) _loadLastMorningScanEmail(window._mscShownScanDate || undefined);
 }
 
-function _relTimeShort(iso) {
+function _relTimeShort(iso, lang) {
   if (!iso) return '';
   const d = new Date(iso); if (isNaN(d)) return '';
+  const fr = (lang || currentLang) === 'fr';
   const mins = Math.floor((Date.now() - d) / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return mins + 'm ago';
+  if (mins < 1) return fr ? "à l'instant" : 'just now';
+  if (mins < 60) return fr ? 'il y a ' + mins + ' min' : mins + 'm ago';
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return hrs + 'h ago';
-  return _relDate(iso);
+  if (hrs < 24) return fr ? 'il y a ' + hrs + ' h' : hrs + 'h ago';
+  return _relDate(iso, lang);
 }
 
 // agent_activity_log.agent_name est un label Title Case ("Morning Scan") -- pas la cle
@@ -6262,7 +6274,7 @@ async function _renderAgentsStatus() {
       const last = lastByAgent[m.label];
       if (dot) dot.classList.toggle('is-active', !!last);
       // FIX 29/09 (bilingue, go Thomas -- surface plus visible depuis la restylisation Phase 4)
-      if (status) status.textContent = last ? ((currentLang==='fr' ? 'Passé ' : 'Ran ') + _relTimeShort(last)) : (currentLang==='fr' ? 'Inactif' : 'Idle');
+      if (status) status.textContent = last ? ((currentLang==='fr' ? 'Exécuté ' : 'Ran ') + _relTimeShort(last)) : (currentLang==='fr' ? 'Inactif' : 'Idle');
     });
   } catch(e) {
     console.warn('[_renderAgentsStatus]', e);
@@ -6283,7 +6295,7 @@ async function _renderAgentsStatus() {
     if (error) throw error;
     const last = data && data[0] && data[0].created_at;
     if (dot) dot.classList.toggle('is-active', !!last);
-    if (status) status.textContent = last ? ((currentLang==='fr' ? 'Passé ' : 'Ran ') + _relTimeShort(last)) : (currentLang==='fr' ? 'Inactif' : 'Idle');
+    if (status) status.textContent = last ? ((currentLang==='fr' ? 'Exécuté ' : 'Ran ') + _relTimeShort(last)) : (currentLang==='fr' ? 'Inactif' : 'Idle');
   } catch(e) {
     console.warn('[_renderAgentsStatus:dailydigest]', e);
   }
@@ -9071,6 +9083,13 @@ function _signalSourceLabel(url, lang, verb) {
 
 // ── SEND QUEUE ──
 // ── PHASE 3 — VUE SEND LIVE SUPABASE ────────────────────────────────────────
+// Info-bulle des badges de touche (J+0/J+5 = jargon interne) -- title="" bilingue, valeurs inchangees.
+function _touchTip(t) {
+  const fr = currentLang === 'fr';
+  if (t === 'j0') return fr ? "J+0 : premier message LinkedIn, envoyé dès que l'invitation est acceptée (jour 0)." : 'J+0: first LinkedIn message, sent once the connection request is accepted (day 0).';
+  if (t === 'j5') return fr ? 'J+5 : e-mail de relance environ 5 jours après le J+0.' : 'J+5: follow-up email about 5 days after the J+0.';
+  return '';
+}
 const TOUCH_LABELS = {
   invite: { label:'Invite',  class:'touch-invite', day:null },
   j0:     { label:'J+0',     class:'touch-j0',     day:0    },
@@ -9429,7 +9448,7 @@ function _sendCardHTML(p, touchType, expanded = false) {
              2e libelle. -->
         ${sendBlocked
           ? `<span class="send-touch" style="background:#f3f4f6;color:#6b7280;" title="${sendTitle}">⏳ ${isEmailTouch ? (currentLang==='fr'?'Pas d\'email':'No email') : (currentLang==='fr'?'Connexion en attente':'Awaiting connection')}</span>`
-          : `<span class="send-touch ${TOUCH_LABELS[touchType]?.class||'touch-j0'}">${TOUCH_LABELS[touchType]?.label||touchType}</span>
+          : `<span class="send-touch ${TOUCH_LABELS[touchType]?.class||'touch-j0'}" title="${_esc(_touchTip(touchType))}">${TOUCH_LABELS[touchType]?.label||touchType}</span>
         ${isReady
           ? `<span class="send-touch" style="background:var(--green-bg);color:var(--green);">✓ ${currentLang==='fr'?'Prêt':'Ready'}</span>`
           : hasBody
@@ -9483,7 +9502,7 @@ function _sendCardHTML(p, touchType, expanded = false) {
 function _renderJ5LowSection(lowICP) {
   const lowCards = lowICP.map(p => {
     const sent = _sendJ5Sent[p.id];
-    const statusLabel = sent ? '✓ Sent ' + (_relDate(sent.created_at) || '') : 'Scheduled';
+    const statusLabel = sent ? (currentLang==='fr' ? '✓ Envoyé ' : '✓ Sent ') + (_relDate(sent.created_at) || '') : (currentLang==='fr' ? 'Programmé' : 'Scheduled');
     return `
     <div class="card send-card" id="sc-j5-${p.id}" style="opacity:0.65;">
       <div class="send-row">
@@ -9601,8 +9620,8 @@ async function _loadRecentlySent() {
             <div class="send-name">${_esc(p.name)}</div>
             <div class="send-company">${_esc(p.company || '')}</div>
           </div>
-          <span class="send-touch ${TOUCH_LABELS[it.touch]?.class||'touch-j5'}">${_esc(label)}</span>
-          <span style="font-size:var(--fs-xs);color:var(--success);white-space:nowrap;flex-shrink:0;margin-left:8px;">Sent ${_esc(_relDate(it.sent_at) || '')}</span>
+          <span class="send-touch ${TOUCH_LABELS[it.touch]?.class||'touch-j5'}" title="${_esc(_touchTip(it.touch))}">${_esc(label)}</span>
+          <span style="font-size:var(--fs-xs);color:var(--success);white-space:nowrap;flex-shrink:0;margin-left:8px;">${currentLang==='fr' ? 'Envoyé' : 'Sent'} ${_esc(_relDate(it.sent_at) || '')}</span>
         </div>
       </div>`;
     }).join('');
@@ -9664,7 +9683,7 @@ function _runSendSearch() {
     const _blocked = t !== 'invite' && p.linkedin_tag !== 'connection-accepted';
     const _badge = _blocked
       ? `<span class="send-touch" style="font-size:var(--fs-micro);padding:2px 6px;margin-left:auto;background:#f3f4f6;color:#6b7280;" title="${currentLang==='fr'?'Connexion pas encore acceptée':'Connection not yet accepted'}">⏳ ${currentLang==='fr'?'En attente':'Awaiting'}</span>`
-      : `<span class="send-touch ${TOUCH_LABELS[t]?.class||'touch-j0'}" style="font-size:var(--fs-micro);padding:2px 6px;margin-left:auto">${TOUCH_LABELS[t]?.label||t}</span>`;
+      : `<span class="send-touch ${TOUCH_LABELS[t]?.class||'touch-j0'}" title="${_esc(_touchTip(t))}" style="font-size:var(--fs-micro);padding:2px 6px;margin-left:auto">${TOUCH_LABELS[t]?.label||t}</span>`;
     return `<div onclick="_selectManualProspect('${_esc(p.id)}')" style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);font-size:var(--fs-base);display:flex;align-items:center;gap:8px" onmouseover="this.style.background='#f5f7fb'" onmouseout="this.style.background=''"><span style="font-weight:600">${_esc(p.name)}</span><span style="color:var(--muted)">${_esc(p.company)}</span>${_badge}</div>`;
   }).join('');
   resultsEl.style.display = 'block';
@@ -9739,7 +9758,7 @@ function _renderManualSection(containerId = 'manual-send-section', pid = _manual
           </div>
           ${sendBlocked
             ? `<span class="send-touch" style="background:#f3f4f6;color:#6b7280;" title="${currentLang==='fr'?'Connexion pas encore acceptée':'Connection not yet accepted'}">⏳ ${currentLang==='fr'?'Connexion en attente':'Awaiting connection'}</span>`
-            : `<span class="send-touch ${TOUCH_LABELS[currentTouch]?.class||'touch-j0'}">${TOUCH_LABELS[currentTouch]?.label||currentTouch}</span>`}
+            : `<span class="send-touch ${TOUCH_LABELS[currentTouch]?.class||'touch-j0'}" title="${_esc(_touchTip(currentTouch))}">${TOUCH_LABELS[currentTouch]?.label||currentTouch}</span>`}
         </div>
         <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">${touchBtns}</div>
         <div style="margin-top:10px">
@@ -10755,9 +10774,19 @@ let _drawerPollInterval = null;
 
 const _INT_ICONS = { linkedin:'💼', email:'📧', call:'📞', meeting:'🤝', note:'📝' };
 
-function _relDate(iso) {
+// lang : 'en' force l'anglais (les 2 appels qui construisent un prompt IA) ; sinon suit currentLang
+// (FR/EN) -- avant, "Passé yesterday" : prefixe FR + duree toujours EN.
+function _relDate(iso, lang) {
   if (!iso) return null;
   const d = new Date(iso); if (isNaN(d)) return null;
+  if ((lang || currentLang) === 'fr') {
+    const dd = Math.max(0, Math.floor((Date.now() - d) / 86400000));
+    if (dd === 0) return "aujourd'hui";
+    if (dd === 1) return 'hier';
+    if (dd < 7) return 'il y a ' + dd + ' jours';
+    const wk = Math.floor(dd / 7); if (dd < 30) return 'il y a ' + wk + (wk === 1 ? ' semaine' : ' semaines');
+    const mo = Math.floor(dd / 30); return 'il y a ' + mo + ' mois';
+  }
   // Clamp a 0 minimum (cleanup) : un created_at de quelques centaines de ms posterieur a
   // Date.now() cote client (latence reseau, ecart d'horloge) donnait Math.floor(negatif) = -1,
   // jamais un vrai etat metier a afficher -- toujours "aujourd'hui" au pire, jamais de negatif.
@@ -12200,7 +12229,7 @@ function _renderNextActionHTML(raw, linkColor) {
 
 async function _generateNextAction(p) {
   const ctx = _drawerInteractions.slice(0,3)
-    .map(i => `${i.type}${i.note ? ': '+i.note.slice(0,80) : ''} (${_relDate(i.created_at)||'recent'})`)
+    .map(i => `${i.type}${i.note ? ': '+i.note.slice(0,80) : ''} (${_relDate(i.created_at, 'en')||'recent'})`)
     .join(' | ');
   const rem = p.reminder_date ? _fmtReminder(p.reminder_date)?.label : null;
   const _fullP = _prospectsById[p.id] || {};
@@ -13112,7 +13141,7 @@ function _inboxCardHTML(draft, view = 'pending') {
            ${variants.map((v, idx) => `
              <button type="button" onclick="_inboxUseVariant('${draft.id}', ${idx})" id="inbox-variant-${draft.id}-${idx}"
                style="display:block;width:100%;box-sizing:border-box;text-align:left;margin-bottom:6px;padding:10px 12px;border-radius:var(--radius-md);border:1px solid ${idx === _selectedIdx ? 'var(--navy)' : 'var(--border)'};background:${idx === _selectedIdx ? 'var(--bg)' : 'none'};cursor:pointer;font-family:inherit;">
-               <div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:3px;">${_esc(v.angle || ((currentLang==='fr'?'Variante ':'Variant ') + (idx + 1)))}</div>
+               <div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:3px;">${_esc(_angleLabel(v.angle, idx))}</div>
                <div style="font-size:var(--fs-sm);color:var(--text);line-height:1.4;white-space:pre-wrap;">${_esc(v.text)}</div>
              </button>`).join('')}
            <textarea id="inbox-reply-${draft.id}"
@@ -13335,6 +13364,41 @@ async function loadProposalsView() {
   }
 }
 
+// Prospect deja invite (invite envoyee ou connexion acceptee) : le bouton de variante d'une
+// ouverture n'ecrit alors RIEN dans la file d'envoi (cf. _proposalUseVariant) -- libelle et clic
+// s'appuient sur ce meme test pour ne jamais diverger.
+function _openerAlreadyInvited(pid) {
+  if (!pid) return false;
+  const tag = (_prospectsById[pid] || {}).linkedin_tag;
+  return tag === 'invite-sent' || tag === 'connection-accepted'
+    || (_sendSequences[pid] || []).some(s => s.touch === 'invite' && s.status === 'sent');
+}
+// Libelle client d'un angle de variante : v.angle est du texte libre produit par le copywriter
+// ("direct, growth-triggered", "Truth then reversal hook"...) = nom de technique redactionnelle,
+// pas un libelle produit. La valeur brute reste en base (et dans agent_feedback.item_text) ;
+// seul l'affichage est traduit. Angle non reconnu (ex. sujet FR « Due diligence humaine ») : affiche tel quel.
+function _angleLabel(raw, idx) {
+  const fr = currentLang === 'fr';
+  const s = String(raw || '').trim();
+  if (!s) return (fr ? 'Variante ' : 'Variant ') + (idx + 1);
+  const l = s.toLowerCase().replace(/[-_]/g, ' ');
+  const fixed = {
+    'newsletter teaser': ['Teaser newsletter', 'Newsletter teaser'],
+    'x/twitter thread opener': ['Accroche de fil X/Twitter', 'X/Twitter thread opener'],
+    'one line quote': ['Citation en une ligne', 'One-line quote'],
+    'original reply': ["Réponse d'origine", 'Original reply'],
+  };
+  if (fixed[l]) return fixed[l][fr ? 0 : 1];
+  const rules = [
+    [/growth|trigger|congrat|transaction/, 'signal de croissance', 'growth signal'],
+    [/hook|reversal|truth/, 'accroche en contre-pied', 'contrarian hook'],
+    [/question|curio/, 'question ouverte', 'open question'],
+    [/consultative/, 'approche conseil', 'advisory approach'],
+    [/short|direct|statement|low pressure|casual/, 'message court et direct', 'short, direct message'],
+  ];
+  for (const [re, f, e] of rules) if (re.test(l)) return (fr ? 'Angle : ' + f : 'Angle: ' + e);
+  return s;
+}
 const _PROPOSAL_CONTENT_TYPE_LABELS = () => currentLang==='fr'
   ? { outreach_opener: 'Message de prospection', linkedin_post: 'Publication LinkedIn', repurposed_content: 'Contenu recyclé' }
   : { outreach_opener: 'Outreach opener', linkedin_post: 'LinkedIn post', repurposed_content: 'Repurposed content' };
@@ -13375,10 +13439,10 @@ function _renderProposalCard(prop, prospect) {
       : '';
     return `
     <div${wrapAttrs} style="border:1px solid var(--border);border-radius:var(--radius-md);padding:12px 14px;margin-top:10px;">
-      <div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px;">${_esc(v.angle || ((currentLang==='fr'?'Variante ':'Variant ') + (idx + 1)))}</div>
+      <div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px;">${_esc(_angleLabel(v.angle, idx))}</div>
       <div${textIdAttr} style="font-size:var(--fs-sm);color:var(--text);line-height:1.5;white-space:pre-wrap;">${_esc(_cleanVariantText(v.text))}</div>
       <button onclick="_proposalUseVariant('${prop.id}', ${idx})"
-        style="margin-top:8px;padding:6px 14px;border-radius:var(--radius-pill);background:var(--navy);color:#fff;border:none;font-size:var(--fs-sm);font-weight:600;cursor:pointer;">${prop.content_type==='repurposed_content' ? (currentLang==='fr'?'Copier':'Copy') : (currentLang==='fr'?'Utiliser':'Use this')}</button>${sendBtn}
+        style="margin-top:8px;padding:6px 14px;border-radius:var(--radius-pill);background:var(--navy);color:#fff;border:none;font-size:var(--fs-sm);font-weight:600;cursor:pointer;">${prop.content_type==='repurposed_content' ? (currentLang==='fr'?'Copier':'Copy') : prop.content_type==='outreach_opener' ? (_openerAlreadyInvited(prop.prospect_id) ? (currentLang==='fr'?'Ouvrir la fiche':'Open profile') : (currentLang==='fr'?'Enregistrer le brouillon':'Save as draft')) : (currentLang==='fr'?'Copier ce texte':'Copy this text')}</button>${sendBtn}
     </div>`;
   }).join('');
   return `<div class="priority-card proposal-card" id="proposal-card-${prop.id}"
@@ -13390,6 +13454,7 @@ function _renderProposalCard(prop, prospect) {
       <span class="card-badge badge-auto" style="margin-left:auto;">${_esc(contentTypeLbl.toUpperCase())}</span>
     </div>
     ${variantsHtml}
+    <div style="font-size:var(--fs-xs);color:var(--muted);margin-top:10px;">${currentLang==='fr' ? 'Le clic sur le bouton d\'une variante approuve aussi la proposition : la carte est retirée et les autres variantes ne sont plus proposées.' : 'Clicking a variant\'s button also approves the proposal: the card is removed and the other variants are no longer offered.'}</div>
     <div style="display:flex;gap:8px;margin-top:12px;" id="proposal-actions-${prop.id}">
       <button onclick="_proposalRejectStart('${prop.id}')"
         style="padding:7px 16px;border-radius:var(--radius-pill);background:none;border:1px solid var(--border);color:var(--text);font-size:var(--fs-sm);cursor:pointer;">${currentLang==='fr'?'Rejeter':'Reject'}</button>
@@ -13474,7 +13539,7 @@ async function _proposalUseVariant(id, variantIndex) {
     // approbation tardive de proposition -- on n'ecrit rien dans sequences, on ouvre juste sa fiche
     // en vue Send pour montrer l'etat reel. La proposition est quand meme marquee approved plus bas :
     // Thomas a fait un choix de variante, meme s'il n'y a rien de plus a creer en base.
-    if (existingSeq && existingSeq.status === 'sent') {
+    if ((existingSeq && existingSeq.status === 'sent') || _openerAlreadyInvited(prop.prospect_id)) {
       showToast(currentLang==='fr' ? 'Ce prospect a déjà reçu une invitation — ouverture de son profil' : 'This prospect already received an invite — opening their profile');
       _openDrawerFromPriority(prop.prospect_id, 'send');
     } else {
@@ -14143,7 +14208,7 @@ async function _sendDiscoveryBrief() {
     }
     const liveCtx = await _prefetchWebContext(p.company, p.sector);
     const ctx = _drawerInteractions.slice(0, 5)
-      .map(i => `- ${i.type}${i.note ? ': ' + i.note.slice(0, 120) : ''} (${_relDate(i.created_at) || 'recent'})`)
+      .map(i => `- ${i.type}${i.note ? ': ' + i.note.slice(0, 120) : ''} (${_relDate(i.created_at, 'en') || 'recent'})`)
       .join('\n');
     // Double-read (cleanup, notes) : p.notes (historique, plus jamais reecrit) + les notes
     // loggees depuis via "+ Log interaction" (type='note'), jamais l'un n'ecrase l'autre.
@@ -16371,6 +16436,7 @@ function renderKanban(rows){
   // Header Pipeline (section-sub) : meme rows/total deja calcules ci-dessus pour les KPIs,
   // aucune requete ni recalcul supplementaire -- jamais un chiffre fige (cf. spine counts).
   setTxt('pipeline-total-count', total);
+  window._pipeBase = { active: activeRows.length, all: allRows.length };
   // Spine (Phase 1) : file d'attente par etape, jamais la population -- QUALIFY = uniquement
   // la colonne Kanban Identified, IN DEAL = Engaged ou au-dela hors Closed. Meme rows deja
   // chargees pour Pipeline, aucune requete supplementaire.
@@ -16403,8 +16469,18 @@ function renderKanban(rows){
 // historique reelle, pas de chiffre invente.
 function _renderPipelineStatsCard({ counts, total, inConv, highPrio, emea, na }) {
   const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-  const conversion = total > 0 ? (counts['Closed'] / total * 100) : 0;
-  setTxt('pipe-conversion', conversion.toFixed(1) + '%');
+  // Zero reel vs donnee absente : aucun prospect dans le perimetre = pas de taux (« — »), pas 0,0 %.
+  const fr = currentLang === 'fr';
+  const nf = n => Number(n).toLocaleString(fr ? 'fr-FR' : 'en-GB');
+  setTxt('pipe-conversion', total > 0 ? (counts['Closed'] / total * 100).toFixed(1) + '%' : '—');
+  setTxt('pipe-conversion-sub', total > 0
+    ? nf(counts['Closed']) + ' / ' + nf(total) + (fr ? ' prospects · étape actuelle « Clôturé », toutes périodes' : ' prospects · current stage "Closed", all time')
+    : (fr ? 'aucun prospect dans ce périmètre' : 'no prospects in this scope'));
+  const base = window._pipeBase;
+  const filtered = !!base && total !== (_showArchived ? base.all : base.active);
+  setTxt('pipe-stats-scope', filtered
+    ? (fr ? 'Résultats filtrés — ces indicateurs portent sur les ' + nf(total) + ' prospects affichés, pas sur le portefeuille total.' : 'Filtered results — these figures cover the ' + nf(total) + ' prospects shown, not the whole portfolio.')
+    : (fr ? 'Portefeuille total — ' + nf(total) + ' prospects' : 'Total portfolio — ' + nf(total) + ' prospects'));
   setTxt('pipe-inconv', inConv);
   setTxt('pipe-highprio', highPrio);
   const intlNaEl = document.getElementById('pipe-intlna');
@@ -16416,11 +16492,11 @@ function _renderPipelineStatsCard({ counts, total, inConv, highPrio, emea, na })
   const maxC = Math.max(1, ...KANBAN_STAGES.map(s => counts[s]));
   const barEl = document.getElementById('pipe-funnel-bar');
   if (barEl) barEl.innerHTML = KANBAN_STAGES.map((s, i) =>
-    `<div class="pipe-funnel-seg" style="flex:${Math.max(counts[s], 0.02)};background:rgba(47,107,255,${RAMP[i]})" title="${_esc(s)}: ${counts[s]}"></div>`
+    `<div class="pipe-funnel-seg" style="flex:${Math.max(counts[s], 0.02)};background:rgba(47,107,255,${RAMP[i]})" title="${_esc(_stageDisplayLabel(s)[currentLang] || s)}: ${counts[s]}"></div>`
   ).join('');
   const legEl = document.getElementById('pipe-funnel-legend');
   if (legEl) legEl.innerHTML = KANBAN_STAGES.map((s, i) =>
-    `<div class="pipe-funnel-leg-item" style="flex:${Math.max(counts[s], 0.02)}"><span class="pfl-name">${_esc(s)}</span><span class="pfl-sep"> · </span><span class="pfl-num">${counts[s]}</span></div>`
+    `<div class="pipe-funnel-leg-item" style="flex:${Math.max(counts[s], 0.02)}"><span class="pfl-name">${_esc(_stageDisplayLabel(s)[currentLang] || s)}</span><span class="pfl-sep"> · </span><span class="pfl-num">${counts[s]}</span></div>`
   ).join('');
 }
 // Stats live (onglet Stats) — calculés sur _allProspects (dernier fetch loadKanban)
@@ -16532,7 +16608,7 @@ async function _loadLearnedPreferences() {
     if (bodyEl) bodyEl.innerHTML = renderMarkdown(data.summary_text);
     if (metaEl) {
       const votesLabel = (data.feedback_count != null) ? 'Based on ' + data.feedback_count + (data.feedback_count === 1 ? ' vote' : ' votes') : null;
-      const updatedLabel = data.generated_at ? 'updated ' + _relDate(data.generated_at) : null;
+      const updatedLabel = data.generated_at ? (currentLang==='fr' ? 'mis à jour ' : 'updated ') + _relDate(data.generated_at) : null;
       metaEl.textContent = [votesLabel, updatedLabel].filter(Boolean).join(', ');
     }
     card.style.display = '';
@@ -16680,10 +16756,11 @@ async function renderStatsRevenue(){
   const now = new Date();
   const som = new Date(now.getFullYear(), now.getMonth(), 1);
   const soq = new Date(now.getFullYear(), Math.floor(now.getMonth()/3)*3, 1);
-  const sum = arr => arr.reduce((s,d) => s + (parseFloat(d.amount)||0), 0);
+  // Aucun deal dans le perimetre = vrai zero ; deals presents mais montants non renseignes = « — ».
+  const sum = arr => (arr.length && arr.every(d => d.amount == null)) ? null : arr.reduce((s,d) => s + (parseFloat(d.amount)||0), 0);
   const monthTotal = sum(data.filter(d => new Date(d.occurred_at) >= som));
   const qTotal    = sum(data.filter(d => new Date(d.occurred_at) >= soq));
-  const fmtAmt = v => { const n = Math.abs(v); return n >= 1000 ? (n/1000).toFixed(1).replace(/\.0$/,'') + 'k' : String(Math.round(n)); };
+  const fmtAmt = v => { if (v == null) return '—'; const n = Math.abs(v); return n >= 1000 ? (n/1000).toFixed(1).replace(/\.0$/,'') + 'k' : String(Math.round(n)); };
   const fmtRow = d => { const cur = d.currency || ''; return cur ? cur + ' ' + fmtAmt(parseFloat(d.amount)||0) : fmtAmt(parseFloat(d.amount)||0); };
   let html = `<div class="rev-kpi-grid">
     <div class="rev-kpi"><span class="rev-kpi-val">${fmtAmt(monthTotal)}</span><span class="rev-kpi-label">${currentLang==='fr'?'Clôturé ce mois-ci':'Closed this month'}</span></div>
@@ -16732,10 +16809,10 @@ async function renderStatsRetainer(){
   let mrr = 0;
   data.forEach(d => { if (!seen.has(d.client_id)) { seen.add(d.client_id); mrr += parseFloat(d.amount)||0; } });
   const historical = data.reduce((s,d) => s + (parseFloat(d.amount)||0), 0);
-  const fmt = v => v >= 1000 ? '€' + (v/1000).toFixed(1).replace(/\.0$/,'') + 'k' : '€' + Math.round(v);
+  const fmt = v => v == null ? '—' : v >= 1000 ? '€' + (v/1000).toFixed(1).replace(/\.0$/,'') + 'k' : '€' + Math.round(v);
   el.innerHTML = `<div class="rev-kpi-grid" style="grid-template-columns:repeat(2,1fr)">
-    <div class="rev-kpi"><span class="rev-kpi-val">${fmt(mrr)}</span><span class="rev-kpi-label">Current MRR</span></div>
-    <div class="rev-kpi"><span class="rev-kpi-val">${fmt(historical)}</span><span class="rev-kpi-label">Historical total</span></div>
+    <div class="rev-kpi"><span class="rev-kpi-val">${fmt(data.length ? mrr : null)}</span><span class="rev-kpi-label">${currentLang==='fr'?'MRR actuel':'Current MRR'}</span></div>
+    <div class="rev-kpi"><span class="rev-kpi-val">${fmt(data.length ? historical : null)}</span><span class="rev-kpi-label">${currentLang==='fr'?'Total historique':'Historical total'}</span></div>
   </div>`;
 }
 // Tri par ICP des cartes (1er clic : décroissant ; 2e clic : croissant)
@@ -16941,6 +17018,17 @@ function _updateKpiCards() {
   // deux echelles differentes, sans rien pour les distinguer a l'oeil. Meme scope desormais.
   const totalEl = document.getElementById('pipeline-total-count');
   if (totalEl) totalEl.textContent = total;
+  // « 1 résultat sur 5 500 prospects » : le total vient des lignes chargées (renderKanban), jamais code en dur.
+  const ofEl = document.getElementById('pipeline-total-of');
+  const base = window._pipeBase;
+  if (ofEl && base) {
+    const all = _showArchived ? base.all : base.active;
+    const fr = currentLang === 'fr';
+    const nf = n => Number(n).toLocaleString(fr ? 'fr-FR' : 'en-GB');
+    ofEl.textContent = total !== all
+      ? (fr ? (total === 1 ? ' résultat' : ' résultats') + ' sur ' + nf(all) : (total === 1 ? ' result' : ' results') + ' of ' + nf(all))
+      : '';
+  }
 }
 
 let _hpFilter = 'all';
@@ -17127,7 +17215,7 @@ async function _startEmailSeq(id, requireDraft = true) {
         // (requireDraft). Gardee pour le cas marginal ou elle serait quand meme dans le DOM.
         const lowCard = document.getElementById('sc-j5-' + id);
         const lowStatus = lowCard?.querySelector('span');
-        if (lowStatus) lowStatus.textContent = '✓ Sent ' + (_relDate(now) || '');
+        if (lowStatus) lowStatus.textContent = (currentLang==='fr' ? '✓ Envoyé ' : '✓ Sent ') + (_relDate(now) || '');
         _todaySendCounts.emailsSent++;
         _updateSentCounter();
         // Meme fix que _markSent() (LinkedIn) : sans ca, un prospect relance en J+5 reste
