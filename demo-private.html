@@ -16478,13 +16478,13 @@ function _renderPipelineStatsCard({ counts, total, inConv, highPrio, emea, na })
   const nf = n => Number(n).toLocaleString(fr ? 'fr-FR' : 'en-GB');
   setTxt('pipe-conversion', total > 0 ? (counts['Closed'] / total * 100).toFixed(1) + '%' : '—');
   setTxt('pipe-conversion-sub', total > 0
-    ? nf(counts['Closed']) + ' / ' + nf(total) + (fr ? ' prospects · étape actuelle « Clôturé », toutes périodes' : ' prospects · current stage "Closed", all time')
+    ? nf(counts['Closed']) + ' / ' + nf(total) + (fr ? (total === 1 ? ' prospect' : ' prospects') + ' · étape actuelle « Clôturé », toutes périodes' : (total === 1 ? ' prospect' : ' prospects') + ' · current stage "Closed", all time')
     : (fr ? 'aucun prospect dans ce périmètre' : 'no prospects in this scope'));
   const base = window._pipeBase;
   const filtered = !!base && total !== (_showArchived ? base.all : base.active);
   setTxt('pipe-stats-scope', filtered
-    ? (fr ? 'Résultats filtrés — ces indicateurs portent sur les ' + nf(total) + ' prospects affichés, pas sur le portefeuille total.' : 'Filtered results — these figures cover the ' + nf(total) + ' prospects shown, not the whole portfolio.')
-    : (fr ? 'Portefeuille total — ' + nf(total) + ' prospects' : 'Total portfolio — ' + nf(total) + ' prospects'));
+    ? (fr ? 'Résultats filtrés — ces indicateurs portent sur ' + nf(total) + (total === 1 ? ' prospect affiché' : ' prospects affichés') + ', pas sur le portefeuille total.' : 'Filtered results — these figures cover ' + nf(total) + (total === 1 ? ' prospect' : ' prospects') + ' shown, not the whole portfolio.')
+    : (fr ? 'Portefeuille total — ' + nf(total) + (total === 1 ? ' prospect' : ' prospects') : 'Total portfolio — ' + nf(total) + (total === 1 ? ' prospect' : ' prospects')));
   setTxt('pipe-inconv', inConv);
   setTxt('pipe-highprio', highPrio);
   const intlNaEl = document.getElementById('pipe-intlna');
