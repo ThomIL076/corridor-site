@@ -1,28 +1,64 @@
-# Fichiers internes (documentation, outillage, scripts, configuration) : ne doivent pas etre servis publiquement sur corridor.systems.
-# Verifie par recherche dans les pages, api/*, middleware.js, sw.js, vercel.json et package.json : aucun ne les charge ; seules des mentions en commentaires existent.
-# Ne JAMAIS exclure ici : api/, middleware.js, package.json, package-lock.json, vercel.json, sw.js, assets/, logos/, legal/, manifests, icones, pages *.html du site.
-/corridor_config.js
-/CLAUDE.md
-/DESIGN.md
-/PRODUCT.md
-/deploy.sh
-/smoke-tests-corridor.sh
-/test-rls-adversarial.sh
-/drift-report.txt
-/supabase_clients_trial.sql
-/call-notes-test.json
-/dedupe_prospects.js
-/inject-p2.js
-/skills-lock.json
-/scripts/
-/.githooks/
-/.impeccable/
-/.codex/
-/*.mjs
-# 22/09 : backups automatiques crees par `patch` (Git Bash) en cas de correspondance floue
-# sur un hunk -- jamais trackes par git, mais sans cette regle ils se retrouvaient uploades
-# tels quels par `vercel --prod --force` (qui deploie le repertoire de travail local, pas
-# strictement le contenu commite). Trouve traine dans un deploiement (demo-private.html.orig,
-# 1+ Mo, jamais servi a aucune route reelle -- pas la cause du bug de langue investigue ce
-# soir, juste un artefact a ne plus jamais re-uploader).
-*.orig
+# .vercelignore - liste blanche : tout ce qui n'est pas explicitement re-inclus ci-dessous n'est PAS envoye a Vercel.
+# Pourquoi : `vercel --prod --force` envoie le dossier de travail entier (fichiers non suivis compris) et, des qu'un .vercelignore existe,
+# .gitignore n'est PAS applique (constate le 06/10 : /.claude/settings.local.json et /.agents/ sont servis alors qu'ils sont dans .gitignore).
+# Regle d'or : un nouveau fichier du site doit etre AJOUTE ICI (re-inclus) ; un fichier de travail n'a rien a faire : il est exclu par defaut.
+# Verifie par scan des references (pages, sw.js, manifests, middleware.js, vercel.json, api/) : scan_refs.py ; simulation : sim_vercelignore.py.
+/*
+
+# --- code serveur et configuration (vercel.json et package.json ne sont pas SERVIS : Vercel les lit/exclut du statique) ---
+!/api/
+!/middleware.js
+!/vercel.json
+!/package.json
+!/package-lock.json
+
+# --- tampon de deploiement : deploy.sh l'ecrit a la racine puis le relit sur le domaine a l'etape 3/3 (sans lui, 3/3 echoue) ---
+!/deploy-stamp.txt
+
+# --- pages du site et des demos ---
+!/index.html
+!/fr.html
+!/demo-private.html
+!/kaizenology.html
+!/wominds.html
+!/partner-demo.html
+!/lka-demo.html
+!/phci-demo.html
+!/yellowwood-demo.html
+!/icp-setup.html
+!/icp-setup-fr.html
+!/privacy.html
+!/privacy-fr.html
+!/legal/
+
+# --- scripts, PWA, SEO, icones et images utilises par les pages ---
+!/shared.js
+!/sw.js
+!/manifest.json
+!/manifest-kaizenology.json
+!/manifest-lka.json
+!/manifest-phci.json
+!/manifest-private.json
+!/manifest-wominds.json
+!/manifest-yellowwood.json
+!/robots.txt
+!/sitemap.xml
+!/apple-touch-icon.png
+!/icon-192.png
+!/icon-512.png
+!/icon-maskable-512.png
+!/corridor-favicon.svg
+!/hero.png
+!/logos/
+
+# --- A CONFIRMER PAR THOMAS : servis aujourd'hui, non references par les pages. Commenter une ligne = ne plus la publier ---
+!/assets/
+!/corridor_capsule_1_animated_NEW.html
+!/corridor_capsule_2_animated_NEW.html
+!/corridor_capsule_3_animated_NEW.html
+!/corridor_capsule_4_animated_NEW.html
+!/corridor_capsule_5_animated_NEW.html
+!/Capsules Marketing + voiceover/
+!/lka-demo-p2test.html
+!/phci-demo-p2test.html
+!/yellowwood-demo-p2test.html
