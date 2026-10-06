@@ -5925,8 +5925,7 @@ async function _loadTodayStats() {
   if (!el) return;
   const fr = currentLang === 'fr';
   try {
-    const todayStart = new Date().toISOString().slice(0, 10) + 'T00:00:00.000Z';
-    const tomorrowStart = new Date(Date.now() + 86400000).toISOString().slice(0, 10) + 'T00:00:00.000Z';
+    const { start: todayStart, end: tomorrowStart } = _dayBoundsUTC();
 
     let signalsQ = sbClient.from('prospects').select('id', { count: 'exact', head: true })
       .eq('client_id', CLIENT_ID).eq('archived', false)
@@ -10327,10 +10326,26 @@ async function _sendViaLinkedIn(pid, touch, elPrefix = '') {
   }
 }
 
+// UNE seule definition de « aujourd'hui » pour les compteurs d'envoi, Today stats et Revue « traite
+// aujourd'hui » : jour UTC (celui de l'outil d'envoi pour sa limite quotidienne, a confirmer -- cf. lot E).
+// Seule exception connue : la vue SQL send_queue_counts (« du aujourd'hui »), qui compte en heure
+// d'Israel. Changer de regle = changer ce seul endroit (choix Thomas en attente, non modifie ici).
+function _dayBoundsUTC() {
+  return {
+    start: new Date().toISOString().slice(0, 10) + 'T00:00:00.000Z',
+    end: new Date(Date.now() + 86400000).toISOString().slice(0, 10) + 'T00:00:00.000Z',
+  };
+}
+// Repere d'affichage uniquement : la limite quotidienne reelle est reglee dans l'outil d'envoi, jamais appliquee ici.
 const INVITE_DAILY_LIMIT  = 30;
+const INVITE_WARN_AT      = 25;
 const MESSAGE_DAILY_LIMIT = 40;
 const EMAIL_DAILY_LIMIT   = 40;
-let _todaySendCounts = { invitesSent: 0, messagesSent: 0, emailsSent: 0 };
+// invitesSent = total du compteur (envoyees depuis Today + mises en file par l'automatisation) ;
+// invitesManual = lignes sequences avec sent_at (ecrites par _markSent apres l'envoi depuis le dashboard) ;
+// invitesAuto = lignes sans sent_at (workflow n8n « Auto Invitations » : ecrites des que l'outil d'envoi
+// accepte le lead dans la campagne, l'envoi LinkedIn reel se fait ensuite, a son rythme).
+let _todaySendCounts = { invitesSent: 0, invitesManual: 0, invitesAuto: 0, messagesSent: 0, emailsSent: 0 };
 // Candidats J+5 (readyJ5High + readyJ5Low) restant a traiter aujourd'hui, cf. _applySendFilters()
 // -- alimente la barre "Follow-ups cleared" ci-dessous. 0 par defaut tant que Send n'a pas encore
 // tourne une fois (ex: arrivee directe sur Today) ; pas un bug, meme convention que
@@ -10372,22 +10387,22 @@ function _updateSentCounter() {
   // (_renderCapacityBars, zero retouche depuis Today), montee ici une deuxieme fois sur son
   // propre containerId. #sent-counter (texte plat) retire du DOM de Send, remplace par les
   // barres -- plus besoin du seuil couleur ad hoc qui lui etait applique.
-  _renderCapacityBars('today-capacity-bars', inv, em, followUpsCleared, followUpsDue);
-  _renderCapacityBars('send-capacity-bars', inv, em, followUpsCleared, followUpsDue);
+  _renderCapacityBars('today-capacity-bars', inv, em, followUpsCleared, followUpsDue, true);
+  _renderCapacityBars('send-capacity-bars', inv, em, followUpsCleared, followUpsDue, true);
 }
 
 // 3e barre "Follow-ups cleared" (maquette) a la place de "LinkedIn messages" (arbitrage Thomas) --
 // LinkedIn invites / Emails / Follow-ups cleared, meme ordre que la maquette.
-function _renderCapacityBars(containerId, inv, em, followUpsCleared, followUpsDue) {
+function _renderCapacityBars(containerId, inv, em, followUpsCleared, followUpsDue, withInviteDetail) {
   const el = document.getElementById(containerId);
   if (!el) return;
-  const bar = (label, val, max) => {
+  const bar = (label, val, max, tip) => {
     // max=0 (aucun J+5 du ni traite aujourd'hui) : barre affichee a 0/0, pas masquee ni NaN%.
     const pct = max > 0 ? Math.min(100, Math.round((val / max) * 100)) : 0;
     const color = pct >= 93 ? 'var(--danger)' : (pct >= 83 ? '#ea580c' : 'var(--accent)');
     return `<div style="margin-bottom:10px;">
       <div style="display:flex;justify-content:space-between;font-size:var(--fs-xs);color:var(--muted);margin-bottom:4px;">
-        <span>${_esc(label)}</span><span style="font-family:'IBM Plex Mono',monospace;">${val}/${max}</span>
+        <span>${_esc(label)}</span><span style="font-family:'IBM Plex Mono',monospace;"${tip ? ` title="${_esc(tip)}" tabindex="0"` : ''}>${val}/${max}</span>
       </div>
       <div style="height:4px;border-radius:2px;background:var(--border);overflow:hidden;">
         <div style="height:100%;width:${pct}%;background:${color};border-radius:2px;"></div>
@@ -10395,8 +10410,24 @@ function _renderCapacityBars(containerId, inv, em, followUpsCleared, followUpsDu
     </div>`;
   };
   const fr = currentLang === 'fr';
-  el.innerHTML =
-    bar(fr ? 'Invitations LinkedIn' : 'LinkedIn invites', inv, INVITE_DAILY_LIMIT) +
+  // Avertissement unique (automatique + manuel confondus) des 25, puis au-dela de la limite.
+  const { invitesManual: man, invitesAuto: auto } = _todaySendCounts;
+  let warnHtml = '';
+  if (withInviteDetail && inv >= INVITE_WARN_AT) {
+    const over = inv > INVITE_DAILY_LIMIT;
+    warnHtml = `<div role="alert" style="margin-bottom:10px;padding:8px 10px;border-radius:var(--radius-sm);font-size:var(--fs-xs);line-height:1.4;border:1px solid ${over ? 'var(--danger)' : '#ea580c'};color:${over ? 'var(--danger)' : '#9a3412'};background:${over ? '#fef2f2' : '#fff7ed'};">${
+      over
+        ? (fr ? `Seuil quotidien dépassé : ${inv}/${INVITE_DAILY_LIMIT} invitations (envoyées + en file). Vérifiez la limite dans l'outil d'envoi avant d'en ajouter.` : `Daily threshold exceeded: ${inv}/${INVITE_DAILY_LIMIT} invitations (sent + queued). Check the limit in the sending tool before adding more.`)
+        : (fr ? `Vous approchez du seuil quotidien : ${inv}/${INVITE_DAILY_LIMIT} invitations (envoyées + en file).` : `Approaching the daily threshold: ${inv}/${INVITE_DAILY_LIMIT} invitations (sent + queued).`)}</div>`;
+  }
+  const inviteTip = fr ? 'Limite quotidienne réglée dans l\'outil d\'envoi, non appliquée ici (repère d\'affichage).' : 'Daily limit set in the sending tool, not enforced here (display reference only).';
+  const detailHtml = (withInviteDetail && inv > 0)
+    ? `<div style="font-size:var(--fs-xs);color:var(--muted);margin:-4px 0 10px;line-height:1.4;">${
+        fr ? `${man} envoyée${man > 1 ? 's' : ''} depuis Today (manuel) · ${auto} mise${auto > 1 ? 's' : ''} en file par l'automatisation (l'outil d'envoi les envoie à son rythme)`
+           : `${man} sent from Today (manual) · ${auto} queued by the automation (the sending tool sends them at its own pace)`}</div>`
+    : '';
+  el.innerHTML = warnHtml +
+    bar(fr ? 'Invitations LinkedIn' : 'LinkedIn invites', inv, INVITE_DAILY_LIMIT, inviteTip) + detailHtml +
     bar('Emails', em, EMAIL_DAILY_LIMIT) +
     bar(fr ? 'Relances traitées' : 'Follow-ups cleared', followUpsCleared, followUpsDue);
 }
@@ -10409,15 +10440,16 @@ async function _fetchTodaySendCounts() {
   // etre null pour un envoi marque via un chemin qui ne l'ecrit pas -- meme repli qu'avant
   // (sent_at || created_at), exprime cote requete via .or() : capture soit sent_at dans la
   // fenetre du jour, soit (sent_at null ET created_at dans la fenetre du jour).
-  const todayStart = new Date().toISOString().slice(0, 10) + 'T00:00:00.000Z';
-  const tomorrowStart = new Date(Date.now() + 86400000).toISOString().slice(0, 10) + 'T00:00:00.000Z';
+  const { start: todayStart, end: tomorrowStart } = _dayBoundsUTC();
   const _todayOrFilter = `and(sent_at.gte.${todayStart},sent_at.lt.${tomorrowStart}),and(sent_at.is.null,created_at.gte.${todayStart},created_at.lt.${tomorrowStart})`;
   const [{ data: invRows }, { data: msgRows }, { data: emRows }] = await Promise.all([
-    sbClient.from('sequences').select('id').eq('client_id', CLIENT_ID).eq('touch', 'invite').eq('status', 'sent').or(_todayOrFilter),
+    sbClient.from('sequences').select('id, sent_at').eq('client_id', CLIENT_ID).eq('touch', 'invite').eq('status', 'sent').or(_todayOrFilter),
     sbClient.from('sequences').select('id').eq('client_id', CLIENT_ID).neq('touch', 'invite').eq('status', 'sent').or(_todayOrFilter),
     sbClient.from('interactions').select('id').eq('client_id', CLIENT_ID).eq('type', 'email_j5').gte('created_at', todayStart).lt('created_at', tomorrowStart),
   ]);
   _todaySendCounts.invitesSent  = (invRows || []).length;
+  _todaySendCounts.invitesManual = (invRows || []).filter(r => r.sent_at).length;
+  _todaySendCounts.invitesAuto   = (invRows || []).filter(r => !r.sent_at).length;
   _todaySendCounts.messagesSent = (msgRows || []).length;
   _todaySendCounts.emailsSent   = (emRows  || []).length;
   _updateSentCounter();
@@ -14047,8 +14079,7 @@ async function _loadReviewHandled() {
   if (!el) return;
   const fr = currentLang === 'fr';
   try {
-    const todayStart = new Date().toISOString().slice(0, 10) + 'T00:00:00.000Z';
-    const tomorrowStart = new Date(Date.now() + 86400000).toISOString().slice(0, 10) + 'T00:00:00.000Z';
+    const { start: todayStart, end: tomorrowStart } = _dayBoundsUTC();
     let q = sbClient.from('agent_activity_log')
       .select('agent_name, action_summary, action_summary_en, occurred_at')
       .eq('client_id', CLIENT_ID)
