@@ -266,7 +266,23 @@ nav {
 .lang-btn:hover { color:var(--navy); border-color:var(--blue); }
 .lang-btn.active { background:var(--navy); color:#fff; border-color:var(--navy); }
 
-/* ── JOURNEY SPINE (Phase 1) ──
+/* ── NAVIGATION A 5 ENTREES (lot D, phase 1) : onglets internes a la section active ── */
+.sec-tabs { display: flex; background: #fff; border-bottom: 1px solid var(--border); padding: 0 26px; overflow-x: auto; scrollbar-width: none; box-sizing: border-box; }
+.sec-tabs::-webkit-scrollbar { display: none; }
+.sec-tabs[hidden], .sec-tabs-group[hidden] { display: none; }
+.sec-tabs-group { display: flex; gap: 4px; }
+.sec-tab { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px; border: none; border-bottom: 2px solid transparent; background: none; font-family: inherit; font-size: var(--fs-sm); font-weight: 500; color: var(--muted); cursor: pointer; white-space: nowrap; }
+.sec-tab:hover { color: var(--ink); }
+.sec-tab.active { color: var(--ink); font-weight: 600; border-bottom-color: var(--accent); }
+.sec-count { font-family: 'IBM Plex Mono', monospace; font-size: 11px; padding: 1px 7px; border-radius: 999px; background: var(--chip-bg, #f0f3fb); color: var(--ink); }
+.sec-count:empty { display: none; }
+.sec-tab.active .sec-count { background: var(--accent); color: #fff; }
+.pipe-scope { display: flex; gap: 6px; flex-wrap: wrap; margin: -6px 0 16px; }
+.pipe-scope .toggle-pill { display: inline-flex; align-items: center; gap: 6px; }
+#tab-system .sys-tabs { display: none; } /* remplacees par les onglets de section (#sec-tabs) */
+@media (max-width: 768px) { .sec-tabs { padding: 0 8px; } }
+
+/* ── JOURNEY SPINE (Phase 1) -- plus rendue depuis le lot D (regles conservees, inertes) ──
    Vit dans .top-chrome-wrapper (position:fixed) plutot que dans un vrai shell flex/100vh --
    le ResizeObserver existant (_syncBodyPadding) absorbe automatiquement le changement de
    hauteur, sans reecrire le modele de scroll des 10 vues. */
@@ -1638,7 +1654,7 @@ body.new-nav { padding-left: 220px; }
     <div style="margin-top:24px;padding-top:16px;border-top:1px solid rgba(255,255,255,.1);text-align:center;">
       <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:10px;">
         <span style="width:6px;height:6px;border-radius:50%;background:var(--success);display:inline-block;animation:pulseDot 2.4s ease-in-out infinite;"></span>
-        <span style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:0.12em;color:rgba(255,255,255,.5);">SYSTEM ACTIVE · 15 AGENTS RUNNING</span>
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:0.12em;color:rgba(255,255,255,.5);">SYSTEM ACTIVE · <span id="login-agents-count">15</span> AGENTS RUNNING</span>
       </div>
       <div style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:0.12em;">
         <a href="mailto:thomas@corridor.systems" style="color:rgba(255,255,255,.5);text-decoration:none;">CONTACT</a>
@@ -1710,75 +1726,32 @@ body.new-nav { padding-left: 220px; }
        chaque destination, seul le regroupement visuel/les libelles de section changent. Scope
        demo-private.html uniquement ce soir : le panneau mobile #tab-more (liste a plat) et
        kaizenology.html/wominds.html restent en l'etat, chantiers separes en attente. -->
+  <!-- LOT D phase 1 : UNE navigation a 5 entrees. Les anciens sous-items (Signaux, Sante du pipeline,
+       Rapports, Clients, Send, Review, Agents, Integrations, Mandat) sont des onglets internes a leur
+       section (#sec-tabs). Ancien emplacement -> nouveau : voir NAV_VIEWS dans le script de navigation. -->
   <div class="snav-section">
-    <span class="snav-section-label" data-en="Today" data-fr="Aujourd'hui">Today</span>
-    <button class="snav-item" data-nav="priorities" onclick="_switchNewNav('priorities')">
+    <button class="snav-item" data-nav="today" onclick="_navSection('today')">
       <span data-en="Today" data-fr="Aujourd'hui">Today</span>
     </button>
-  </div>
-  <div class="snav-section">
-    <span class="snav-section-label" data-en="Prospects" data-fr="Prospects">Prospects</span>
-    <button class="snav-item" data-nav="pipeline" onclick="_switchNewNav('pipeline')">
-      <span>Pipeline</span>
+    <button class="snav-item" data-nav="prospects" onclick="_navSection('prospects')">
+      <span data-en="Prospects" data-fr="Prospects">Prospects</span>
     </button>
-    <button class="snav-item" data-nav="clients" onclick="_switchNewNav('clients')">
-      <span>Clients</span>
+    <button class="snav-item" data-nav="conversations" onclick="_navSection('conversations')">
+      <span data-en="Conversations" data-fr="Conversations">Conversations</span>
+      <span class="snav-badge" id="snav-badge-conv"></span>
     </button>
-    <button class="snav-item snav-sub" data-nav="system-signals" onclick="_switchNewNav('system','signals')">
-      <span data-en="Signals" data-fr="Signaux">Signals</span>
-      <span class="snav-badge" id="snav-badge-signals"></span>
+    <button class="snav-item" data-nav="results" onclick="_navSection('results')">
+      <span data-en="Results" data-fr="Résultats">Results</span>
     </button>
-  </div>
-  <div class="snav-section">
-    <span class="snav-section-label" data-en="Conversations" data-fr="Conversations">Conversations</span>
-    <button class="snav-item" data-nav="send" onclick="_switchNewNav('send')">
-      <span data-en="Send" data-fr="Envoyer">Send</span>
-      <span class="snav-badge" id="snav-badge-send"></span>
-    </button>
-    <!-- AJOUT 29/09 (refonte v2 Phase 3, go Thomas) : remplace les 3 boutons Inbox/Approvals/
-         Drafts & approvals (F15 point 2, renomme "Proposals" -> "Drafts & approvals") -- fusionnes
-         en une seule vue filtrable, badge = somme des 3 files reelles (cf. _setReviewBadge dans
-         loadReviewView()). Send garde son propre bouton juste au-dessus, inchange. -->
-    <button class="snav-item" data-nav="review" onclick="_switchNewNav('review')">
-      <span data-en="Review" data-fr="Revue">Review</span>
-      <span class="snav-badge" id="snav-badge-review"></span>
+    <button class="snav-item" data-nav="settings" onclick="_navSection('settings')">
+      <span data-en="Configuration" data-fr="Configuration">Configuration</span>
     </button>
   </div>
-  <div class="snav-section">
-    <span class="snav-section-label" data-en="Results" data-fr="Résultats">Results</span>
-    <!-- "Stats" a desormais sa place dans la nouvelle IA (groupe Resultats) -- l'ancien ecart
-         signale ici ("pas de place dans la nouvelle IA, Phase 4 absorbera son contenu") est
-         resolu par ce regroupement, plus besoin de le documenter comme ecart temporaire. -->
-    <button class="snav-item" data-nav="stats" onclick="_switchNewNav('stats')">
-      <span>Stats</span>
-    </button>
-    <button class="snav-item snav-sub" data-nav="system-pipeintel" onclick="_switchNewNav('system','pipeintel')">
-      <span data-en="Pipeline health" data-fr="Santé du pipeline">Pipeline health</span>
-      <span class="snav-dot" id="snav-dot-pipeintel" aria-hidden="true"></span>
-    </button>
-    <button class="snav-item snav-sub" data-nav="system-weekly" onclick="_switchNewNav('system','weekly')">
-      <span data-en="Reports" data-fr="Rapports">Reports</span>
-    </button>
-  </div>
-  <!-- F15 : "Configuration" en retrait visuel (choix confirme vs. repliable, cf. CSS
-       .snav-section-muted plus haut) -- second niveau, moins mis en avant que les 4 taches
-       principales ci-dessus. Mandate & ICP deplace ici depuis la zone basse (Scanner/Ask
-       Corridor/System active/Sign out restent inchanges, ce sont des outils d'acces rapide,
-       pas des destinations de contenu -- cf. brief). -->
-  <div class="snav-section snav-section-muted">
-    <span class="snav-section-label" data-en="Configuration" data-fr="Configuration">Configuration</span>
-    <button class="snav-item" data-nav="agents" onclick="_switchNewNav('agents')">
-      <span data-en="Agents" data-fr="Agents">Agents</span>
-      <!-- 15 = taille reelle du roster (11 agents de chat + 4 agents pipeline), verifiee lors
-           de l'audit agent_activity_log -- pas "actuellement actifs", pas de suivi temps reel. -->
-      <span class="snav-meta">15</span>
-    </button>
-    <button class="snav-item" data-nav="integrations" onclick="_switchNewNav('integrations')">
-      <span data-en="Integrations" data-fr="Intégrations">Integrations</span>
-    </button>
-    <button class="snav-item" data-nav="mandate" onclick="_switchNewNav('mandate')">
-      <span data-en="Mandate &amp; ICP" data-fr="Mandat &amp; ICP">Mandate &amp; ICP</span>
-    </button>
+  <!-- Compteurs historiques conservés (ecrits par _setSendBadge/_setReviewBadge/loadClientsKanban) : les
+       ids snav-badge-send/review et mtab-badge-send/review n'ont plus d'affichage propre, le total est
+       montre sur « Conversations » (snav-badge-conv / mtab-badge-conv, cf. _watchNavCounters). -->
+  <div id="nav-legacy-counters" hidden aria-hidden="true">
+    <span id="snav-badge-send"></span><span id="snav-badge-review"></span><span id="mtab-badge-send"></span><span id="mtab-badge-review"></span><span id="spine-note-client"></span>
   </div>
   <div class="snav-scanner-zone">
     <button class="snav-item" onclick="openScannerPanel()" data-en-aria="Open company scanner" data-fr-aria="Ouvrir le scanner d'entreprise" aria-label="Open company scanner">
@@ -1808,11 +1781,11 @@ body.new-nav { padding-left: 220px; }
 
 <!-- MOBILE BOTTOM TAB BAR (Phase 1 chunk 5, < 768px) -->
 <nav class="mobile-tabbar" id="mobile-tabbar" data-en-aria="Mobile navigation" data-fr-aria="Navigation mobile" aria-label="Mobile navigation">
-  <button class="mtab-item" data-nav="priorities" onclick="_switchNewNav('priorities')"><span class="mtab-ico"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3" y="4.5" width="18" height="16.5" rx="2.5"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4M9 15l2 2 4-4"/></svg></span><span class="mtab-label" data-en="Today" data-fr="Aujourd'hui">Today</span></button>
-  <button class="mtab-item" data-nav="pipeline" onclick="_switchNewNav('pipeline')"><span class="mtab-ico"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3.5" y="3.5" width="17" height="17" rx="3"/><path d="M8.5 7.5v6M12 7.5v9M15.5 7.5v4"/></svg></span><span class="mtab-label">Pipeline</span></button>
-  <button class="mtab-item" data-nav="send" onclick="_switchNewNav('send')"><span class="mtab-ico"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M21 3 10.5 13.5M21 3l-6.5 18-4-7.5L3 9.5 21 3z"/></svg><span class="mtab-badge" id="mtab-badge-send"></span></span><span class="mtab-label" data-en="Send" data-fr="Envoyer">Send</span></button>
-  <button class="mtab-item" data-nav="review" onclick="_switchNewNav('review')"><span class="mtab-ico"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="5" y="4" width="14" height="17.5" rx="2.5"/><path d="M9 4V3h6v1M9 13l2.2 2.2L15.5 11"/></svg><span class="mtab-badge" id="mtab-badge-review"></span></span><span class="mtab-label" data-en="Review" data-fr="Revue">Review</span></button>
-  <button class="mtab-item" id="mtab-more-btn" onclick="_switchNewNav('more')"><span class="mtab-ico"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="5.5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="18.5" cy="12" r="1.3"/></svg></span><span class="mtab-label" data-en="More" data-fr="Plus">More</span></button>
+  <button class="mtab-item" data-nav="today" onclick="_navSection('today')"><span class="mtab-ico"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3" y="4.5" width="18" height="16.5" rx="2.5"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4M9 15l2 2 4-4"/></svg></span><span class="mtab-label" data-en="Today" data-fr="Aujourd'hui">Today</span></button>
+  <button class="mtab-item" data-nav="prospects" onclick="_navSection('prospects')"><span class="mtab-ico"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3.5" y="3.5" width="17" height="17" rx="3"/><path d="M8.5 7.5v6M12 7.5v9M15.5 7.5v4"/></svg></span><span class="mtab-label" data-en="Prospects" data-fr="Prospects">Prospects</span></button>
+  <button class="mtab-item" data-nav="conversations" onclick="_navSection('conversations')"><span class="mtab-ico"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M21 3 10.5 13.5M21 3l-6.5 18-4-7.5L3 9.5 21 3z"/></svg><span class="mtab-badge" id="mtab-badge-conv"></span></span><span class="mtab-label" data-en="Conversations" data-fr="Conversations">Conversations</span></button>
+  <button class="mtab-item" data-nav="results" onclick="_navSection('results')"><span class="mtab-ico"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></span><span class="mtab-label" data-en="Results" data-fr="Résultats">Results</span></button>
+  <button class="mtab-item" data-nav="settings" onclick="_navSection('settings')"><span class="mtab-ico"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg></span><span class="mtab-label" data-en="Configuration" data-fr="Config.">Configuration</span></button>
 </nav>
 
 <!-- NAV + MANDATE BAR (fusionnes, cleanup) : logo retire (doublon .snav-logo), badge ACTIVE
@@ -1857,64 +1830,29 @@ body.new-nav { padding-left: 220px; }
   </div>
 </nav>
 
-<!-- JOURNEY SPINE (Phase 1) -->
-<div class="journey-spine" id="journey-spine">
-  <!-- AJOUT 29/09 (audit Thomas) : Today/Priorities est l'ecran d'atterrissage reel de l'app
-       (switchTab('priorities') au chargement) mais manquait de sa propre etape dans la spine --
-       ajoutee en tete, sans compte (meme choix deliberement assume que Signal juste apres :
-       aucune source persistee unique et fiable pour "combien de priorites aujourd'hui" qui ne
-       recouvre pas deja spine-count-qualify/send/reply). -->
-  <button class="spine-stage" data-spine="today" onclick="_switchNewNav('priorities')">
-    <span class="spine-dot"></span>
-    <span class="spine-label" data-en="Today" data-fr="Aujourd'hui">Today</span>
-    <span class="spine-rail"></span>
-  </button>
-  <button class="spine-stage" data-spine="signal" onclick="_switchNewNav('system','signals')">
-    <span class="spine-dot"></span>
-    <span class="spine-label" data-en="Signal" data-fr="Signal">Signal</span>
-    <!-- Pas de .spine-row ici volontairement : aucune source persistee ne correspond a ce que
-         la vue Signals affiche reellement (voir chunk 2). Un compte vide a cote d'une note
-         statique "new this week" ressemblerait a un bug de chargement plutot qu'a une absence
-         deliberee -- on affiche donc juste le point + le libelle, rien d'invente. -->
-    <span class="spine-rail"></span>
-  </button>
-  <button class="spine-stage" data-spine="qualify" onclick="_switchNewNav('pipeline')">
-    <span class="spine-dot"></span>
-    <span class="spine-label" data-en="Qualify" data-fr="Qualifier">Qualify</span>
-    <div class="spine-row"><span class="spine-count" id="spine-count-qualify"></span><span class="spine-note" data-en="to qualify" data-fr="à qualifier">to qualify</span></div>
-    <span class="spine-rail"></span>
-  </button>
-  <button class="spine-stage" data-spine="send" onclick="_switchNewNav('send')">
-    <span class="spine-dot"></span>
-    <span class="spine-label" data-en="Send" data-fr="Envoyer">Send</span>
-    <div class="spine-row"><span class="spine-count" id="spine-count-send"></span><span class="spine-note" data-en="due today" data-fr="dus aujourd'hui">due today</span></div>
-    <span class="spine-rail"></span>
-  </button>
-  <!-- AJOUT 29/09 (refonte v2 Phase 3) : pointait vers Inbox seul, pointe desormais vers Review
-       (fusion Inbox+Approvals+Drafts&approvals) -- data-spine="reply" et spine-count-reply
-       inchanges (SPINE_ACTIVE_MAP toujours cle 'review' -> 'reply', cf. plus bas), seul le libelle
-       et la destination du clic changent. -->
-  <button class="spine-stage" data-spine="reply" onclick="_switchNewNav('review')">
-    <span class="spine-dot"></span>
-    <span class="spine-label" data-en="Review" data-fr="Revue">Review</span>
-    <div class="spine-row"><span class="spine-count" id="spine-count-reply"></span><span class="spine-note" data-en="to triage" data-fr="à trier">to triage</span></div>
-    <span class="spine-rail"></span>
-  </button>
-  <button class="spine-stage" data-spine="indeal" onclick="_switchNewNav('pipeline')">
-    <span class="spine-dot"></span>
-    <!-- F10 : "In deal" survendait la maturite reelle (le calcul reste stage rank >= Engaged,
-         hors Closed -- inchange, cf. renderKanban plus bas). "Engaged+" est le titre principal
-         desormais ; l'ancienne note "engaged +" devient redondante avec lui, retiree. -->
-    <span class="spine-label" data-en="Engaged+" data-fr="Engagé+" data-en-title="Prospects at stage Engaged or beyond (Engaged, Replied, Proposal, Negotiation), excluding Closed." data-fr-title="Prospects à l'étape Engagé ou au-delà (Engagé, Répondu, Proposition, Négociation), hors Clôturés." title="Prospects at stage Engaged or beyond (Engaged, Replied, Proposal, Negotiation), excluding Closed.">Engaged+</span>
-    <div class="spine-row"><span class="spine-count" id="spine-count-indeal"></span><span class="spine-note"></span></div>
-    <span class="spine-rail"></span>
-  </button>
-  <button class="spine-stage" data-spine="client" onclick="_switchNewNav('clients')">
-    <span class="spine-dot"></span>
-    <span class="spine-label" data-en="Client" data-fr="Client">Client</span>
-    <div class="spine-row"><span class="spine-count" id="spine-count-client"></span><span class="spine-note" id="spine-note-client"></span></div>
-    <span class="spine-rail"></span>
-  </button>
+<!-- ONGLETS DE SECTION (lot D phase 1) : remplace la barre de parcours (journey-spine) et les sous-onglets
+     Signaux/Sante/Rapports. Les compteurs #spine-count-send/-reply/-client/-qualify/-indeal gardent leurs ids. -->
+<div class="sec-tabs" id="sec-tabs" role="tablist" hidden>
+  <div class="sec-tabs-group" data-sec="prospects" hidden>
+    <button class="sec-tab" role="tab" data-view="pipeline" onclick="_navView('pipeline')"><span data-en="Pipeline" data-fr="Pipeline">Pipeline</span></button>
+    <button class="sec-tab" role="tab" data-view="system-signals" onclick="_navView('system-signals')"><span data-en="Signals" data-fr="Signaux">Signals</span></button>
+    <button class="sec-tab" role="tab" data-view="system-pipeintel" onclick="_navView('system-pipeintel')"><span data-en="Pipeline health" data-fr="Santé du pipeline">Pipeline health</span></button>
+  </div>
+  <div class="sec-tabs-group" data-sec="conversations" hidden>
+    <button class="sec-tab" role="tab" data-view="review" onclick="_navView('review')"><span data-en="Review" data-fr="Revue">Review</span> <span class="sec-count" id="spine-count-reply"></span></button>
+    <button class="sec-tab" role="tab" data-view="send" onclick="_navView('send')"><span data-en="Send" data-fr="Envoi">Send</span> <span class="sec-count" id="spine-count-send"></span></button>
+    <button class="sec-tab" role="tab" data-view="inbox-history" onclick="_navView('inbox-history')"><span data-en="History" data-fr="Historique">History</span></button>
+  </div>
+  <div class="sec-tabs-group" data-sec="results" hidden>
+    <button class="sec-tab" role="tab" data-view="stats" onclick="_navView('stats')"><span data-en="Stats" data-fr="Stats">Stats</span></button>
+    <button class="sec-tab" role="tab" data-view="system-weekly" onclick="_navView('system-weekly')"><span data-en="Reports" data-fr="Rapports">Reports</span></button>
+    <button class="sec-tab" role="tab" data-view="clients" onclick="_navView('clients')"><span data-en="Clients" data-fr="Clients">Clients</span> <span class="sec-count" id="spine-count-client"></span></button>
+  </div>
+  <div class="sec-tabs-group" data-sec="settings" hidden>
+    <button class="sec-tab" role="tab" data-view="mandate" onclick="_navView('mandate')"><span data-en="Mandate & ICP" data-fr="Mandat & ICP">Mandate & ICP</span></button>
+    <button class="sec-tab" role="tab" data-view="integrations" onclick="_navView('integrations')"><span data-en="Integrations" data-fr="Intégrations">Integrations</span></button>
+    <button class="sec-tab" role="tab" data-view="agents" onclick="_navView('agents')"><span data-en="Agents" data-fr="Agents">Agents</span> <span class="sec-count" id="agents-count"></span></button>
+  </div>
 </div>
 
 </div><!-- /.top-chrome-wrapper -->
@@ -2427,6 +2365,12 @@ body.new-nav { padding-left: 220px; }
     <div class="module-header" style="margin-bottom:20px;">
       <div class="module-title" data-en="Pipeline" data-fr="Pipeline">Pipeline</div>
       <div class="section-sub"><span id="pipeline-total-count">0</span><span id="pipeline-total-of"></span> <span data-en="prospects under management. Movement is written by agents, corrected by you." data-fr="prospects sous gestion. Les mouvements sont écrits par les agents, corrigés par vous.">prospects under management. Movement is written by agents, corrected by you.</span></div>
+    </div>
+    <!-- Perimetre : remplace les etapes « Qualify » / « Engaged+ » de l'ancienne barre de parcours (memes comptes, memes ids). -->
+    <div class="pipe-scope" role="group" data-en-aria="Pipeline scope" data-fr-aria="Périmètre du pipeline" aria-label="Pipeline scope">
+      <button class="toggle-pill active" id="pipe-scope-all" onclick="_setPipeScope('all')" data-en="All" data-fr="Tous">All</button>
+      <button class="toggle-pill" id="pipe-scope-qualify" onclick="_setPipeScope('qualify')"><span data-en="To qualify" data-fr="À qualifier">To qualify</span> <span class="sec-count" id="spine-count-qualify"></span></button>
+      <button class="toggle-pill" id="pipe-scope-engaged" onclick="_setPipeScope('engaged')" data-en-title="Prospects at stage Engaged or beyond (Engaged, Replied, Proposal, Negotiation), excluding Closed." data-fr-title="Prospects à l'étape Engagé ou au-delà (Engagé, Répondu, Proposition, Négociation), hors Clôturés." title="Prospects at stage Engaged or beyond (Engaged, Replied, Proposal, Negotiation), excluding Closed."><span data-en="Engaged+" data-fr="Engagés+">Engaged+</span> <span class="sec-count" id="spine-count-indeal"></span></button>
     </div>
     <div class="csv-actions" style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px;">
       <div class="toolbar-filters" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
@@ -2982,18 +2926,18 @@ body.new-nav { padding-left: 220px; }
     <div class="sys-panel" id="syspanel-pipeintel" style="display:none;">
       <div class="card system-review-card">
         <div class="card-header" style="min-height:60px;align-items:flex-start;">
-          <span class="card-title" data-en="📊 Pipeline Reviewer" data-fr="📊 Revue pipeline">📊 Pipeline Reviewer</span>
+          <span class="card-title" data-en="📊 Pipeline Analysis" data-fr="📊 Analyse du pipeline">📊 Pipeline Analysis</span>
           <span class="card-badge badge-review" data-en="ON DEMAND" data-fr="A LA DEMANDE">ON DEMAND</span>
         </div>
         <button class="btn-primary btn-lg system-btn system-card-btn" onclick="_runPipelineReview()" id="pr-run-btn" style="max-width:280px;">
-          <span data-en="▶ Run Pipeline Review" data-fr="▶ Lancer la revue pipeline">▶ Run Pipeline Review</span>
+          <span data-en="▶ Run Pipeline Analysis" data-fr="▶ Lancer l'analyse du pipeline">▶ Run Pipeline Analysis</span>
         </button>
         <div class="ai-box" style="margin-top:14px;">
           <div class="ai-box-header">
             <span class="ai-box-label" data-en="Pipeline Status" data-fr="Statut pipeline">Pipeline Status</span>
             <div class="ai-spinner" id="pr-spinner"></div>
           </div>
-          <div class="ai-box-body" id="pr-output" data-en="Click to run the pipeline review..." data-fr="Cliquez pour lancer la revue pipeline...">Click to run the pipeline review...</div>
+          <div class="ai-box-body" id="pr-output" data-en="Click to run the pipeline analysis..." data-fr="Cliquez pour lancer l'analyse du pipeline...">Click to run the pipeline analysis...</div>
         </div>
       </div>
       <div class="card" id="learned-preferences-card" style="margin-top:16px;display:none;">
@@ -3371,28 +3315,6 @@ body.new-nav { padding-left: 220px; }
     </div>
   </div>
 
-  <!-- MORE (Phase 1 chunk 5) : liste mobile des destinations secondaires -- Stats ajoutee aux
-       six du README (decision explicite), Scanner volontairement pas d'acces mobile direct
-       pour l'instant (idem, decision explicite plutot que devinee). -->
-  <div class="tab-panel" id="tab-more">
-    <h2 style="font-size:var(--fs-lg);font-weight:700;color:var(--navy);margin:0 0 16px;" data-en="More" data-fr="Plus">More</h2>
-    <div class="more-list">
-      <button class="more-row" onclick="_switchNewNav('system','signals')"><span data-en="Signals" data-fr="Signaux">Signals</span><span class="more-chevron">›</span></button>
-      <button class="more-row" onclick="_switchNewNav('system','pipeintel')"><span data-en="Pipeline health" data-fr="Santé du pipeline">Pipeline health</span><span class="more-chevron">›</span></button>
-      <button class="more-row" onclick="_switchNewNav('system','weekly')"><span data-en="Reports" data-fr="Rapports">Reports</span><span class="more-chevron">›</span></button>
-      <button class="more-row" onclick="_switchNewNav('agents')"><span data-en="Agents" data-fr="Agents">Agents</span><span class="more-chevron">›</span></button>
-      <button class="more-row" onclick="_switchNewNav('clients')"><span data-en="Clients" data-fr="Clients">Clients</span><span class="more-chevron">›</span></button>
-      <button class="more-row" onclick="_switchNewNav('integrations')"><span data-en="Integrations" data-fr="Intégrations">Integrations</span><span class="more-chevron">›</span></button>
-      <button class="more-row" onclick="_switchNewNav('stats')"><span>Stats</span><span class="more-chevron">›</span></button>
-      <!-- AJOUT 29/09 (refonte v2 Phase 3) : les 2 entrees "Drafts & approvals"/"Approvals" retirees
-           d'ici -- fusionnees dans Review, desormais dans la barre primaire mobile (mtab-item
-           dedie, remplace Inbox), donc plus besoin d'un acces secondaire via More. -->
-      <button class="more-row" onclick="_switchNewNav('mandate')"><span data-en="Mandate &amp; ICP" data-fr="Mandat &amp; ICP">Mandate &amp; ICP</span><span class="more-chevron">›</span></button>
-      <!-- Sign out (cleanup) : sidebar (donc Sign Out) inaccessible sous 768px -- seul point
-           d'acces mobile, meme onclick="signOut()" que le bouton sidebar, aucune 2e logique. -->
-      <button class="more-row" onclick="signOut()"><span data-en="Sign out" data-fr="Se déconnecter">Sign out</span><span class="more-chevron">›</span></button>
-    </div>
-  </div>
 
 </main>
 
@@ -3408,66 +3330,123 @@ body.new-nav { padding-left: 220px; }
 // ─── SIDEBAR nav ─────────────────────────────────────────────────────────────
 let _sysNavHint = null; // signals | pipeintel | weekly
 
-function _newNavActive(key) {
-  document.querySelectorAll('.snav-item').forEach(el => el.classList.remove('active'));
-  const el = document.querySelector('.snav-item[data-nav="' + key + '"]');
-  if (el) el.classList.add('active');
-  _updateSpineActive(key);
-  _updateMobileTabActive(key);
+// ─── NAVIGATION : 5 sections, onglets internes, vue active memorisee dans le hash (#/section/vue) ───
+// Cle de vue = ancienne cle de nav (compatibilite : les ~40 appels _switchNewNav existants restent valides).
+const NAV_VIEWS = {
+  'priorities':       { sec: 'today',         slug: 'today',        tab: 'priorities' },
+  'pipeline':         { sec: 'prospects',     slug: 'pipeline',     tab: 'pipeline' },
+  'system-signals':   { sec: 'prospects',     slug: 'signals',      tab: 'system', sys: 'signals' },
+  'system-pipeintel': { sec: 'prospects',     slug: 'health',       tab: 'system', sys: 'pipeintel' },
+  'review':           { sec: 'conversations', slug: 'review',       tab: 'review' },
+  'send':             { sec: 'conversations', slug: 'send',         tab: 'send' },
+  'inbox-history':    { sec: 'conversations', slug: 'history',      tab: 'inbox', history: true },
+  'stats':            { sec: 'results',       slug: 'stats',        tab: 'stats' },
+  'system-weekly':    { sec: 'results',       slug: 'reports',      tab: 'system', sys: 'reports' },
+  'clients':          { sec: 'results',       slug: 'clients',      tab: 'clients' },
+  'mandate':          { sec: 'settings',      slug: 'mandate',      tab: 'mandate' },
+  'integrations':     { sec: 'settings',      slug: 'integrations', tab: 'integrations' },
+  'agents':           { sec: 'settings',      slug: 'agents',       tab: 'agents' },
+};
+const NAV_SECTION_DEFAULT = { today: 'priorities', prospects: 'pipeline', conversations: 'review', results: 'stats', settings: 'mandate' };
+const _initialNavHash = location.hash; // lu avant que quoi que ce soit ne le reecrive (login, init)
+let _navHashReady = false;             // le hash n'est ecrit qu'apres la connexion et la vue de depart
+let _currentNavKey = null;
+const _lastNavBySec = {};
+
+function _navHash(key) { const v = NAV_VIEWS[key]; return v ? '#/' + v.sec + '/' + v.slug : ''; }
+function _navKeyFromHash(h) {
+  const m = /^#\/([a-z]+)(?:\/([a-z]+))?$/.exec(h || '');
+  if (!m) return null;
+  if (!m[2]) return NAV_SECTION_DEFAULT[m[1]] || null;
+  return Object.keys(NAV_VIEWS).find(k => NAV_VIEWS[k].sec === m[1] && NAV_VIEWS[k].slug === m[2]) || null;
 }
 
-// Tab bar mobile (Phase 1 chunk 5) : "More" reste actif tant qu'une destination secondaire est
-// affichee, meme principe de derivation que la spine -- un seul point d'accroche (_newNavActive),
-// pas un troisieme mecanisme de navigation separe.
-const MOBILE_TAB_PRIMARY = { 'priorities': true, 'pipeline': true, 'send': true, 'review': true };
-// AJOUT 29/09 : 'inbox'/'proposals'/'pending-actions' retires -- ne sont plus jamais la valeur de
-// `key` passee ici (nav fusionnee dans 'review', deja dans MOBILE_TAB_PRIMARY ci-dessus).
-const MOBILE_TAB_SECONDARY = { 'system-signals': true, 'system-pipeintel': true, 'system-weekly': true, 'agents': true, 'clients': true, 'integrations': true, 'stats': true, 'more': true };
-function _updateMobileTabActive(key) {
+// Met a jour l'etat visuel uniquement (entree de menu, onglet, barre mobile, hash) -- ne change pas de panneau.
+function _newNavActive(key) {
+  const v = NAV_VIEWS[key];
+  if (!v) return;
+  _currentNavKey = key;
+  _lastNavBySec[v.sec] = key;
+  document.querySelectorAll('.snav-item[data-nav]').forEach(el => {
+    const on = el.dataset.nav === v.sec;
+    el.classList.toggle('active', on);
+    if (on) el.setAttribute('aria-current', 'page'); else el.removeAttribute('aria-current');
+  });
+  const bar = document.getElementById('sec-tabs');
+  if (bar) {
+    let hasTabs = false;
+    bar.querySelectorAll('.sec-tabs-group').forEach(g => {
+      const on = g.dataset.sec === v.sec;
+      g.hidden = !on;
+      if (on) hasTabs = true;
+      g.querySelectorAll('.sec-tab').forEach(b => {
+        const a = b.dataset.view === key;
+        b.classList.toggle('active', a);
+        b.setAttribute('aria-selected', a ? 'true' : 'false');
+      });
+    });
+    bar.hidden = !hasTabs; // Aujourd'hui : une seule vue, pas d'onglets
+  }
+  _updateMobileTabActive(v.sec);
+  if (_navHashReady) { const h = _navHash(key); if (location.hash !== h) location.hash = h; }
+}
+
+function _updateMobileTabActive(sec) {
   const bar = document.getElementById('mobile-tabbar');
   if (!bar) return;
-  bar.querySelectorAll('.mtab-item').forEach(el => el.classList.remove('active'));
-  if (MOBILE_TAB_PRIMARY[key]) {
-    const el = bar.querySelector('.mtab-item[data-nav="' + key + '"]');
-    if (el) el.classList.add('active');
-  } else if (MOBILE_TAB_SECONDARY[key]) {
-    const el = document.getElementById('mtab-more-btn');
-    if (el) el.classList.add('active');
-  }
-  bar.querySelectorAll('.mtab-item').forEach(el => { if (el.classList.contains('active')) el.setAttribute('aria-current', 'page'); else el.removeAttribute('aria-current'); }); // etat actif expose aux lecteurs d'ecran
+  bar.querySelectorAll('.mtab-item').forEach(el => {
+    const on = el.dataset.nav === sec;
+    el.classList.toggle('active', on);
+    if (on) el.setAttribute('aria-current', 'page'); else el.removeAttribute('aria-current');
+  });
 }
 
-// Tweakable (README) : bascule pour A/B tester la spine sans toucher au HTML/CSS.
-const SHOW_SPINE = true;
+// Affiche une vue : charge le panneau (switchTab inchange) puis met l'etat visuel a jour.
+function _navView(key) {
+  let v = NAV_VIEWS[key];
+  if (!v) { key = 'priorities'; v = NAV_VIEWS[key]; }
+  window._inboxInitialView = v.history ? 'history' : null; // lu par switchTab('inbox')
+  switchTab(v.tab);
+  if (v.tab === 'system') _switchSysTab(v.sys);
+  const pend = document.getElementById('inbox-toggle-pending');
+  if (pend) pend.style.display = v.history ? 'none' : ''; // la file « en attente » vit dans Revue
+  _newNavActive(key);
+  _closeSnav();
+}
+function _navSection(sec) { _navView(_lastNavBySec[sec] || NAV_SECTION_DEFAULT[sec] || 'priorities'); }
 
-// Etape active de la spine par vue, comme specifie -- IN DEAL s'allume sur Pipeline health
-// (pas sur Pipeline), QUALIFY s'allume sur Pipeline. Today/Agents/Reports/Stats/Integrations/
-// Scanner n'allument aucune etape (cockpits transverses ou hors funnel).
-const SPINE_ACTIVE_MAP = {
-  'priorities': 'today',
-  'pipeline': 'qualify',
-  'send': 'send',
-  'review': 'reply', // AJOUT 29/09 : remplace 'inbox' (Review fusionne Inbox+Approvals+Drafts&approvals)
-  'clients': 'client',
-  'system-signals': 'signal',
-  'system-pipeintel': 'indeal',
-};
-function _updateSpineActive(key) {
-  const spine = document.getElementById('journey-spine');
-  if (!spine) return;
-  spine.querySelectorAll('.spine-stage').forEach(el => { el.classList.remove('active'); el.removeAttribute('aria-current'); });
-  const active = SPINE_ACTIVE_MAP[key];
-  if (active) {
-    const el = spine.querySelector('.spine-stage[data-spine="' + active + '"]');
-    if (el) { el.classList.add('active'); el.setAttribute('aria-current', 'step'); _centerSpineStage(spine, el); }
-  }
+// Total « Conversations » = Envoi + Revue, lu sur les deux compteurs conserves (#spine-count-send/-reply).
+function _watchNavCounters() {
+  const upd = () => {
+    const n = (parseInt(document.getElementById('spine-count-send')?.textContent, 10) || 0)
+            + (parseInt(document.getElementById('spine-count-reply')?.textContent, 10) || 0);
+    ['snav-badge-conv', 'mtab-badge-conv'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = n > 0 ? (n > 99 ? '99+' : String(n)) : ''; });
+  };
+  const mo = new MutationObserver(upd);
+  ['spine-count-send', 'spine-count-reply'].forEach(id => { const el = document.getElementById(id); if (el) mo.observe(el, { childList: true, characterData: true, subtree: true }); });
+  upd();
 }
-// Mobile (rail defilant) : ramene l'etape active au centre du bandeau, sans jamais faire defiler la page elle-meme.
-function _centerSpineStage(spine, el) {
-  if (!window.matchMedia('(max-width: 768px)').matches || spine.scrollWidth <= spine.clientWidth) return;
-  const left = el.getBoundingClientRect().left - spine.getBoundingClientRect().left + spine.scrollLeft - (spine.clientWidth - el.offsetWidth) / 2;
-  spine.scrollTo({ left: Math.max(0, left), behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+
+// Pastille Agents : taille reelle du roster (_AGENT_META), jamais un chiffre en dur.
+function _setAgentsBadge() {
+  const el = document.getElementById('agents-count');
+  if (!el) return;
+  try {
+    const all = Object.keys(_AGENT_META).length;
+    const chat = Object.values(_AGENT_META).filter(m => m.group !== 'Pipeline').length;
+    el.textContent = all;
+    const lg = document.getElementById('login-agents-count'); if (lg) lg.textContent = all;
+    el.title = currentLang === 'fr' ? chat + ' agents + ' + (all - chat) + ' automatisations' : chat + ' agents + ' + (all - chat) + ' automations';
+  } catch (e) { /* roster pas encore defini : pastille laissee vide */ }
 }
+
+window.addEventListener('hashchange', () => {
+  if (!_navHashReady) return;
+  const k = _navKeyFromHash(location.hash);
+  if (k && k !== _currentNavKey) _navView(k);
+  else if (!k && _currentNavKey) location.replace(_navHash(_currentNavKey)); // hash inconnu : on revient a la vue courante
+});
+
 
 let _morningItems = [];
 let _liveAlertItems = [];
@@ -3938,12 +3917,12 @@ async function _loadStageConversion() {
   }
 }
 
+// Compatibilite : ancienne API (tab, sysHint) -> cle de vue. « more » (liste mobile supprimee) retombe sur Aujourd'hui.
 function _switchNewNav(tab, sysHint) {
   if (sysHint) _sysNavHint = sysHint;
-  switchTab(tab);
-  _newNavActive(sysHint ? tab + '-' + sysHint : tab);
-  if (tab === 'system' && sysHint) _switchSysTab(sysHint === 'weekly' ? 'reports' : sysHint);
-  _closeSnav();
+  let key = tab === 'system' ? 'system-' + (sysHint || 'signals') : tab;
+  if (!NAV_VIEWS[key]) key = 'priorities';
+  _navView(key);
 }
 
 // _switchSidebarAgent()/_toggleSnavGroup() retirees : code mort confirme (aucun appelant). CSS
@@ -3960,6 +3939,8 @@ document.addEventListener('DOMContentLoaded', function() {
   document.body.classList.add('new-nav');
   switchTab('priorities');
   _newNavActive('priorities');
+  _setAgentsBadge();
+  _watchNavCounters();
 });
 
 function _syncNavHeight() {
@@ -4236,7 +4217,6 @@ async function showDemo(){
   }
   _loadSignalTaxonomy(); // fire-and-forget, cache rempli avant le rendu des badges de signal (cartes Kanban/Today/Send)
   if (!_kanbanLoaded) loadKanban();
-  if (!SHOW_SPINE) { const _spineEl = document.getElementById('journey-spine'); if (_spineEl) _spineEl.hidden = true; }
   // Badges sidebar (Phase 1 chunk 2) : meme loaders que les vues elles-memes, appeles une fois
   // en avance en plus de leur declenchement normal a la navigation -- aucune logique dupliquee,
   // meme principe que loadKanban() ci-dessus. Fire-and-forget, ne bloque jamais l'ecran Today.
@@ -4252,7 +4232,11 @@ async function showDemo(){
   // Init unique post-login : Priorities par défaut + scroll en haut (PWA démarre proprement)
   if (!_demoStarted) {
     _demoStarted = true;
-    switchTab('priorities');
+    // Vue de depart : celle du hash (#/section/vue) si valide, sinon Aujourd'hui. Le hash n'est ecrit qu'a partir d'ici.
+    const _startKey = _navKeyFromHash(_initialNavHash) || 'priorities';
+    if (_startKey === 'priorities') switchTab('priorities'); else _navView(_startKey);
+    _navHashReady = true;
+    _newNavActive(_startKey);
     window.scrollTo({ top: 0, behavior: 'instant' });
     document.documentElement.scrollTop = 0;
     document.body.scrollTop = 0;
@@ -5623,6 +5607,8 @@ sbClient.auth.onAuthStateChange((_e, session) => {
 window.addEventListener('popstate', async () => {
   if (!_demoStarted) return;
   const val = new URLSearchParams(window.location.search).get('mandate') || '';
+  // Un simple changement de hash (navigation entre vues) declenche aussi popstate : rien a recharger si mandat/deal inchanges.
+  if (val === (activeMandateId || '') && (new URLSearchParams(window.location.search).get('deal') || '') === (activeDealId || '')) return;
   const sel = document.getElementById('mandate-select');
   if (sel) sel.value = val;
   const _dealParam = new URLSearchParams(window.location.search).get('deal') || '';
@@ -5994,7 +5980,7 @@ function switchTab(name, fromClick = false) {
   // AJOUT 29/09 (refonte v2 Phase 3) : inbox/proposals/pending-actions ne sont plus atteints par
   // la nav (fusionnes dans review, cf. _switchNewNav) -- loaders laisses intacts, jamais appeles
   // en pratique, aucune suppression de code pour rester reversible si besoin.
-  if (name === 'inbox') loadInboxDrafts();
+  if (name === 'inbox') loadInboxDrafts(window._inboxInitialView || 'pending');
   if (name === 'proposals') loadProposalsView();
   if (name === 'pending-actions') loadPendingActionsView();
   if (name === 'review') loadReviewView();
@@ -8752,7 +8738,7 @@ Populate stakeholder_* fields ONLY when new_stakeholder is true; set to null oth
     // Top Prospects no longer renders a prospect list here — Today is recalculated live on
     // every load while this scan is a frozen snapshot, so the two could visibly diverge on the
     // same screen. Link out to Today instead of duplicating prospect data.
-    const _topProspectsLinkHtmlFn = () => '<div style="font-size:var(--fs-sm);"><a href="#" onclick="switchTab(\'priorities\', true); return false;" style="color:var(--fill-accent);text-decoration:underline;">' + (currentLang==='fr' ? '→ Voir les priorités du jour dans Today' : '→ See today’s priorities in Today') + '</a></div>';
+    const _topProspectsLinkHtmlFn = () => '<div style="font-size:var(--fs-sm);"><a href="#" onclick="_navView(\'priorities\'); return false;" style="color:var(--fill-accent);text-decoration:underline;">' + (currentLang==='fr' ? '→ Voir les priorités du jour dans Today' : '→ See today’s priorities in Today') + '</a></div>';
     let signalsData = null;
     try {
       let raw = text.trim().replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
@@ -16971,6 +16957,9 @@ function _applyKanbanFilters() {
     const matchSearch  = !search  || name.includes(search) || company.includes(search);
     const matchSector  = !sector  || cardSector  === sector;
     const matchStage   = !stage   || cardStage   === stage;
+    let matchScope = true; // perimetre Qualifier / Engages+ (chips du Pipeline)
+    if (_pipeScope === 'qualify') matchScope = _stageKey(cardStage) === 'Identified';
+    else if (_pipeScope === 'engaged') matchScope = (_stageRank[_stageKey(cardStage)] || 0) >= _stageRank['Engaged'] && _stageKey(cardStage) !== 'Closed';
     const matchCountry = !country || cardCountry === country;
     const matchSignal  = !signal  || cardSignal  === signal;
     const matchOrigin  = !origin  || cardOrigin  === origin;
@@ -16998,7 +16987,7 @@ function _applyKanbanFilters() {
     // Toggle "Voir les archivés" : une carte archivee ne passe que si le toggle est actif -- une
     // carte active n'est jamais concernee (matchArchived toujours vrai pour elle).
     const matchArchived = _showArchived || card.dataset.archived !== 'true';
-    card.style.display = (matchSearch && matchSector && matchStage && matchCountry && matchSignal && matchOrigin && matchDeal && matchConf && matchNA && matchNADate && matchHp && matchSig && matchArchived) ? '' : 'none';
+    card.style.display = (matchSearch && matchSector && matchStage && matchScope && matchCountry && matchSignal && matchOrigin && matchDeal && matchConf && matchNA && matchNADate && matchHp && matchSig && matchArchived) ? '' : 'none';
   });
   document.querySelectorAll('.kanban-col').forEach(col => {
     if (col.closest('#crm-board')) return;
@@ -17009,7 +16998,15 @@ function _applyKanbanFilters() {
   _updateKanbanFiltersBadge();
   _updateKpiCards();
 }
+let _pipeScope = 'all';
+function _setPipeScope(v) {
+  _pipeScope = v;
+  ['all', 'qualify', 'engaged'].forEach(k => { const b = document.getElementById('pipe-scope-' + k); if (b) b.classList.toggle('active', k === v); });
+  _applyKanbanFilters();
+}
 function _resetKanbanFilters() {
+  _pipeScope = 'all';
+  ['all', 'qualify', 'engaged'].forEach(k => { const b = document.getElementById('pipe-scope-' + k); if (b) b.classList.toggle('active', k === 'all'); });
   ['kanban-search','kanban-filter-sector','kanban-filter-stage',
    'kanban-filter-country','kanban-filter-signal','kanban-filter-origin','kanban-filter-deal',
    'kanban-filter-confidence','kanban-filter-next-action','kanban-filter-na-date']
