@@ -280,7 +280,8 @@ nav {
 .pipe-scope { display: flex; gap: 6px; flex-wrap: wrap; margin: -6px 0 16px; }
 .pipe-scope .toggle-pill { display: inline-flex; align-items: center; gap: 6px; }
 #tab-system .sys-tabs { display: none; } /* remplacees par les onglets de section (#sec-tabs) */
-@media (max-width: 768px) { .sec-tabs { padding: 0 8px; } }
+.sec-tab-mobile-only { display: none; }
+@media (max-width: 768px) { .sec-tabs { padding: 0 8px; } .sec-tab-mobile-only { display: flex; margin-left: auto; } }
 
 /* ── JOURNEY SPINE (Phase 1) -- plus rendue depuis le lot D (regles conservees, inertes) ──
    Vit dans .top-chrome-wrapper (position:fixed) plutot que dans un vrai shell flex/100vh --
@@ -1852,6 +1853,8 @@ body.new-nav { padding-left: 220px; }
     <button class="sec-tab" role="tab" data-view="mandate" onclick="_navView('mandate')"><span data-en="Mandate & ICP" data-fr="Mandat & ICP">Mandate & ICP</span></button>
     <button class="sec-tab" role="tab" data-view="integrations" onclick="_navView('integrations')"><span data-en="Integrations" data-fr="Intégrations">Integrations</span></button>
     <button class="sec-tab" role="tab" data-view="agents" onclick="_navView('agents')"><span data-en="Agents" data-fr="Agents">Agents</span> <span class="sec-count" id="agents-count"></span></button>
+    <!-- Mobile uniquement : la sidebar (donc « Se deconnecter ») est inaccessible sous 768px depuis la suppression de la liste « Plus ». -->
+    <button class="sec-tab sec-tab-mobile-only" onclick="signOut()"><span data-en="Sign out" data-fr="Se déconnecter">Sign out</span></button>
   </div>
 </div>
 
