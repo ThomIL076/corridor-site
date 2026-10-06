@@ -26,3 +26,30 @@
 # 1+ Mo, jamais servi a aucune route reelle -- pas la cause du bug de langue investigue ce
 # soir, juste un artefact a ne plus jamais re-uploader).
 *.orig
+
+# --- fuite du 06/10 : fichiers de travail internes, jamais a servir ---
+/agency-agents/
+/.claude/
+/.agents/
+/claude-config/
+/.patches_export/
+/.playwright-mcp/
+/graphify-out/
+/demo-private-graphify-out/
+/Am*lioration*
+/Corridor Refonte v2.dc.html
+/claude-legacy-project-memory-*.md
+/build_prompt_*.txt
+/build_claude_prompt_*.txt
+/Parser_le_score.txt
+/Preparer_les_prompts.txt
+/_node_matches.txt
+/corridor_*.txt
+/kaiz_*.txt
+/kaizenology_nodes_list.txt
+/node_*.txt
+/parse_score_*.txt
+/rank_prospects_*.txt
+/drift-report.txt
+/exec_node_names.txt
+/test-rls-adversarial.sh
