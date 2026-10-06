@@ -11229,6 +11229,7 @@ async function openDrawer(card, initialTab = 'activity') {
         <div class="pd-stat">
           <div class="pd-stat-label">${currentLang==='fr'?'Score de fit ICP':'ICP Fit Score'}</div>
           <div class="pd-stat-value">${_esc(_icpLbl)}</div>
+          ${prospectId ? `<button class="btn-secondary btn-sm" id="drawer-rescore-btn" onclick="_rescoreProspect('${_esc(prospectId)}')" style="margin-top:6px;">${currentLang==='fr'?'↻ Re-scorer':'↻ Re-score'}</button>` : ''}
           ${_relBd && !_relBd.contradicted ? `<div style="font-size:11px;font-weight:700;color:${_relBd.color};margin-top:2px;" title="${_esc(_relBd.title)}">${_relBd.icon} ${_esc(_relBd.title)}</div>` : ''}
         </div>
         <div class="pd-stat">
@@ -11497,6 +11498,99 @@ function _pdOpenEditDetails(focusId) {
   det.scrollIntoView({ behavior: 'smooth', block: 'start' });
   if (focusId) setTimeout(() => document.getElementById(focusId)?.focus(), 250);
 }
+// ── Re-score d'une fiche (bouton du tiroir) ────────────────────────────────────────────────────────────────
+// Meme chemin que importCSV()/addProspect() : proxy /api/workflow-proxy?action=icp-score-batch (le secret reste cote serveur,
+// les ids n'appartenant pas au client sont filtres par le proxy). Le webhook repond des la reception (asynchrone) : on sonde donc
+// la ligne toutes les 5 s (90 s max) jusqu'a ce que le scoring l'ait modifiee (updated_at, icp_score, icp_reason ou archived).
+// Chaque appel coute un appel de scoring : un seul re-score a la fois par fiche, 60 s de pause entre deux demandes. Aucune ecriture
+// directe sur prospects depuis le navigateur : le workflow est seul a ecrire le score.
+const _rescoreInFlight = new Set();
+const _rescoreLastAt = {};
+const _RESCORE_COOLDOWN_MS = 60000, _RESCORE_POLL_MS = 5000, _RESCORE_MAX_MS = 90000;
+async function _rescoreProspect(prospectId) {
+  if (!prospectId || _rescoreInFlight.has(prospectId)) return;
+  const fr = currentLang === 'fr';
+  const wait = _RESCORE_COOLDOWN_MS - (Date.now() - (_rescoreLastAt[prospectId] || 0));
+  if (wait > 0) {
+    const s = Math.ceil(wait / 1000);
+    showToast(fr ? 'Re-score déjà demandé pour cette fiche — réessayez dans ' + s + ' s' : 'Re-score already requested for this record — try again in ' + s + ' s');
+    return;
+  }
+  _rescoreInFlight.add(prospectId);
+  _rescoreLastAt[prospectId] = Date.now();
+  // Le bouton n'est touche que si le tiroir affiche encore cette fiche (il peut avoir ete ferme ou change pendant l'attente).
+  const setBusy = (busy) => {
+    const b = document.getElementById('drawer-rescore-btn');
+    if (!b || !_drawerProspect || _drawerProspect.id !== prospectId) return;
+    b.disabled = busy;
+    b.textContent = busy ? (fr ? 'Re-scoring…' : 'Re-scoring…') : (fr ? '↻ Re-scorer' : '↻ Re-score');
+  };
+  setBusy(true);
+  const readRow = () => sbClient.from('prospects').select('icp_score, icp_reason, archived, updated_at')
+    .eq('id', prospectId).eq('client_id', CLIENT_ID).single();
+  const changed = (a, b) => !!a && !!b && (a.updated_at !== b.updated_at || a.icp_score !== b.icp_score || a.icp_reason !== b.icp_reason || a.archived !== b.archived);
+  try {
+    const { data: base, error: baseErr } = await readRow();
+    if (baseErr) console.error('[rescore] lecture initiale:', baseErr);
+    let res;
+    try {
+      res = await fetch('/api/workflow-proxy?action=icp-score-batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(await _getAuthHeaders()) },
+        body: JSON.stringify({ prospect_ids: [prospectId] })
+      });
+    } catch (e) {
+      console.error('[rescore] requête impossible:', e);
+      _rescoreLastAt[prospectId] = 0; // rien n'est parti : pas de pause
+      showToast(fr ? 'Re-score impossible : connexion indisponible' : 'Re-score failed: connection unavailable');
+      return;
+    }
+    if (!res.ok) {
+      console.error('[rescore] HTTP ' + res.status, await res.text().catch(() => ''));
+      showToast(fr ? 'Re-score impossible (erreur ' + res.status + ')' : 'Re-score failed (error ' + res.status + ')');
+      return;
+    }
+    const json = await res.json().catch(() => ({}));
+    if (json && json.ok === true && json.scored === 0) {
+      showToast(fr ? 'Aucune fiche à scorer' : 'No record to score');
+      return;
+    }
+    showToast(fr ? 'Re-score lancé…' : 'Re-score started…');
+    let now = null;
+    for (let t = 0; t < _RESCORE_MAX_MS; t += _RESCORE_POLL_MS) {
+      await new Promise(r => setTimeout(r, _RESCORE_POLL_MS));
+      const { data, error } = await readRow();
+      if (error) { console.error('[rescore] sondage:', error); continue; }
+      if (changed(base, data)) { now = data; break; }
+    }
+    if (!now) {
+      showToast(fr ? 'Re-score lancé, rafraîchissement dans ~1 min' : 'Re-score started, refresh in ~1 min');
+      loadKanban(true);
+      return;
+    }
+    _patchProspectCaches(prospectId, { icp_score: now.icp_score, icp_reason: now.icp_reason, archived: now.archived });
+    const sc = now.icp_score != null ? Number(now.icp_score) : null;
+    const same = base && base.icp_score === now.icp_score;
+    let msg;
+    if (now.archived && !(base && base.archived)) {
+      msg = fr ? 'Re-score terminé : ICP ' + (sc != null ? sc : '—') + '/10 — fiche archivée (score inférieur à 6)' : 'Re-score done: ICP ' + (sc != null ? sc : '—') + '/10 — record archived (score below 6)';
+    } else if (sc == null) {
+      msg = fr ? 'Re-score terminé : score non calculé' : 'Re-score done: score not computed';
+    } else {
+      msg = (fr ? 'Re-score terminé : ICP ' : 'Re-score done: ICP ') + sc + '/10' + (same ? (fr ? ' (inchangé)' : ' (unchanged)') : '');
+    }
+    showToast(msg);
+    if (_drawerProspect && _drawerProspect.id === prospectId) _openDrawerFromPriority(prospectId);
+    loadKanban(true);
+  } catch (e) {
+    console.error('[rescore]', e);
+    showToast(fr ? 'Re-score : erreur inattendue' : 'Re-score: unexpected error');
+  } finally {
+    _rescoreInFlight.delete(prospectId);
+    setBusy(false);
+  }
+}
+
 function _pdCopyBrief() {
   const el = document.getElementById('pd-brief-card');
   if (!el) return;
