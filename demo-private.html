@@ -1170,6 +1170,26 @@ footer a { color:var(--navy); text-decoration:none; font-weight:600; }
 .pend-co { color:var(--muted); flex:1 1 0; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .pend-when { font-size:var(--fs-xs); color:var(--muted); white-space:nowrap; flex-shrink:0; }
 #send-list > .today-step-divider:first-child { margin-bottom:4px; }   /* vue Send : « Due now » colle a sa premiere carte (la marge de 14 px reste ailleurs, Today inchange) */
+/* LOT G : bloc « Sans e-mail » (J+5 sans adresse) sous la file Send. */
+.nm-section { margin:24px 0; border:1px solid var(--rule); border-radius:9px; background:#fff; }
+.nm-section > summary { cursor:pointer; padding:14px 18px; font-size:var(--fs-sm); font-weight:700; color:var(--navy); display:flex; align-items:center; gap:10px; list-style:none; min-height:44px; }
+.nm-section > summary::-webkit-details-marker { display:none; }
+.nm-section > summary::before { content:'▸'; color:var(--muted); }
+.nm-section[open] > summary::before { content:'▾'; }
+.nm-note { padding:0 18px 10px; font-size:var(--fs-xs); color:var(--muted); }
+.nm-row { padding:10px 18px; border-top:1px solid var(--rule); }
+.nm-head { display:flex; align-items:center; gap:10px; flex-wrap:wrap; font-size:var(--fs-sm); }
+.nm-name { font-weight:700; color:var(--navy); }
+.nm-co { color:var(--muted); }
+.nm-last { font-size:var(--fs-xs); color:var(--muted); }
+.nm-phone { font-size:var(--fs-xs); background:var(--green-bg); color:var(--green); border-radius:var(--radius-pill); padding:2px 8px; }
+.nm-write { margin-left:auto; }
+.nm-reply { font-size:var(--fs-xs); color:var(--text); margin-top:4px; }
+.nm-reply:empty { display:none; }
+.nm-reply-badge { font-weight:700; color:var(--green); }
+.nm-reply-text { color:var(--muted); }
+.nm-card { margin:10px 0 4px; padding:14px; }
+.nm-open { text-decoration:none; display:inline-flex; align-items:center; }
 .send-pend-more { display:block; margin:8px auto 4px; min-height:36px; }   /* dernier element de la liste defilante : « Show more » se trouve en fin de liste */
 @media (max-width:768px) {
   .send-top-row { grid-template-columns:1fr; min-height:0; }
@@ -9235,7 +9255,7 @@ async function loadSendView() {
         .from('prospects')
         // identity_verdict ajoute (garde d'identite elargie, 22/09) : Send etait une surface INVISIBLE (aucune colonne d'identite
         // chargee) -- _sendViaLinkedIn/_startEmailSeq lisent ce champ pour la confirmation NOMMEE sur une fiche CONTRADICTED.
-        .select('id, name, company, title, sector, region, country, stage, linkedin, last_contact, reminder_date, linkedin_tag, icp_score, client_id, origin, created_at, signal, signal_type, signal_date, email, last_surfaced_in_scan_at, scan_appearance_count, next_action_cache, identity_verdict')
+        .select('id, name, company, title, sector, region, country, stage, linkedin, last_contact, reminder_date, linkedin_tag, icp_score, client_id, origin, created_at, signal, signal_type, signal_date, email, phone, last_surfaced_in_scan_at, scan_appearance_count, next_action_cache, identity_verdict')
         .eq('client_id', CLIENT_ID);
       _spQuery = _applyMandateFilter(_spQuery);
       const { data: chunk, error: pErr } = await _spQuery
@@ -9352,12 +9372,18 @@ function _sortEMEAFirst(arr) {
 // rendu eligibles des deals a Replied/Proposal/Negotiation/Closed -- le message J+5 genere
 // (ligne ~9478) est calibre pour une relance de prospection a froid post-J0, semantiquement
 // faux pour un deal deja en conversation active.
-function _isJ5Eligible(p, fiveDaysAgo) {
+// LOT G : un J+5 est un E-MAIL -> adresse obligatoire (prospects.email non vide). Les prospects qui seraient J+5 sans adresse ne
+// sont plus comptes ni listes dans la file : ils vont dans le bloc « Sans e-mail » (relance LinkedIn manuelle). UNE seule regle :
+// _j5Base (stade + dernier contact + pas deja envoye) ; _isJ5Eligible = base + e-mail ; _isJ5NoEmail = base sans e-mail.
+function _hasEmail(p) { return !!(p && p.email && String(p.email).trim()); }
+function _j5Base(p, fiveDaysAgo) {
   const r = _stageRank[p.stage] ?? -1;
   return r >= _stageRank['1st Contact'] && r <= _stageRank['Engaged']
     && !!p.last_contact && p.last_contact <= fiveDaysAgo
     && !_sendJ5Sent[p.id];
 }
+function _isJ5Eligible(p, fiveDaysAgo) { return _j5Base(p, fiveDaysAgo) && _hasEmail(p); }
+function _isJ5NoEmail(p, fiveDaysAgo) { return _j5Base(p, fiveDaysAgo) && !_hasEmail(p); }
 
 // Version legere de la portion de loadSendView() qui alimente _sendJ5Sent/_sendSequences --
 // utilisee par Today (_loadFollowUpsDue) pour evaluer _isJ5Eligible() sur une poignee de
@@ -9498,9 +9524,17 @@ function _applySendFilters() {
     html += '<div style="padding:32px 0;text-align:center;color:var(--muted);font-size:var(--fs-base)">Nothing due. Adjust filters or check back tomorrow.</div>';
   }
   if (readyJ5Low.length) html += _renderJ5LowSection(readyJ5Low);
+  // LOT G : J+5 sans e-mail (region / ICP / origine appliques ; le filtre « touche » et « aujourd'hui seulement » ne s'appliquent pas :
+  // ce sont des relances en retard, pas des envois du jour).
+  _noEmailJ5 = _sortEMEAFirst(_sendProspects.filter(p => _isJ5NoEmail(p, fiveDaysAgo)
+    && (!regionFilter || _regionTag(p.region) === regionFilter)
+    && !(icpFilter > 0 && !(parseFloat(p.icp_score) >= icpFilter))
+    && !(originFilter !== 'all' && p.origin !== originFilter)));
+  html += _renderNoEmailSection(_noEmailJ5);
 
   listEl.innerHTML = html;
   if (typeof applyLang === 'function') applyLang();
+  if (_noEmailJ5.length) _loadNoEmailReplies(_noEmailJ5).then(() => _fillNoEmailReplies()).catch(e => console.error('[_loadNoEmailReplies]', e));
 }
 
 // _deriveScore supprimé — remplacé par _calcICP() (scoring unifié, Phase 4)
@@ -9619,6 +9653,110 @@ function _renderJ5LowSection(lowICP) {
       <div style="font-size:var(--fs-micro);font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);margin-bottom:12px">Follow-up (J+5)</div>
       ${lowCards}
     </div>`;
+}
+
+// ── LOT G : J+5 SANS E-MAIL ─────────────────────────────────────────────────────────────────────────────────────────
+// Prospects qui seraient J+5 (relance e-mail) mais n'ont pas d'adresse : bloc replie sous la file, avec le nombre. Ils ne sont dans AUCUN
+// compteur de la file. Relance LinkedIn MANUELLE : Generate / Enregistrer le brouillon / Prêt / « Marquer comme envoyé » (jamais d'envoi
+// automatique ni en lot). Pas de chemin d'envoi LinkedIn sur : le bouton ouvre le profil (cf. _noEmailCardHTML). Enregistrement d'un envoi :
+// sequences touch='j5' status='sent' + interaction type='linkedin' touch='j5' note « j5 follow-up via LinkedIn… » (jamais email_j5).
+let _noEmailJ5 = [];
+let _noEmailReplies = {};   // prospect_id -> { date, text } : reponse recue la plus recente (interactions « [reply received » ou agent_proposals.incoming_message)
+function _nmFmtDate(d) { try { return new Date(d).toLocaleDateString(currentLang === 'fr' ? 'fr-FR' : 'en-GB'); } catch (e) { return ''; } }
+function _nmReplyHTML(pid) {
+  const r = _noEmailReplies[pid];
+  if (!r) return '';
+  const fr = currentLang === 'fr';
+  const txt = (r.text || '').replace(/\s+/g, ' ').trim();
+  const cut = txt.length > 80 ? txt.slice(0, 80) + '…' : txt;
+  return `<span class="nm-reply-badge">${fr ? 'Réponse reçue le ' : 'Reply received on '}${_esc(_nmFmtDate(r.date))}</span>${cut ? ` <span class="nm-reply-text">« ${_esc(cut)} »</span>` : ''}`;
+}
+function _fillNoEmailReplies() {
+  _noEmailJ5.forEach(p => { const el = document.getElementById('nm-reply-' + p.id); if (el) el.innerHTML = _nmReplyHTML(p.id); });
+}
+async function _loadNoEmailReplies(list) {
+  const ids = (list || []).map(p => p.id).filter(id => id && !(id in _noEmailReplies && _noEmailReplies[id] !== undefined));
+  const CHUNK = 100;
+  for (let i = 0; i < ids.length; i += CHUNK) {
+    const chunk = ids.slice(i, i + CHUNK);
+    const found = {};
+    const [ints, props] = await Promise.all([
+      sbClient.from('interactions').select('prospect_id, note, created_at').eq('client_id', CLIENT_ID).in('prospect_id', chunk).eq('type', 'linkedin')
+        .or('note.ilike.[reply received*,note.ilike.reply received*').order('created_at', { ascending: false }),
+      sbClient.from('agent_proposals').select('prospect_id, incoming_message, created_at, updated_at').eq('client_id', CLIENT_ID).in('prospect_id', chunk)
+        .eq('content_type', 'objection_response').not('incoming_message', 'is', null).order('created_at', { ascending: false }),
+    ]);
+    if (ints.error) console.error('[_loadNoEmailReplies] interactions', ints.error);
+    if (props.error) console.error('[_loadNoEmailReplies] agent_proposals', props.error);
+    const consider = (pid, date, text) => { if (!found[pid] || new Date(date) > new Date(found[pid].date)) found[pid] = { date, text }; };
+    (ints.data || []).forEach(r => consider(r.prospect_id, r.created_at, String(r.note || '').replace(/^\s*\[?reply received[^\]\n]*\]?\s*[:\-\u2014,]?\s*/i, '')));
+    (props.data || []).forEach(r => { const tx = String(r.incoming_message || '').replace(/<[^>]*>/g, '').trim(); if (tx) consider(r.prospect_id, r.updated_at || r.created_at, tx); });
+    chunk.forEach(id => { _noEmailReplies[id] = found[id] || null; });
+  }
+}
+function _renderNoEmailSection(list) {
+  if (!list.length) return '';
+  const fr = currentLang === 'fr';
+  const rows = list.map(p => `<div class="nm-row" id="nm-row-${_esc(p.id)}">
+      <div class="nm-head">
+        <span class="nm-name">${_esc(p.name)}</span><span class="nm-co">${_esc(p.company || '')}</span>
+        <span class="nm-last">${fr ? 'Dernier contact : ' : 'Last contact: '}${_esc(_relDate(p.last_contact) || p.last_contact || '—')}</span>
+        ${(p.phone && String(p.phone).trim()) ? `<span class="nm-phone" title="${fr ? 'Un numéro de téléphone est enregistré' : 'A phone number is on record'}">📞 ${fr ? 'Téléphone trouvé' : 'Phone found'}</span>` : ''}
+        <button type="button" class="btn-secondary btn-sm nm-write" onclick="_toggleNoEmailEditor('${_esc(p.id)}')">${fr ? 'Écrire sur LinkedIn' : 'Write on LinkedIn'}</button>
+      </div>
+      <div class="nm-reply" id="nm-reply-${_esc(p.id)}">${_nmReplyHTML(p.id)}</div>
+      <div class="nm-editor" id="nm-ed-${_esc(p.id)}" hidden></div>
+    </div>`).join('');
+  return `<details class="nm-section" id="j5-noemail">
+    <summary><span data-en="No email" data-fr="Sans e-mail">${fr ? 'Sans e-mail' : 'No email'}</span> <span class="send-badge-count" id="nm-count">${list.length}</span></summary>
+    <div class="nm-note">${fr ? 'Relances J+5 qui partiraient par e-mail mais sans adresse enregistrée. Relance LinkedIn manuelle uniquement.' : 'J+5 follow-ups that would go by email but have no address on record. Manual LinkedIn follow-up only.'}</div>
+    ${rows}
+  </details>`;
+}
+function _noEmailCardHTML(p) {
+  const fr = currentLang === 'fr';
+  const seq = (_sendSequences[p.id] || []).find(s => s.touch === 'j5');
+  const hasBody = !!(seq && seq.body);
+  const isReady = !!(seq && seq.status === 'ready');
+  const url = p.linkedin || '';
+  const safeUrl = /^https?:\/\//i.test(url) ? url : '';
+  // Pas de chemin d'envoi LinkedIn verifie pour une relance : le profil s'ouvre, l'envoi se fait a la main puis « Marquer comme envoyé ».
+  return `<div class="card nm-card" id="nm-sc-${_esc(p.id)}" data-pid="${_esc(p.id)}" data-touch="j5" data-seq-id="${_esc(seq ? seq.id : '')}">
+    <div class="ai-box">
+      <div class="ai-box-header"><span class="ai-box-label">${fr ? 'Message LinkedIn' : 'LinkedIn message'}</span><div class="ai-spinner" id="nm-ss-${_esc(p.id)}"></div></div>
+      <div class="ai-box-body" id="nm-so-${_esc(p.id)}" contenteditable="true" spellcheck="false" oninput="const b=document.getElementById('nm-sv-${_esc(p.id)}');if(b){b.disabled=false;b.style.opacity='1';b.style.cursor='pointer';}" style="min-height:70px;">${hasBody ? _esc(seq.body) : ''}</div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center">
+      <button type="button" class="btn-secondary btn-sm" id="nm-sg-${_esc(p.id)}" onclick="_generateSequenceMessage('${_esc(p.id)}','j5li',false,'nm-')">${hasBody ? (fr ? '🔄 Régénérer' : '🔄 Regenerate') : (fr ? '✨ Générer' : '✨ Generate')}</button>
+      <select id="nm-sl-${_esc(p.id)}" title="${fr ? 'Langue du message' : 'Message language'}" style="padding:5px 6px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:var(--fs-xs);font-family:inherit;color:var(--text);background:#fff;">
+        <option value="EN" ${_sendDefaultLang() === 'EN' ? 'selected' : ''}>EN</option><option value="FR" ${_sendDefaultLang() === 'FR' ? 'selected' : ''}>FR</option>
+      </select>
+      <button type="button" class="btn-secondary btn-sm" id="nm-sv-${_esc(p.id)}" onclick="_saveSequenceDraft('${_esc(p.id)}','j5','','nm-')" disabled style="opacity:0.45;cursor:not-allowed">${fr ? 'Enregistrer le brouillon' : 'Save draft'}</button>
+      <button type="button" class="btn-secondary btn-sm" id="nm-sr-${_esc(p.id)}" onclick="_markReady('${_esc(p.id)}','nm-')" ${isReady ? 'style="border-color:var(--green);color:var(--green)"' : ''}>${isReady ? (fr ? '✓ Prêt' : '✓ Ready') : (fr ? 'Marquer prêt' : 'Mark ready')}</button>
+      <button type="button" class="btn-secondary btn-sm" id="nm-sms-${_esc(p.id)}" onclick="_markSent('${_esc(p.id)}','j5',false,'','nm-','li-followup')">${fr ? '✓ Marquer comme envoyé' : '✓ Mark as sent'}</button>
+      ${safeUrl
+        ? `<a class="btn-secondary btn-sm nm-open" href="${_esc(safeUrl)}" target="_blank" rel="noopener noreferrer" style="margin-left:auto;">${fr ? 'Envoi non disponible : ouvrir LinkedIn' : 'Sending unavailable: open LinkedIn'} ↗</a>`
+        : `<span class="nm-open" style="margin-left:auto;color:var(--muted);font-size:var(--fs-sm);">${fr ? 'Envoi non disponible (aucune URL LinkedIn)' : 'Sending unavailable (no LinkedIn URL)'}</span>`}
+    </div>
+    <div id="nm-srch-${_esc(p.id)}" style="font-size:var(--fs-sm);color:#8892b0;margin-top:6px;min-height:16px;"></div>
+  </div>`;
+}
+function _toggleNoEmailEditor(pid) {
+  const ed = document.getElementById('nm-ed-' + pid);
+  if (!ed) return;
+  if (!ed.hidden) { ed.hidden = true; return; }
+  const p = _sendProspects.find(x => x.id === pid) || _prospectsById[pid];
+  if (!p) return;
+  if (!ed.firstChild) ed.innerHTML = _noEmailCardHTML(p);
+  ed.hidden = false;
+}
+// Apres un envoi marque : retire la ligne (le prospect sort du bloc car _sendJ5Sent est a jour) et met a jour le nombre.
+function _noEmailAfterSent(pid) {
+  _noEmailJ5 = _noEmailJ5.filter(p => p.id !== pid);
+  document.getElementById('nm-row-' + pid)?.remove();
+  const cnt = document.getElementById('nm-count');
+  if (cnt) cnt.textContent = _noEmailJ5.length;
+  if (!_noEmailJ5.length) document.getElementById('j5-noemail')?.remove();
 }
 
 // RECENTLY SENT (README, 3e palier) : 7 jours glissants (arbitrage Thomas -- pas "aujourd'hui
@@ -9986,6 +10124,10 @@ function _sendDefaultLang() { return document.getElementById('send-filter-lang')
 async function _generateSequenceMessage(pid, touch, forceGenerate = false, elPrefix = '') {
   const p = _sendProspects.find(x => x.id === pid) || _prospectsById[pid];
   if (!p) return;
+  // LOT G : 'j5li' = relance LinkedIn d'un prospect J+5 sans e-mail. Stockee comme sequences touch='j5' (contrainte d'unicite et
+  // schema inchanges) ; seul le prompt change (message LinkedIn court, pas un e-mail).
+  const liFollowup = touch === 'j5li';
+  if (liFollowup) touch = 'j5';
   const lang = document.getElementById(elPrefix + 'sl-' + pid)?.value || _sendDefaultLang();
   const langRule = lang === 'FR'
     ? "Write the message in French. Use 'vous' (not 'tu') — professional tone, respectful distance. Use correct French accents (où, é, è, ê, à, etc.) — never write 'ou' without accent when the meaning is 'where/when'. Write natural idiomatic French — avoid calques from English."
@@ -9998,7 +10140,7 @@ async function _generateSequenceMessage(pid, touch, forceGenerate = false, elPre
   const touchDescriptions = {
     invite: `a LinkedIn connection request. MANDATORY STRUCTURE: 1 sentence of observation (max 15 words, factual, based on signal) + 1 short question (max 10 words) + sign-off "Thomas" on its own line. Total: under 200 chars. No greeting. No pitch. No Corridor. No URL. No closing line. Nothing else.`,
     j0:     'a first LinkedIn message after connection accepted (open conversation, no pitch, under 75 words)',
-    j5:     'a follow-up EMAIL (not a LinkedIn message) — one new angle, soft CTA, under 90 words',
+    j5:     liFollowup ? 'a short LinkedIn direct message that follows up on the earlier exchange (NOT an email), under 60 words' : 'a follow-up EMAIL (not a LinkedIn message) — one new angle, soft CTA, under 90 words',
   };
 
   const isAmbassador = (touch === 'ambassador');
@@ -10251,7 +10393,7 @@ ${langRule}
     // Entrees pre-JSON (legacy, texte markdown libre) : comportement inchange par rapport a avant ce fix.
     _recommendedApproachBlock = 'RECOMMENDED APPROACH (from prior analysis -- use as guidance for channel and angle unless recent interactions suggest a different approach; do not contradict it without reason):\n' + p.next_action_cache + '\n';
   }
-  const prompt = ambassadorPrompt || redirectPrompt || (isInvestor && investorPrompts[touch]
+  const prompt = ambassadorPrompt || redirectPrompt || (isInvestor && !liFollowup && investorPrompts[touch]
     ? investorPrompts[touch]
     : `Write ${touchDescriptions[touch]||'a LinkedIn outreach message'} for this prospect.
 
@@ -10260,11 +10402,19 @@ ${intCtx ? 'Recent interactions: ' + intCtx : ''}
 ${_senderBio()}
 ${_activeMandate ? 'ACTIVE MANDATE CONTEXT (defines the purpose of every message; the signal below informs the angle but must not contradict this mandate):' + '\n' + _mandateContext() + '\n---\n' : ''}
 ${liveBlock}${personBlock}${prevMsgBlock}${inviteBlock}${originBlock}${memoryBlock}${touch === 'invite' ? `CRITICAL INVITE RULE (non-negotiable): LinkedIn connection request. STRUCTURE: one factual observation (max 15 words) + one short question (max 10 words) + sign off "Thomas" on its own line. TOTAL under 200 characters. NO greeting. NO Corridor. NO URL. NO closing line. NO "Sent via". Output ONLY the 2-sentence message + Thomas, nothing else.` : ''}\n${_recommendedApproachBlock}\nRules: NEVER use em-dashes (—) in any message, replace with a period or comma. No bullet points. No mention of "Alliance Grid" or "Corridor" in the main message body (sentences 1 and 2 only -- the mandatory closing line appended below is the only exception and must be reproduced exactly as given). ${langRule} Replace every vague claim with something specific and provable. Never write 'I help companies grow' or 'I drive results'. Write what you actually observed about this company and why it is relevant right now.${(touch === 'invite' || touch === 'j0') ? ' Strip all marketing language. No buzzwords, no value propositions, no product claims. Rewrite as a text a peer would send to another peer -- direct, human, zero corporate tone.' : ''}${(touch === 'j0' || touch === 'j5') ? ` NEVER reference Thomas's own work history, a company he previously worked at, or a personal case he lived through as the opening observation, hook, or social proof (e.g. "when I scaled Hi-Media's Benelux operation..."). The opening angle must come only from the prospect's own context -- their signal, sector, or company size -- never from Thomas's background. NEVER include a line that describes or promotes Corridor as a product or system anywhere in the message (e.g. "Thomas | Corridor: the GTM system doing this end to end") -- if a sign-off beyond the plain name "Thomas" is needed, it must be exactly "Thomas | linkedin.com/company/corridor-gtm-system" and nothing more elaborate.` : ''} NEVER claim or imply that the prospect asked a question, made a specific statement, or expressed a specific interest unless that exact information is explicitly given in the prompt -- if no such detail is provided, do not invent one. NEVER state or imply a specific niche focus for the sender (e.g. a named industry, a named type of deal) that is not listed in their background above. NEVER use generic AI-sounding filler phrases (e.g. "passionate about", "excited to connect", "love what you're building") -- ground every claim in a real fact from the sender's background above or the prospect's own title/company/signal. NEVER open with false familiarity — "I've been following your work", "I've been following your journey", "I came across your profile", "I noticed your work", and all variants are prohibited: they imply sustained prior attention that did not exist and collapse under any verification question from the prospect. Output the message only, no preamble.${touch === 'j5' ? '\n\nFOLLOW-UP TONE RULES (mandatory):\n- This is an EMAIL, not a LinkedIn message. Under 90 words.\n- Do NOT include a subject line or the word "Subject:" anywhere -- output only the email body text itself, nothing before it.\n- NEVER use: "follow up", "following up", "checking in", "touching base", "circling back", "just wanted to", "I wanted to reach out", "hope this finds you well"\n- Do NOT open with a reference to the previous message (e.g. "I sent you a note last week")\n- Write as if continuing a conversation, not tracking an unanswered message\n- Introduce a NEW angle, observation, or question — never repeat the idea from the previous message\n- Conversational tone: peer to peer, not vendor to prospect\n- j5: one specific observation or question that opens a thread — no CTA harder than "thoughts?" or "does this resonate?"\n- The closing question must be different from the J+0 question. Never use "Curious what the growth focus looks like" or any variation of it.\n- Previous message sent: "' + (intCtx || 'not available') + '" — do not repeat its angle, observation, or closing question.' : ''}${j0LinkedInNote}${j0CtaNote}${j0NoContextNote}${stealthBlock}${signalBlock}${hcpBlock}`);
+  // LOT G : consignes propres a la relance LinkedIn (ajoutees APRES le prompt J+5 existant, elles ont le dernier mot) + reponse du prospect si elle existe.
+  let liRules = '';
+  if (liFollowup) {
+    await _loadNoEmailReplies([p]).catch(() => {});
+    const rp = _noEmailReplies[pid];
+    const rpTxt = rp && rp.text ? String(rp.text).replace(/\s+/g, ' ').trim().slice(0, 400) : '';
+    liRules = `\n\nLINKEDIN FOLLOW-UP RULES (these override anything above that assumes an email):\n- One short LinkedIn direct message, max 60 words, plain text, no subject line, no email-style greeting or signature block.\n- It must refer to the earlier exchange (the messages listed above) in one natural clause, as a continuation of that thread.\n${rpTxt ? '- The prospect replied' + (rp.date ? ' on ' + String(rp.date).slice(0, 10) : '') + ': "' + rpTxt + '". Acknowledge that reply first.\n' : ''}- No link, no pricing, no product pitch, no calendar link. At most one soft, easy-to-decline question.\n- No "follow up", "checking in", "touching base", "circle back". No exclamation marks. No em-dashes.\n- Sign off with just "Thomas" on its own line. Write only the message body.`;
+  }
   console.log('[gen] calling Anthropic. touch:', touch, 'prompt chars:', prompt.length);
   try {
     const res = await _authFetch(API_URL, {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ model:'claude-sonnet-5', max_tokens:400, messages:[{role:'user',content:prompt}] })
+      body: JSON.stringify({ model:'claude-sonnet-5', max_tokens:400, messages:[{role:'user',content:prompt + liRules}] })
     });
     console.log('[gen] Anthropic response status:', res.status);
     if (!res.ok) throw new Error('API error ' + res.status);
@@ -10571,7 +10721,8 @@ async function _fetchTodaySendCounts() {
   _updateSentCounter();
 }
 
-async function _markSent(pid, touch, auto = false, msgText = '', elPrefix = '') {
+async function _markSent(pid, touch, auto = false, msgText = '', elPrefix = '', kind = '') {
+  const _liJ5 = kind === 'li-followup';   // LOT G : relance LinkedIn d'un prospect J+5 sans e-mail
   // Garde de connexion (chemin MANUEL uniquement, meme perimetre que _confirmIfContradicted
   // ci-dessous -- le chemin automatique _sendViaLinkedIn() revient deja bloque en amont) : avant
   // ce fix, un clic sur "Mark as sent" pour un touch autre que 'invite' avancait le stage ET, si le
@@ -10597,11 +10748,28 @@ async function _markSent(pid, touch, auto = false, msgText = '', elPrefix = '') 
   if (btn) btn.disabled = true;
   const seqId = card?.dataset.seqId || '';
   const now = new Date().toISOString();
-  if (seqId) {
+  if (_liJ5) msgText = msgText || document.getElementById(elPrefix + 'so-' + pid)?.textContent?.trim() || '';
+  if (_liJ5 && !msgText) { if (btn) btn.disabled = false; showToast(currentLang==='fr' ? 'Aucun message à enregistrer' : 'No message to record'); return; }
+  if (_liJ5) {
+    // Relance LinkedIn : la ligne sequences (touch 'j5') doit finir 'sent' avec le message reellement envoye ; c'est ce qui sort le
+    // prospect de la file J+5 (_sendJ5Sent). Ligne existante (brouillon) mise a jour, sinon creee (unicite prospect+touch+client).
+    let _liErr = null;
+    const _liFields = { status:'sent', sent_at:now, body:msgText };
+    if (seqId) ({ error: _liErr } = await sbClient.from('sequences').update(_liFields).eq('id', seqId).eq('client_id', CLIENT_ID));
+    else {
+      const { data: _upd, error: _updErr } = await sbClient.from('sequences').update(_liFields).eq('prospect_id', pid).eq('client_id', CLIENT_ID).eq('touch', 'j5').select('id');
+      if (_updErr) _liErr = _updErr;
+      else if (!_upd || !_upd.length) ({ error: _liErr } = await sbClient.from('sequences').insert({ prospect_id: pid, client_id: CLIENT_ID, mandate_id: (activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null, touch: 'j5', body: msgText, status: 'sent', sent_at: now }));
+    }
+    if (_liErr) { console.error('[_markSent] li follow-up sequences write failed:', _liErr); if (btn) btn.disabled = false; showToast(currentLang==='fr' ? 'Erreur lors de l\'enregistrement de l\'envoi' : 'Error recording the send'); return; }
+    _sendJ5Sent[pid] = { prospect_id: pid, created_at: now };
+  } else if (seqId) {
     const { error } = await sbClient.from('sequences').update({ status:'sent', sent_at:now }).eq('id', seqId).eq('client_id', CLIENT_ID);
     if (error) { if (btn) btn.disabled = false; showToast(currentLang==='fr' ? 'Erreur lors de la mise à jour de la séquence' : 'Error updating sequence'); return; }
   }
-  const _sentNote = touch === 'ambassador'
+  const _sentNote = _liJ5
+    ? `j5 follow-up via LinkedIn${auto ? '' : ' (manual)'} | ${msgText.slice(0, 300)}`
+    : touch === 'ambassador'
     ? 'Ambassador programme invitation sent'
     : touch === 'redirect'
     ? 'Redirect request sent'
@@ -10674,9 +10842,10 @@ async function _markSent(pid, touch, auto = false, msgText = '', elPrefix = '') 
     .or('priority_batch_number.is.null,priority_batch_number.eq.0');
   if (ePriorityBatch) console.error('_markSent priority_batch_number:', ePriorityBatch);
   else if (document.getElementById('tab-priorities')?.classList.contains('active')) loadDailyPriorities();
-  if (card) card.style.opacity = '0.4';
+  if (_liJ5) _noEmailAfterSent(pid);
+  else if (card) card.style.opacity = '0.4';
   setTimeout(() => {
-    if (card) card.remove();
+    if (card && !_liJ5) card.remove();
     const remaining = document.querySelectorAll('.send-card').length;
     const countEl = document.getElementById('send-count');
     if (countEl) countEl.textContent = remaining;
@@ -16493,7 +16662,7 @@ function buildCard(p){
     // jamais confondre une fiche archivee avec une fiche active dans la meme colonne.
     +   (p.archived === true ? `<span class="k-badge k-badge-archived" style="color:var(--amber);background:var(--amber-bg);border:1px solid var(--amber-border);" title="${_fr ? 'Fiche archivée' : 'Archived prospect'}">${_fr ? 'Archivé' : 'Archived'}</span>` : '')
     + `</div>`
-    + (p.linkedin_tag === 'connection-accepted' && p.stage === 'Engaged' && parseFloat(p.icp_score) >= 8 && p.last_contact
+    + (p.linkedin_tag === 'connection-accepted' && p.stage === 'Engaged' && parseFloat(p.icp_score) >= 8 && p.last_contact && _hasEmail(p)
         ? `<div class="k-j5-badge" onclick="_j5BadgeClick(event,'${_esc(id)}')">J+5</div>`
         : '')
     + (_stageKey(p.stage) === 'Replied'
