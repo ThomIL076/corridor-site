@@ -281,7 +281,12 @@ nav {
 .pipe-scope .toggle-pill { display: inline-flex; align-items: center; gap: 6px; }
 #tab-system .sys-tabs { display: none; } /* remplacees par les onglets de section (#sec-tabs) */
 .sec-tab-mobile-only { display: none; }
-@media (max-width: 768px) { .sec-tabs { padding: 0 8px; } .sec-tab-mobile-only { display: flex; margin-left: auto; } }
+@media (max-width: 768px) {
+  .sec-tabs { padding: 0 8px; }
+  .sec-tabs-group[data-sec="settings"] { flex-wrap: wrap; width: 100%; }
+  .sec-tab-mobile-only { display: flex; flex: 1 0 100%; justify-content: center; margin: 6px 4px 8px; border: 1px solid var(--danger); border-bottom: 1px solid var(--danger); border-radius: var(--radius-sm); color: var(--danger); font-weight: 600; }
+  .sec-tab-mobile-only:hover { color: var(--danger); background: #fef2f2; }
+}
 
 /* ── JOURNEY SPINE (Phase 1) -- plus rendue depuis le lot D (regles conservees, inertes) ──
    Vit dans .top-chrome-wrapper (position:fixed) plutot que dans un vrai shell flex/100vh --
@@ -3311,7 +3316,7 @@ body.new-nav { padding-left: 220px; }
     <div style="padding:24px 16px 0;max-width:800px;margin:0 auto;">
       <div class="module-header" style="margin-bottom:20px;">
         <div class="module-title" data-en="Mandate &amp; ICP" data-fr="Mandat &amp; ICP">Mandate &amp; ICP</div>
-        <div class="section-sub" data-en="Targeting criteria already configured in the database — read-only for now." data-fr="Critères de ciblage déjà configurés en base — en lecture seule pour l'instant.">Targeting criteria already configured in the database — read-only for now.</div>
+        <div class="section-sub" data-en="Configured by Corridor — changes on request." data-fr="Configuré par Corridor — modifications sur demande.">Configured by Corridor — changes on request.</div>
       </div>
       <div id="mandate-container"></div>
       <div id="taxonomy-container" style="margin-top:24px;"></div>
@@ -3842,6 +3847,13 @@ async function _loadDailyReports() {
 }
 
 function _switchSysTab(key) {
+  // Le titre du panneau suit l'onglet (il restait « Signaux & Pipeline » sur Rapports et Sante du pipeline).
+  const _sysTitles = { signals: ['Signals', 'Signaux'], pipeintel: ['Pipeline health', 'Santé du pipeline'], reports: ['Reports', 'Rapports'] };
+  const _sysTitleEl = document.querySelector('#tab-system .module-title');
+  if (_sysTitleEl && _sysTitles[key]) {
+    _sysTitleEl.dataset.en = _sysTitles[key][0]; _sysTitleEl.dataset.fr = _sysTitles[key][1];
+    _sysTitleEl.textContent = currentLang === 'fr' ? _sysTitles[key][1] : _sysTitles[key][0];
+  }
   document.querySelectorAll('#tab-system .sys-tab').forEach(b => b.classList.toggle('active', b.dataset.sys === key));
   document.querySelectorAll('#tab-system .sys-panel').forEach(p => { p.style.display = p.id === 'syspanel-' + key ? '' : 'none'; });
   const sidebarKey = key === 'reports' ? 'weekly' : key;
