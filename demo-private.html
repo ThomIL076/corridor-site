@@ -107,7 +107,7 @@
   --ink: #0e1a2e;
   --accent: #2f6bff;
   --danger: #c9302c;
-  --success: #1f8a5c;
+  --success: #17724c; /* vert de texte : 4.0:1 -> 5.5:1 sur --success-bg */
   /* Derives success/danger (tiroir prospect, chunk 2) : meme couple bg/border que l'ancien
      --green-bg/--green-border, applique a la palette de la refonte plutot qu'invente. */
   --success-bg: #eafbf3;
@@ -127,7 +127,7 @@
   --text-strong: #2b3a52;
   --text-body: #41516a;
   --text-dim2: #5b6b82;
-  --text-muted2: #6b7a90;
+  --text-muted2: #596884; /* design pass : 4.14:1 -> >= 5:1 sur --bg (section-sub, compteurs) */
   --text-faint: #8494a8;
   --text-fainter: #96a3b5;
   --text-ghost: #a4b0c0;
@@ -162,7 +162,7 @@
      Thomas 06/09 : rattacher "Content" a POSITIVE ou "Pipeline" a FUNDRAISING creerait un faux
      sens (lecteur qui connait la palette croirait que la couleur dit un statut). Jamais reutilisees
      pour du statut/signal ailleurs dans le produit. */
-  --agent-group-content: #1d9e75;
+  --agent-group-content: #15795a; /* design pass : 3.2:1 -> >= 5:1 (libelle de groupe 12 px) */
   --agent-group-gtm: #2568b5;
   --agent-group-pipeline: #9f3fbf;
   /* Hub = CMO Orchestrator uniquement (_AGENT_META.cmo.color, panneau de chat via --panel-accent) --
@@ -276,7 +276,7 @@ nav {
 .sec-tab.active { color: var(--ink); font-weight: 600; border-bottom-color: var(--accent); }
 .sec-count { font-family: 'IBM Plex Mono', monospace; font-size: 11px; padding: 1px 7px; border-radius: 999px; background: var(--chip-bg, #f0f3fb); color: var(--ink); }
 .sec-count:empty { display: none; }
-.sec-tab.active .sec-count { background: var(--accent); color: #fff; }
+.sec-tab.active .sec-count { background: #2757e0; color: #fff; }
 .pipe-scope { display: flex; gap: 6px; flex-wrap: wrap; margin: -6px 0 16px; }
 .pipe-scope .toggle-pill { display: inline-flex; align-items: center; gap: 6px; }
 #tab-system .sys-tabs { display: none; } /* remplacees par les onglets de section (#sec-tabs) */
@@ -396,7 +396,7 @@ nav {
 .pd-stat-edit { cursor:pointer; color:var(--muted); background:none; border:none; padding:0; font-size:11px; line-height:1; flex-shrink:0; }
 .pd-stat-edit:hover { color:var(--accent); }
 .pd-links { display:flex; gap:12px; flex-wrap:wrap; margin-top:12px; }
-.pd-link { font-size:11px; color:var(--accent); text-decoration:none; }
+.pd-link { font-size:12px; color:#2757e0; text-decoration:none; }
 .pd-link:hover { text-decoration:underline; }
 .pd-body { flex:1; min-height:0; overflow-y:auto; padding:0 22px; }
 .pd-section { padding:18px 0; border-bottom:1px solid var(--border); }
@@ -633,7 +633,7 @@ button, [role="button"], select, input { min-height: 28px; }
 .agent-hero-stat label { display:block; font-size:10px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:rgba(255,255,255,.55); margin-top:4px; }
 /* ACCENT (section 05) : "Open session" est litteralement l'exemple donne par la spec pour cette
    variante -- reserve a l'orchestrateur, jamais deux fois dans une meme vue. */
-.agent-hero-btn { font-family:'Instrument Sans',sans-serif; font-size:13px; font-weight:600; padding:10px 18px; border-radius:7px; border:none; background:var(--accent); color:#fff; cursor:pointer; white-space:nowrap; }
+.agent-hero-btn { font-family:'Instrument Sans',sans-serif; font-size:13px; font-weight:600; padding:10px 18px; border-radius:7px; border:none; background:#2757e0; color:#fff; cursor:pointer; white-space:nowrap; }
 .agent-hero-btn:hover { background:#4a80ff; }
 @media(max-width:1180px) { .agent-hero { flex-direction:column; align-items:flex-start; } .agent-hero-right { width:100%; justify-content:space-between; } }
 .agent-group { margin-bottom:24px; }
@@ -708,7 +708,7 @@ button, [role="button"], select, input { min-height: 28px; }
   font-family:'IBM Plex Mono',monospace; font-size:10.5px; letter-spacing:0.04em;
 }
 .agent-card-footer-status { color:var(--muted); text-transform:uppercase; overflow-wrap:anywhere; }
-.agent-card-footer-action { color:var(--accent); font-weight:700; text-transform:uppercase; flex-shrink:0; }
+.agent-card-footer-action { color:#2757e0; font-weight:700; text-transform:uppercase; flex-shrink:0; }
 .badge-new {
   font-family:'IBM Plex Mono',monospace; font-size:9.5px; font-weight:400; letter-spacing:.12em; text-transform:uppercase;
   background:var(--neutral-chip-bg); color:var(--neutral-chip); border:1px solid transparent;
@@ -1472,7 +1472,7 @@ body.new-nav { padding-left: 220px; }
 .snav-section-muted .snav-item { font-size: 12px; opacity: 0.72; }
 .snav-section-muted .snav-item:hover, .snav-section-muted .snav-item.active { opacity: 1; }
 .snav-badge, .snav-meta {
-  font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.05em;
+  font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.05em;
   color: var(--sidebar-label); flex-shrink: 0;
 }
 .snav-badge:empty, .snav-meta:empty { display: none; }
@@ -1554,7 +1554,7 @@ body.new-nav { padding-left: 220px; }
   /* Barre du bas (polish mobile 05/10/2026) : 64px de cible + zone sure iOS (env() vaut 0 tant que le <meta viewport> n'a pas
      viewport-fit=cover, la barre reste alors a 64px). Tokens locaux --mtab-* : fond/accent/police propres a chaque fichier. */
   .mobile-tabbar {
-    --mtab-bg: var(--ink); --mtab-bar: var(--accent); --mtab-badge: var(--accent);
+    --mtab-bg: var(--ink); --mtab-bar: var(--accent); --mtab-badge: #2757e0; /* blanc sur #2757e0 = 5.9:1 (etait 4.5 limite) */
     display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 210;
     height: calc(64px + env(safe-area-inset-bottom, 0px)); padding: 0 0 env(safe-area-inset-bottom, 0px); gap: 0; justify-content: stretch;
     background: var(--mtab-bg); border-top: 1px solid rgba(255,255,255,.1);
@@ -1967,7 +1967,7 @@ body.new-nav { padding-left: 220px; }
 
       <!-- Content Group -->
       <div class="agent-group">
-        <div class="agent-group-label" style="color:#1D9E75;" data-en="Content" data-fr="Contenu">Content</div>
+        <div class="agent-group-label" style="color:#15795a;" data-en="Content" data-fr="Contenu">Content</div>
         <div class="agent-grid">
           <button class="agent-card" style="--accent-color:#1D9E75" onclick="_activateAgent('positioning')">
             <span class="agent-status-dot" id="dot-positioning"></span>
@@ -3689,7 +3689,7 @@ function _renderWeeklyList(reports, voteMap) {
   const freshHtml = _wkAge === null ? '' : `<div style="font-size:var(--fs-xs);color:${_wkStale ? 'var(--amber)' : 'var(--muted)'};margin-bottom:10px;">${fr ? 'Généré le ' : 'Generated on '}${_wkGen.toLocaleDateString(fr ? 'fr-FR' : 'en-GB',{day:'2-digit',month:'2-digit'})} · ${_wkAge === 0 ? (fr ? "aujourd'hui" : 'today') : (fr ? 'il y a ' + _wkAge + (_wkAge === 1 ? ' jour' : ' jours') : _wkAge + (_wkAge === 1 ? ' day ago' : ' days ago'))}${_wkStale ? (fr ? ' — rapport en retard : un nouveau rapport est attendu chaque vendredi.' : ' — report overdue: a new one is expected every Friday.') : ''}</div>`;
   const latestHtml = `<div style="border:1px solid var(--border);border-radius:var(--radius-panel);padding:18px 20px;margin-bottom:16px;">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
-      <span style="font-family:'IBM Plex Mono',monospace;font-size:var(--fs-xs);font-weight:700;letter-spacing:0.06em;color:var(--accent);">${latestTag} &middot; ${weekTag} ${_isoWeekNum(latestInfo.mon)}</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:var(--fs-xs);font-weight:700;letter-spacing:0.06em;color:#2757e0;">${latestTag} &middot; ${weekTag} ${_isoWeekNum(latestInfo.mon)}</span>
       <span style="font-size:var(--fs-xs);color:var(--muted);">${_esc(latestInfo.label)}</span>
     </div>
     ${freshHtml}
@@ -9506,7 +9506,7 @@ function _sendCardHTML(p, touchType, expanded = false) {
           ? `<span class="send-touch" style="background:var(--green-bg);color:var(--green);">✓ ${currentLang==='fr'?'Prêt':'Ready'}</span>`
           : hasBody
             ? `<span class="send-touch" style="background:var(--chip-bg);color:var(--indigo);">${currentLang==='fr'?'Brouillon enregistré':'Draft saved'}</span>`
-            : `<span class="send-touch" style="background:#f3f4f6;color:#6b7280;">${currentLang==='fr'?'Aucun brouillon':'No draft'}</span>`}`}
+            : `<span class="send-touch" style="background:#f3f4f6;color:#5a6270;">${currentLang==='fr'?'Aucun brouillon':'No draft'}</span>`}`}
       </div>
       <div class="send-expand" id="se-${p.id}" style="display:${expanded ? 'block' : 'none'}">
         <div class="ai-box" style="margin-top:10px">
@@ -13997,7 +13997,7 @@ function _reviewWhyText(kind, subtype, icpScore) {
 function _reviewWhyHTML(text) {
   return `<div style="display:flex;align-items:center;gap:7px;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.1em;color:var(--muted);padding:14px 20px 0;flex-wrap:wrap;">
     <span style="width:5px;height:5px;border-radius:50%;background:#c07a10;flex:0 0 5px;"></span>
-    <span style="color:#c07a10;">${currentLang==='fr'?'POURQUOI VOUS':'WHY YOU'}</span>
+    <span style="color:#955700;">${currentLang==='fr'?'POURQUOI VOUS':'WHY YOU'}</span>
     <span>${_esc(text)}</span>
   </div>`;
 }
