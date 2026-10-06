@@ -291,6 +291,14 @@ nav {
   footer a { display: inline-flex; align-items: center; min-height: 44px; }
   main button:not(.k-card button) { min-width: 44px; }
 }
+/* Barre du haut mobile : le selecteur de mandat passait a ~35 px (« V ») ; il prend maintenant sa propre ligne. */
+@media (max-width: 768px) {
+  #primary-nav { flex-wrap: wrap; row-gap: 8px; }
+  #primary-nav .mandate-bar { order: 2; flex: 1 1 100%; max-width: 100%; overflow: visible; }
+  #primary-nav #mandate-select { width: 100%; max-width: 100%; flex: 1 1 100%; }
+  .today-step-divider { flex-wrap: wrap; }
+  .today-step-label { white-space: normal; }
+}
 .sec-tab-mobile-only { display: none; }
 @media (max-width: 768px) {
   .sec-tabs { padding: 0 8px; }
@@ -2302,7 +2310,7 @@ body.new-nav { padding-left: 220px; }
   <!-- ══ TAB: PRIORITIES VIEW ══ -->
   <div class="tab-panel" id="tab-priorities">
     <div style="padding:24px 16px 0;max-width:1120px;margin:0 auto;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px;">
         <h2 style="font-size:var(--fs-lg);font-weight:700;color:var(--navy);margin:0;" data-en="Today's run" data-fr="Aujourd'hui">Today's run</h2>
         <div style="display:flex;align-items:center;gap:8px;">
           <button id="priorities-skip-btn" class="btn-secondary" onclick="_prioritiesSkip()">
