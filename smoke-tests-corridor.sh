@@ -319,6 +319,53 @@ else
 fi
 
 # ------------------------------------------------------------
+# TEST 8 — learned_rule_states : écriture réelle avec mandate_id NULL + unicité NULLS NOT DISTINCT
+# ------------------------------------------------------------
+# Règle CLAUDE.md : une écriture avec mandate_id NULL doit réellement réussir, ET la clé (client_id, mandate_id, rule_key) doit
+# refuser un doublon quand mandate_id est NULL (sinon l'état d'une règle pourrait exister en double sans erreur).
+# Table créée par un DDL appliqué à la main (brouillon : learned_rule_states_DDL_DRAFT.sql) : absente (PGRST205) => SAUTÉ.
+# Ne couvre PAS les GRANT/RLS du rôle 'authenticated' (le client met à jour ses règles) : à vérifier avec test-rls-adversarial.sh.
+echo ""
+echo "--- TEST 8 : learned_rule_states, insert mandate_id NULL + doublon refusé ---"
+if [ -z "$SUPABASE_SECRET_KEY" ]; then
+  echo "  ⚠ NON EXÉCUTÉ : SUPABASE_SECRET_KEY n'est pas définie."
+else
+  LR_URL="$SUPABASE_URL/rest/v1/learned_rule_states"
+  LR_CLIENT="__smoke_test__"
+  _lr_call() {
+    curl -s -X "$1" "$2" -H "apikey: $SUPABASE_SECRET_KEY" -H "Authorization: Bearer $SUPABASE_SECRET_KEY" \
+      -H "Content-Type: application/json" ${4:+-H "Prefer: $4"} ${3:+-d "$3"}
+  }
+  LR_PROBE=$(_lr_call GET "$LR_URL?select=id&limit=1")
+  if echo "$LR_PROBE" | grep -q 'PGRST205\|does not exist'; then
+    echo "  ⏭ SAUTÉ : table learned_rule_states absente (DDL non appliqué)."
+  else
+    _lr_call DELETE "$LR_URL?client_id=eq.$LR_CLIENT" > /dev/null
+    LR_BODY="{\"client_id\":\"$LR_CLIENT\",\"mandate_id\":null,\"signal_type\":\"fundraising\",\"signal_subtype\":\"seul\",\"rule_key\":\"fundraising:seul\"}"
+    LR_R1=$(_lr_call POST "$LR_URL" "$LR_BODY" "return=minimal")
+    LR_R2=$(_lr_call POST "$LR_URL" "$LR_BODY" "return=minimal")     # doublon : doit etre REFUSE (23505)
+    LR_UPD=$(_lr_call PATCH "$LR_URL?client_id=eq.$LR_CLIENT&rule_key=eq.fundraising:seul" "{\"status\":\"confirmed\",\"decided_by\":\"smoke\",\"decided_at\":\"2026-01-01T00:00:00Z\"}" "return=representation")
+    LR_COUNT=$(_lr_call GET "$LR_URL?client_id=eq.$LR_CLIENT&mandate_id=is.null&select=status")
+    _lr_call DELETE "$LR_URL?client_id=eq.$LR_CLIENT" > /dev/null
+    LR_LEFT=$(_lr_call GET "$LR_URL?client_id=eq.$LR_CLIENT&select=id")
+    if echo "$LR_R1" | grep -q '"code"'; then
+      echo "  ❌ INSERT learned_rule_states (mandate_id NULL) REFUSÉ -- $LR_R1"
+      FAILED=$((FAILED + 1))
+    elif ! echo "$LR_R2" | grep -q '23505'; then
+      echo "  ❌ le doublon (même clé, mandate_id NULL) n'a PAS été refusé (unicité NULLS NOT DISTINCT absente ?) -- $LR_R2"
+      FAILED=$((FAILED + 1))
+    elif [ "$LR_COUNT" != '[{"status":"confirmed"}]' ]; then
+      echo "  ❌ relecture inattendue (attendu une seule ligne confirmed) -- reçu : $LR_COUNT"
+      FAILED=$((FAILED + 1))
+    elif [ "$LR_LEFT" != "[]" ]; then
+      echo "  ⚠ écriture OK mais NETTOYAGE incomplet : $LR_LEFT"
+    else
+      echo "  ✅ insert mandate_id NULL OK, doublon refusé (23505), mise à jour OK, nettoyé"
+    fi
+  fi
+fi
+
+# ------------------------------------------------------------
 # TEST 4 — Rappel manuel (non automatisable simplement)
 # ------------------------------------------------------------
 echo ""

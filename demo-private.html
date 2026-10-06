@@ -2948,6 +2948,8 @@ body.new-nav { padding-left: 220px; }
           <div class="ai-box-body" id="pr-output" data-en="Click to run the pipeline analysis..." data-fr="Cliquez pour lancer l'analyse du pipeline...">Click to run the pipeline analysis...</div>
         </div>
       </div>
+      <!-- Regles apprises validables (phase 3) : masque tant que la table learned_rule_states n'existe pas. -->
+      <div class="card" id="learned-rules-box" style="margin-top:16px;" hidden></div>
       <div class="card" id="learned-preferences-card" style="margin-top:16px;display:none;">
         <div class="card-header"><span class="card-title" data-en="Learned Preferences" data-fr="Préférences apprises">Learned Preferences</span></div>
         <div id="learned-preferences-body" style="font-size:var(--fs-sm);line-height:1.6;"></div>
@@ -3863,7 +3865,7 @@ function _switchSysTab(key) {
   const sidebarKey = key === 'reports' ? 'weekly' : key;
   _newNavActive('system-' + sidebarKey);
   if (key === 'reports') { _switchRptTab('weekly'); _loadWeeklyReports(); }
-  if (key === 'pipeintel') { _renderSignalLearningSummary(); _loadLearnedPreferences(); _loadStageConversion(); }
+  if (key === 'pipeintel') { _renderSignalLearningSummary(); _loadLearnedPreferences(); _loadStageConversion(); if (typeof _loadLearnedRules === 'function') _loadLearnedRules(); }
 }
 
 // ── Stage conversion (Pipeline health) ──
@@ -5763,6 +5765,7 @@ function setLang(lang) {
   if (typeof renderStatsLearning === 'function') renderStatsLearning();
   if (typeof _renderSignalLearningSummary === 'function') _renderSignalLearningSummary();
   if (typeof _loadStageConversion === 'function') _loadStageConversion();
+  if (typeof _loadLearnedRules === 'function' && window._rulesShown) _loadLearnedRules();
   if (typeof _applySendFilters === 'function') _applySendFilters();
   // BUG 3 (23/09) : meme principe que renderWelcome() juste au-dessus (deja etabli pour les agents
   // chat) applique au panneau Ask Corridor -- si le panneau est ouvert (ou sera rouvert) SANS
@@ -8033,12 +8036,46 @@ async function _buildAskSystemPrompt(ctx, pipelineSnapshot, pipelineInsightsBloc
 let _deprioTypes = null;      // Set des types deprioritises, null = pas charge
 let _deprioClientId = null;   // client pour lequel le Set a ete charge (CLIENT_ID est resolu dynamiquement)
 let _deprioPromise = null;
+let _deprioFactors = new Map(); // type -> facteur de force restante (0 = annulee) pour les regles « corrigees » de type entier
+let _deprioScoped = [];         // regles limitees a un sous-type : {type, scope, factor, ids:Set(prospect.id)}
+let _rulesMode = false;         // true = les regles validees (learned_rule_states) remplacent learned_preferences
+async function _fetchSubtypeIds(clientId, type, sub) {
+  const ids = new Set();
+  for (let from = 0; from < 20000; from += 1000) {
+    const { data, error } = await sbClient.from('prospects').select('id').eq('client_id', clientId)
+      .eq('signal_type', type).eq('signal_subtype', sub).eq('archived', false).range(from, from + 999);
+    if (error) { console.warn('[_fetchSubtypeIds]', error); break; }
+    (data || []).forEach(r => ids.add(r.id));
+    if (!data || data.length < 1000) break;
+  }
+  return ids;
+}
 function _loadDeprioritizedTypes() {
   if (_deprioPromise && _deprioClientId === CLIENT_ID) return _deprioPromise;
   const forClient = CLIENT_ID;
   _deprioClientId = forClient;
   _deprioPromise = (async () => {
     try {
+      // 1) Si la table des regles existe (meme vide) : SEULES les regles 'confirmed' / 'corrected' s'appliquent
+      //    (a un sous-type precis le cas echeant). 'proposed' et 'ignored' n'appliquent RIEN. Table absente :
+      //    comportement historique (learned_preferences) ci-dessous, inchange.
+      if (!_rulesMissing) {
+        const { data: rs, error: rsErr } = await sbClient.from('learned_rule_states')
+          .select('signal_type, signal_subtype, status, correction').eq('client_id', forClient).is('mandate_id', null);
+        if (rsErr) { if (_isMissingTable(rsErr)) _rulesMissing = true; else throw rsErr; }
+        else {
+          const types = new Set(), factors = new Map(), scoped = [];
+          for (const r of (rs || [])) {
+            if (r.status !== 'confirmed' && r.status !== 'corrected') continue;
+            const f = (r.status === 'corrected' && r.correction && r.correction.factor != null) ? Math.min(1, Math.max(0, Number(r.correction.factor))) : 0;
+            if (r.signal_subtype) scoped.push({ type: r.signal_type, scope: r.signal_subtype, factor: f, ids: await _fetchSubtypeIds(forClient, r.signal_type, r.signal_subtype) });
+            else { types.add(r.signal_type); if (f > 0) factors.set(r.signal_type, f); }
+          }
+          _rulesMode = true; _deprioFactors = factors; _deprioScoped = scoped; _deprioTypes = types;
+          return _deprioTypes;
+        }
+      }
+      _rulesMode = false; _deprioFactors = new Map(); _deprioScoped = [];
       const { data, error } = await sbClient.from('learned_preferences').select('deprioritized_types')
         .eq('client_id', forClient).is('mandate_id', null).eq('agent_name', 'signal_interpretation')
         .order('generated_at', { ascending: false, nullsFirst: false }).limit(1);
@@ -8055,9 +8092,19 @@ function _loadDeprioritizedTypes() {
   return _deprioPromise;
 }
 // A appeler apres `await _loadDeprioritizedTypes()`. Prospect sans signal_type ou types non charges : force stockee.
+// Facteur de force restante pour ce prospect : null = aucune regle ne s'applique ; 0 = force annulee ; 0<f<1 = attenuee.
+function _deprioFactorFor(p) {
+  if (!p || !p.signal_type || !_deprioTypes) return null;
+  const sc = _deprioScoped.find(r => r.type === p.signal_type && r.ids.has(p.id));
+  if (sc) return sc.factor;
+  if (_deprioTypes.has(p.signal_type)) return _deprioFactors.get(p.signal_type) || 0;
+  return null;
+}
 function _effectiveSignalStrength(p) {
-  if (p && p.signal_type && _deprioTypes && _deprioTypes.has(p.signal_type)) return 0;
-  return p ? p.score_signal_strength : null;
+  const f = _deprioFactorFor(p);
+  if (f === null) return p ? p.score_signal_strength : null;
+  if (f === 0) return 0;
+  return p.score_signal_strength == null ? null : p.score_signal_strength * f;
 }
 // AJOUT 03/10 (audit persona QA : "preuve que les preferences apprises influencent le classement") : decompose le score
 // de priorite de la liste Today (MEME formule que loadDailyPriorities : (ICP*0.7 + force_effective*recence*0.3) * penalite
@@ -8083,8 +8130,9 @@ function _priorityWeightHTML(p, fr) {
   const icpPart = icp * 0.7;
   const sigPart = eff * decay * 0.3;
   const total = (icpPart + sigPart) * idPen;
-  const prefApplies = !!(p.signal_type && _deprioTypes && _deprioTypes.has(p.signal_type));
-  const lost = prefApplies ? raw * decay * 0.3 * idPen : 0;
+  const _prefF = _deprioFactorFor(p);
+  const prefApplies = _prefF !== null;
+  const lost = prefApplies ? raw * decay * 0.3 * idPen * (1 - _prefF) : 0;
   let prefLine = '';
   if (prefApplies) {
     prefLine = `<div style="margin-top:6px;color:#92400e;font-weight:600">${fr ? 'Préférence apprise appliquée' : 'Learned preference applied'} : ${fr ? 'les signaux de type' : 'signals of type'} « ${_esc(p.signal_type)} » ${fr ? 'sont déprioritisés, la force du signal passe de' : 'are deprioritised, signal strength goes from'} ${f1(raw)} ${fr ? 'à' : 'to'} 0 (−${f1(lost)} ${fr ? 'pt de score' : 'pts of score'}).</div>`;
@@ -16634,6 +16682,128 @@ async function renderStatsLearning() {
 // conversion par signal (_renderSignalLearningSummary ci-dessous) -- deux sources, deux blocs,
 // pas de fusion. Rien affiche du tout tant qu'aucune ligne n'existe : jamais de "no data yet",
 // la carte reste display:none par defaut dans le HTML.
+// ── REGLES APPRISES VALIDABLES (phase 3) ──
+// DRAPEAU : FEATURE_LEARNED_RULES_UI = false coupe tout. Tant que public.learned_rule_states n'existe pas, RIEN ne s'affiche
+// (aucune erreur JS ; une seule requete 404 par session). Les regles affichees sont les LIGNES de learned_rule_states
+// (ex. fundraising:seul, keyword-match), le nombre de votes est celui des VOTES REELS (signal_feedback : 7 aujourd'hui ; le
+// « 14 » de l'ancien ecran est un double comptage du workflow). Une regle n'a d'effet qu'une fois « confirmee » ou « corrigee »
+// (cf. _loadDeprioritizedTypes) ; « proposee » et « ignoree » n'appliquent rien.
+const FEATURE_LEARNED_RULES_UI = true;
+let _rulesMissing = false;
+window._rulesShown = false;
+const _SUBTYPE_LABELS = {
+  seul: { fr: 'levées de fonds sans suite commerciale', en: 'funding announcements with no commercial follow-up' },
+  expansion: { fr: 'levées avec expansion commerciale annoncée', en: 'funding with announced commercial expansion' },
+  dette: { fr: 'financements par dette', en: 'debt financing' },
+  extension_serie: { fr: 'extensions de série', en: 'series extensions' },
+  inconnu: { fr: 'levées au sous-type inconnu', en: 'funding of unknown sub-type' },
+};
+const _RULE_STATUS = { proposed: { fr: 'Proposée', en: 'Proposed' }, confirmed: { fr: 'Confirmée', en: 'Confirmed' }, corrected: { fr: 'Corrigée', en: 'Corrected' }, ignored: { fr: 'Ignorée', en: 'Ignored' } };
+let _ruleVotes = {}; // rule id -> {votesFor, votesAgainst}
+async function _ruleImpact(r) {
+  const base = () => sbClient.from('prospects').select('id', { count: 'exact', head: true }).eq('client_id', CLIENT_ID).eq('archived', false).eq('signal_type', r.signal_type);
+  if (!r.signal_subtype) {
+    const [a, b, c] = await Promise.all([base(), base().gt('score_signal_strength', 0), base().eq('linkedin_tag', 'invite-sent')]);
+    return { basis: 'type', all: a.count, change: b.count, invited: c.count };
+  }
+  const val = await base().eq('signal_subtype', r.signal_subtype);
+  if (val.error) return { basis: 'unavailable' };
+  // Tant que le rattrapage n'est pas valide (aucune fiche avec un sous-type confirme), l'impact est estime sur le sous-type SUGGERE.
+  const col = (val.count || 0) > 0 ? 'signal_subtype' : 'signal_subtype_suggested';
+  const q = () => base().eq(col, r.signal_subtype);
+  const [a, b, c] = await Promise.all([q(), q().gt('score_signal_strength', 0), q().eq('linkedin_tag', 'invite-sent')]);
+  if (a.error) return { basis: 'unavailable' };
+  return { basis: col === 'signal_subtype' ? 'validated' : 'suggested', all: a.count, change: b.count, invited: c.count };
+}
+async function _loadLearnedRules() {
+  const box = document.getElementById('learned-rules-box');
+  if (!box) return;
+  box.hidden = true; box.innerHTML = ''; window._rulesShown = false;
+  if (!FEATURE_LEARNED_RULES_UI || _rulesMissing) return;
+  const fr = currentLang === 'fr';
+  try {
+    const { data: states, error: stErr } = await sbClient.from('learned_rule_states')
+      .select('id, signal_type, signal_subtype, rule_key, status, correction, votes_for, votes_against, note').eq('client_id', CLIENT_ID).is('mandate_id', null).order('rule_key');
+    if (stErr) { if (_isMissingTable(stErr)) _rulesMissing = true; return; }
+    if (!states || !states.length) return; // table vide : rien a valider, rien d'affiche
+    const { data: votes, error: vErr } = await sbClient.from('signal_feedback')
+      .select('id, prospect_id, signal_type, signal_text, vote, voted_at').eq('client_id', CLIENT_ID).order('voted_at', { ascending: false });
+    if (vErr) return;
+    const pids = [...new Set((votes || []).map(v => v.prospect_id).filter(Boolean))].slice(0, 100);
+    const pmap = {};
+    if (pids.length) {
+      const { data: prs } = await sbClient.from('prospects').select('id, name, company').eq('client_id', CLIENT_ID).in('id', pids);
+      (prs || []).forEach(x => { pmap[x.id] = x; });
+    }
+    // un vote « sans contenu » : le texte du signal n'est que « Nom · Entreprise » (cas Wispr Flow)
+    const noContent = v => { const pr = pmap[v.prospect_id]; return !!pr && String(v.signal_text || '').trim().toLowerCase() === (pr.name + ' · ' + (pr.company || '')).trim().toLowerCase(); };
+    const stLabel = st => _RULE_STATUS[st] ? _RULE_STATUS[st][fr ? 'fr' : 'en'] : st;
+    const blocks = [];
+    for (const r of states) {
+      const mine = (votes || []).filter(v => v.signal_type === r.signal_type);
+      const vAgainst = mine.filter(v => v.vote !== 'like'), vFor = mine.filter(v => v.vote === 'like');
+      const empty = vAgainst.filter(noContent).length;
+      _ruleVotes[r.id] = { votesFor: vFor.length, votesAgainst: vAgainst.length };
+      const imp = await _ruleImpact(r);
+      const label = r.signal_subtype ? ((_SUBTYPE_LABELS[r.signal_subtype] || { fr: r.signal_subtype, en: r.signal_subtype })[fr ? 'fr' : 'en']) : r.signal_type;
+      const corr = r.correction && r.correction.factor != null ? ` (×${_esc(String(r.correction.factor))})` : '';
+      const ex = vAgainst.slice(0, 3).map(v => { const pr = pmap[v.prospect_id]; return `<li>${_esc(pr ? (pr.name || '') + (pr.company ? ', ' + pr.company : '') : '—')} — ${noContent(v) ? `<em>${fr ? 'sans contenu (nom seul)' : 'no content (name only)'}</em>` : '« ' + _esc(String(v.signal_text || '').slice(0, 110)) + ' »'}</li>`; }).join('');
+      const impactTxt = imp.basis === 'unavailable'
+        ? (fr ? 'Impact : non calculable (sous-types pas encore renseignés).' : 'Impact: not computable (sub-types not set yet).')
+        : `${fr ? 'Impact' : 'Impact'} : ${imp.all ?? '—'} ${fr ? 'fiches non archivées' : 'non-archived prospects'}, ${imp.change ?? '—'} ${fr ? 'dont le score changerait' : 'whose score would change'}, ${imp.invited ?? '—'} ${fr ? 'déjà invite-sent' : 'already invite-sent'}`;
+      const basisNote = imp.basis === 'suggested'
+        ? `<div style="font-size:var(--fs-xs);color:#92400e;margin-top:4px;">${fr ? 'Impact estimé sur le sous-type SUGGÉRÉ par mots-clés : le rattrapage n\'est pas encore validé, aucune fiche n\'a de sous-type confirmé, donc la règle ne toucherait rien pour l\'instant.' : 'Impact estimated on the keyword-SUGGESTED sub-type: the backfill is not validated yet, no prospect has a confirmed sub-type, so the rule would currently affect nothing.'}</div>` : '';
+      blocks.push(`<div style="border:1px solid var(--border);border-radius:var(--radius-md);padding:12px 14px;margin-bottom:10px;">
+        <div style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;"><strong>${fr ? 'Déprioriser les' : 'Deprioritise'} ${r.signal_subtype ? '' : (fr ? 'signaux ' : 'signals ')}« ${_esc(label)} »</strong>
+          <code style="font-size:var(--fs-xs);color:var(--muted);">${_esc(r.rule_key)}</code>
+          <span style="font-size:var(--fs-xs);font-weight:700;padding:2px 8px;border-radius:999px;background:var(--chip-bg);">${_esc(stLabel(r.status))}${corr}</span></div>
+        <div style="font-size:var(--fs-xs);color:var(--muted);margin-top:4px;">${fr ? 'Confiance' : 'Confidence'} : ${mine.length} ${fr ? (mine.length > 1 ? 'votes réels' : 'vote réel') : (mine.length > 1 ? 'real votes' : 'real vote')} ${fr ? 'sur le type' : 'on type'} « ${_esc(r.signal_type)} » (${vAgainst.length} ${fr ? 'contre' : 'against'}, ${vFor.length} ${fr ? 'pour' : 'for'}${empty ? `, ${fr ? 'dont' : 'incl.'} ${empty} ${fr ? 'sans contenu' : 'with no content'}` : ''})</div>
+        <div style="font-size:var(--fs-xs);color:var(--muted);margin-top:2px;">${impactTxt}</div>${basisNote}
+        ${ex ? `<ul style="margin:6px 0 0 18px;padding:0;font-size:var(--fs-xs);">${ex}</ul>` : ''}
+        ${r.note ? `<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:6px;">${_esc(r.note)}</div>` : ''}
+        ${r.signal_subtype ? `<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:6px;">${fr ? 'Une levée avec expansion commerciale annoncée n\'est jamais touchée par cette règle.' : 'A funding round with announced commercial expansion is never affected by this rule.'}</div>` : ''}
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+          <button type="button" class="btn-primary btn-sm" onclick="_ruleDecide('${r.id}','confirmed')">${fr ? 'Confirmer' : 'Confirm'}</button>
+          <button type="button" class="btn-secondary btn-sm" onclick="_ruleCorrectOpen('${r.id}')">${fr ? 'Corriger' : 'Correct'}</button>
+          <button type="button" class="btn-secondary btn-sm" onclick="_ruleDecide('${r.id}','ignored')">${fr ? 'Ignorer' : 'Ignore'}</button>
+        </div>
+        <div id="rule-correct-${r.id}" hidden style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px;font-size:var(--fs-xs);">
+          <label>${fr ? 'Force du signal conservée' : 'Signal strength kept'}
+            <select id="rule-factor-${r.id}" class="input-select"><option value="0">${fr ? '0 % (annulée, comme confirmer)' : '0% (cancelled, same as confirm)'}</option><option value="0.25">25 %</option><option value="0.5">50 %</option><option value="0.75">75 %</option></select></label>
+          <button type="button" class="btn-primary btn-sm" style="margin-left:8px;" onclick="_ruleCorrectSave('${r.id}')">${fr ? 'Enregistrer la correction' : 'Save correction'}</button>
+        </div>
+      </div>`);
+    }
+    box.innerHTML = `<div class="card-header"><span class="card-title">${fr ? 'Règles apprises à valider' : 'Learned rules to review'}</span></div>
+      <div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:10px;line-height:1.5;">${fr ? 'Chaque règle vient de vos votes sur les signaux. Une règle ne s\'applique qu\'une fois confirmée ou corrigée ; « proposée » et « ignorée » n\'ont aucun effet.' : 'Each rule comes from your votes on signals. A rule only applies once confirmed or corrected; “proposed” and “ignored” have no effect.'}</div>${blocks.join('')}`;
+    box.hidden = false; window._rulesShown = true;
+  } catch (e) { /* ecran des regles absent : rien n'est affiche, sans erreur */ }
+}
+function _ruleCorrectOpen(id) { const el = document.getElementById('rule-correct-' + id); if (el) el.hidden = !el.hidden; }
+function _ruleCorrectSave(id) { return _ruleDecide(id, 'corrected', { factor: Number(document.getElementById('rule-factor-' + id)?.value || 0) }); }
+// Ecriture : UPDATE de la ligne de la regle (les lignes sont creees par la migration, jamais par le navigateur : pas d'upsert
+// sur une cle a colonne nullable, regle CLAUDE.md). Tout echec est affiche a l'utilisateur (toast), jamais seulement console.*.
+async function _ruleDecide(id, status, correction = null) {
+  const fr = currentLang === 'fr';
+  const v = _ruleVotes[id] || { votesFor: 0, votesAgainst: 0 };
+  try {
+    const { data: sess } = await sbClient.auth.getSession();
+    const who = (sess && sess.session && sess.session.user && sess.session.user.email) || 'dashboard';
+    const now = new Date().toISOString();
+    const { data, error } = await sbClient.from('learned_rule_states')
+      .update({ status, correction, votes_for: v.votesFor, votes_against: v.votesAgainst, decided_by: who, decided_at: now, updated_at: now })
+      .eq('id', id).eq('client_id', CLIENT_ID).select('id');
+    if (error) throw error;
+    if (!data || !data.length) throw new Error('aucune ligne mise a jour (regle introuvable ou droits insuffisants)');
+    showToast(fr ? 'Règle enregistrée ✓' : 'Rule saved ✓');
+    _deprioPromise = null; await _loadDeprioritizedTypes(); // Today / classement suivent la decision
+    _loadLearnedRules();
+  } catch (e) {
+    console.error('[_ruleDecide]', e);
+    showToast(fr ? 'Impossible d\'enregistrer la règle — réessayez.' : 'Could not save the rule — please retry.');
+  }
+}
+
 async function _loadLearnedPreferences() {
   const card = document.getElementById('learned-preferences-card');
   if (!card) return;
@@ -16744,7 +16914,7 @@ async function renderStatsSignal() {
   active.forEach(p => {
     const k = (p.signal_type || '').toUpperCase();
     if (!k) return;
-    if (_deprioTypes && _deprioTypes.has(p.signal_type)) return;
+    if (_deprioFactorFor(p) === 0) return;
     prospectCounts[k] = (prospectCounts[k] || 0) + 1;
   });
   const { data: attrData } = await _supabase
