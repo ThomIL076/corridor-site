@@ -13943,7 +13943,11 @@ async function loadReviewView() {
     if (errProp) throw errProp;
     if (errPa) throw errPa;
 
-    const propList = proposals || [];
+    // Une conversation = une fiche : un prospect qui a deja repondu (objection_response pending) n'a plus
+    // d'« ouverture » a valider -- elle est perimee (ex. K Balachandran : opener du 03/10 + 2 reponses).
+    // Filtre d'affichage seulement : rien n'est modifie en base, l'opener reste pending.
+    const _repliedPids = new Set((proposals || []).filter(p => p.content_type === 'objection_response' && p.prospect_id).map(p => p.prospect_id));
+    const propList = (proposals || []).filter(p => !(p.content_type === 'outreach_opener' && _repliedPids.has(p.prospect_id)));
     const paList = pendingActionsData || [];
 
     // Batch-fetch unique (meme pattern que loadProposalsView()/loadInboxDrafts()) -- icp_score en
