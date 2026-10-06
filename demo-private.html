@@ -3690,9 +3690,10 @@ function _renderWeeklyList(reports, voteMap) {
 
   // Fraicheur : le rapport est attendu chaque vendredi -- au-dela de 9 jours sans nouveau, on le dit.
   const _wkGen = new Date(latest.created_at || latest.week_start);
-  const _wkAge = isNaN(_wkGen) ? null : Math.max(0, Math.floor((Date.now() - _wkGen) / 86400000));
+  // Jours CALENDAIRES (25/09 -> 06/10 = 11), pas des tranches de 24 h : evite « 10 jours » le matin d'un 11e jour.
+  const _wkAge = isNaN(_wkGen) ? null : (() => { const n = new Date(); return Math.max(0, Math.round((new Date(n.getFullYear(), n.getMonth(), n.getDate()) - new Date(_wkGen.getFullYear(), _wkGen.getMonth(), _wkGen.getDate())) / 86400000)); })();
   const _wkStale = _wkAge !== null && _wkAge > 9;
-  const freshHtml = _wkAge === null ? '' : `<div style="font-size:var(--fs-xs);color:${_wkStale ? 'var(--amber)' : 'var(--muted)'};margin-bottom:10px;">${fr ? 'Généré le ' : 'Generated on '}${_wkGen.toLocaleDateString(fr ? 'fr-FR' : 'en-GB',{day:'2-digit',month:'2-digit'})} · ${_relDate(latest.created_at || latest.week_start)}${_wkStale ? (fr ? ' — rapport en retard : un nouveau rapport est attendu chaque vendredi.' : ' — report overdue: a new one is expected every Friday.') : ''}</div>`;
+  const freshHtml = _wkAge === null ? '' : `<div style="font-size:var(--fs-xs);color:${_wkStale ? 'var(--amber)' : 'var(--muted)'};margin-bottom:10px;">${fr ? 'Généré le ' : 'Generated on '}${_wkGen.toLocaleDateString(fr ? 'fr-FR' : 'en-GB',{day:'2-digit',month:'2-digit'})} · ${_wkAge === 0 ? (fr ? "aujourd'hui" : 'today') : (fr ? 'il y a ' + _wkAge + (_wkAge === 1 ? ' jour' : ' jours') : _wkAge + (_wkAge === 1 ? ' day ago' : ' days ago'))}${_wkStale ? (fr ? ' — rapport en retard : un nouveau rapport est attendu chaque vendredi.' : ' — report overdue: a new one is expected every Friday.') : ''}</div>`;
   const latestHtml = `<div style="border:1px solid var(--border);border-radius:var(--radius-panel);padding:18px 20px;margin-bottom:16px;">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
       <span style="font-family:'IBM Plex Mono',monospace;font-size:var(--fs-xs);font-weight:700;letter-spacing:0.06em;color:var(--accent);">${latestTag} &middot; ${weekTag} ${_isoWeekNum(latestInfo.mon)}</span>
