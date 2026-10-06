@@ -3318,6 +3318,10 @@ body.new-nav { padding-left: 220px; }
         <div class="module-title" data-en="Mandate &amp; ICP" data-fr="Mandat &amp; ICP">Mandate &amp; ICP</div>
         <div class="section-sub" data-en="Configured by Corridor — changes on request." data-fr="Configuré par Corridor — modifications sur demande.">Configured by Corridor — changes on request.</div>
       </div>
+      <!-- Mode accompagne : bandeau d'onboarding + demandes de modification. Masques tant que les tables
+           client_onboarding / change_requests n'existent pas ou sont vides (cf. _loadOnboardingUI). -->
+      <div id="onboarding-banner" hidden></div>
+      <div id="change-request-box" hidden></div>
       <div id="mandate-container"></div>
       <div id="taxonomy-container" style="margin-top:24px;"></div>
     </div>
@@ -18061,11 +18065,133 @@ function _employeeRange(min, max){
   if (max != null) return (fr ? "jusqu'à " : 'up to ') + max + (fr ? ' salariés' : ' employees');
   return null;
 }
+// ── MANDAT & ICP en mode accompagne : statut d'onboarding + « Demander une modification » ──
+// DRAPEAU : FEATURE_ONBOARDING_UI = false coupe tout (aucun appel reseau, rien d'affiche). Tant que les tables
+// public.client_onboarding / public.change_requests n'existent pas (DDL en brouillon, non applique), ou sont vides
+// pour le bandeau, RIEN ne s'affiche : pas d'erreur JS, pas de faux statut. Un echec « table absente » est mis en cache
+// pour la session (une seule requete 404 par table, pas une par visite de l'onglet).
+const FEATURE_ONBOARDING_UI = true;
+let _obMissing = { onboarding: false, requests: false };
+function _isMissingTable(err) {
+  return !!err && (err.code === 'PGRST205' || err.code === '42P01' || err.status === 404
+    || /does not exist|schema cache|Could not find the table/i.test(err.message || ''));
+}
+const _OB_STEPS = ['configuration', 'client_validation', 'activation'];
+const _OB_LABELS = {
+  configuration:     { en: 'Setup by Corridor', fr: 'Configuration par Corridor' },
+  client_validation: { en: 'Your validation',   fr: 'Validation par vous' },
+  activation:        { en: 'Activation',        fr: 'Activation' },
+};
+const _CR_TYPES = {
+  icp:      { en: 'Target profile (ICP)', fr: 'Profil cible (ICP)' },
+  signals:  { en: 'Signals',              fr: 'Signaux' },
+  channels: { en: 'Channels',             fr: 'Canaux' },
+  autre:    { en: 'Other',                fr: 'Autre' },
+};
+const _CR_STATUS = {
+  open:        { en: 'Received',    fr: 'Reçue' },
+  in_progress: { en: 'In progress', fr: 'En cours' },
+  done:        { en: 'Done',        fr: 'Traitée' },
+  rejected:    { en: 'Declined',    fr: 'Refusée' },
+};
+async function _loadOnboardingUI() {
+  const banner = document.getElementById('onboarding-banner');
+  const box = document.getElementById('change-request-box');
+  [banner, box].forEach(el => { if (el) { el.hidden = true; el.innerHTML = ''; } });
+  if (!FEATURE_ONBOARDING_UI || !banner || !box) return;
+  const fr = currentLang === 'fr';
+  try {
+    if (!_obMissing.onboarding) {
+      const { data, error } = await sbClient.from('client_onboarding')
+        .select('mandate_id, stage, owner_name, stage_since, validated_at, activated_at').eq('client_id', CLIENT_ID);
+      if (error) { if (_isMissingTable(error)) _obMissing.onboarding = true; }
+      else if (data && data.length) {
+        const mid = (activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null;
+        const row = data.find(r => r.mandate_id === mid) || data.find(r => r.mandate_id == null) || data[0];
+        const idx = Math.max(0, _OB_STEPS.indexOf(row.stage));
+        const allDone = row.stage === 'activation' && !!row.activated_at;
+        const since = row.stage_since ? new Date(row.stage_since).toLocaleDateString(fr ? 'fr-FR' : 'en-GB', { day: 'numeric', month: 'short' }) : '';
+        banner.innerHTML = `<div style="border:1px solid var(--border);border-radius:var(--radius-md);padding:14px 16px;margin-bottom:16px;background:var(--card-bg);">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">${_OB_STEPS.map((k, i) => {
+            const done = allDone || i < idx, cur = !allDone && i === idx;
+            const col = done ? 'var(--success)' : (cur ? 'var(--accent)' : 'var(--muted)');
+            return `<span style="display:inline-flex;align-items:center;gap:6px;font-size:var(--fs-sm);font-weight:${cur ? 700 : 500};color:${col};"><span aria-hidden="true" style="width:8px;height:8px;border-radius:50%;background:${done || cur ? col : 'transparent'};border:1.5px solid ${col};display:inline-block;"></span>${_esc(_OB_LABELS[k][fr ? 'fr' : 'en'])}${i < _OB_STEPS.length - 1 ? '<span aria-hidden="true" style="color:var(--muted);margin-left:2px;">›</span>' : ''}</span>`;
+          }).join('')}</div>
+          <div style="font-size:var(--fs-xs);color:var(--muted);margin-top:8px;">${fr ? 'Responsable' : 'Owner'} : ${_esc(row.owner_name || '—')}${since ? ' · ' + (fr ? 'étape depuis le ' : 'step since ') + _esc(since) : ''}</div>
+        </div>`;
+        banner.hidden = false;
+      }
+    }
+    if (!_obMissing.requests) {
+      const { data: reqs, error: rErr } = await sbClient.from('change_requests')
+        .select('id, request_type, message, status, created_at').eq('client_id', CLIENT_ID).order('created_at', { ascending: false }).limit(5);
+      if (rErr) { if (_isMissingTable(rErr)) _obMissing.requests = true; }
+      else _renderChangeRequestBox(reqs || []);
+    }
+  } catch (e) { /* fonctionnalite absente : on n'affiche rien, sans erreur */ }
+}
+function _renderChangeRequestBox(reqs) {
+  const box = document.getElementById('change-request-box');
+  if (!box) return;
+  const fr = currentLang === 'fr';
+  const list = reqs.length ? `<div style="margin-top:12px;font-size:var(--fs-sm);">${reqs.map(r => {
+    const st = _CR_STATUS[r.status] || { en: r.status, fr: r.status };
+    const ty = (_CR_TYPES[r.request_type] || _CR_TYPES.autre);
+    const d = r.created_at ? new Date(r.created_at).toLocaleDateString(fr ? 'fr-FR' : 'en-GB', { day: 'numeric', month: 'short' }) : '';
+    return `<div style="display:flex;gap:10px;align-items:baseline;padding:6px 0;border-top:1px solid var(--border);"><span style="font-size:var(--fs-xs);color:var(--muted);white-space:nowrap;">${_esc(d)}</span><span style="flex:1;min-width:0;overflow-wrap:anywhere;"><strong>${_esc(ty[fr ? 'fr' : 'en'])}</strong> — ${_esc((r.message || '').slice(0, 140))}</span><span style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);white-space:nowrap;">${_esc(st[fr ? 'fr' : 'en'])}</span></div>`;
+  }).join('')}</div>` : '';
+  box.innerHTML = `<div style="margin-bottom:16px;">
+    <button type="button" id="cr-open-btn" class="btn-secondary btn-md" onclick="_toggleChangeRequestForm()" aria-expanded="false" aria-controls="cr-form">${fr ? 'Demander une modification' : 'Request a change'}</button>
+    <div id="cr-form" hidden style="margin-top:12px;border:1px solid var(--border);border-radius:var(--radius-md);padding:14px 16px;background:var(--card-bg);">
+      <div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:10px;line-height:1.5;">${fr ? 'Votre demande est enregistrée et l\'équipe Corridor est notifiée. Rien ne change dans votre configuration tant que Corridor ne l\'a pas traitée ; vous suivez son statut ci-dessous.' : 'Your request is saved and the Corridor team is notified. Nothing changes in your setup until Corridor has handled it; you can follow its status below.'}</div>
+      <label for="cr-type" style="display:block;font-size:var(--fs-xs);font-weight:600;margin-bottom:4px;">${fr ? 'Sujet' : 'Topic'}</label>
+      <select id="cr-type" class="input-select" style="margin-bottom:10px;max-width:100%;">${Object.keys(_CR_TYPES).map(k => `<option value="${k}">${_esc(_CR_TYPES[k][fr ? 'fr' : 'en'])}</option>`).join('')}</select>
+      <label for="cr-message" style="display:block;font-size:var(--fs-xs);font-weight:600;margin-bottom:4px;">${fr ? 'Votre demande' : 'Your request'}</label>
+      <textarea id="cr-message" maxlength="4000" rows="4" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font:inherit;font-size:var(--fs-sm);resize:vertical;" placeholder="${fr ? 'Ex. : ajouter les DSI du secteur santé, retirer la Belgique…' : 'E.g. add healthcare CIOs, remove Belgium…'}"></textarea>
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <button type="button" id="cr-send-btn" class="btn-primary btn-md" onclick="_submitChangeRequest()">${fr ? 'Envoyer à Corridor' : 'Send to Corridor'}</button>
+        <button type="button" class="btn-secondary btn-md" onclick="_toggleChangeRequestForm(false)">${fr ? 'Annuler' : 'Cancel'}</button>
+      </div>
+    </div>
+    ${list}
+  </div>`;
+  box.hidden = false;
+}
+function _toggleChangeRequestForm(force) {
+  const f = document.getElementById('cr-form'), b = document.getElementById('cr-open-btn');
+  if (!f) return;
+  const open = typeof force === 'boolean' ? force : f.hidden;
+  f.hidden = !open;
+  if (b) b.setAttribute('aria-expanded', open ? 'true' : 'false');
+  if (open) document.getElementById('cr-message')?.focus();
+}
+async function _submitChangeRequest() {
+  const fr = currentLang === 'fr';
+  const msgEl = document.getElementById('cr-message'), typeEl = document.getElementById('cr-type'), btn = document.getElementById('cr-send-btn');
+  const message = (msgEl?.value || '').trim();
+  if (!message) { showToast(fr ? 'Décrivez d\'abord la modification souhaitée' : 'Please describe the change you need first'); return; }
+  if (btn) btn.disabled = true;
+  const mid = (activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null;
+  const { error } = await sbClient.from('change_requests').insert({
+    client_id: CLIENT_ID, mandate_id: mid, request_type: typeEl?.value || 'autre', message
+  });
+  if (btn) btn.disabled = false;
+  if (error) {
+    // Regle CLAUDE.md : une ecriture qui echoue est TOUJOURS visible par l'utilisateur (jamais un simple console.warn).
+    console.error('[_submitChangeRequest]', error);
+    showToast(fr ? 'Impossible d\'envoyer la demande — réessayez ou écrivez-nous directement.' : 'Could not send the request — please retry or email us directly.');
+    return;
+  }
+  showToast(fr ? 'Demande envoyée à Corridor ✓' : 'Request sent to Corridor ✓');
+  _loadOnboardingUI();
+}
+
 async function loadMandateView(){
   const fr = (typeof currentLang !== 'undefined' && currentLang === 'fr');
   const container = document.getElementById('mandate-container');
   const taxContainer = document.getElementById('taxonomy-container');
   if (!container) return;
+  _loadOnboardingUI(); // non bloquant, jamais d'erreur visible si les tables n'existent pas
   container.innerHTML = `<div style="padding:40px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">${fr ? 'Chargement…' : 'Loading...'}</div>`;
   taxContainer.innerHTML = '';
   try {

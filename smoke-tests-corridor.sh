@@ -238,6 +238,87 @@ else
 fi
 
 # ------------------------------------------------------------
+# TEST 6 / TEST 7 — client_onboarding et change_requests : écriture réelle avec mandate_id NULL
+# ------------------------------------------------------------
+# Règle CLAUDE.md (upsert/écritures silencieuses) : une écriture avec mandate_id NULL doit réellement réussir.
+#  - TEST 6 : change_requests, INSERT (mandate_id NULL, request_type valide) puis relecture et nettoyage.
+#    created_by est fourni explicitement (auth.uid() est NULL pour service_role).
+#  - TEST 7 : client_onboarding, deux upserts sur (client_id, mandate_id NULL) = UNE ligne (index NULLS NOT DISTINCT).
+# Les tables sont créées par un DDL appliqué à la main (brouillon : onboarding_change_requests_DDL_DRAFT.sql) : si
+# la table n'existe pas encore (PGRST205), le test est SAUTÉ (pas un échec) -- l'interface est de toute façon masquée.
+# Ces tests couvrent le schéma/l'index ; ils ne couvrent PAS les GRANT du rôle 'authenticated' (écriture client via RLS) --
+# à vérifier avec test-rls-adversarial.sh (session utilisateur).
+echo ""
+echo "--- TEST 6 : change_requests, écriture réelle avec mandate_id NULL ---"
+if [ -z "$SUPABASE_SECRET_KEY" ]; then
+  echo "  ⚠ NON EXÉCUTÉ : SUPABASE_SECRET_KEY n'est pas définie."
+else
+  CR_URL="$SUPABASE_URL/rest/v1/change_requests"
+  CR_CLIENT="__smoke_test__"
+  _cr_call() { # méthode, URL, corps éventuel, en-tête Prefer éventuel
+    curl -s -X "$1" "$2" -H "apikey: $SUPABASE_SECRET_KEY" -H "Authorization: Bearer $SUPABASE_SECRET_KEY" \
+      -H "Content-Type: application/json" ${4:+-H "Prefer: $4"} ${3:+-d "$3"}
+  }
+  CR_PROBE=$(_cr_call GET "$CR_URL?select=id&limit=1")
+  if echo "$CR_PROBE" | grep -q 'PGRST205\|does not exist'; then
+    echo "  ⏭ SAUTÉ : table change_requests absente (DDL non appliqué)."
+  else
+    _cr_call DELETE "$CR_URL?client_id=eq.$CR_CLIENT" > /dev/null
+    CR_R1=$(_cr_call POST "$CR_URL" "{\"client_id\":\"$CR_CLIENT\",\"mandate_id\":null,\"request_type\":\"autre\",\"message\":\"smoke\",\"created_by\":\"00000000-0000-0000-0000-000000000000\"}" "return=minimal")
+    CR_READ=$(_cr_call GET "$CR_URL?client_id=eq.$CR_CLIENT&mandate_id=is.null&select=request_type,status")
+    _cr_call DELETE "$CR_URL?client_id=eq.$CR_CLIENT" > /dev/null
+    CR_LEFT=$(_cr_call GET "$CR_URL?client_id=eq.$CR_CLIENT&select=id")
+    if echo "$CR_R1" | grep -q '"code"'; then
+      echo "  ❌ INSERT change_requests (mandate_id NULL) REFUSÉ -- $CR_R1"
+      FAILED=$((FAILED + 1))
+    elif [ "$CR_READ" != '[{"request_type":"autre","status":"open"}]' ]; then
+      echo "  ❌ relecture inattendue (attendu une ligne autre/open) -- reçu : $CR_READ"
+      FAILED=$((FAILED + 1))
+    elif [ "$CR_LEFT" != "[]" ]; then
+      echo "  ⚠ écriture OK mais NETTOYAGE incomplet : $CR_LEFT"
+    else
+      echo "  ✅ INSERT avec mandate_id NULL réussi (request_type valide, status=open par défaut), relu puis nettoyé"
+    fi
+  fi
+fi
+
+echo ""
+echo "--- TEST 7 : client_onboarding, upsert avec mandate_id NULL ---"
+if [ -z "$SUPABASE_SECRET_KEY" ]; then
+  echo "  ⚠ NON EXÉCUTÉ : SUPABASE_SECRET_KEY n'est pas définie."
+else
+  OB_URL="$SUPABASE_URL/rest/v1/client_onboarding"
+  OB_CLIENT="__smoke_test__"
+  _ob_call() {
+    curl -s -X "$1" "$2" -H "apikey: $SUPABASE_SECRET_KEY" -H "Authorization: Bearer $SUPABASE_SECRET_KEY" \
+      -H "Content-Type: application/json" ${4:+-H "Prefer: $4"} ${3:+-d "$3"}
+  }
+  OB_PROBE=$(_ob_call GET "$OB_URL?select=id&limit=1")
+  if echo "$OB_PROBE" | grep -q 'PGRST205\|does not exist'; then
+    echo "  ⏭ SAUTÉ : table client_onboarding absente (DDL non appliqué)."
+  else
+    _ob_call DELETE "$OB_URL?client_id=eq.$OB_CLIENT" > /dev/null
+    OB_UPSERT="$OB_URL?on_conflict=client_id,mandate_id"
+    OB_R1=$(_ob_call POST "$OB_UPSERT" "{\"client_id\":\"$OB_CLIENT\",\"mandate_id\":null,\"owner_name\":\"smoke\",\"stage\":\"configuration\"}" "resolution=merge-duplicates,return=minimal")
+    OB_R2=$(_ob_call POST "$OB_UPSERT" "{\"client_id\":\"$OB_CLIENT\",\"mandate_id\":null,\"owner_name\":\"smoke\",\"stage\":\"client_validation\"}" "resolution=merge-duplicates,return=minimal")
+    OB_READ=$(_ob_call GET "$OB_URL?client_id=eq.$OB_CLIENT&mandate_id=is.null&select=stage")
+    _ob_call DELETE "$OB_URL?client_id=eq.$OB_CLIENT" > /dev/null
+    OB_LEFT=$(_ob_call GET "$OB_URL?client_id=eq.$OB_CLIENT&select=id")
+    if echo "$OB_R1$OB_R2" | grep -q '"code"'; then
+      echo "  ❌ upsert client_onboarding (mandate_id NULL) REFUSÉ -- $OB_R1 $OB_R2"
+      FAILED=$((FAILED + 1))
+    elif [ "$OB_READ" != '[{"stage":"client_validation"}]' ]; then
+      echo "  ❌ relecture inattendue (attendu une seule ligne, stage=client_validation) -- reçu : $OB_READ"
+      FAILED=$((FAILED + 1))
+    elif [ "$OB_LEFT" != "[]" ]; then
+      echo "  ⚠ écriture OK mais NETTOYAGE incomplet : $OB_LEFT"
+    else
+      echo "  ✅ upsert avec mandate_id NULL : 2 écritures sur la même clé = 1 seule ligne, nettoyée"
+    fi
+  fi
+fi
+
+# ------------------------------------------------------------
 # TEST 4 — Rappel manuel (non automatisable simplement)
 # ------------------------------------------------------------
 echo ""
