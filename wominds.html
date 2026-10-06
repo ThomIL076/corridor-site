@@ -5724,8 +5724,11 @@ async function _bcPersistFromScan(stakeholders, company) {
 let _drawerProspect = null;
 let _drawerInteractions = [];
 let _drawerPollInterval = null;
-const _INT_ICONS = { linkedin:'💼', email:'📧', call:'📞', meeting:'🤝', note:'📝' };
-const _INT_LABELS_FR = { linkedin:'LinkedIn', email:'Email', call:'Appel', meeting:'Réunion', note:'Note' };
+const _INT_ICONS = { linkedin:'💼', email:'📧', call:'📞', meeting:'🤝', note:'📝', email_found:'📧', linkedin_found:'💼', send_error:'⚠️' };
+// Types de journal technique (autorises par interactions_type_check depuis l'elargissement) : consignes, mais ni des « touches »
+// commerciales ni du contexte pour l'IA -- exclus du compteur de touches et de _drawerInteractions.slice(0,3).
+const _INT_LOG_ONLY = ['send_error', 'email_found', 'linkedin_found'];
+const _INT_LABELS_FR = { linkedin:'LinkedIn', email:'Email', call:'Appel', meeting:'Réunion', note:'Note', email_found:'E-mail trouvé', linkedin_found:'LinkedIn trouvé', send_error:'Envoi bloqué' };
 function _drawerPid() { return (_drawerProspect && _drawerProspect.id) || document.getElementById('drawer')?.dataset.pid || null; }
 // Patch immediat de toutes les copies en memoire (parite demo-private.html:12026) -- avant meme
 // le round-trip async de loadKanban(true), pour que Pipeline/Aujourd'hui/Envoyer et le tiroir
@@ -6066,7 +6069,7 @@ function _mscIdentityPromptBlock(p) {
   return lines.join('\n');
 }
 async function _generateNextAction(p) {
-  const ctx = _drawerInteractions.slice(0,3)
+  const ctx = _drawerInteractions.filter(i => !_INT_LOG_ONLY.includes(i.type)).slice(0,3)
     .map(i => `${_INT_LABELS_FR[i.type] || i.type}${i.note ? ': ' + i.note.slice(0,80) : ''} (${_relDate(i.created_at) || 'récent'})`)
     .join(' | ');
   const rem = p.reminder_date ? _fmtReminder(p.reminder_date)?.label : null;

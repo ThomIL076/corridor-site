@@ -10877,7 +10877,15 @@ let _drawerInteractions = [];
 let _drawerReplies = []; // agent_proposals/objection_response du prospect ouvert (ex-reply_drafts) -- alimente Message history (chunk 2)
 let _drawerPollInterval = null;
 
-const _INT_ICONS = { linkedin:'💼', email:'📧', call:'📞', meeting:'🤝', note:'📝' };
+const _INT_ICONS = { linkedin:'💼', email:'📧', call:'📞', meeting:'🤝', note:'📝', email_found:'📧', linkedin_found:'💼', send_error:'⚠️' };
+// Types de journal technique (autorises par interactions_type_check depuis l'elargissement) : consignes, mais ni des « touches »
+// commerciales ni du contexte pour l'IA -- exclus du compteur de touches et de _drawerInteractions.slice(0,3).
+const _INT_LOG_ONLY = ['send_error', 'email_found', 'linkedin_found'];
+const _INT_LOG_LABELS = {
+  send_error: { fr: 'Envoi bloqué', en: 'Send blocked' },
+  email_found: { fr: 'E-mail trouvé', en: 'Email found' },
+  linkedin_found: { fr: 'LinkedIn trouvé', en: 'LinkedIn found' },
+};
 
 // lang : 'en' force l'anglais (les 2 appels qui construisent un prompt IA) ; sinon suit currentLang
 // (FR/EN) -- avant, "Passé yesterday" : prefixe FR + duree toujours EN.
@@ -11266,7 +11274,7 @@ async function openDrawer(card, initialTab = 'activity') {
     _drawerInteractions = [];
     _drawerReplies = [];
   }
-  const touchCount = _drawerInteractions.length;
+  const touchCount = _drawerInteractions.filter(i => !_INT_LOG_ONLY.includes(i.type)).length;
   const discoveryBrief = _drawerInteractions.find(i => i.type === 'discovery_brief') || null;
   const _stalled = _isProspectStalled(_p);
   const messageHistoryHTML = _pdBuildMessageHistoryHTML();
@@ -11598,7 +11606,10 @@ function _pdBuildMessageHistoryHTML() {
     ..._drawerInteractions.filter(i => i.type === 'call' && _parseDebrief(i.note))
       .map(i => ({ kind: 'debrief', uid: i.id, date: i.created_at, debrief: _parseDebrief(i.note) })),
     ..._drawerInteractions.filter(i => (i.type === 'note' || i.type === 'meeting' || i.type === 'call') && !_parseDebrief(i.note))
-      .map(i => ({ kind: 'msg', dir: 'LOGGED', channel: i.type.toUpperCase(), date: i.created_at, text: i.note || '' }))
+      .map(i => ({ kind: 'msg', dir: 'LOGGED', channel: i.type.toUpperCase(), date: i.created_at, text: i.note || '' })),
+    // Journal technique (envoi bloque, e-mail / LinkedIn trouve) : affiche avec icone et libelle, 2 lignes au plus, jamais compte comme une touche.
+    ..._drawerInteractions.filter(i => _INT_LOG_ONLY.includes(i.type)).slice(0, 2)
+      .map(i => ({ kind: 'msg', dir: 'LOG', channel: (_INT_ICONS[i.type] || '') + ' ' + ((_INT_LOG_LABELS[i.type] || {})[currentLang === 'fr' ? 'fr' : 'en'] || i.type), date: i.created_at, text: i.note || '' }))
   ].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 4);
   if (!_histRows.length) return `<div class="pd-empty">${currentLang==='fr'?'Aucun message consigné pour le moment.':'No messages logged yet.'}</div>`;
   return _histRows.map(r => {
@@ -12333,7 +12344,7 @@ function _renderNextActionHTML(raw, linkColor) {
 }
 
 async function _generateNextAction(p) {
-  const ctx = _drawerInteractions.slice(0,3)
+  const ctx = _drawerInteractions.filter(i => !_INT_LOG_ONLY.includes(i.type)).slice(0,3)
     .map(i => `${i.type}${i.note ? ': '+i.note.slice(0,80) : ''} (${_relDate(i.created_at, 'en')||'recent'})`)
     .join(' | ');
   const rem = p.reminder_date ? _fmtReminder(p.reminder_date)?.label : null;
@@ -14315,7 +14326,7 @@ async function _sendDiscoveryBrief() {
       return;
     }
     const liveCtx = await _prefetchWebContext(p.company, p.sector);
-    const ctx = _drawerInteractions.slice(0, 5)
+    const ctx = _drawerInteractions.filter(i => !_INT_LOG_ONLY.includes(i.type)).slice(0, 5)
       .map(i => `- ${i.type}${i.note ? ': ' + i.note.slice(0, 120) : ''} (${_relDate(i.created_at, 'en') || 'recent'})`)
       .join('\n');
     // Double-read (cleanup, notes) : p.notes (historique, plus jamais reecrit) + les notes
@@ -18676,7 +18687,7 @@ async function _escalateProspect() {
   box.style.display = 'block';
   output.textContent = '';
 
-  const interactions = _drawerInteractions || [];
+  const interactions = (_drawerInteractions || []).filter(i => !_INT_LOG_ONLY.includes(i.type));   // le journal technique n'est pas une touche commerciale
   const touchCount = interactions.length;
   const lastTouch = interactions[0]?.created_at ? new Date(interactions[0].created_at).toLocaleDateString('en-GB') : 'unknown';
   const touchSummary = interactions.slice(0,5).map(i => `${i.type} on ${i.created_at?.slice(0,10) || '?'}: ${i.note || ''}`).join('\n');
