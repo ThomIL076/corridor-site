@@ -8075,32 +8075,32 @@ function _loadDeprioritizedTypes() {
   _deprioClientId = forClient;
   _deprioPromise = (async () => {
     try {
-      // 1) Si la table des regles existe (meme vide) : SEULES les regles 'confirmed' / 'corrected' s'appliquent
-      //    (a un sous-type precis le cas echeant). 'proposed' et 'ignored' n'appliquent RIEN. Table absente :
-      //    comportement historique (learned_preferences) ci-dessous, inchange.
+      // 1) Regles validables (learned_rule_states). Une regle n'a d'effet que si elle est 'confirmed' / 'corrected' (a un
+      //    sous-type precis le cas echeant). 'proposed' n'a AUCUN effet ET ne desactive PAS l'ancienne liste. L'ancienne liste
+      //    (learned_preferences.deprioritized_types) ne cesse de s'appliquer, type par type, que pour un type qui a une
+      //    regle DECIDEE (confirmed / corrected / ignored). Table absente ou aucune regle decidee : comportement historique inchange.
+      let rs = [];
       if (!_rulesMissing) {
-        const { data: rs, error: rsErr } = await sbClient.from('learned_rule_states')
+        const { data, error: rsErr } = await sbClient.from('learned_rule_states')
           .select('signal_type, signal_subtype, status, correction').eq('client_id', forClient).is('mandate_id', null);
         if (rsErr) { if (_isMissingTable(rsErr)) _rulesMissing = true; else throw rsErr; }
-        else {
-          const types = new Set(), factors = new Map(), scoped = [];
-          for (const r of (rs || [])) {
-            if (r.status !== 'confirmed' && r.status !== 'corrected') continue;
-            const f = (r.status === 'corrected' && r.correction && r.correction.factor != null) ? Math.min(1, Math.max(0, Number(r.correction.factor))) : 0;
-            if (r.signal_subtype) scoped.push({ type: r.signal_type, scope: r.signal_subtype, factor: f, ids: await _fetchSubtypeIds(forClient, r.signal_type, r.signal_subtype) });
-            else { types.add(r.signal_type); if (f > 0) factors.set(r.signal_type, f); }
-          }
-          _rulesMode = true; _deprioFactors = factors; _deprioScoped = scoped; _deprioTypes = types;
-          return _deprioTypes;
-        }
+        else rs = data || [];
       }
-      _rulesMode = false; _deprioFactors = new Map(); _deprioScoped = [];
+      const decided = rs.filter(r => r.status !== 'proposed');
+      const decidedTypes = new Set(decided.map(r => r.signal_type));
       const { data, error } = await sbClient.from('learned_preferences').select('deprioritized_types')
         .eq('client_id', forClient).is('mandate_id', null).eq('agent_name', 'signal_interpretation')
         .order('generated_at', { ascending: false, nullsFirst: false }).limit(1);
       if (error) throw error;
       const arr = (data && data[0] && Array.isArray(data[0].deprioritized_types)) ? data[0].deprioritized_types : [];
-      _deprioTypes = new Set(arr);
+      const types = new Set(arr.filter(t => !decidedTypes.has(t))), factors = new Map(), scoped = [];
+      for (const r of decided) {
+        if (r.status !== 'confirmed' && r.status !== 'corrected') continue;   // 'ignored' : rien ne s'applique pour ce type
+        const f = (r.status === 'corrected' && r.correction && r.correction.factor != null) ? Math.min(1, Math.max(0, Number(r.correction.factor))) : 0;
+        if (r.signal_subtype) scoped.push({ type: r.signal_type, scope: r.signal_subtype, factor: f, ids: await _fetchSubtypeIds(forClient, r.signal_type, r.signal_subtype) });
+        else { types.add(r.signal_type); if (f > 0) factors.set(r.signal_type, f); }
+      }
+      _rulesMode = decided.length > 0; _deprioFactors = factors; _deprioScoped = scoped; _deprioTypes = types;
     } catch (e) {
       console.warn('[_loadDeprioritizedTypes]', e);
       _deprioTypes = null;
