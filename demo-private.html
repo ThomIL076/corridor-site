@@ -1467,7 +1467,9 @@ body.new-nav { padding-left: 220px; }
 .snav-logo-mark span:nth-child(4) { background: #fff; }
 .snav-logo-text { font-weight: 600; font-size: 14px; letter-spacing: 0.16em; line-height: 1; color: #fff; }
 
-.snav-section { padding: 6px 10px 2px; flex-shrink: 0; }
+/* Sidebar plus aeree (desktop ; la sidebar est masquee sous 768 px, barre et menu mobiles inchanges) : entrees espacees d'un
+   petit ecart (gap), hauteur minimale 44 px conservee, defilement interne si la fenetre est basse (overflow-y:auto de .new-sidebar). */
+.snav-section { padding: 10px 10px 6px; flex-shrink: 0; display: flex; flex-direction: column; gap: 4px; }
 .snav-section + .snav-section { margin-top: 14px; }
 .snav-section-label {
   display: block; font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; letter-spacing: 0.18em;
@@ -1476,7 +1478,7 @@ body.new-nav { padding-left: 220px; }
 .snav-item {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
   width: 100%; text-align: left;
-  padding: 9px 12px; border-radius: 0 4px 4px 0; border: none;
+  min-height: 44px; padding: 12px 14px; border-radius: 0 4px 4px 0; border: none;
   border-left: 2px solid transparent;
   background: transparent; cursor: pointer;
   font-size: 13.5px; font-weight: 400; color: var(--sidebar-sub);
@@ -1501,13 +1503,13 @@ body.new-nav { padding-left: 220px; }
   flex-shrink: 0; animation: pulseDot 2.4s ease-in-out infinite;
 }
 .snav-scanner-zone {
-  padding: 4px 10px 14px; flex-shrink: 0;
+  padding: 12px 10px 18px; flex-shrink: 0; display: flex; flex-direction: column; gap: 4px;
   border-top: 1px solid rgba(255,255,255,0.18);
   margin-top: auto;
 }
 .snav-system-active {
   display: flex; align-items: center; gap: 6px;
-  margin-top: 10px; padding: 10px 2px 0; border-top: 1px solid rgba(255,255,255,.1);
+  margin-top: 12px; padding: 14px 4px 4px; border-top: 1px solid rgba(255,255,255,.1);
   font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; letter-spacing: 0.12em;
   color: var(--sidebar-label);
 }
@@ -1515,7 +1517,7 @@ body.new-nav { padding-left: 220px; }
    seul le placement/style changent -- aucune logique JS a modifier. */
 .snav-signout {
   display: none; align-items: center; gap: 6px; width: 100%;
-  margin-top: 10px; padding: 8px 2px 0; border: none; border-top: 1px solid rgba(255,255,255,.1);
+  margin-top: 8px; min-height: 44px; padding: 12px 4px; border: none; border-top: 1px solid rgba(255,255,255,.1);
   background: none; text-align: left; cursor: pointer;
   font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; letter-spacing: 0.12em;
   color: var(--sidebar-label);
