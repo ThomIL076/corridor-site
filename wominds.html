@@ -1003,6 +1003,9 @@ body.ask-open { overflow:hidden; }
 .pd-next-action { background:var(--success-bg); border:1px solid var(--success-border); border-radius:var(--radius-md); padding:14px 16px; }
 .pd-next-action-label { font-family:'IBM Plex Mono',monospace; font-size:10px; font-weight:700; letter-spacing:0.12em; color:var(--success); margin-bottom:6px; }
 .pd-next-action-text { font-size:14px; font-weight:600; color:var(--ink); line-height:1.5; }
+/* Parite demo-private.html : .ai-box-body (defini plus bas dans demo-private.html) l'emporte sur .pd-next-action-text -- texte normal/attenue, pleine couleur une fois genere. */
+.pd-next-action-text.ai-box-body { padding:16px; font-size:var(--fs-base); line-height:1.8; color:var(--muted); min-height:80px; font-weight:400; }
+.pd-next-action-text.ai-box-body.loaded { color:var(--text); }
 .pd-row { display:flex; align-items:baseline; gap:10px; padding:9px 0; border-bottom:1px solid var(--border); }
 .pd-row:last-child { border-bottom:none; }
 .pd-row-mono { font-family:'IBM Plex Mono',monospace; font-size:10.5px; letter-spacing:0.06em; color:var(--muted); flex-shrink:0; white-space:nowrap; }
@@ -1014,6 +1017,11 @@ body.ask-open { overflow:hidden; }
 .pd-brief-card p, .pd-brief-card ul { margin:0 0 8px; }
 .pd-brief-card a { color:#bcd0ff; }
 .pd-footer { display:flex; gap:8px; padding:14px 22px; border-top:1px solid var(--border); flex-shrink:0; background:#fff; }
+/* Parite demo-private.html (BUG 2, 23/09) : sous 480px le pied du tiroir passe a la ligne (2 colonnes, boutons 44px) au lieu de deborder hors du tiroir. */
+@media (max-width:480px) {
+  .pd-footer { flex-wrap:wrap; }
+  .pd-footer > button { flex:1 1 calc(50% - 4px) !important; min-width:0; height:44px; box-sizing:border-box; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; justify-content:center; }
+}
 .pd-plus { display:flex; align-items:center; gap:6px; font-size:12px; font-weight:600; color:var(--accent); background:none; border:none; cursor:pointer; padding:4px 0; }
 .pd-plus:hover { text-decoration:underline; }
 
@@ -2233,25 +2241,8 @@ body.new-nav { padding-left: 220px; }
 <!-- FICHE PROSPECT (panneau lateral droit, parite demo-private.html #drawer/#drawer-overlay --
      CSS deja presente (l.793-797), seule la markup/JS utilisait encore une modale centree. ── -->
 <div id="drawer-overlay" onclick="closeProspectDetail()"></div>
-<div id="drawer">
-  <div class="drawer-head">
-    <div style="min-width:0;">
-      <div class="drawer-name" id="pd-drawer-name"></div>
-      <div class="drawer-company" id="pd-drawer-company"></div>
-    </div>
-    <div style="display:flex;gap:6px;flex-shrink:0;">
-      <button class="drawer-icon-btn" onclick="openScannerPanel('drawer')" title="Scanner l'entreprise" aria-label="Scanner l'entreprise">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-      </button>
-      <button class="drawer-icon-btn" onclick="_openAskFromDrawer()" title="Demander à Corridor" aria-label="Demander à Corridor à propos de ce prospect">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-      </button>
-      <button class="drawer-close" onclick="closeProspectDetail()" aria-label="Fermer la fiche">✕</button>
-    </div>
-  </div>
-  <div id="prospect-detail-body" style="flex:1;overflow-y:auto;padding:20px 22px;"></div>
-  <div class="pd-footer" id="pd-footer" style="display:none;"></div>
-</div>
+<div id="drawer"></div>
+<!-- Contenu du tiroir (en-tete .pd-header, corps .pd-body, pied .pd-footer) rendu par openProspectDetail(), comme openDrawer() de demo-private.html. -->
 
 <!-- SCANNER D'ENTREPRISE (simplifie -- score ICP contre les criteres de mandat + note IA,
      sans cartographie du comite d'achat / fiche contact / declencheurs & strategie de
@@ -5519,7 +5510,21 @@ async function _bulkStartEmailSeq() {
 }
 // ── Parite fiche/carte prospect (brief 2026-09-12, reference demo-private.html:12565/11792) ──
 function _prospectCardHTML(p){
-  const icp = (p.icp_score != null && p.icp_score !== '') ? `<span style="font-size:var(--fs-xs);font-weight:700;background:var(--navy-light);color:var(--navy);border:1px solid var(--blue);border-radius:var(--radius-pill);padding:1px 8px;white-space:nowrap;">ICP ${_esc(p.icp_score)}</span>` : '';
+  // Anneau ICP + pastille de fiabilite + point de momentum + badge deal (parite demo-private.html buildCard) :
+  // _calcICP (score reel, sinon estime « ~ »), anneau 26px colore par bande (>=9 danger, >=8 ambre, sinon neutre).
+  const _sv = parseFloat(_calcICP(p));
+  const _hs = !isNaN(_sv);
+  const _isEst = !(p.icp_score && Number(p.icp_score) > 0);
+  const _dc = _hs && _sv >= 9 ? 'var(--danger)' : _hs && _sv >= 8 ? 'var(--amber)' : 'var(--muted)';
+  const _lbl = _hs ? (_isEst ? '~' : '') + (_sv % 1 === 0 ? String(Math.round(_sv)) : _sv.toFixed(1)) : '—';
+  const _dial = `<svg width="26" height="26" viewBox="0 0 26 26" style="position:absolute;top:8px;right:8px;${_isEst ? 'opacity:0.72;' : ''}" aria-hidden="true"${_isEst ? ' title="Score estimé"' : ''}><circle cx="13" cy="13" r="11.25" fill="none" stroke="${_dc}" stroke-width="1.5"/><text x="13" y="17" text-anchor="middle" font-size="10" font-weight="700" fill="${_dc}" font-family="'IBM Plex Mono',monospace">${_lbl}</text></svg>`;
+  const _relB = _scoreReliabilityBadge(p);
+  const _relDot = _relB ? `<span style="position:absolute;top:29px;right:6px;width:9px;height:9px;border-radius:50%;background:${_relB.color};border:1.5px solid #fff;z-index:1;" title="${_esc(_relB.title)}"></span>` : '';
+  // Momentum : uniquement quand un dernier contact reel existe (demo-private.html retombe sur une valeur factice _mockMomentum sinon -- jamais d'indicateur invente ici).
+  const _momDays = p.last_contact ? Math.floor((Date.now() - new Date(p.last_contact).getTime()) / 86400000) : null;
+  const _mom = _momDays == null || isNaN(_momDays) ? '' : _momDays <= 2 ? 'hot' : _momDays <= 7 ? 'warm' : _momDays <= 14 ? 'neutral' : 'cold';
+  const _dv = Number(p.deal_value) || 0;
+  const _dealBadge = _dv > 0 ? `<span class="k-badge k-badge-deal">${_esc((p.deal_currency || 'EUR') + ' ' + (_dv >= 1000 ? Math.round(_dv / 1000) + 'k' : Math.round(_dv)))}</span>` : '';
   const sig = _sigBadge(p.signal_type);
   const regionTag = p.region ? `<span class="k-badge">${_esc(p.region)}</span>` : '';
   const sectorBadge = p.sector ? `<span class="k-badge k-badge-sector">${_esc(p.sector)}</span>` : '';
@@ -5531,12 +5536,13 @@ function _prospectCardHTML(p){
   // kaizenology.html) : meme ton amber que le reste du site pour un etat "archivee" -- visible
   // uniquement quand le toggle est actif (data-archived lu par _applyKanbanFilters()).
   const warnArchived = p.archived === true ? `<span class="k-badge k-badge-archived" style="color:var(--amber);background:var(--amber-bg);border:1px solid var(--amber-border);" title="Fiche archivée">Archivé</span>` : '';
-  return `<div class="k-card" data-id="${_esc(p.id)}" data-name="${_esc(p.name || '')}" data-company="${_esc(p.company || '')}" data-sector="${_esc(p.sector || '')}" data-stage="${_esc(p.stage || 'Identified')}" data-icp-score="${p.icp_score != null ? _esc(p.icp_score) : ''}" data-country="${_esc(p.country || '')}" data-country-filter="${_esc(_countryFilterValue(p))}" data-signal-type="${_esc((p.signal_type || '').toUpperCase())}" data-has-signal="${!!p.signal}" data-origin="${_esc(p.origin || '')}" data-deal="${Number(p.deal_value) || 0}" data-confidence="${_calcConfidence(p)}" data-job-title="${_esc(p.title || '')}" data-next-action="${p.next_action ? '1' : '0'}" data-next-action-date="${_esc(p.next_action_date || '')}" data-archived="${p.archived === true ? 'true' : 'false'}" onclick="openProspectDetail('${p.id}')">
+  return `<div class="k-card" data-id="${_esc(p.id)}" data-name="${_esc(p.name || '')}" data-company="${_esc(p.company || '')}" data-sector="${_esc(p.sector || '')}" data-stage="${_esc(p.stage || 'Identified')}" data-icp-score="${p.icp_score != null ? _esc(p.icp_score) : ''}" data-country="${_esc(p.country || '')}" data-country-filter="${_esc(_countryFilterValue(p))}" data-signal-type="${_esc((p.signal_type || '').toUpperCase())}" data-has-signal="${!!p.signal}" data-origin="${_esc(p.origin || '')}" data-deal="${Number(p.deal_value) || 0}" data-confidence="${_calcConfidence(p)}" data-job-title="${_esc(p.title || '')}" data-next-action="${p.next_action ? '1' : '0'}" data-next-action-date="${_esc(p.next_action_date || '')}" data-archived="${p.archived === true ? 'true' : 'false'}" data-last-contact="${_esc(p.last_contact || '')}" data-reminder-date="${_esc(p.reminder_date || '')}" data-company-verified="${p.company_verified === false ? 'false' : 'true'}" data-identity-confidence="${_esc(p.identity_confidence || '')}" data-identity-verdict="${_esc(p.identity_verdict || '')}" onclick="openProspectDetail('${p.id}')">
     <input type="checkbox" class="k-card-select" data-pid="${_esc(p.id)}" onchange="_onCardSelect(this)" onclick="event.stopPropagation()" style="position:absolute;top:10px;left:8px;width:14px;height:14px;cursor:pointer;z-index:2;accent-color:var(--ink);">
+    ${_dial}${_relDot}${_mom ? `<span class="momentum-dot-inline momentum-${_mom}"></span>` : ''}
     <div class="k-card-name" title="${_esc(p.name || 'Sans nom')}">${_esc(p.name || 'Sans nom')}</div>
     <div class="k-card-company" title="${_esc((p.company || 'N/D') + (place ? ' · ' + place : ''))}">${_esc(p.company || 'N/D')}${place ? ' · ' + _esc(place) : ''}</div>
     ${p.signal ? `<div class="k-card-signal">${sig}</div>` : ''}
-    <div class="k-card-badges">${icp}${regionTag}${sectorBadge}${warnContra}${warnVerif}${warnIdent}${warnArchived}</div>
+    <div class="k-card-badges">${regionTag}${sectorBadge}${_dealBadge}${warnContra}${warnVerif}${warnIdent}${warnArchived}</div>
   </div>`;
 }
 // F01 (port wominds, 2026-09-17) : equivalent de _scoreReliabilityBadge (demo-private.html/
@@ -5599,7 +5605,7 @@ function _renderBreakdownPanel(scores, weights) {
     </div>`;
   }).join('');
   return `<div style="background:#fff;border:1px solid var(--border);border-radius:var(--radius-panel);padding:14px 16px;margin-top:4px;">
-    <p style="font-size:var(--fs-xs);font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:0 0 10px;">Score ICP détaillé</p>
+    <p style="font-size:var(--fs-xs);font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:0 0 10px;">Score ICP explicable</p>
     ${rows || '<p style="font-size:var(--fs-sm);color:var(--muted);margin:0">Aucun détail disponible</p>'}
   </div>`;
 }
@@ -5614,66 +5620,126 @@ function _renderBreakdownPanel(scores, weights) {
 // Source : p.signal_url STRICTEMENT, jamais de fallback devine.
 const _stripHtmlPd = s => (s || '').replace(/<a\s[^>]*>([^<]*)<\/a>/gi, '$1').replace(/<[^>]*>/g, '').trim();
 function _pdWhyCorridorNowHTML(p) {
+  // Parite demo-private.html openDrawer (whyNowHTML) : sections .pd-section/.pd-section-label, lignes .pd-row ; libelle « Wominds » (client) au lieu de « Corridor ».
   const sigText = p.signal ? _sanitizeSignal(p.signal) : '';
+  let inner;
   if (!sigText) {
-    return `<div class="card" style="margin:16px 0;"><div class="card-header"><span class="card-title">Pourquoi Wominds, maintenant</span></div><div class="pd-empty">Aucun signal enregistré pour l'instant.</div></div>`;
-  }
-  const sigUrl = (p.signal_url || '').trim();
-  const sigInterp = p.signal_interpretation ? _esc(_stripHtmlPd(p.signal_interpretation)) : '';
-  // AJOUT 29/09 (audit Thomas, roadmap Phase 3) : meme mecanisme que le badge Next Action,
-  // applique ici a AI Insight -- trou de confiance explicitement note dans l'audit.
-  const aiInsightFreshBadge = _fmtNextActionFreshness(p.signal_interpretation_updated_at);
-  return `<div class="card" style="margin:16px 0;">
-    <div class="card-header"><span class="card-title">Pourquoi Wominds, maintenant</span></div>
-    <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px;">${p.signal_type ? _sigBadge(p.signal_type) : ''}<span style="font-size:var(--fs-xs);color:var(--muted);margin-left:auto;white-space:nowrap;">${p.signal_date ? _esc(_relDate(p.signal_date) || '') : 'Date non renseignée'}</span></div>
-    <div style="font-size:var(--fs-sm);color:var(--text);line-height:1.5;">${sigText}</div>
+    inner = `<div class="pd-empty">Aucun signal enregistré pour le moment.</div>`;
+  } else {
+    const sigUrl = (p.signal_url || '').trim();
+    const sigInterp = p.signal_interpretation ? _esc(_stripHtmlPd(p.signal_interpretation)) : '';
+    // AJOUT 29/09 (audit Thomas, roadmap Phase 3) : meme mecanisme que le badge Next Action, applique ici a AI Insight.
+    const aiInsightFreshBadge = _fmtNextActionFreshness(p.signal_interpretation_updated_at);
+    inner = `
+    <div class="pd-row">
+      <span class="pd-row-mono">${p.signal_type ? _sigBadge(p.signal_type) : 'SIGNAL'}</span>
+      <span class="pd-row-mono" style="margin-left:auto">${_esc(p.signal_date ? (_relDate(p.signal_date) || '') : 'date non précisée')}</span>
+    </div>
+    <div class="pd-row-main" style="margin:4px 0">${sigText}</div>
     ${sigUrl ? `<a href="${_esc(sigUrl)}" target="_blank" rel="noopener noreferrer" style="font-size:var(--fs-xs);color:var(--ink);text-decoration:underline;font-weight:600;">Source →</a>` : ''}
     ${sigInterp ? `<div style="margin-top:8px;background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--ink);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:11px;opacity:0.65;display:block;margin-bottom:3px">✦ Analyse IA</span>${sigInterp}${aiInsightFreshBadge ? `<div style="margin-top:6px"><span style="font-size:10.5px;font-weight:600;opacity:0.75">${aiInsightFreshBadge}</span></div>` : ''}</div>` : ''}
+  `;
+  }
+  return `<div class="pd-section">
+    <div class="pd-section-label">Pourquoi Wominds, maintenant</div>
+    ${inner}
   </div>`;
 }
-// F16 (port wominds, 2026-09-17) : "Raison de la priorité" -- icp_reason jamais affiche dans le
-// tiroir jusqu'ici (seulement dans le formulaire d'edition), plus derniere verification
-// (identity_verdict_checked_at/company_checked_at, le plus recent des deux). Rien affiche si
-// aucun des deux n'est renseigne.
+// Raison de la priorite : icp_reason + ponderation du classement Today (_priorityWeightHTML) + derniere verification
+// (identity_verdict_checked_at/company_checked_at, le plus recent des deux).
 function _pdPriorityReasonHTML(p) {
   const icpReasonHTML = p.icp_reason ? _esc(_stripHtmlPd(p.icp_reason)) : '';
   const lastCheckedAt = [p.identity_verdict_checked_at, p.company_checked_at].filter(Boolean).sort((a, b) => new Date(b) - new Date(a))[0] || null;
-  return `<div class="card" style="margin:16px 0;">
-    <div class="card-header"><span class="card-title">Raison de la priorité</span></div>
-    ${icpReasonHTML ? `<div style="background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--ink);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:11px;opacity:0.65;display:block;margin-bottom:3px">✦ Justification du score</span>${icpReasonHTML}</div>` : `<div class="pd-empty">Aucune justification de score enregistrée.</div>`}
+  return `<div class="pd-section">
+    <div class="pd-section-label">Raison de la priorité</div>
+    ${icpReasonHTML ? `<div style="background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--ink);line-height:1.5"><span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:11px;opacity:0.65;display:block;margin-bottom:3px">✦ Justification du score</span>${icpReasonHTML}</div>` : `<div class="pd-empty">Aucune justification de score enregistrée pour le moment.</div>`}
+    ${_priorityWeightHTML(p)}
     ${lastCheckedAt ? `<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:8px">Dernière vérification : ${_esc(_relDate(lastCheckedAt) || '')}</div>` : ''}
   </div>`;
 }
-// ── Message History (version reduite de demo-private.html:8875 -- pas de debrief d'appel/reponses
-// agent_proposals ici : Wominds n'a pas encore de workflow d'envoi/reponse actif, ces sources
-// n'existent pas cote donnees. Recycle _drawerInteractions deja charge par _loadDrawerInteractions,
-// pas de requete supplementaire. ) ────────────────────────────────────────────────────────────
-// Fix 2026-09-13 (diagnostic point 3, fusion decidee -- option (b)) : une seule liste .pd-row/
-// .pd-row-mono/.pd-row-main, meme structure que demo-private.html:8875-8905 (sans debrief d'appel/
-// reponses agent_proposals, infrastructure absente de wominds.html -- deja etabli, pas un oubli).
-function _pdBuildMessageHistoryHTML() {
-  const rows = (_drawerInteractions || [])
-    .filter(i => ['linkedin','email','note','meeting','call'].includes(i.type))
-    .map(i => ({
-      dir: (i.type === 'linkedin' || i.type === 'email') ? 'ENVOYÉ' : 'NOTÉ',
-      channel: _INT_LABELS_FR[i.type] || i.type, date: i.created_at, text: i.note || ''
-    }))
-    .sort((a, b) => new Date(b.date) - new Date(a.date))
-    .slice(0, 4);
-  if (!rows.length) return `<div class="pd-empty">Aucun message enregistré pour l'instant.</div>`;
-  return rows.map(r => `<div class="pd-row">
-      <span class="pd-row-mono" style="color:${r.dir === 'ENVOYÉ' ? 'var(--navy)' : 'var(--muted)'};">${_esc(r.dir)} · ${_esc(r.channel)}</span>
-      <span class="pd-row-mono" style="margin-left:auto;">${_esc(_relDate(r.date) || '')}</span>
-    </div>
-    <div class="pd-row-main">${_esc((r.text || '').slice(0, 160))}${(r.text || '').length > 160 ? '…' : ''}</div>`).join('');
+// Decomposition du score de priorite de la liste Today (meme formule que loadDailyPriorities : (ICP*0,7 + force_effective*recence*0,3) * penalite
+// identite) et effet de la preference apprise. Lecture seule, aucune requete : _deprioTypes est deja charge par loadDailyPriorities.
+// Parite demo-private.html _priorityWeightHTML (variante FR) ; _priDecayFactor = memes seuils que _priDecay de loadDailyPriorities (locale a cette fonction).
+function _priDecayFactor(d) {
+  if (!d) return 0.05;
+  const days = (Date.now() - new Date(d).getTime()) / 86400000;
+  if (days <= 2) return 1.0;
+  if (days <= 7) return 0.8;
+  if (days <= 14) return 0.5;
+  if (days <= 30) return 0.2;
+  return 0.05;
 }
-// Section unique "Historique des messages" (remplace les deux cartes separees "Historique des
-// interactions"/"Historique des messages", fusion demandee 2026-09-13) -- formulaire de log
-// masque par defaut, revele par ".pd-plus", meme comportement que demo-private.html:8743/8752/8860.
-// int-type-btns/int-note-input/int-save-btn inchanges (deja fonctionnels, seul le conteneur change).
+function _priorityWeightHTML(p) {
+  if (!p || p.icp_score == null) return '';
+  const icp = Number(p.icp_score) || 0;
+  const raw = Number(p.score_signal_strength) || 0;
+  const eff = Number(_effectiveSignalStrength(p)) || 0;
+  const decay = _priDecayFactor(p.signal_date);
+  const idPen = p.identity_confidence === 'low' ? 0.85 : 1.0;
+  const f1 = n => (Math.round(n * 10) / 10).toFixed(1);
+  const icpPart = icp * 0.7;
+  const sigPart = eff * decay * 0.3;
+  const total = (icpPart + sigPart) * idPen;
+  const _prefF = _deprioFactorFor(p);
+  const prefApplies = _prefF !== null;
+  const lost = prefApplies ? raw * decay * 0.3 * idPen * (1 - _prefF) : 0;
+  let prefLine = '';
+  if (prefApplies) {
+    prefLine = `<div style="margin-top:6px;color:#92400e;font-weight:600">Préférence apprise appliquée : les signaux de type « ${_esc(p.signal_type)} » sont déprioritisés, la force du signal passe de ${f1(raw)} à 0 (−${f1(lost)} pt de score).</div>`;
+  } else if (_deprioTypes && p.signal_type) {
+    prefLine = `<div style="margin-top:6px;color:var(--muted)">Aucune préférence apprise ne s’applique au type de signal « ${_esc(p.signal_type)} ».</div>`;
+  }
+  return `<div style="margin-top:8px;background:var(--chip-bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--ink);line-height:1.5">
+    <span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:11px;opacity:0.65;display:block;margin-bottom:3px">Pondération du classement Today</span>
+    ICP ${f1(icp)} × 0,7 = ${f1(icpPart)}<br>
+    Signal ${f1(eff)} × récence ${decay} × 0,3 = ${f1(sigPart)}<br>
+    ${idPen < 1 ? 'Pénalité identité faible × ' + idPen + '<br>' : ''}
+    <strong>Score de classement : ${f1(total)}</strong>
+    ${prefLine}
+  </div>`;
+}
+// ── Historique des messages (parite demo-private.html _pdBuildMessageHistoryHTML) : vraies donnees seulement -- ENVOYE (interactions sortantes
+// linkedin/email), REPONSE (agent_proposals/objection_response du prospect), DEBRIEF (interactions 'call' dont la note est un debrief parse,
+// cliquables), CONSIGNE (note/reunion/appel sans debrief), JOURNAL (journal technique : envoi bloque, e-mail/LinkedIn trouve, 2 lignes au plus,
+// jamais compte comme une touche). Les 4 plus recentes. ────────────────────────────────────────────────────────────
+function _pdBuildMessageHistoryHTML() {
+  const chan = t => (_INT_LABELS_FR[t] || t).toUpperCase();
+  const _histRows = [
+    ..._drawerInteractions.filter(i => i.type === 'linkedin' || i.type === 'email')
+      .map(i => ({ kind: 'msg', dir: 'ENVOYÉ', channel: chan(i.type), date: i.created_at, text: i.note || '' })),
+    ..._drawerReplies.map(r => ({ kind: 'msg', dir: 'RÉPONSE', channel: 'LINKEDIN', date: r.updated_at || r.created_at, text: (r.incoming_message || '').replace(/<[^>]*>/g, '') })),
+    ..._drawerInteractions.filter(i => i.type === 'call' && _parseDebrief(i.note))
+      .map(i => ({ kind: 'debrief', uid: i.id, date: i.created_at, debrief: _parseDebrief(i.note) })),
+    ..._drawerInteractions.filter(i => (i.type === 'note' || i.type === 'meeting' || i.type === 'call') && !_parseDebrief(i.note))
+      .map(i => ({ kind: 'msg', dir: 'CONSIGNÉ', channel: chan(i.type), date: i.created_at, text: i.note || '' })),
+    ..._drawerInteractions.filter(i => _INT_LOG_ONLY.includes(i.type)).slice(0, 2)
+      .map(i => ({ kind: 'msg', dir: 'JOURNAL', channel: (_INT_ICONS[i.type] || '') + ' ' + (_INT_LABELS_FR[i.type] || i.type), date: i.created_at, text: i.note || '' }))
+  ].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 4);
+  if (!_histRows.length) return `<div class="pd-empty">Aucun message consigné pour le moment.</div>`;
+  return _histRows.map(r => {
+    if (r.kind === 'debrief') {
+      const c = _VERDICT_COLORS[r.debrief.verdict] || _VERDICT_COLORS.neutral;
+      return `<div class="pd-row" style="flex-direction:column;align-items:stretch;cursor:pointer;user-select:none" onclick="_toggleDebrief('${_esc(r.uid)}')">
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          <span class="pd-row-mono" style="color:var(--accent)">DEBRIEF · APPEL</span>
+          <span style="background:${c.bg};border:1px solid ${c.border};color:${c.text};border-radius:var(--radius-panel);font-size:var(--fs-micro);font-weight:700;padding:1px 7px;text-transform:uppercase;">${_esc(_VERDICT_LABEL_FR[r.debrief.verdict] || r.debrief.verdict)}</span>
+          <span class="pd-row-mono" style="margin-left:auto">${_esc(_relDate(r.date) || '')}</span>
+          <span id="debrief-chevron-${_esc(r.uid)}" style="font-size:var(--fs-xs);color:var(--muted)">▼</span>
+        </div>
+        <pre id="debrief-body-${_esc(r.uid)}" style="display:none;font-size:var(--fs-sm);line-height:1.6;white-space:pre-wrap;margin:8px 0 0;font-family:inherit;color:var(--text)">${_esc(r.debrief.fullText)}</pre>
+      </div>`;
+    }
+    return `<div class="pd-row">
+      <span class="pd-row-mono" style="color:${r.dir === 'RÉPONSE' ? 'var(--success)' : 'var(--muted)'}">${r.dir} · ${_esc(r.channel)}</span>
+      <span class="pd-row-mono" style="margin-left:auto">${_esc(_relDate(r.date) || '')}</span>
+    </div>
+    <div class="pd-row-main" style="margin:4px 0">${_esc((r.text || '').slice(0, 160))}${(r.text || '').length > 160 ? '…' : ''}</div>`;
+  }).join('');
+}
+// Section « Historique des messages » : formulaire de log masque par defaut, revele par ".pd-plus" (int-type-btns/pd-int-note/pd-int-save inchanges).
 function _pdMessageHistorySectionHTML() {
-  return `<div class="card" style="margin:16px 0;">
-    <div class="card-header"><span class="card-title">Historique des messages</span></div>
+  return `<div class="pd-section">
+    <div class="pd-section-label">Historique des messages</div>
     <div id="pd-msghistory-rows">${_pdBuildMessageHistoryHTML()}</div>
     <div id="pd-logint-form" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">
       <div class="int-type-btns">
@@ -5682,13 +5748,25 @@ function _pdMessageHistorySectionHTML() {
       <textarea class="int-note-input" id="pd-int-note" placeholder="Ajouter une note (optionnel)..." rows="2"></textarea>
       <button class="int-save-btn" id="pd-int-save" onclick="_saveInteraction()">Enregistrer l'interaction</button>
     </div>
-    <button class="pd-plus" style="margin-top:8px;" onclick="_pdToggleLogInteraction()">+ Log interaction</button>
+    <button class="pd-plus" style="margin-top:8px;" onclick="_pdToggleLogInteraction()">+ Ajouter une interaction</button>
   </div>`;
 }
 function _pdToggleLogInteraction() {
   const el = document.getElementById('pd-logint-form');
   if (!el) return;
   el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+function _pdRefreshMessageHistory() {
+  const el = document.getElementById('pd-msghistory-rows');
+  if (el) el.innerHTML = _pdBuildMessageHistoryHTML();
+}
+// Ouvre « Modifier les détails » (details#pd-editdetails) et place le focus sur un champ (valeur du deal, etape).
+function _pdOpenEditDetails(focusId) {
+  const det = document.getElementById('pd-editdetails');
+  if (!det) return;
+  det.open = true;
+  det.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  if (focusId) setTimeout(() => document.getElementById(focusId)?.focus(), 250);
 }
 // ── Comite d'achat (parite demo-private.html:8379-8521) : decouverte auto (recherche web + IA,
 // 3 roles fixes) au premier chargement d'un prospect (relance si perime -- 90j si trouve, 30j si
@@ -5746,7 +5824,7 @@ async function _bcFetchByRole(prospectId) {
   return byRole;
 }
 function _pdBuyingCommitteeHTML(id) {
-  return `<div class="card" style="margin:16px 0;"><div class="card-header"><span class="card-title">Comité d'achat</span></div><div id="bc-section-${id}" class="pd-empty">Chargement…</div></div>`;
+  return `<div class="pd-section"><div class="pd-section-label">Comité d'achat</div><div id="bc-section-${id}" style="font-size:var(--fs-xs);color:var(--muted);font-style:italic">Chargement…</div></div>`;
 }
 async function _loadBuyingCommittee(prospectId, p) {
   const el = document.getElementById('bc-section-' + prospectId);
@@ -5783,7 +5861,7 @@ function _renderBuyingCommittee(prospectId, byRole, loading) {
   const el = document.getElementById('bc-section-' + prospectId);
   if (!el) return;
   if (loading) { el.innerHTML = `<div class="pd-empty">Recherche du comité d'achat…</div>`; return; }
-  el.className = '';
+  el.className = ''; el.removeAttribute('style');
   el.innerHTML = _BC_ROLES.map(role => {
     const r = byRole[role];
     const label = _BC_ROLE_LABELS[role];
@@ -5858,6 +5936,7 @@ async function _bcPersistFromScan(stakeholders, company) {
 }
 let _drawerProspect = null;
 let _drawerInteractions = [];
+let _drawerReplies = []; // agent_proposals/objection_response du prospect ouvert -- alimente l'historique des messages
 let _drawerPollInterval = null;
 const _INT_ICONS = { linkedin:'💼', email:'📧', call:'📞', meeting:'🤝', note:'📝', email_found:'📧', linkedin_found:'💼', send_error:'⚠️' };
 // Types de journal technique (autorises par interactions_type_check depuis l'elargissement) : consignes, mais ni des « touches »
@@ -5879,100 +5958,120 @@ function _patchProspectCaches(id, updates) {
     if (match) applyTo(match);
   });
 }
-function openProspectDetail(id){
+// Liens du tiroir (parite demo-private.html _buildProspectLinks, variante FR) : http(s) uniquement pour LinkedIn (_mscSafeUrl).
+function _buildProspectLinks(p) {
+  const site = (p.website_url || '').trim();
+  const siteHref = site && !/^https?:\/\//i.test(site) ? 'https://' + site : site;
+  const li = _mscSafeUrl(p.linkedin);
+  return [
+    li ? { label: 'LinkedIn', href: li } : null,
+    p.email ? { label: 'Email', href: 'mailto:' + p.email } : null,
+    p.phone ? { label: 'Téléphone', href: 'tel:' + p.phone } : null,
+    siteHref ? { label: 'Site web', href: siteHref } : null,
+  ].filter(Boolean);
+}
+// Parite demo-private.html openDrawer() : en-tete .pd-header (nom, etape, firmographie, badges de fiabilite, dernier contact, scanner/question/fermer,
+// stats avec Re-scorer, liens), corps .pd-body en sections (.pd-section), pied .pd-footer. Rendu dans #drawer ; les elements dependants des
+// interactions (touches, historique, brief d'appel, dernier contact) sont mis a jour par _loadDrawerInteractions() -> _pdRefreshDrawerDerived().
+async function openProspectDetail(id){
   // _allProspects n'est peuple que par loadKanban() (Pipeline) -- repli sur _prospectsById pour
   // les cartes ouvertes depuis Aujourd'hui/Envoyer sans avoir visite Pipeline au prealable.
   const p = _allProspects.find(x => String(x.id) === String(id)) || _prospectsById[id];
   if (!p) return;
+  // Taxonomie des signaux chargee avant le rendu (parite demo-private.html openDrawer) : le badge de type de signal en depend ; deja en cache apres la 1re ouverture.
+  try { await _loadSignalTaxonomy(); } catch(e) { console.warn('[openProspectDetail] taxonomie des signaux:', e); }
   _drawerProspect = p;
-  const fmtDate = d => d ? new Date(d).toLocaleDateString('fr-FR', { day:'numeric', month:'short', year:'numeric' }) : null;
-  // Nom/Entreprise/Poste retires de cette liste (fix Item 0, 2026-09-13) : deja affiches dans
-  // .drawer-head (#pd-drawer-name/#pd-drawer-company, ci-dessous) -- les garder ici aurait
-  // duplique la meme info deux fois, ce que ne fait pas non plus demo-private.html (son
-  // .pd-header couvre nom/role/entreprise, ses .pd-row ne servent qu'a la timeline signal/
-  // messages, jamais aux champs de contact -- repris ici pour les champs restants faute
-  // d'equivalent plus proche dans la reference).
-  const rows = [
-    ['Email', p.email],
-    ['Téléphone', p.phone],
-    ['LinkedIn', p.linkedin],
-    ['Site web', p.website_url],
-    ['Secteur', p.sector],
-    ['Effectifs', p.company_size],
-    ['Zone', [p.region, p.country].filter(Boolean).join(' · ')],
-    ['Stade de financement', p.funding_stage],
-    ['Date de la levée', fmtDate(p.last_funding_date)],
-    ['Montant levé', p.total_funding],
-    ['Critères remplis', p.hard_criteria_met],
-    ['Notes', p.notes],
-  ].filter(([, v]) => v != null && v !== '');
+  _drawerInteractions = [];
+  _drawerReplies = [];
+  const name = p.name || 'Prospect';
+  const company = p.company || '';
+  const icpVal = parseFloat(_calcICP(p));
+  const _isEstDrawer = !((p.icp_score || 0) > 0);
+  const _icpLbl = isNaN(icpVal) ? '—' : (_isEstDrawer ? '~' : '') + icpVal.toFixed(1);
+  const stageLbl = STAGE_LABEL_FR[p.stage] || p.stage || 'Identifiés';
+  const dealValLbl = p.deal_value ? `${p.deal_currency || 'EUR'} ${Math.round(parseInt(p.deal_value) / 1000)}k` : '—';
+  const links = _buildProspectLinks(p);
+  const firmoParts = [p.sector, p.country, p.company_size ? p.company_size + ' employés' : null].filter(Boolean);
+  const _relBd = _scoreReliabilityBadge(p);
   const breakdown = _icpBreakdownFromColumns(p);
-  const nameEl = document.getElementById('pd-drawer-name');
-  if (nameEl) nameEl.textContent = p.name || 'Prospect';
-  const companyEl = document.getElementById('pd-drawer-company');
-  if (companyEl) companyEl.textContent = [p.title, p.company].filter(Boolean).join(' · ') || (p.company || '');
-  // Stats + rows sur les classes .pd-header/.pd-stats/.pd-row (fix Item 0, 2026-09-13) --
-  // memes classes/structure que demo-private.html, deja presentes dans la feuille de style
-  // depuis ce matin (commit 740eca0) mais jamais consommees jusqu'ici. Padding horizontal de
-  // .pd-header mis a 0 : #prospect-detail-body a deja son propre padding lateral, contrairement
-  // au drawer de demo-private.html ou .pd-header est le tout premier enfant sans autre padding
-  // ambiant -- eviter un double-inset qui desalignerait ce bloc du reste du corps.
-  const statsHTML = `<div class="pd-header" style="padding:0 0 14px;margin:0 0 14px;">
-    <div class="pd-stats" style="margin-top:0;">
-      <div class="pd-stat" style="border-left:none;padding-left:0;">
-        <div class="pd-stat-label">Score ICP</div>
-        <div class="pd-stat-value">${p.icp_score != null ? _esc(p.icp_score) + '/10' : 'N/D'}</div>
-        <!-- F01 (port wominds, 2026-09-17) : meme badge que demo-private.html, sous le score. -->
-        ${(() => { const _relB = _scoreReliabilityBadge(p); return _relB ? (_relB.contradicted ? `<div style="margin-top:2px;">${_contradictedBadgeHTML(_contradictedLabelFor(_relB))}</div>` : `<div style="font-size:11px;font-weight:700;color:${_relB.color};margin-top:2px;" title="${_esc(_relB.title)}">${_relB.icon} ${_esc(_relB.title)}</div>`) : ''; })()}
-      </div>
-      <div class="pd-stat">
-        <div class="pd-stat-label">Étape</div>
-        <div class="pd-stat-value" style="font-size:12px;">${_esc(STAGE_LABEL_FR[p.stage] || p.stage || 'Identifiés')}</div>
-      </div>
-      <div class="pd-stat">
-        <div class="pd-stat-label">Créé le</div>
-        <div class="pd-stat-value" style="font-size:12px;">${_esc(fmtDate(p.created_at) || 'N/D')}</div>
-      </div>
-    </div>
-  </div>`;
-  const rowsHTML = rows.map(([label, val]) => `<div class="pd-row"><span class="pd-row-mono">${_esc(label).toUpperCase()}</span><span class="pd-row-main">${_esc(val)}</span></div>`).join('');
-  const body = document.getElementById('prospect-detail-body');
-  // F16 (port wominds, 2026-09-17) : "Pourquoi Corridor, maintenant" et "Raison de la priorité"
-  // remontent en tete du corps (juste apres les stats), meme reordonnancement que
-  // demo-private.html -- remplacent _pdSignalTimelineHTML.
-  body.innerHTML =
-    statsHTML +
-    _pdWhyCorridorNowHTML(p) +
-    _pdPriorityReasonHTML(p) +
-    rowsHTML +
-    (breakdown ? _renderBreakdownPanel(breakdown, ICP_WEIGHTS) : '') +
-    _reminderBannerHTML(p.reminder_date) +
-    _pdNextActionHTML(p) +
-    _pdMessageHistorySectionHTML() +
-    _pdBuyingCommitteeHTML(id) +
-    _pdEditSectionHTML(id, p) +
-    `<div id="dpanel-send" style="display:none;padding:16px 0 8px;border-top:1px solid var(--border);margin-top:4px"></div>`;
+  const _cachedStage = p.stage || 'Identified';
   const drawerEl = document.getElementById('drawer');
+  drawerEl.innerHTML = `
+    <div class="pd-header">
+      <div class="pd-head-top">
+        <div style="flex:1;min-width:0">
+          <div class="pd-name-row">
+            <span class="pd-name" id="pd-drawer-name">${_esc(name)}</span>
+            <span class="pd-stage-chip">${_esc(stageLbl)}</span>
+          </div>
+          <div class="pd-role" id="pd-drawer-company">${[p.title, company].filter(Boolean).map(s => _esc(s)).join(' · ')}</div>
+          ${firmoParts.length ? `<div class="pd-firmo">${firmoParts.map(s => _esc(s)).join(' · ')}</div>` : ''}
+          ${p.company_verified === false ? `<div style="margin-top:5px;"><span style="font-size:11px;font-weight:700;color:#b45309;background:#fef3c7;border:1px solid #fde68a;border-radius:20px;padding:1px 6px;">⚠ Société non confirmée</span></div>` : ''}
+          ${p.identity_confidence === 'low' ? `<div style="margin-top:3px;"><span style="font-size:11px;font-weight:700;color:#6b7280;background:#f3f4f6;border:1px solid #d1d5db;border-radius:20px;padding:1px 6px;">? Identité à vérifier</span></div>` : ''}
+          ${_relBd && _relBd.contradicted ? `<div style="margin-top:3px;">${_contradictedBadgeHTML(_contradictedLabelFor(_relBd))}</div>` : ''}
+          <div class="drawer-last-contact" id="pd-last-contact" style="font-size:11px;color:var(--dim);margin-top:5px;">Aucun contact enregistré</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0;">
+          <button onclick="openScannerPanel('drawer')" style="display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:var(--radius-sm);background:#fff;border:1px solid var(--border);cursor:pointer;color:var(--muted);" title="Scanner l'entreprise" aria-label="Scanner cette entreprise">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          </button>
+          <button onclick="_openAskFromDrawer()" style="display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:var(--radius-sm);background:#fff;border:1px solid var(--border);cursor:pointer;color:var(--muted);" title="Demander à Corridor" aria-label="Demander à Corridor à propos de ce prospect">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </button>
+          <button class="pd-close" onclick="closeProspectDetail()" aria-label="Fermer la fiche du prospect">✕</button>
+        </div>
+      </div>
+      <div class="pd-stats">
+        <div class="pd-stat">
+          <div class="pd-stat-label">Score de fit ICP</div>
+          <div class="pd-stat-value">${_esc(_icpLbl)}</div>
+          <button class="btn-secondary btn-sm" id="drawer-rescore-btn" onclick="_rescoreProspect('${_esc(id)}')" style="margin-top:6px;">↻ Re-scorer</button>
+          ${_relBd && !_relBd.contradicted ? `<div style="font-size:11px;font-weight:700;color:${_relBd.color};margin-top:2px;" title="${_esc(_relBd.title)}">${_relBd.icon} ${_esc(_relBd.title)}</div>` : ''}
+        </div>
+        <div class="pd-stat">
+          <div class="pd-stat-label">Ancienneté du stade</div>
+          <div class="pd-stat-value">—</div>
+        </div>
+        <div class="pd-stat">
+          <div class="pd-stat-label">Touches</div>
+          <div class="pd-stat-value" id="pd-touch-count">0</div>
+        </div>
+        <div class="pd-stat">
+          <div class="pd-stat-label">Valeur du deal</div>
+          <div class="pd-stat-value">${_esc(dealValLbl)}
+            <button class="pd-stat-edit" onclick="_pdOpenEditDetails('dv-deal-type')" title="Modifier la valeur du deal" aria-label="Modifier la valeur du deal">✎</button>
+          </div>
+        </div>
+      </div>
+      ${links.length ? `<div class="pd-links">${links.map(l => `<a class="pd-link" href="${_esc(l.href)}" target="_blank" rel="noopener noreferrer">${l.label}</a>`).join('')}</div>` : ''}
+    </div>
+
+    <div class="pd-body" id="prospect-detail-body">
+      ${_pdWhyCorridorNowHTML(p)}
+      ${_pdPriorityReasonHTML(p)}
+      ${breakdown ? `<div class="pd-section"><div class="pd-section-label">Détail du score ICP</div>${_renderBreakdownPanel(breakdown, ICP_WEIGHTS)}</div>` : ''}
+      ${_pdNextActionHTML(p)}
+      ${_pdMessageHistorySectionHTML()}
+      ${_pdBuyingCommitteeHTML(id)}
+      ${p.stage !== 'Identified' ? _pdCallPrepHTML(id) : ''}
+      ${_pdEditSectionHTML(id, p)}
+      <div id="dpanel-send" style="display:none;padding:16px 0 8px;border-top:1px solid var(--border);margin-top:4px"></div>
+    </div>
+
+    <div class="pd-footer" id="pd-footer">
+      <button class="btn-primary btn-md" style="flex:1;justify-content:center" onclick="_pdToggleCompose(true)">Générer un message</button>
+      <button class="btn-secondary btn-md" style="flex:1;justify-content:center" onclick="_pdOpenEditDetails('ed-stage')">Changer d'étape</button>
+      <button class="btn-secondary btn-md" onclick="archiveProspect('${_esc(id)}')">Archiver</button>
+    </div>`;
   drawerEl.dataset.pid = id;
   drawerEl.dataset.drawerTouch = '';
   drawerEl.classList.add('open');
   document.getElementById('drawer-overlay').classList.add('open');
   document.body.classList.add('drawer-open');
-  // Barre d'actions persistante (parite demo-private.html .pd-footer, brief 2026-09-13 point 5b) --
-  // frere de #prospect-detail-body dans #drawer (flex-direction:column), reste visible quel que
-  // soit le defilement. "Generate message" ajoute (parite structurelle demo-private.html point 1
-  // du brief du jour, reutilise le mini panneau Send deja fonctionnel de l'onglet Envoyer --
-  // _sendCardHTML/_generateSequenceMessage/_markReady/_sendViaLinkedIn, aucune logique dupliquee) ;
-  // "Enregistrer" reste dans le formulaire d'edition.
-  const footerEl = document.getElementById('pd-footer');
-  if (footerEl) {
-    footerEl.innerHTML = `<button class="btn-primary btn-md" style="flex:1;justify-content:center" onclick="_pdToggleCompose(true)">Générer un message</button>
-      <button class="btn-secondary btn-md" onclick="archiveProspect('${id}')">Archiver ce prospect</button>`;
-    footerEl.style.display = 'flex';
-  }
   _renderDrawerSendPanel(id);
   // Prefill Scanner si ouvert depuis ce tiroir (parite demo-private.html:8602/_scannerPreFill).
   _scannerPreFill = { company: p.company || '', sector: p.sector || '', icp_score: p.icp_score != null ? Number(p.icp_score) : null, person: p.name || null };
+  _pdRefreshDrawerDerived();
   _loadDrawerInteractions(id);
   _loadBuyingCommittee(id, p);
   _dvShowFields();
@@ -5982,11 +6081,27 @@ function closeProspectDetail(){
   document.getElementById('drawer').classList.remove('open');
   document.getElementById('drawer-overlay').classList.remove('open');
   document.body.classList.remove('drawer-open');
-  const footerEl = document.getElementById('pd-footer');
-  if (footerEl) { footerEl.style.display = 'none'; footerEl.innerHTML = ''; }
   if (_drawerPollInterval) { clearInterval(_drawerPollInterval); _drawerPollInterval = null; }
   _drawerProspect = null;
   _drawerInteractions = [];
+  _drawerReplies = [];
+}
+// Met a jour les elements du tiroir qui dependent des interactions chargees : compteur de touches (hors journal technique), dernier contact,
+// historique des messages, carte « Brief de préparation d'appel » (dernier discovery_brief, relu depuis les interactions).
+function _pdRefreshDrawerDerived() {
+  const touchEl = document.getElementById('pd-touch-count');
+  if (touchEl) touchEl.textContent = String(_drawerInteractions.filter(i => !_INT_LOG_ONLY.includes(i.type)).length);
+  const p = _drawerProspect || {};
+  const lc = document.getElementById('pd-last-contact');
+  if (lc) lc.textContent = p.last_contact ? 'Dernier contact : ' + (_relDate(p.last_contact) || '') : 'Aucun contact enregistré';
+  _pdRefreshMessageHistory();
+  const briefEl = document.getElementById('pd-brief-card');
+  if (briefEl) {
+    const briefInt = _drawerInteractions.find(i => i.type === 'discovery_brief') || null;
+    briefEl.innerHTML = briefInt ? _discoveryBriefHTML(briefInt.note) : `<span style="opacity:.6">Aucun brief préparé pour le moment — générez-en un ci-dessous.</span>`;
+    const copyBtn = document.getElementById('pd-copy-brief-btn');
+    if (copyBtn) copyBtn.disabled = !briefInt;
+  }
 }
 
 // ── Rappel (parite demo-private.html:8294-8376/9325-9354) ────────────────────────────────────
@@ -6005,15 +6120,15 @@ function _relDate(iso) {
 function _reminderBannerHTML(reminderDate) {
   const r = reminderDate ? _fmtReminder(reminderDate) : null;
   const isoShort = reminderDate ? new Date(reminderDate).toISOString().split('T')[0] : '';
-  const bg = r ? (r.overdue ? '#fef2f2' : '#fffbeb') : '#f8f9fb';
-  const bdr = r ? (r.overdue ? 'var(--red)' : '#fcd34d') : 'var(--border)';
-  const tc = r ? (r.overdue ? 'var(--red)' : 'var(--amber-text)') : 'var(--muted)';
-  const label = r ? r.label : 'Aucun rappel programmé';
+  const bg = r ? (r.overdue ? 'var(--red-bg)' : 'var(--bg-warning)') : '#f8f9fb';
+  const bdr = r ? (r.overdue ? 'var(--red)' : 'var(--amber-border)') : 'var(--border)';
+  const tc = r ? (r.overdue ? 'var(--red)' : 'var(--amber)') : 'var(--muted)';
+  const label = r ? r.label : 'Aucun rappel défini';
   const clockSvg = `<svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" style="flex-shrink:0"><circle cx="8" cy="8" r="7"/><path d="M8 4.5V8l2.5 1.5" stroke-linecap="round"/></svg>`;
-  return `<div id="reminder-banner" style="margin:16px 0;border-radius:var(--radius-md);overflow:hidden;border:1px solid ${bdr};">
+  return `<div id="reminder-banner" style="margin:12px 16px 0;border-radius:var(--radius-md);overflow:hidden;border:1px solid ${bdr};">
     <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:${bg};font-size:var(--fs-sm);color:${tc};">
       <span style="display:flex;align-items:center;gap:6px;">${clockSvg}${_esc(label)}</span>
-      <a href="#" style="font-size:var(--fs-xs);color:var(--navy);text-decoration:underline;text-underline-offset:2px;white-space:nowrap;margin-left:8px;"
+      <a href="#" style="font-size:var(--fs-xs);color:var(--ink);text-decoration:underline;text-underline-offset:2px;white-space:nowrap;margin-left:8px;"
         onclick="event.preventDefault();var row=document.getElementById('reminder-edit-row');row.style.display=row.style.display==='flex'?'none':'flex'">${r ? 'Modifier' : 'Définir'}</a>
     </div>
     <div id="reminder-edit-row" style="display:none;align-items:center;gap:8px;padding:8px 12px;background:#f8f9fb;border-top:1px solid ${bdr};">
@@ -6059,21 +6174,26 @@ function _selIntType(btn) {
 function _getIntType() { return document.querySelector('.int-type-btn.selected')?.dataset.type || 'note'; }
 async function _loadDrawerInteractions(pid) {
   _drawerInteractions = [];
+  _drawerReplies = [];
   try {
-    const { data, error } = await sbClient.from('interactions')
-      .select('id,type,note,created_at').eq('prospect_id', pid)
-      .order('created_at', { ascending: false }).limit(30);
-    if (error) throw error;
-    _drawerInteractions = data || [];
+    const [_intRes, _replyRes] = await Promise.all([
+      sbClient.from('interactions').select('id,type,note,created_at')
+        .eq('prospect_id', pid).eq('client_id', CLIENT_ID).order('created_at', { ascending: false }).limit(30),
+      sbClient.from('agent_proposals').select('id,incoming_message,created_at,updated_at')
+        .eq('prospect_id', pid).eq('client_id', CLIENT_ID).eq('content_type', 'objection_response').order('created_at', { ascending: false }).limit(10)
+    ]);
+    if (_intRes.error) console.warn('[_loadDrawerInteractions]', _intRes.error);
+    // Le tiroir peut avoir ete ferme ou change pendant l'attente : ne rien ecraser.
+    if (_drawerPid() !== pid) return;
+    _drawerInteractions = _intRes.error ? [] : (_intRes.data || []);
+    _drawerReplies = _replyRes.error ? [] : (_replyRes.data || []);
   } catch(e) { console.warn('[_loadDrawerInteractions]', e); }
   _renderDrawerInteractions();
 }
-// Fusion 2026-09-13 (diagnostic point 3) : met a jour la meme liste unifiee #pd-msghistory-rows
-// (plus de #pd-interactions-list separe) -- nom de fonction inchange pour ne pas casser les
-// appelants existants (_loadDrawerInteractions/_saveInteraction), seul le contenu change.
+// Nom de fonction inchange pour ne pas casser les appelants existants (_loadDrawerInteractions/_saveInteraction) : rafraichit tout ce qui
+// depend des interactions (historique, touches, dernier contact, brief d'appel).
 function _renderDrawerInteractions() {
-  const el = document.getElementById('pd-msghistory-rows');
-  if (el) el.innerHTML = _pdBuildMessageHistoryHTML();
+  _pdRefreshDrawerDerived();
 }
 async function _saveInteraction() {
   const pid = _drawerPid();
@@ -6092,6 +6212,11 @@ async function _saveInteraction() {
     return;
   }
   _drawerInteractions = [data, ..._drawerInteractions];
+  // Dernier contact (parite demo-private.html _saveInteraction) : le libelle de l'en-tete et la carte du pipeline suivent l'interaction qui vient d'etre consignee.
+  const lcEl = document.getElementById('pd-last-contact');
+  if (lcEl) lcEl.textContent = 'Dernier contact : à l\'instant';
+  const card = document.querySelector(`.k-card[data-id="${pid}"]`);
+  if (card) card.dataset.lastContact = data.created_at;
   _renderDrawerInteractions();
   const noteEl = document.getElementById('pd-int-note');
   if (noteEl) noteEl.value = '';
@@ -6153,24 +6278,30 @@ function _renderNextActionHTML(raw, linkColor) {
   return linkify(renderMarkdown(raw));
 }
 function _pdNextActionHTML(p) {
-  const cachedRendered = p.next_action_cache ? _renderNextActionHTML(p.next_action_cache, 'var(--navy)') : null;
-  const hasCached = !!p.next_action_cache;
+  // Parite demo-private.html (section « Prochaine action ») : bandeau de rappel, carte .pd-next-action, badge de fraicheur, prochaine etape manuelle,
+  // bouton principal dont le libelle suit _actionButtonLabel (alerte de fiabilite -> « Vérifier la source d'abord »). Ids pd-next-action-* conserves.
+  const cachedRendered = p.next_action_cache ? _renderNextActionHTML(p.next_action_cache, 'var(--ink)') : null;
   const naFreshBadge = _fmtNextActionFreshness(p.next_action_generated_at);
   const naDivergenceBadge = _fmtNextActionDivergence(p.next_action, p.next_action_cache);
-  return `<div class="ai-box" style="margin:16px 0;">
-      <div class="ai-box-header"><span class="ai-box-label">Prochaine action conseillée</span><div class="ai-spinner" id="pd-next-action-spinner"></div></div>
-      <div class="ai-box-body${cachedRendered ? ' loaded' : ''}" id="pd-next-action-output">${cachedRendered || 'Cliquez pour générer la prochaine étape...'}</div>
-    </div>
-    ${naFreshBadge ? `<div style="margin-top:-4px;margin-bottom:8px"><span style="font-size:var(--fs-xs);font-weight:600;padding:2px 8px;background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:var(--radius-pill);color:var(--ink)">${naFreshBadge}</span></div>` : ''}
-    <button class="btn-accent btn-lg" style="width:100%;justify-content:center;margin:8px 0;" onclick="_drawerAI()" id="pd-next-action-btn">${hasCached ? '🔄 Régénérer' : '▶ Prochaine action recommandée'}</button>
-    <div style="margin:0 0 16px;padding:12px 14px;border:1px solid var(--border);border-radius:var(--radius-md);background:#fff;">
-      <div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);margin-bottom:8px;">Prochaine étape manuelle</div>
-      ${naDivergenceBadge ? `<div style="margin-bottom:8px"><span style="font-size:var(--fs-xs);font-weight:600;padding:2px 8px;background:var(--amber-bg);border:1px solid var(--amber-border);border-radius:var(--radius-pill);color:var(--amber-text)">${naDivergenceBadge}</span></div>` : ''}
-      <input id="pd-next-action-manual" class="dp-inp" value="${_esc(p.next_action || '')}" placeholder="Prochaine étape..." style="margin-bottom:6px;">
-      <div style="display:flex;gap:8px;align-items:center;">
-        <input id="pd-next-action-date" type="date" class="dp-inp" value="${_esc((p.next_action_date || '').slice(0,10))}" style="flex:1;min-width:0;">
-        <button class="btn-secondary btn-sm" onclick="_saveNextAction()">Enregistrer</button>
+  return `<div class="pd-section" id="pd-section-nextaction">
+      ${_reminderBannerHTML(p.reminder_date)}
+      <div class="pd-section-label" style="margin-top:14px">Prochaine action</div>
+      <div class="pd-next-action">
+        <div class="pd-next-action-label">PROCHAINE ACTION</div>
+        <div class="pd-next-action-text ai-box-body${cachedRendered ? ' loaded' : ''}" id="pd-next-action-output">${cachedRendered || 'Cliquez pour générer la prochaine étape...'}</div>
       </div>
+      ${naFreshBadge ? `<div style="margin-top:6px"><span style="font-size:var(--fs-xs);font-weight:600;padding:2px 8px;background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:var(--radius-pill);color:var(--navy)">${naFreshBadge}</span></div>` : ''}
+      <div style="margin-top:10px;padding:12px 14px;border:1px solid var(--border);border-radius:var(--radius-md);background:#fff;">
+        <div class="pd-section-label" style="margin-bottom:8px">Prochaine étape manuelle</div>
+        ${naDivergenceBadge ? `<div style="margin-bottom:8px"><span style="font-size:var(--fs-xs);font-weight:600;padding:2px 8px;background:var(--amber-bg);border:1px solid var(--amber-border);border-radius:var(--radius-pill);color:var(--amber-text)">${naDivergenceBadge}</span></div>` : ''}
+        <input id="pd-next-action-manual" class="dp-inp" value="${_esc(p.next_action || '')}" placeholder="Prochaine étape..." style="margin-bottom:6px;">
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input id="pd-next-action-date" type="date" class="dp-inp" value="${_esc((p.next_action_date || '').slice(0,10))}" style="flex:1;min-width:0;">
+          <button class="btn-secondary btn-sm" onclick="_saveNextAction()">Enregistrer</button>
+        </div>
+      </div>
+      <button class="btn-accent btn-lg" style="width:100%;justify-content:center;margin-top:10px" onclick="_drawerAI()" id="pd-next-action-btn">${_actionButtonLabel(p, '🔄 Régénérer', '▶ Prochaine action recommandée')}</button>
+      <div class="ai-spinner" id="pd-next-action-spinner" style="margin:6px auto 0;"></div>
     </div>`;
 }
 async function _prefetchWebContext(company, sector, siteUrl) {
@@ -6287,8 +6418,8 @@ async function _drawerAI() {
   if (out) { out.textContent = 'Recherche en cours sur ' + (p.company || '') + '...'; out.classList.remove('loaded'); }
   try {
     const text = await _generateNextAction(p);
-    if (out) { out.innerHTML = _renderNextActionHTML(text, 'var(--navy)'); out.classList.add('loaded'); }
-    if (btn) btn.textContent = '🔄 Régénérer';
+    if (out) { out.innerHTML = _renderNextActionHTML(text, 'var(--ink)'); out.classList.add('loaded'); }
+    if (btn) btn.textContent = _actionButtonLabel(p, '🔄 Régénérer', '🔄 Régénérer');
   } catch(e) {
     console.error('[_drawerAI]', e);
     if (out) out.textContent = 'Erreur : ' + (e.message || 'réessayez.');
@@ -6310,6 +6441,638 @@ async function _saveNextAction() {
     _patchProspectCaches(id, { next_action: naText, next_action_date: naDate || null });
     showToast('Prochaine étape enregistrée');
   } catch(e) { console.error('[_saveNextAction]', e); showToast('Échec de la sauvegarde'); }
+}
+
+// ── Brief de preparation d'appel + messages post-appel (parite demo-private.html, section « Call prep brief », masquee a l'etape Identifiés) ─────────
+// Non repris : « Démarrer la séquence email » (J+5 sans e-mail, desactive sur Wominds) et le message post-appel a modele fixe (_generatePostCallMsg & co :
+// le texte-modele de dp est la voix de Corridor, aucune version Wominds n'existe -- pas de texte invente).
+function _pdCallPrepHTML(id) {
+  return `<div class="pd-section">
+      <div class="pd-section-label">Brief de préparation d'appel</div>
+      <div class="pd-brief-card" id="pd-brief-card"><span style="opacity:.6">Aucun brief préparé pour le moment — générez-en un ci-dessous.</span></div>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+        <button class="btn-secondary btn-sm" id="pd-copy-brief-btn" onclick="_pdCopyBrief()" disabled>Copier le brief</button>
+        <button class="btn-secondary btn-sm" onclick="_openAskFromDrawer()">Poser une question de suivi</button>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:14px">
+        <button class="btn-md" onclick="_scheduleCall('${_esc(id)}')" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;background:var(--white);color:var(--text);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;font-family:inherit">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          Planifier un appel
+        </button>
+      </div>
+      ${_ownerInboxEmail() ? `<button class="btn-secondary btn-md" style="width:100%;justify-content:center;margin-top:8px" onclick="_sendDiscoveryBrief()" id="drawer-discovery-btn">Préparer l'appel de découverte</button>` : ''}
+      <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
+        <div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">Debrief post-appel</div>
+        <button class="btn-secondary btn-md" id="btn-postcall-debrief" onclick="_openPostCallDebrief()" style="width:100%;justify-content:center;margin-bottom:10px">🎙 Générer le debrief post-appel</button>
+        <div id="meeting-notes-select" style="display:none;margin-bottom:10px"></div>
+        <div id="post-call-output" style="display:none"></div>
+        <div style="text-align:center;margin-top:6px">
+          <a href="#" style="font-size:var(--fs-xs);color:var(--muted);text-decoration:underline;text-underline-offset:2px" onclick="event.preventDefault();_toggleManualDebrief()">Ou collez vos notes d'appel manuellement</a>
+        </div>
+        <div id="manual-debrief-panel" style="display:none;margin-top:10px">
+          <textarea id="manual-debrief-notes" rows="6" placeholder="Collez vos notes d'appel, la transcription ou un résumé ici..." style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:var(--fs-sm);font-family:inherit;resize:vertical;background:var(--bg);color:var(--text);line-height:1.5"></textarea>
+          <button class="btn-secondary btn-md" onclick="_generateFromManualNotes()" style="width:100%;justify-content:center;margin-top:8px">Générer à partir des notes</button>
+        </div>
+      </div>
+    </div>`;
+}
+function _pdCopyBrief() {
+  const el = document.getElementById('pd-brief-card');
+  if (!el) return;
+  const text = el.textContent || '';
+  navigator.clipboard.writeText(text.trim()).then(
+    () => showToast('Brief copié'),
+    () => showToast('Échec de la copie')
+  );
+}
+// Le brief est du HTML (h3/p/ul) genere puis stocke dans interactions : retire tout script/gestionnaire d'evenement avant injection (dp injecte tel quel).
+function _discoveryBriefHTML(note) {
+  const s = (note || '').trim();
+  let html = note || '';
+  if (s.startsWith('{')) {
+    try {
+      const obj = JSON.parse(s);
+      if (obj && typeof obj === 'object' && (obj.brief_fr || obj.brief_en)) html = obj.brief_fr || '';
+    } catch(_) {}
+  }
+  return String(html).replace(/<\s*(script|iframe|object|embed)[\s\S]*?<\s*\/\s*\1\s*>/gi, '').replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+}
+// Destinataire du brief d'appel : boite du client authentifie (le proxy refuse toute autre adresse) ; aucun repli sur l'adresse d'un autre client.
+const _ownerInboxEmail = () => (typeof _clientProfile !== 'undefined' && _clientProfile?.owner_inbox_email) || '';
+function _scheduleCall(pid) {
+  const p = _prospectsById[pid];
+  if (!p) return;
+  const title = encodeURIComponent('Appel avec ' + (p.name || '') + ' - ' + (p.company || ''));
+  const details = encodeURIComponent(
+    'Prospect Corridor\nLinkedIn : ' + (p.linkedin || 'N/D') +
+    '\nÉtape : ' + (STAGE_LABEL_FR[p.stage] || p.stage || '') +
+    '\nICP : ' + (_calcICP(p) || '')
+  );
+  let dt = '';
+  if (p.reminder_date) {
+    dt = p.reminder_date.replace(/-/g, '') + 'T090000';
+  } else {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    dt = tomorrow.toISOString().slice(0, 10).replace(/-/g, '') + 'T090000';
+  }
+  const end = dt.slice(0, 8) + 'T093000';
+  const url = 'https://calendar.google.com/calendar/render?action=TEMPLATE'
+    + '&text=' + title + '&dates=' + dt + '/' + end + '&details=' + details;
+  window.open(url, '_blank');
+}
+// « Préparer l'appel de découverte » (parite demo-private.html _sendDiscoveryBrief) : brief genere puis envoye a la boite du client via le proxy
+// /api/workflow-proxy?action=discovery-call-brief-send, et consigne (interactions, type 'discovery_brief') pour la carte du tiroir. Francais seul.
+async function _sendDiscoveryBrief() {
+  if (!_drawerProspect) return;
+  const p = _drawerProspect;
+  const btn = document.getElementById('drawer-discovery-btn');
+  const origLabel = btn ? btn.textContent : "Préparer l'appel de découverte";
+  const isConnected = p.linkedin_tag === 'connection-accepted';
+  const confirmMsg = isConnected
+    ? `Envoyer le brief de découverte pour ${p.name} chez ${p.company} ?`
+    : `${p.name} n'est pas encore connecté sur LinkedIn. Envoyer quand même le brief de découverte ?`;
+  if (!(await _confirmModal(confirmMsg))) return;
+  if (btn) { btn.disabled = true; btn.textContent = 'Préparation…'; }
+  try {
+    const _now = new Date();
+    const _wStart = new Date(_now.getFullYear(), _now.getMonth(), _now.getDate()).toISOString();
+    const _wEnd   = new Date(_now.getFullYear(), _now.getMonth(), _now.getDate() + 1).toISOString();
+    const { data: existingBrief } = await sbClient.from('interactions')
+      .select('id').eq('client_id', CLIENT_ID).eq('prospect_id', p.id)
+      .eq('type', 'discovery_brief').gte('created_at', _wStart).lt('created_at', _wEnd).limit(1);
+    if (existingBrief?.length) {
+      showToast('Brief déjà envoyé aujourd\'hui pour ' + (p.name || 'ce prospect'));
+      if (btn) { btn.disabled = false; btn.textContent = origLabel; }
+      return;
+    }
+    const liveCtx = await _prefetchWebContext(p.company, p.sector, p.website_url);
+    const ctx = _drawerInteractions.filter(i => !_INT_LOG_ONLY.includes(i.type)).slice(0, 5)
+      .map(i => `- ${i.type}${i.note ? ': ' + i.note.slice(0, 120) : ''} (${_relDate(i.created_at) || 'récent'})`)
+      .join('\n');
+    // Double lecture (notes) : p.notes (historique) + notes consignees via « Ajouter une interaction » (type='note'), jamais l'un n'ecrase l'autre.
+    const loggedNotes = _drawerInteractions.filter(i => i.type === 'note' && i.note)
+      .slice(0, 3).map(i => i.note).join(' | ');
+    const notesCombined = [p.notes, loggedNotes].filter(Boolean).join(' | ') || 'Aucune';
+    const systemPrompt = `Vous êtes un assistant de préparation commerciale B2B. Générez un brief d'appel de découverte. Produisez du HTML valide en utilisant uniquement les balises <h3>, <p>, <ul>, <li>. Pas de style en ligne, pas de balises de code markdown. Règle anti-hallucination : n'énoncez que des faits sur l'entreprise qui figurent mot pour mot dans le CONTEXTE EN DIRECT. Si aucun contexte n'est disponible, omettez toute affirmation spéculative sur l'entreprise.
+Rédigez le brief entièrement en français. Répondez avec UNIQUEMENT un objet JSON strict, sans markdown, sans balises de code, sans texte avant ou après : {"brief_fr": "<h3>...brief complet en HTML, en français...</h3>..."}`;
+    const userMsg = `Prospect : ${p.name}, ${p.title || 'poste inconnu'} chez ${p.company || 'entreprise inconnue'}.
+Secteur : ${p.sector || '-'} | Pays : ${p.country || '-'} | Étape : ${STAGE_LABEL_FR[p.stage] || p.stage || '-'} | Score ICP : ${p.icp_score != null ? p.icp_score : '-'}
+Signal : ${p.signal || 'Aucun'} | Notes : ${notesCombined}
+${ctx ? '\nHistorique des interactions :\n' + ctx : 'Aucune interaction consignée.'}
+${liveCtx || '\nAucun contexte web vérifié disponible. N\'énoncez aucun fait propre à l\'entreprise.'}
+
+Générez un brief d'appel de découverte avec exactement ces quatre sections :
+1. Contexte de l'entreprise (2-3 phrases maximum, faits vérifiés uniquement - omettre la section sans contexte web)
+2. Pourquoi maintenant (pourquoi cet appel a du sens à cette étape et avec ce signal)
+3. Angle de qualification (ce qu'il faut valider lors de ce premier appel)
+4. Questions à poser (4-5 questions précises, sous forme de liste à puces)
+
+Le champ brief_fr ne contient que le contenu HTML. Pas de préambule, pas de doctype, pas de div englobante.`;
+    const res = await _authFetch('/api/generate', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ max_tokens: 2300, system: systemPrompt, messages: [{ role: 'user', content: userMsg }] })
+    });
+    if (!res.ok) throw new Error('Erreur API ' + res.status);
+    const data = await res.json();
+    const rawBrief = Array.isArray(data.content) ? data.content.filter(b => b.type === 'text').map(b => b.text).join('').trim() : '';
+    if (!rawBrief) throw new Error('Réponse vide');
+    let briefObj;
+    try { briefObj = JSON.parse(rawBrief); } catch(_) {
+      const m = rawBrief.match(/\{[\s\S]*\}/);
+      if (!m) throw new Error('Réponse illisible');
+      briefObj = JSON.parse(m[0]);
+    }
+    const briefFr = String(briefObj.brief_fr || '');
+    if (!briefFr) throw new Error('Réponse vide');
+    const badgeRow = [
+      p.sector  ? `<span style="font-size:var(--fs-xs);font-weight:600;padding:3px 10px;background:var(--chip-bg);border-radius:var(--radius-pill);color:var(--indigo)">${_esc(p.sector)}</span>` : '',
+      p.stage   ? `<span style="font-size:var(--fs-xs);font-weight:600;padding:3px 10px;background:var(--chip-bg);border-radius:var(--radius-pill);color:var(--muted)">${_esc(STAGE_LABEL_FR[p.stage] || p.stage)}</span>` : '',
+      p.country ? `<span style="font-size:var(--fs-xs);font-weight:600;padding:3px 10px;background:var(--chip-bg);border-radius:var(--radius-pill);color:var(--muted)">${_esc(p.country)}</span>` : ''
+    ].filter(Boolean).join('');
+    const emailHtml = `<!DOCTYPE html><html><body style="font-family:'Plus Jakarta Sans',Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px 20px;color:var(--navy);background:#f8f9fc"><div style="background:#fff;border-radius:12px;padding:28px 32px;border:1px solid #e2e6f0"><div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:6px">Brief d'appel de découverte</div><h2 style="margin:0 0 4px;font-size:20px;font-weight:800;color:var(--navy)">${_esc(p.name || '-')}</h2><p style="margin:0 0 16px;font-size:13px;color:var(--muted)">${[p.title, p.company].filter(Boolean).map(s => _esc(s)).join(' &middot; ')}</p>${badgeRow ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px">${badgeRow}</div>` : ''}<div style="font-size:13px;line-height:1.75;color:var(--navy)">${briefFr}</div><div style="margin-top:24px;padding-top:16px;border-top:1px solid #e2e6f0;font-size:11px;color:#a8b5d8">Généré par Corridor &mdash; ${new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</div></div></body></html>`;
+    const wRes = await _authFetch('/api/workflow-proxy?action=discovery-call-brief-send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to: _ownerInboxEmail(), subject: 'Brief d\'appel de découverte — ' + (p.name || 'prospect'), html: emailHtml })
+    });
+    if (!wRes.ok) throw new Error('Webhook ' + wRes.status);
+    // Le brief complet est persiste : la carte du tiroir le relit depuis cette interaction, l'e-mail n'est plus la seule trace du contenu genere.
+    const { data: briefRow, error: briefErr } = await sbClient.from('interactions').insert({
+      client_id: CLIENT_ID, prospect_id: p.id, mandate_id: null,
+      type: 'discovery_brief', note: JSON.stringify({ brief_fr: briefFr })
+    }).select('id,type,note,created_at').single();
+    if (briefErr) console.error('[_sendDiscoveryBrief] insert interactions:', briefErr);
+    else if (briefRow && _drawerPid() === p.id) { _drawerInteractions = [briefRow, ..._drawerInteractions]; _renderDrawerInteractions(); }
+    showToast('Brief envoyé dans votre boîte de réception');
+    if (btn) { btn.disabled = false; btn.textContent = origLabel; }
+  } catch(e) {
+    showToast('Erreur : ' + e.message);
+    if (btn) { btn.disabled = false; btn.textContent = origLabel; }
+  }
+}
+
+// ── Debrief post-appel (parite demo-private.html _runPostCallWorkflow & co, francais seul) ──────────────────────────────────
+const _VERDICT_COLORS = {
+  positive: { bg: '#F0FDF4', border: '#86EFAC', text: '#15803D' },
+  neutral:  { bg: '#FFFBEB', border: '#FCD34D', text: 'var(--amber)' },
+  negative: { bg: '#FEF2F2', border: '#FECACA', text: '#DC2626' },
+};
+const _VERDICT_LABEL_FR = { positive: 'positif', neutral: 'neutre', negative: 'négatif' };
+// Compose le texte lisible (tiroir + historique) a partir des 3 sections ; partage par _parseDebrief et _runPostCallWorkflow pour ne jamais dupliquer la mise en forme.
+function _composeDebriefBody(obj) {
+  const kd = obj.key_decisions_fr || '';
+  const ns = obj.next_steps_fr || '';
+  const oq = obj.open_questions_fr || '';
+  return [
+    kd ? 'DÉCISIONS CLÉS : ' + kd : '',
+    ns ? 'PROCHAINES ÉTAPES : ' + ns : '',
+    oq ? 'QUESTIONS OUVERTES : ' + oq : '',
+  ].filter(Boolean).join('\n\n');
+}
+function _parseDebrief(note) {
+  if (!note) return null;
+  const trimmed = note.trim();
+  // v2 : JSON {verdict, key_decisions_fr, ...} (commence par "{") ; le format texte historique (« VERDICT: ... ») reste lisible tel quel.
+  if (trimmed.startsWith('{')) {
+    try {
+      const obj = JSON.parse(trimmed);
+      if (obj && typeof obj === 'object' && /^(positive|neutral|negative)$/i.test(obj.verdict || '')) {
+        return { verdict: String(obj.verdict).toLowerCase(), fullText: _composeDebriefBody(obj) };
+      }
+    } catch(_) {}
+  }
+  const m = note.match(/^VERDICT:\s*(positive|neutral|negative)/i);
+  if (!m) return null;
+  return { verdict: m[1].toLowerCase(), fullText: note };
+}
+function _toggleDebrief(uid) {
+  const body = document.getElementById('debrief-body-' + uid);
+  const chevron = document.getElementById('debrief-chevron-' + uid);
+  if (!body) return;
+  const opening = body.style.display === 'none' || body.style.display === '';
+  body.style.display = opening ? 'block' : 'none';
+  if (chevron) chevron.textContent = opening ? '▲' : '▼';
+}
+async function _runPostCallWorkflow(pid, note) {
+  const p = _prospectsById[pid] || _drawerProspect || {};
+  const pcBox = document.getElementById('post-call-output');
+  if (!pcBox) return;
+  const _gsBox = document.getElementById('meeting-notes-select');
+  if (_gsBox) _gsBox.style.display = 'none';
+  pcBox.style.display = 'block';
+  pcBox.innerHTML = `<div class="post-call-box" style="color:var(--muted);font-style:italic;font-size:var(--fs-sm);">Analyse des notes d'appel...</div>`;
+
+  let intCtx = '';
+  try {
+    const { data } = await sbClient.from('interactions')
+      .select('type,note,created_at').eq('prospect_id', pid).eq('client_id', CLIENT_ID)
+      .order('created_at', { ascending: false }).limit(3);
+    if (data?.length) intCtx = data.map(i => `${i.type}${i.note ? ': ' + i.note.slice(0, 80) : ''}`).join(' | ');
+  } catch(e) {}
+
+  const systemPrompt = `Vous êtes un conseiller GTM qui analyse un appel commercial. Générez un débrief post-appel. Répondez avec UNIQUEMENT un objet JSON strict, sans markdown, sans balises de code, sans texte avant ou après :
+{"verdict": "positive|neutral|negative", "key_decisions_fr": "puces, texte brut avec retours à la ligne", "next_steps_fr": "puces avec responsable et échéance", "open_questions_fr": "puces, ou null s'il n'y en a pas", "email_subject_fr": "objet de l'e-mail", "email_body_fr": "corps de l'e-mail, moins de 150 mots, professionnel, reprend des points précis de l'appel"}
+
+Tous les champs texte sont rédigés en français. "verdict" reste une valeur unique, indépendante de la langue (positive/neutral/negative uniquement, jamais traduite).
+Règles : pas de tirets cadratins, pas d'en-têtes markdown, uniquement des faits, tout repose sur la note fournie.`;
+
+  const userMsg = `Prospect : ${p.name || 'Inconnu'} / ${p.title || ''} / ${p.company || ''}.${intCtx ? ' Historique récent : ' + intCtx + '.' : ''} Notes d'appel : ${note || '(aucune note fournie)'}`;
+
+  let debriefObj = null;
+  try {
+    const res = await _authFetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ max_tokens: 6000, system: systemPrompt, messages: [{ role: 'user', content: userMsg }] })
+    });
+    if (!res.ok) throw new Error('API error ' + res.status);
+    const data = await res.json();
+    const responseText = Array.isArray(data.content)
+      ? data.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim()
+      : '';
+    if (!responseText) throw new Error('empty response');
+    try { debriefObj = JSON.parse(responseText); } catch(_) {
+      const m = responseText.match(/\{[\s\S]*\}/);
+      if (!m) throw new Error('unparsable response');
+      debriefObj = JSON.parse(m[0]);
+    }
+  } catch(e) {
+    pcBox.innerHTML = `<div class="post-call-box" style="color:var(--red);font-size:var(--fs-sm);">Erreur lors de la génération du débrief post-appel.</div>`;
+    return;
+  }
+  if (!debriefObj || !/^(positive|neutral|negative)$/i.test(debriefObj.verdict || '')) {
+    pcBox.innerHTML = `<div class="post-call-box" style="color:var(--red);font-size:var(--fs-sm);">Réponse vide de l'IA — réessayez.</div>`;
+    return;
+  }
+
+  const verdict = String(debriefObj.verdict).toLowerCase();
+  const responseText = _composeDebriefBody(debriefObj);
+  const emailSubject = String(debriefObj.email_subject_fr || 'Suite à notre échange');
+  const emailBody = String(debriefObj.email_body_fr || '');
+
+  // Ordre des etapes pour la verification d'avancement
+  const STAGE_ORDER = ['Identified','1st Contact','Engaged','Replied','Proposal','Negotiation','Closed'];
+  const currentIdx = STAGE_ORDER.indexOf(p.stage || '');
+  const proposalIdx = STAGE_ORDER.indexOf('Proposal');
+  const shouldAdvance = verdict === 'positive' && currentIdx >= 0 && currentIdx < proposalIdx;
+
+  let verdictActions = '';
+  if (verdict === 'positive') {
+    const rem = new Date();
+    rem.setDate(rem.getDate() + 2);
+    const remIso = rem.toISOString();
+    const remLabel = rem.toLocaleDateString('fr-FR', { weekday:'short', day:'numeric', month:'short' });
+    const updates = { reminder_date: remIso, updated_at: new Date().toISOString() };
+    if (shouldAdvance) updates.stage = 'Proposal';
+    const { error: _pcErr } = await sbClient.from('prospects').update(updates).eq('id', pid).eq('client_id', CLIENT_ID);
+    if (_pcErr) {
+      console.warn('post-call update failed:', _pcErr);
+      showToast('Erreur lors de la mise à jour du rappel/étape');
+    } else {
+      _patchProspectCaches(pid, shouldAdvance ? { reminder_date: remIso, stage: 'Proposal' } : { reminder_date: remIso });
+      const card = document.querySelector(`.k-card[data-id="${pid}"]`);
+      if (card) { card.dataset.reminderDate = remIso; if (shouldAdvance) card.dataset.stage = 'Proposal'; }
+    }
+    // Le badge « Rappel programmé » n'apparait que si l'UPDATE a reussi.
+    verdictActions = _pcErr ? '' : `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
+      ${shouldAdvance ? `<span style="background:#dcfce7;color:#15803d;border:1px solid #86efac;border-radius:var(--radius-panel);font-size:var(--fs-xs);font-weight:700;padding:2px 8px;">Étape passée à ${_esc(STAGE_LABEL_FR.Proposal)}</span>` : ''}
+      <span style="background:#dbeafe;color:#1e40af;border:1px solid #93c5fd;border-radius:var(--radius-panel);font-size:var(--fs-xs);font-weight:700;padding:2px 8px;">Rappel programmé : ${_esc(remLabel)}</span>
+    </div>`;
+  }
+
+  const verdictColor = verdict === 'positive' ? '#15803d' : verdict === 'negative' ? 'var(--red)' : 'var(--amber)';
+  const verdictBg   = verdict === 'positive' ? '#dcfce7' : verdict === 'negative' ? 'var(--red-bg)' : '#fef3c7';
+  const gmailHref = `mailto:?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`;
+
+  pcBox.innerHTML = `<div class="post-call-box">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+      <span style="font-size:var(--fs-xs);font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Débrief post-appel</span>
+      <span style="background:${verdictBg};color:${verdictColor};border-radius:var(--radius-panel);font-size:var(--fs-xs);font-weight:700;padding:2px 8px;text-transform:uppercase;">${_esc(_VERDICT_LABEL_FR[verdict] || verdict)}</span>
+    </div>
+    ${verdictActions}
+    <pre style="font-size:var(--fs-sm);line-height:1.6;white-space:pre-wrap;margin:0 0 10px;font-family:inherit;">${_esc(responseText)}</pre>
+    ${emailBody ? `<a href="${gmailHref}" target="_blank" rel="noopener" style="display:inline-block;font-size:var(--fs-sm);padding:6px 14px;background:var(--ink);color:#fff;border-radius:var(--radius-sm);text-decoration:none;font-weight:600;">Ouvrir Gmail</a>` : ''}
+  </div>`;
+
+  // Persiste le debrief (interactions, type 'call', note = JSON complet) : _parseDebrief() le relit dans l'historique.
+  try {
+    const { data: intData, error: intErr } = await sbClient.from('interactions')
+      .insert({ prospect_id: pid, client_id: CLIENT_ID, mandate_id: null, type: 'call', note: JSON.stringify(debriefObj) })
+      .select('id,type,note,created_at').single();
+    if (intErr) throw intErr;
+    if (intData) {
+      _drawerInteractions = [intData, ..._drawerInteractions];
+      _renderDrawerInteractions();
+    }
+  } catch(e) {
+    console.warn('[post-call] persist failed:', e.message);
+    showToast('Débrief affiché mais non enregistré dans l\'historique (erreur)');
+  }
+}
+
+let _meetingNotesPickerState = null;
+
+function _toggleManualDebrief() {
+  const panel = document.getElementById('manual-debrief-panel');
+  if (!panel) return;
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+
+function _generateFromManualNotes() {
+  const pid = _drawerPid();
+  if (!pid) { showToast('Aucun prospect sélectionné'); return; }
+  const ta = document.getElementById('manual-debrief-notes');
+  const notes = (ta ? ta.value : '').trim();
+  if (!notes) { showToast('Collez d\'abord des notes'); return; }
+  _runPostCallWorkflow(pid, notes);
+}
+
+async function _openPostCallDebrief() {
+  const pid = _drawerPid();
+  if (!pid) { showToast('Aucun prospect sélectionné'); return; }
+  const p = _prospectsById[pid] || _drawerProspect || {};
+  const btn = document.getElementById('btn-postcall-debrief');
+  const selectBox = document.getElementById('meeting-notes-select');
+  const pcBox = document.getElementById('post-call-output');
+
+  if (btn) btn.disabled = true;
+  if (selectBox) { selectBox.style.display = 'none'; selectBox.innerHTML = ''; }
+  if (pcBox) { pcBox.style.display = 'block'; pcBox.innerHTML = `<div class="post-call-box" style="color:var(--muted);font-style:italic;font-size:var(--fs-sm);">Recherche de réunions récentes...</div>`; }
+
+  const { data: { session } } = await sbClient.auth.getSession();
+  const token = session?.access_token;
+  if (!token) {
+    await _runPostCallWorkflow(pid, null);
+    if (btn) btn.disabled = false;
+    return;
+  }
+
+  let meetings = [];
+  try {
+    const r = await fetch('/api/meeting-notes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: 'list_meetings' })
+    });
+    const data = await r.json();
+    if (data.error) {
+      if (pcBox) pcBox.innerHTML = `<div class="post-call-box" style="color:var(--muted);font-style:italic;font-size:var(--fs-sm);">Notes de réunion non connectées. Génération du débrief depuis l'historique des interactions...</div>`;
+      await _runPostCallWorkflow(pid, null);
+      if (btn) btn.disabled = false;
+      return;
+    }
+    meetings = data.meetings || [];
+  } catch(e) {
+    console.warn('[_openPostCallDebrief]', e);
+    if (pcBox) pcBox.innerHTML = `<div class="post-call-box" style="color:var(--muted);font-style:italic;font-size:var(--fs-sm);">Impossible de joindre les notes de réunion. Génération du débrief depuis l'historique des interactions...</div>`;
+    await _runPostCallWorkflow(pid, null);
+    if (btn) btn.disabled = false;
+    return;
+  }
+
+  // Appariement : e-mail en priorite, puis tokens nom/prenom ou societe dans le titre
+  const pEmail = (p.email || '').toLowerCase().trim();
+  const pName = (p.name || '').toLowerCase().trim();
+  const pNameTokens = pName.split(/\s+/).filter(t => t.length > 2);
+  const pCompany = (p.company || '').toLowerCase().trim();
+
+  let candidates = [];
+  // branche e-mail : inactive avec l'API REST meeting-notes actuelle (pas de known_participants), conservee pour compatibilite future.
+  if (pEmail) {
+    candidates = meetings.filter(m =>
+      (m.known_participants || []).some(kp => (kp.email || '').toLowerCase() === pEmail)
+    );
+  }
+  if (candidates.length === 0) {
+    candidates = meetings.filter(m => {
+      const title = (m.title || '').toLowerCase();
+      return pNameTokens.some(t => title.includes(t)) || (pCompany && title.includes(pCompany));
+    });
+  }
+
+  if (candidates.length === 1) {
+    await _fetchAndRunDebrief(candidates[0], pid, token, btn);
+    return;
+  }
+
+  _showMeetingNotesPicker(candidates.length > 1 ? candidates : meetings, pid, token, btn, candidates.length > 1);
+}
+
+function _showMeetingNotesPicker(meetings, pid, token, btn, hasMatches) {
+  _meetingNotesPickerState = { meetings, pid, token };
+  const selectBox = document.getElementById('meeting-notes-select');
+  const pcBox = document.getElementById('post-call-output');
+  if (!selectBox) return;
+  if (pcBox) { pcBox.style.display = 'none'; pcBox.innerHTML = ''; }
+  const label = hasMatches ? 'Plusieurs réunions correspondantes — choisissez-en une :' : 'Aucune réunion trouvée automatiquement — choisissez parmi les réunions récentes :';
+  selectBox.style.display = 'block';
+  selectBox.innerHTML = `
+    <div style="font-size:var(--fs-sm);color:var(--muted);margin-bottom:6px;">${label}</div>
+    <div style="display:flex;flex-direction:column;gap:4px;max-height:200px;overflow-y:auto;margin-bottom:8px;">
+      ${meetings.slice(0, 10).map((m, i) => `<button class="btn-secondary btn-sm" style="text-align:left;display:flex;justify-content:space-between;gap:8px;" onclick="_selectMeetingNote(${i})"><span>${_esc(m.title || m.id || 'Sans titre')}</span><span style="color:var(--muted);font-size:var(--fs-xs);white-space:nowrap;">${_esc(m.date || '')}</span></button>`).join('')}
+    </div>
+    <button class="btn-secondary btn-sm" style="width:100%;justify-content:center;" onclick="_runPostCallWorkflow(${_esc(JSON.stringify(pid))}, null)">Passer — utiliser uniquement l'historique des interactions</button>
+  `;
+  if (btn) btn.disabled = false;
+}
+
+async function _selectMeetingNote(idx) {
+  if (!_meetingNotesPickerState) return;
+  const { meetings, pid, token } = _meetingNotesPickerState;
+  const meeting = meetings[idx];
+  if (!meeting) return;
+  const btn = document.getElementById('btn-postcall-debrief');
+  if (btn) btn.disabled = true;
+  const selectBox = document.getElementById('meeting-notes-select');
+  if (selectBox) selectBox.style.display = 'none';
+  await _fetchAndRunDebrief(meeting, pid, token, btn);
+}
+
+async function _fetchAndRunDebrief(meeting, pid, token, btn) {
+  const pcBox = document.getElementById('post-call-output');
+  if (pcBox) { pcBox.style.display = 'block'; pcBox.innerHTML = `<div class="post-call-box" style="color:var(--muted);font-style:italic;font-size:var(--fs-sm);">Récupération de la transcription de la réunion...</div>`; }
+
+  let noteText = null;
+  try {
+    const r = await fetch('/api/meeting-notes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: 'get_transcript', id: meeting.id })
+    });
+    const data = await r.json();
+    if (data.error === 'not_yet_available') {
+      if (pcBox) pcBox.innerHTML = `<div class="post-call-box" style="color:var(--amber);font-size:var(--fs-sm);">Transcription pas encore prête (traitement en cours). Réessayez sous peu.</div>`;
+      if (btn) btn.disabled = false;
+      return;
+    }
+    if (data.note) {
+      const parts = [];
+      if (data.note.summary) parts.push('RÉSUMÉ :\n' + data.note.summary);
+      if (data.note.transcript) parts.push('TRANSCRIPTION :\n' + (typeof data.note.transcript === 'string' ? data.note.transcript : JSON.stringify(data.note.transcript)));
+      noteText = parts.join('\n\n') || null;
+    }
+  } catch(e) { console.warn('[meeting-notes] get_transcript failed:', e.message); }
+
+  await _runPostCallWorkflow(pid, noteText);
+  if (btn) btn.disabled = false;
+}
+
+// ── Re-score d'une fiche (bouton du tiroir, parite demo-private.html _rescoreProspect) ─────────────────────────────────────
+// Meme chemin que l'import CSV : proxy /api/workflow-proxy?action=icp-score-batch (le secret reste cote serveur, les ids n'appartenant pas
+// au client sont filtres par le proxy). Le webhook repond des la reception : on sonde la ligne toutes les 5 s (90 s max) jusqu'a ce que le
+// scoring l'ait modifiee. Un seul re-score a la fois par fiche, 60 s de pause entre deux demandes. Aucune ecriture directe sur prospects.
+const _rescoreInFlight = new Set();
+const _rescoreLastAt = {};
+const _RESCORE_COOLDOWN_MS = 60000, _RESCORE_POLL_MS = 5000, _RESCORE_MAX_MS = 90000;
+async function _rescoreProspect(prospectId) {
+  if (!prospectId || _rescoreInFlight.has(prospectId)) return;
+  const wait = _RESCORE_COOLDOWN_MS - (Date.now() - (_rescoreLastAt[prospectId] || 0));
+  if (wait > 0) {
+    const s = Math.ceil(wait / 1000);
+    showToast('Re-score déjà demandé pour cette fiche — réessayez dans ' + s + ' s');
+    return;
+  }
+  _rescoreInFlight.add(prospectId);
+  _rescoreLastAt[prospectId] = Date.now();
+  // Le bouton n'est touche que si le tiroir affiche encore cette fiche (il peut avoir ete ferme ou change pendant l'attente).
+  const setBusy = (busy) => {
+    const b = document.getElementById('drawer-rescore-btn');
+    if (!b || !_drawerProspect || String(_drawerProspect.id) !== String(prospectId)) return;
+    b.disabled = busy;
+    b.textContent = busy ? 'Re-scoring…' : '↻ Re-scorer';
+  };
+  setBusy(true);
+  const readRow = () => sbClient.from('prospects').select('icp_score, icp_reason, archived, updated_at')
+    .eq('id', prospectId).eq('client_id', CLIENT_ID).single();
+  const changed = (a, b) => !!a && !!b && (a.updated_at !== b.updated_at || a.icp_score !== b.icp_score || a.icp_reason !== b.icp_reason || a.archived !== b.archived);
+  try {
+    const { data: base, error: baseErr } = await readRow();
+    if (baseErr) console.error('[rescore] lecture initiale:', baseErr);
+    let res;
+    try {
+      res = await fetch('/api/workflow-proxy?action=icp-score-batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(await _getAuthHeaders()) },
+        body: JSON.stringify({ prospect_ids: [prospectId] })
+      });
+    } catch (e) {
+      console.error('[rescore] requête impossible:', e);
+      _rescoreLastAt[prospectId] = 0; // rien n'est parti : pas de pause
+      showToast('Re-score impossible : connexion indisponible');
+      return;
+    }
+    if (!res.ok) {
+      console.error('[rescore] HTTP ' + res.status, await res.text().catch(() => ''));
+      showToast('Re-score impossible (erreur ' + res.status + ')');
+      return;
+    }
+    const json = await res.json().catch(() => ({}));
+    if (json && json.ok === false) {
+      console.error('[rescore] reponse en echec:', json);
+      _rescoreLastAt[prospectId] = 0;
+      showToast('Re-score impossible : le service de scoring a signalé une erreur');
+      return;
+    }
+    if (json && json.ok === true && json.scored === 0) {
+      showToast('Aucune fiche à scorer');
+      return;
+    }
+    showToast('Re-score lancé…');
+    let now = null;
+    for (let t = 0; t < _RESCORE_MAX_MS; t += _RESCORE_POLL_MS) {
+      await new Promise(r => setTimeout(r, _RESCORE_POLL_MS));
+      const { data, error } = await readRow();
+      if (error) { console.error('[rescore] sondage:', error); continue; }
+      if (changed(base, data)) { now = data; break; }
+    }
+    if (!now) {
+      showToast('Re-score lancé, rafraîchissement dans ~1 min');
+      loadKanban(true);
+      return;
+    }
+    _patchProspectCaches(prospectId, { icp_score: now.icp_score, icp_reason: now.icp_reason, archived: now.archived });
+    const sc = now.icp_score != null ? Number(now.icp_score) : null;
+    const same = base && base.icp_score === now.icp_score;
+    let msg;
+    if (now.archived && !(base && base.archived)) {
+      msg = 'Re-score terminé : ICP ' + (sc != null ? sc : '—') + '/10 — fiche archivée (score inférieur à 6)';
+    } else if (sc == null) {
+      msg = 'Re-score terminé : score non calculé';
+    } else {
+      msg = 'Re-score terminé : ICP ' + sc + '/10' + (same ? ' (inchangé)' : '');
+    }
+    showToast(msg);
+    if (_drawerProspect && String(_drawerProspect.id) === String(prospectId)) openProspectDetail(prospectId);
+    loadKanban(true);
+  } catch (e) {
+    console.error('[rescore]', e);
+    showToast('Re-score : erreur inattendue');
+  } finally {
+    _rescoreInFlight.delete(prospectId);
+    setBusy(false);
+  }
+}
+// ── Recherche LinkedIn du tiroir (parite demo-private.html _findLinkedInDrawer/_saveLinkedIn/_resolveViaEnrichment) : meme proxy /api/enrich-contact,
+// seul le LinkedIn complet (isCompleteLinkedinProfileUrl) est enregistre, ecriture prospects + interaction 'linkedin_found' scopees a CLIENT_ID. ──
+async function _resolveViaEnrichment(name, company) {
+  try {
+    const parts = (name || '').trim().split(/\s+/);
+    if (parts.length < 2) return null;
+    const first_name = parts[0];
+    const last_name = parts.slice(1).join(' ');
+    const r = await _authFetch('/api/enrich-contact', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ first_name, last_name, organization_name: company, reveal_personal_emails: false })
+    });
+    if (!r.ok) return null;
+    const d = await r.json();
+    const url = d?.person?.linkedin_url || null;
+    return url && /^https?:\/\/(www\.)?linkedin\.com\/in\//i.test(url) ? url : null;
+  } catch (e) {
+    return null;
+  }
+}
+async function _saveLinkedIn(pid, url, source) {
+  const p = _prospectsById[pid];
+  if (!p) return;
+  p.linkedin = url;
+  if (_drawerProspect && String(_drawerProspect.id) === String(pid)) _drawerProspect.linkedin = url;
+  const linkedinInput = document.getElementById('ed-linkedin');
+  if (linkedinInput) linkedinInput.value = url;
+  const findBtn = document.getElementById('find-linkedin-' + pid);
+  if (findBtn) findBtn.remove();
+  const { error: _liSaveErr } = await sbClient.from('prospects').update({ linkedin: url }).eq('id', pid).eq('client_id', CLIENT_ID);
+  if (_liSaveErr) { console.error('[_saveLinkedIn] prospects update failed:', _liSaveErr); showToast("Erreur lors de l'enregistrement du LinkedIn"); return; }
+  _patchProspectCaches(pid, { linkedin: url });
+  const { error: _liIntErr } = await sbClient.from('interactions').insert({
+    prospect_id: pid, client_id: CLIENT_ID, mandate_id: null, type: 'linkedin_found',
+    note: 'LinkedIn trouvé : ' + url + ' (source : ' + source + ')'
+  });
+  if (_liIntErr) console.error('[_saveLinkedIn] interactions insert failed:', _liIntErr);
+}
+async function _findLinkedInDrawer(pid) {
+  const p = _prospectsById[pid];
+  if (!p) return;
+  const btn = document.getElementById('find-linkedin-' + pid);
+  const status = document.getElementById('linkedin-status-' + pid);
+  if (btn) btn.disabled = true;
+  if (status) status.textContent = 'Recherche en cours...';
+  try {
+    const url = await _resolveViaEnrichment(p.name, p.company);
+    if (url && isCompleteLinkedinProfileUrl(url)) {
+      await _saveLinkedIn(pid, url, 'enrich');
+      if (status) status.textContent = '✓ Trouvé';
+    } else {
+      if (status) status.textContent = 'Introuvable';
+      if (btn) btn.disabled = false;
+    }
+  } catch(e) {
+    console.warn('[_findLinkedInDrawer]', e);
+    if (status) status.textContent = 'Erreur — vérifiez la connexion';
+    if (btn) btn.disabled = false;
+  }
 }
 
 // ── Edition + valeur du deal (parite demo-private.html:11276-11448/11809-11942, sans les
@@ -6489,9 +7252,9 @@ async function _saveDealToDB(){
 }
 function _pdEditSectionHTML(id, p) {
   const v = s => _esc(s == null ? '' : String(s));
-  return `<details class="card" style="margin:16px 0;">
-    <summary style="cursor:pointer;font-weight:700;color:var(--navy);font-size:var(--fs-sm);">Modifier / Valeur du deal</summary>
-    <div class="dp-edit" style="margin-top:14px;">
+  return `<details class="pd-section" id="pd-editdetails">
+    <summary class="pd-section-label" style="cursor:pointer">Modifier les détails</summary>
+    <div class="dp-edit" style="margin-top:12px;">
       <div style="border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:14px 16px;display:flex;flex-direction:column;gap:8px;">
         <div style="font-size:var(--fs-xs);font-weight:600;color:var(--muted);">Contact</div>
         <input id="ed-name" class="dp-inp" value="${v(p.name)}" placeholder="Nom">
@@ -6507,7 +7270,11 @@ function _pdEditSectionHTML(id, p) {
           <button id="find-phone-${v(id)}" onclick="_findPhoneDrawer('${v(id)}')" style="font-size:var(--fs-sm);white-space:nowrap;min-width:95px;padding:6px 12px;background:var(--ink);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer;">Trouver le tél.</button>
         </div>
         <span id="phone-status-${v(id)}" style="font-size:var(--fs-xs);color:var(--muted);"></span>
-        <input id="ed-linkedin" class="dp-inp" value="${v(p.linkedin)}" placeholder="URL LinkedIn">
+        <div style="display:flex;gap:8px;">
+          <input id="ed-linkedin" class="dp-inp" value="${v(p.linkedin)}" placeholder="URL LinkedIn" style="flex:1;min-width:0;">
+          ${p.linkedin ? '' : `<button id="find-linkedin-${v(id)}" onclick="_findLinkedInDrawer('${v(id)}')" style="font-size:var(--fs-sm);white-space:nowrap;min-width:95px;padding:6px 12px;background:var(--ink);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer;">Trouver LinkedIn</button>`}
+        </div>
+        <span id="linkedin-status-${v(id)}" style="font-size:var(--fs-xs);color:var(--muted);"></span>
         <input id="ed-website" class="dp-inp" value="${v(p.website_url)}" placeholder="Site web">
         <div>
           <p style="font-size:var(--fs-xs);color:var(--muted);font-weight:600;letter-spacing:0.02em;margin:0 0 6px;">Type de contact</p>
@@ -6528,6 +7295,10 @@ function _pdEditSectionHTML(id, p) {
         <div style="display:flex;gap:8px;">
           <input id="ed-company-size" class="dp-inp" value="${v(p.company_size)}" placeholder="Effectifs" style="flex:1;min-width:0;">
           <input id="ed-funding-stage" class="dp-inp" value="${v(p.funding_stage)}" placeholder="Stade de financement" style="flex:1;min-width:0;">
+        </div>
+        <div style="display:flex;gap:8px;">
+          <input id="ed-last-funding-date" class="dp-inp" value="${v(p.last_funding_date ? String(p.last_funding_date).slice(0,10) : '')}" placeholder="Date de la levée" style="flex:1;min-width:0;">
+          <input id="ed-total-funding" class="dp-inp" value="${v(p.total_funding)}" placeholder="Montant levé" style="flex:1;min-width:0;">
         </div>
         <div style="display:flex;gap:8px;align-items:center;">
           ${(() => {
@@ -6627,15 +7398,19 @@ async function _saveEmail(pid, email) {
   });
   if (intErr) console.error('[_saveEmail] interactions', intErr);
 }
-async function _savePhone(pid, phone) {
+async function _savePhone(pid, phone, source) {
   const p = _prospectsById[pid];
   if (!p) return;
+  // Le fournisseur d'enrichissement peut renvoyer un objet ({ number, region }) : ne jamais enregistrer « [object Object] ».
+  if (phone && typeof phone === 'object') phone = phone.number || phone.phone || phone.value || '';
+  phone = String(phone || '').trim();
+  if (!phone) return;
   p.phone = phone;
   const phoneInput = document.getElementById('ed-phone');
   if (phoneInput) phoneInput.value = phone;
-  const { error: phoneSaveErr } = await sbClient.from('prospects').update({ phone }).eq('id', pid).eq('client_id', CLIENT_ID);
+  const { error: phoneSaveErr } = await sbClient.from('prospects').update({ phone, phone_source: source, phone_status: source }).eq('id', pid).eq('client_id', CLIENT_ID);
   if (phoneSaveErr) { console.error('[_savePhone]', phoneSaveErr); showToast("Erreur lors de l'enregistrement du téléphone"); return; }
-  _patchProspectCaches(pid, { phone });
+  _patchProspectCaches(pid, { phone, phone_source: source, phone_status: source });
   const { error: intErr } = await sbClient.from('interactions').insert({
     prospect_id: pid, client_id: CLIENT_ID, mandate_id: null, type: 'phone_found', note: 'Téléphone trouvé : ' + phone,
   });
@@ -6726,7 +7501,7 @@ async function _findEmailDrawer(pid) {
           if (status) status.textContent = 'Introuvable';
           reenable();
         }
-        if (pd.phone) await _savePhone(pollPid, pd.phone);
+        if (pd.phone) await _savePhone(pollPid, pd.phone, 'enrich');
       }
     } catch(e) { console.warn('[_findEmailDrawer]', e); }
   }, 4000);
@@ -6787,7 +7562,7 @@ async function _findPhoneDrawer(pid) {
         done = true;
         clearInterval(_drawerPollInterval); _drawerPollInterval = null;
         if (pd.phone) {
-          await _savePhone(pollPid, pd.phone);
+          await _savePhone(pollPid, pd.phone, 'enrich');
           if (status) status.textContent = '✓ Trouvé';
           if (btn) { btn.style.background = 'var(--green-brand)'; btn.textContent = '✓ Trouvé'; }
           if (siblingBtn) siblingBtn.disabled = false;
@@ -6874,6 +7649,7 @@ async function saveProspectEdit(id) {
     website_url: g('ed-website') || null,
     sector: g('ed-sector') || null, country: g('ed-country') || null, region: g('ed-region') || null,
     company_size: g('ed-company-size') || null, funding_stage: g('ed-funding-stage') || null,
+    last_funding_date: g('ed-last-funding-date') || null, total_funding: g('ed-total-funding') || null,
     stage: document.getElementById('ed-stage')?.value || 'Identified',
     signal: g('ed-signal') || null,
     signal_type: document.getElementById('ed-signal-type')?.value || null,
