@@ -1302,15 +1302,27 @@ body.new-nav { padding-left: 220px; }
   font-size: 11px; font-weight: 600; line-height: 18px; text-align: center; box-shadow: 0 0 0 2px var(--mtab-bg);
 }
 @media (prefers-reduced-motion: reduce) { .mobile-tabbar, .mtab-item { transition: none; } }
-.more-list { display: flex; flex-direction: column; }
-.more-row {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 14px 4px; border: none; border-bottom: 1px solid var(--border);
-  background: none; text-align: left; width: 100%;
-  font-family: 'Instrument Sans', sans-serif; font-size: 15px; color: var(--text); cursor: pointer;
+/* ── ONGLETS DE SECTION (navigation a 5 entrees, meme CSS que demo-private.html) ── */
+.sec-tabs { display: flex; background: #fff; border-bottom: 1px solid var(--border); padding: 0 26px; overflow-x: auto; scrollbar-width: none; box-sizing: border-box; }
+.sec-tabs::-webkit-scrollbar { display: none; }
+.sec-tabs[hidden], .sec-tabs-group[hidden] { display: none; }
+.sec-tabs-group { display: flex; gap: 4px; }
+.sec-tab { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px; border: none; border-bottom: 2px solid transparent; background: none; font-family: inherit; font-size: var(--fs-sm); font-weight: 500; color: var(--muted); cursor: pointer; white-space: nowrap; }
+.sec-tab:hover { color: var(--ink); }
+.sec-tab.active { color: var(--ink); font-weight: 600; border-bottom-color: var(--accent); }
+.sec-count { font-family: 'IBM Plex Mono', monospace; font-size: 11px; padding: 1px 7px; border-radius: 999px; background: var(--chip-bg, #f0f3fb); color: var(--ink); }
+.sec-count:empty { display: none; }
+.sec-tab.active .sec-count { background: #2757e0; color: #fff; }
+#tab-system .sys-tabs { display: none; } /* remplaces par les onglets de section (#sec-tabs) */
+@media (max-width: 768px) {
+  /* Cause du chevauchement : .sec-tabs est un <nav> et heritait de `nav { height: 58px; align-items: center }` : le groupe Configuration
+     (onglets + « Se deconnecter » sur 2 lignes) debordait de ce cadre fixe, centre vers le HAUT sous la barre du haut, et « Se deconnecter »
+     etait rogne par overflow. Hauteur automatique, contenu aligne en haut ; la barre du haut (#primary-nav, 2 lignes avec le mandat) pareil. */
+  .sec-tabs, body.new-nav .sec-tabs { padding: 0 8px; height: auto; align-items: flex-start; } /* body.new-nav nav {padding-left:60px} visait aussi cette <nav> */
+  .sec-tab { padding: 0 10px; }   /* 3 onglets de Configuration sur une seule ligne des 360 px (evite 48 px de barre fixe en plus) */
+  .sec-tabs-group[data-sec="settings"] { flex-wrap: wrap; width: 100%; }
 }
-.more-row .snav-icon { margin-right: 8px; }
-.more-chevron { color: var(--muted); font-size: 18px; }
+
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
@@ -1397,72 +1409,29 @@ body.new-nav { padding-left: 220px; }
     <div class="snav-logo-mark"><span></span><span></span><span></span><span></span></div>
     <span class="snav-logo-text">CORRIDOR</span>
   </div>
-  <!-- F15 (port kaizenology, 2026-09-17) : regroupe en 4 taches principales + Configuration
-       attenue, meme structure que demo-private.html -- ids/onclick/icones kaizenology inchanges,
-       seul "Proposals" est renomme "Drafts & approvals" (meme collision de mot avec le stage
-       pipeline "Proposal" que sur demo-private.html, confirme present ici aussi :
-       KANBAN_STAGES contient 'Proposal'). Pas de badge invente pour Signals/Send/Inbox/Pipeline
-       health : aucune donnee reelle ne les alimente cote kaizenology (contrairement a
-       demo-private.html), contrairement a Proposals/Approvals qui gardent leurs badges reels
-       (_setProposalsBadge, pending-actions). -->
+  <!-- Navigation a 5 entrees (meme structure que demo-private.html). Les anciens ecrans (Signals, Pipeline health, Reports, Clients, Send, Review, Inbox,
+       Agents, Integrations, Mandate) sont des onglets internes a leur section (#sec-tabs) ; NAV_VIEWS fait le lien. -->
   <div class="snav-section">
-    <span class="snav-section-label" data-en="Today">Today</span>
-    <button class="snav-item" data-nav="priorities" onclick="_switchNewNav('priorities')">
-      <span class="snav-icon">⭐</span><span data-en="Priorities">Priorities</span>
+    <button class="snav-item" data-nav="today" onclick="_navSection('today')">
+      <span>Today</span>
+    </button>
+    <button class="snav-item" data-nav="prospects" onclick="_navSection('prospects')">
+      <span>Prospects</span>
+    </button>
+    <button class="snav-item" data-nav="conversations" onclick="_navSection('conversations')">
+      <span>Conversations</span>
+      <span class="snav-badge" id="snav-badge-conv"></span>
+    </button>
+    <button class="snav-item" data-nav="results" onclick="_navSection('results')">
+      <span>Results</span>
+    </button>
+    <button class="snav-item" data-nav="settings" onclick="_navSection('settings')">
+      <span>Configuration</span>
     </button>
   </div>
-  <div class="snav-section">
-    <span class="snav-section-label" data-en="Prospects">Prospects</span>
-    <button class="snav-item" data-nav="pipeline" onclick="_switchNewNav('pipeline')">
-      <span class="snav-icon">📊</span> Pipeline
-    </button>
-    <button class="snav-item" data-nav="clients" onclick="_switchNewNav('clients')">
-      <span class="snav-icon">🏢</span> Clients
-    </button>
-    <button class="snav-item snav-sub" data-nav="system-signals" onclick="_switchNewNav('system','signals')">
-      <span class="snav-icon">🚨</span><span data-en="Signals">Signals</span>
-    </button>
-  </div>
-  <div class="snav-section">
-    <span class="snav-section-label" data-en="Conversations">Conversations</span>
-    <button class="snav-item" data-nav="send" onclick="_switchNewNav('send')">
-      <span class="snav-icon">📤</span><span data-en="Send">Send</span>
-    </button>
-    <button class="snav-item" data-nav="inbox" onclick="_switchNewNav('inbox')">
-      <span class="snav-icon">📩</span><span data-en="Inbox">Inbox</span>
-    </button>
-    <!-- Refonte v2 (portage demo-private.html -> Kaizenology, Phase K2, 30/09, go Thomas) :
-         fusionne Approvals + Drafts & approvals en Review. Inbox INCHANGEE (toggle Pending/
-         History reel, meme raison que wominds.html). English hardcoded (pas de data-en/data-fr,
-         nettoyage du toggle bilingue = chantier separe). -->
-    <button class="snav-item" data-nav="review" onclick="_switchNewNav('review')">
-      <span class="snav-icon">🗂️</span><span>Review</span>
-      <span class="send-badge-count" id="review-badge"><span id="review-count">–</span></span>
-    </button>
-  </div>
-  <div class="snav-section">
-    <span class="snav-section-label" data-en="Results">Results</span>
-    <button class="snav-item" data-nav="stats" onclick="_switchNewNav('stats')">
-      <span class="snav-icon">📈</span> Stats
-    </button>
-    <button class="snav-item snav-sub" data-nav="system-pipeintel" onclick="_switchNewNav('system','pipeintel')">
-      <span class="snav-icon">📈</span><span data-en="Pipeline health">Pipeline health</span>
-    </button>
-    <button class="snav-item snav-sub" data-nav="system-weekly" onclick="_switchNewNav('system','weekly')">
-      <span class="snav-icon">📋</span><span data-en="Reports">Reports</span>
-    </button>
-  </div>
-  <div class="snav-section snav-section-muted">
-    <span class="snav-section-label" data-en="Configuration">Configuration</span>
-    <button class="snav-item" data-nav="agents" onclick="_switchNewNav('agents')">
-      <span class="snav-icon">🤖</span><span data-en="Agents">Agents</span>
-    </button>
-    <button class="snav-item" data-nav="integrations" onclick="_switchNewNav('integrations')">
-      <span class="snav-icon">🔗</span><span data-en="Integrations">Integrations</span>
-    </button>
-    <button class="snav-item" data-nav="mandate" onclick="_switchNewNav('mandate')">
-      <span class="snav-icon">📜</span><span data-en="Mandate &amp; ICP">Mandate &amp; ICP</span>
-    </button>
+  <!-- Compteurs historiques conserves (ecrits par les chargeurs de chaque ecran, lus par _watchNavCounters) : plus d'affichage propre, le total est montre sur « Conversations » et chaque compteur sur son onglet. -->
+  <div id="nav-legacy-counters" hidden aria-hidden="true">
+    <span id="review-count"></span><span id="mtab-badge-send"></span><span id="mtab-badge-inbox"></span><span id="mtab-badge-review"></span><span id="mtab-badge-proposals"></span><span id="mtab-badge-pending-actions"></span>
   </div>
   <div class="snav-scanner-zone">
     <button class="snav-item" onclick="openScannerPanel()" aria-label="Open company scanner">
@@ -1485,13 +1454,13 @@ body.new-nav { padding-left: 220px; }
 </button>
 <div class="snav-backdrop" id="snav-backdrop" onclick="_toggleSnavMenu()"></div>
 
-<!-- MOBILE BOTTOM TAB BAR (Phase 1 chunk 5, porte depuis demo-private.html, < 768px) -->
+<!-- MOBILE BOTTOM TAB BAR : 5 entrees, comme demo-private.html (les ecrans secondaires sont des onglets de section, plus de panneau « More ») -->
 <nav class="mobile-tabbar" id="mobile-tabbar" aria-label="Mobile navigation">
-  <button class="mtab-item" data-nav="priorities" onclick="_switchNewNav('priorities')"><span class="mtab-ico"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3" y="4.5" width="18" height="16.5" rx="2.5"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4M9 15l2 2 4-4"/></svg></span><span class="mtab-label" data-en="Today">Today</span></button>
-  <button class="mtab-item" data-nav="pipeline" onclick="_switchNewNav('pipeline')"><span class="mtab-ico"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3.5" y="3.5" width="17" height="17" rx="3"/><path d="M8.5 7.5v6M12 7.5v9M15.5 7.5v4"/></svg></span><span class="mtab-label">Pipeline</span></button>
-  <button class="mtab-item" data-nav="send" onclick="_switchNewNav('send')"><span class="mtab-ico"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M21 3 10.5 13.5M21 3l-6.5 18-4-7.5L3 9.5 21 3z"/></svg><span class="mtab-badge" id="mtab-badge-send"></span></span><span class="mtab-label" data-en="Send">Send</span></button>
-  <button class="mtab-item" data-nav="inbox" onclick="_switchNewNav('inbox')"><span class="mtab-ico"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3.5 13.5 6.1 6.3A2 2 0 0 1 8 5h8a2 2 0 0 1 1.9 1.3l2.6 7.2V18a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2v-4.5zM3.5 13.5H8a1 1 0 0 1 1 1 3 3 0 0 0 6 0 1 1 0 0 1 1-1h4.5"/></svg><span class="mtab-badge" id="mtab-badge-inbox"></span></span><span class="mtab-label" data-en="Inbox">Inbox</span></button>
-  <button class="mtab-item" id="mtab-more-btn" onclick="_switchNewNav('more')"><span class="mtab-ico"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="5.5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="18.5" cy="12" r="1.3"/></svg></span><span class="mtab-label" data-en="More">More</span></button>
+  <button class="mtab-item" data-nav="today" onclick="_navSection('today')"><span class="mtab-ico"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3" y="4.5" width="18" height="16.5" rx="2.5"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4M9 15l2 2 4-4"/></svg></span><span class="mtab-label">Today</span></button>
+  <button class="mtab-item" data-nav="prospects" onclick="_navSection('prospects')"><span class="mtab-ico"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3.5" y="3.5" width="17" height="17" rx="3"/><path d="M8.5 7.5v6M12 7.5v9M15.5 7.5v4"/></svg></span><span class="mtab-label">Prospects</span></button>
+  <button class="mtab-item" data-nav="conversations" onclick="_navSection('conversations')"><span class="mtab-ico"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M21 3 10.5 13.5M21 3l-6.5 18-4-7.5L3 9.5 21 3z"/></svg><span class="mtab-badge" id="mtab-badge-conv"></span></span><span class="mtab-label">Conversations</span></button>
+  <button class="mtab-item" data-nav="results" onclick="_navSection('results')"><span class="mtab-ico"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></span><span class="mtab-label">Results</span></button>
+  <button class="mtab-item" data-nav="settings" onclick="_navSection('settings')"><span class="mtab-ico"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg></span><span class="mtab-label">Config.</span></button>
 </nav>
 
 <!-- NAV -->
@@ -1520,6 +1489,29 @@ body.new-nav { padding-left: 220px; }
   </div>
 </nav>
 
+<!-- SECTION TABS : same views as demo-private.html. Counters mirror the per-screen badges (see _watchNavCounters). -->
+<nav class="sec-tabs" id="sec-tabs" aria-label="Section views" hidden>
+  <div class="sec-tabs-group" data-sec="prospects" hidden>
+    <button class="sec-tab" data-view="pipeline" onclick="_navView('pipeline')"><span>Pipeline</span></button>
+    <button class="sec-tab" data-view="system-signals" onclick="_navView('system-signals')"><span>Signals</span></button>
+    <button class="sec-tab" data-view="system-pipeintel" onclick="_navView('system-pipeintel')"><span>Pipeline health</span></button>
+  </div>
+  <div class="sec-tabs-group" data-sec="conversations" hidden>
+    <button class="sec-tab" data-view="review" onclick="_navView('review')"><span>Review</span> <span class="sec-count" id="sec-count-review"></span></button>
+    <button class="sec-tab" data-view="send" onclick="_navView('send')"><span>Send</span> <span class="sec-count" id="sec-count-send"></span></button>
+    <button class="sec-tab" data-view="inbox" onclick="_navView('inbox')"><span>Inbox</span> <span class="sec-count" id="sec-count-inbox"></span></button>
+  </div>
+  <div class="sec-tabs-group" data-sec="results" hidden>
+    <button class="sec-tab" data-view="stats" onclick="_navView('stats')"><span>Stats</span></button>
+    <button class="sec-tab" data-view="system-weekly" onclick="_navView('system-weekly')"><span>Reports</span></button>
+    <button class="sec-tab" data-view="clients" onclick="_navView('clients')"><span>Clients</span></button>
+  </div>
+  <div class="sec-tabs-group" data-sec="settings" hidden>
+    <button class="sec-tab" data-view="mandate" onclick="_navView('mandate')"><span>Mandate &amp; ICP</span></button>
+    <button class="sec-tab" data-view="integrations" onclick="_navView('integrations')"><span>Integrations</span></button>
+    <button class="sec-tab" data-view="agents" onclick="_navView('agents')"><span>Agents</span></button>
+  </div>
+</nav>
 
 <!-- MANDATE SELECTOR BAR -->
 <div class="mandate-bar" id="mandate-bar" style="display:none;">
@@ -2603,27 +2595,6 @@ body.new-nav { padding-left: 220px; }
        fichier (jamais retire de <nav> comme dans demo-private.html), pas besoin d'un second
        point d'acces. Icones reprises telles quelles de la sidebar pour rester reconnaissable
        d'un ecran a l'autre. -->
-  <div class="tab-panel" id="tab-more">
-    <h2 style="font-size:var(--fs-md);font-weight:800;color:var(--navy);margin:0 0 16px;" data-en="More">More</h2>
-    <div class="more-list">
-      <button class="more-row" onclick="_switchNewNav('system','signals')"><span><span class="snav-icon">🚨</span><span data-en="Signals">Signals</span></span><span class="more-chevron">›</span></button>
-      <button class="more-row" onclick="_switchNewNav('system','pipeintel')"><span><span class="snav-icon">📈</span><span data-en="Pipeline health">Pipeline health</span></span><span class="more-chevron">›</span></button>
-      <button class="more-row" onclick="_switchNewNav('system','weekly')"><span><span class="snav-icon">📋</span><span data-en="Reports">Reports</span></span><span class="more-chevron">›</span></button>
-      <button class="more-row" onclick="_switchNewNav('agents')"><span><span class="snav-icon">🤖</span><span data-en="Agents">Agents</span></span><span class="more-chevron">›</span></button>
-      <button class="more-row" onclick="_switchNewNav('clients')"><span><span class="snav-icon">🏢</span><span data-en="Clients">Clients</span></span><span class="more-chevron">›</span></button>
-      <button class="more-row" onclick="_switchNewNav('integrations')"><span><span class="snav-icon">🔗</span><span data-en="Integrations">Integrations</span></span><span class="more-chevron">›</span></button>
-      <button class="more-row" onclick="_switchNewNav('stats')"><span><span class="snav-icon">📈</span><span data-en="Stats">Stats</span></span><span class="more-chevron">›</span></button>
-      <button class="more-row" onclick="_switchNewNav('review')">
-        <span style="display:flex;align-items:center;gap:8px;">
-          <span class="snav-icon">🗂️</span><span>Review</span>
-          <span class="mtab-badge" id="mtab-badge-review"></span>
-        </span>
-        <span class="more-chevron">›</span>
-      </button>
-      <button class="more-row" onclick="_switchNewNav('mandate')"><span><span class="snav-icon">📜</span><span data-en="Mandate &amp; ICP">Mandate &amp; ICP</span></span><span class="more-chevron">›</span></button>
-    </div>
-  </div>
-
   <!-- ══ TAB: MANDATE & ICP (lecture seule -- porte depuis wominds.html, brief 2026-09-12) ══ -->
   <div class="tab-panel" id="tab-mandate">
     <div style="padding:24px 16px 0;max-width:800px;margin:0 auto;">
@@ -2655,31 +2626,112 @@ const SIGNAL_LEARNING_MIN_PER_TYPE = 10; // seuil minimum de suivis par type de 
 // ─── SIDEBAR nav ─────────────────────────────────────────────────────────────
 let _sysNavHint = null; // signals | pipeintel | weekly
 
-function _newNavActive(key) {
-  document.querySelectorAll('.snav-item').forEach(el => el.classList.remove('active'));
-  const el = document.querySelector('.snav-item[data-nav="' + key + '"]');
-  if (el) el.classList.add('active');
-  _updateMobileTabActive(key);
+// ─── NAVIGATION : 5 sections, onglets internes, vue active memorisee dans le hash (#/section/vue) ───
+// Cle de vue = ancienne cle de nav (compatibilite : les appels _switchNewNav / switchTab existants restent valides).
+const NAV_VIEWS = {
+  'priorities':       { sec: 'today',         slug: 'today',        tab: 'priorities' },
+  'pipeline':         { sec: 'prospects',     slug: 'pipeline',     tab: 'pipeline' },
+  'system-signals':   { sec: 'prospects',     slug: 'signals',      tab: 'system', sys: 'signals' },
+  'system-pipeintel': { sec: 'prospects',     slug: 'health',       tab: 'system', sys: 'pipeintel' },
+  'review':           { sec: 'conversations', slug: 'review',       tab: 'review' },
+  'send':             { sec: 'conversations', slug: 'send',         tab: 'send' },
+  'inbox':            { sec: 'conversations', slug: 'inbox',        tab: 'inbox' },
+  'stats':            { sec: 'results',       slug: 'stats',        tab: 'stats' },
+  'system-weekly':    { sec: 'results',       slug: 'reports',      tab: 'system', sys: 'reports' },
+  'clients':          { sec: 'results',       slug: 'clients',      tab: 'clients' },
+  'mandate':          { sec: 'settings',      slug: 'mandate',      tab: 'mandate' },
+  'integrations':     { sec: 'settings',      slug: 'integrations', tab: 'integrations' },
+  'agents':           { sec: 'settings',      slug: 'agents',       tab: 'agents' },
+};
+const NAV_SECTION_DEFAULT = { today: 'priorities', prospects: 'pipeline', conversations: 'review', results: 'stats', settings: 'mandate' };
+// Anciens identifiants sans cle propre : « More » (panneau supprime) -> Today ; Actions en attente / Proposals (fusionnes) -> Review ; panneau « system » nu -> Signals.
+const NAV_LEGACY_TAB = { 'more': 'priorities', 'today': 'priorities', 'pending-actions': 'review', 'proposals': 'review', 'system': 'system-signals' };
+// Vue de depart : le hash n'est honore que pour une vraie navigation (lien colle, favori, nouvel onglet) ; un rechargement garde l'ancien hash ecrit par l'appli, on l'ignore.
+const _navEntryType = (() => { try { return (performance.getEntriesByType('navigation')[0] || {}).type || 'navigate'; } catch (e) { return 'navigate'; } })();
+// Exception : le rechargement qui suit la connexion (shell de middleware.js) depose le hash de lien profond dans sessionStorage ; lu une seule fois.
+const _loginHash = (() => { try { const h = sessionStorage.getItem('corridor_login_hash'); sessionStorage.removeItem('corridor_login_hash'); return h || ''; } catch (e) { return ''; } })();
+const _initialNavHash = (_navEntryType === 'reload' || _navEntryType === 'back_forward') ? (_loginHash && _loginHash === location.hash ? _loginHash : '') : location.hash;
+let _navHashReady = false; // le hash n'est ecrit qu'apres la connexion et la vue de depart
+let _currentNavKey = null;
+const _lastNavBySec = {};
+function _navHash(key) { const v = NAV_VIEWS[key]; return v ? '#/' + v.sec + '/' + v.slug : ''; }
+function _navKeyFromHash(h) {
+  const old = /^#([a-z-]+)$/.exec(h || ''); // ancien format : #inbox, #system-signals...
+  if (old) { const t = NAV_LEGACY_TAB[old[1]] || old[1]; return NAV_VIEWS[t] ? t : null; }
+  const m = /^#\/([a-z]+)(?:\/([a-z]+))?$/.exec(h || '');
+  if (!m) return null;
+  if (!m[2]) return NAV_SECTION_DEFAULT[m[1]] || null;
+  return Object.keys(NAV_VIEWS).find(k => NAV_VIEWS[k].sec === m[1] && NAV_VIEWS[k].slug === m[2]) || null;
 }
-
-// Tab bar mobile (Phase 1 chunk 5, porte depuis demo-private.html) : "More" reste actif tant
-// qu'une destination secondaire est affichee, meme principe de derivation que la sidebar -- un
-// seul point d'accroche (_newNavActive), pas un deuxieme mecanisme de navigation separe.
-const MOBILE_TAB_PRIMARY = { 'priorities': true, 'pipeline': true, 'send': true, 'inbox': true };
-const MOBILE_TAB_SECONDARY = { 'system-signals': true, 'system-pipeintel': true, 'system-weekly': true, 'agents': true, 'clients': true, 'integrations': true, 'stats': true, 'proposals': true, 'pending-actions': true, 'more': true };
-function _updateMobileTabActive(key) {
+// Etat visuel uniquement (entree de menu, onglet, barre mobile, hash) -- ne change pas de panneau.
+function _newNavActive(key) {
+  key = NAV_LEGACY_TAB[key] || key;
+  const v = NAV_VIEWS[key];
+  if (!v) return;
+  _currentNavKey = key;
+  _lastNavBySec[v.sec] = key;
+  document.querySelectorAll('.snav-item[data-nav]').forEach(el => {
+    const on = el.dataset.nav === v.sec;
+    el.classList.toggle('active', on);
+    if (on) el.setAttribute('aria-current', 'page'); else el.removeAttribute('aria-current');
+  });
+  const bar = document.getElementById('sec-tabs');
+  if (bar) {
+    let hasTabs = false;
+    bar.querySelectorAll('.sec-tabs-group').forEach(g => {
+      const on = g.dataset.sec === v.sec;
+      g.hidden = !on;
+      if (on) hasTabs = true;
+      g.querySelectorAll('.sec-tab[data-view]').forEach(b => {
+        const a = b.dataset.view === key;
+        b.classList.toggle('active', a);
+        if (a) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+      });
+    });
+    bar.hidden = !hasTabs; // Today : une seule vue, pas d'onglets
+  }
+  _updateMobileTabActive(v.sec);
+  if (_navHashReady) { const h = _navHash(key); if (location.hash !== h) location.hash = h; }
+}
+function _updateMobileTabActive(sec) {
   const bar = document.getElementById('mobile-tabbar');
   if (!bar) return;
-  bar.querySelectorAll('.mtab-item').forEach(el => el.classList.remove('active'));
-  if (MOBILE_TAB_PRIMARY[key]) {
-    const el = bar.querySelector('.mtab-item[data-nav="' + key + '"]');
-    if (el) el.classList.add('active');
-  } else if (MOBILE_TAB_SECONDARY[key]) {
-    const el = document.getElementById('mtab-more-btn');
-    if (el) el.classList.add('active');
-  }
-  bar.querySelectorAll('.mtab-item').forEach(el => { if (el.classList.contains('active')) el.setAttribute('aria-current', 'page'); else el.removeAttribute('aria-current'); }); // etat actif expose aux lecteurs d'ecran
+  bar.querySelectorAll('.mtab-item').forEach(el => {
+    const on = el.dataset.nav === sec;
+    el.classList.toggle('active', on);
+    if (on) el.setAttribute('aria-current', 'page'); else el.removeAttribute('aria-current');
+  });
 }
+// Affiche une vue : charge le panneau (switchTab) puis met l'etat visuel a jour.
+function _navView(key) {
+  key = NAV_LEGACY_TAB[key] || key;
+  let v = NAV_VIEWS[key];
+  if (!v) { key = 'priorities'; v = NAV_VIEWS[key]; }
+  switchTab(v.tab);
+  if (v.tab === 'system') _switchSysTab(v.sys);
+  _newNavActive(key);
+  _closeSnav();
+}
+function _navSection(sec) { _navView(_lastNavBySec[sec] || NAV_SECTION_DEFAULT[sec] || 'priorities'); }
+// Compteurs : chaque onglet recopie le compteur historique que son chargeur ecrit deja (jamais un chiffre recalcule), « Conversations » = leur total.
+function _watchNavCounters() {
+  const SRC = { 'sec-count-review': 'mtab-badge-review', 'sec-count-send': 'mtab-badge-send', 'sec-count-inbox': 'mtab-badge-inbox' };
+  const num = id => parseInt(document.getElementById(id)?.textContent, 10) || 0;
+  const upd = () => {
+    let n = 0;
+    Object.keys(SRC).forEach(id => { const el = document.getElementById(id); const v = num(SRC[id]); n += v; if (el) el.textContent = v > 0 ? (v > 99 ? '99+' : String(v)) : ''; });
+    ['snav-badge-conv', 'mtab-badge-conv'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = n > 0 ? (n > 99 ? '99+' : String(n)) : ''; });
+  };
+  const mo = new MutationObserver(upd);
+  Object.values(SRC).forEach(id => { const el = document.getElementById(id); if (el) mo.observe(el, { childList: true, characterData: true, subtree: true }); });
+  upd();
+}
+window.addEventListener('hashchange', () => {
+  if (!_navHashReady) return;
+  const k = _navKeyFromHash(location.hash);
+  if (k && k !== _currentNavKey) _navView(k);
+  else if (!k && _currentNavKey) location.replace(_navHash(_currentNavKey)); // hash inconnu : on revient a la vue courante
+});
 
 let _morningItems = [];
 let _liveAlertItems = [];
@@ -3101,6 +3153,10 @@ async function _loadStageConversion() {
 }
 
 function _switchSysTab(key) {
+  // Le titre du panneau suit l'onglet (il restait « Signals & Pipeline » sur Reports et Pipeline health).
+  const _sysTitles = { signals: 'Signals', pipeintel: 'Pipeline health', reports: 'Reports' };
+  const _sysTitleEl = document.querySelector('#tab-system .module-title');
+  if (_sysTitleEl && _sysTitles[key]) _sysTitleEl.textContent = _sysTitles[key];
   document.querySelectorAll('#tab-system .sys-tab').forEach(b => b.classList.toggle('active', b.dataset.sys === key));
   document.querySelectorAll('#tab-system .sys-panel').forEach(p => { p.style.display = p.id === 'syspanel-' + key ? '' : 'none'; });
   const sidebarKey = key === 'reports' ? 'weekly' : key;
@@ -3109,12 +3165,10 @@ function _switchSysTab(key) {
   if (key === 'pipeintel') { _renderSignalLearningSummary(); _loadStageConversion(); }
 }
 
+// Compatibilite : ancienne API (tab, sysHint) -> cle de vue. « more » (liste mobile supprimee) retombe sur Today.
 function _switchNewNav(tab, sysHint) {
   if (sysHint) _sysNavHint = sysHint;
-  switchTab(tab);
-  _newNavActive(sysHint ? tab + '-' + sysHint : tab);
-  if (tab === 'system' && sysHint) _switchSysTab(sysHint === 'weekly' ? 'reports' : sysHint);
-  _closeSnav();
+  _navView(tab === 'system' ? 'system-' + (sysHint || 'signals') : tab);
 }
 
 async function _loadCrmEmptyStats() {
@@ -3170,6 +3224,7 @@ document.addEventListener('DOMContentLoaded', function() {
   document.body.classList.add('new-nav');
   switchTab('priorities');
   _newNavActive('priorities');
+  _watchNavCounters();
 });
 
 function _syncNavHeight() {
@@ -3480,7 +3535,11 @@ async function showDemo(){
   // Init unique post-login : onglet Priorities par défaut + scroll en haut (PWA démarre proprement)
   if (!_demoStarted) {
     _demoStarted = true;
-    switchTab('priorities');
+    // Vue de depart : celle du hash (#/section/vue ou ancien #onglet) si valide, sinon Today. Le hash n'est ecrit qu'a partir d'ici.
+    const _startKey = _navKeyFromHash(_initialNavHash) || 'priorities';
+    if (_startKey === 'priorities') switchTab('priorities'); else _navView(_startKey);
+    _navHashReady = true;
+    _newNavActive(_startKey);
     window.scrollTo({ top: 0, behavior: 'instant' });
     document.documentElement.scrollTop = 0;
     document.body.scrollTop = 0;
@@ -3768,6 +3827,8 @@ async function _loadAgentsAtWork() {
 
 // ── TAB SWITCHING ──
 function switchTab(name, fromClick = false) {
+  name = { 'more': 'priorities', 'today': 'priorities', 'pending-actions': 'review', 'proposals': 'review' }[name] || name; // anciens identifiants : More -> Today, Actions en attente / Proposals (fusionnes) -> Review
+  if (name !== 'system' && NAV_VIEWS[name]) _newNavActive(name); // appels directs (anciens liens, boutons) : le menu suit
   window.scrollTo({ top: 0, behavior: 'instant' });
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
   const panel = document.getElementById('tab-' + name);

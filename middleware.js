@@ -181,6 +181,7 @@ const KAIZENOLOGY_SHELL = `<!doctype html>
     }
     var maxAge = res.data.session.expires_in || 3600;
     document.cookie = 'corridor_session=' + encodeURIComponent(res.data.session.access_token) + '; Secure; SameSite=Lax; Path=/; Max-Age=' + maxAge;
+    try { sessionStorage.setItem('corridor_login_hash', location.hash); } catch (e) {}
     window.location.reload();
   });
 </script>
