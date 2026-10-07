@@ -192,22 +192,24 @@ nav {
 
 
 .mandate-bar {
-  display: flex;
+  /* display:none par defaut (inline sur l'element) -- bascule en 'flex' par _loadMandateOptions()
+     une fois les mandats charges. Vit comme un groupe flex a l'interieur de <nav id="primary-nav">
+     (plus de barre empilee a part) : ni padding, ni fond, ni bordure propres ici. */
   align-items: center;
   gap: 12px;
-  padding: 10px 24px;
-  background: var(--navy-light);
-  border-bottom: 1px solid var(--border);
 }
 .mandate-bar-label {
-  font-size:10.5px;
-  font-weight: 700;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10.5px;
   letter-spacing: 0.18em;
-  color: var(--muted); font-family: 'IBM Plex Mono', monospace; text-transform: uppercase;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 @media (max-width:480px) {
-  .mandate-bar { flex-wrap: wrap; }
-  #mandate-select { min-width: 0; max-width: 100%; flex: 1 1 140px; }
+  /* overflow:hidden sur le conteneur : aucun rendu du select ne depasse la boite allouee, quel que soit le moteur. */
+  .mandate-bar { min-width: 0; flex: 1 1 0; overflow: hidden; }
+  .mandate-bar-label { display: none; }
+  #mandate-select { min-width: 0; max-width: 100%; flex: 1 1 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 }
 #mandate-select {
   background: white;
@@ -293,6 +295,7 @@ button, [role="button"], select, input { min-height: var(--btn-h-sm); }
 .badge-auto { background:var(--neutral-chip-bg); color:var(--neutral-chip); border:1px solid var(--blue);}
 .badge-ai { background:var(--positive-bg); color:var(--positive); border:1px solid var(--green-border);}
 @keyframes pulse-badge { 0%,100%{opacity:1} 50%{opacity:0.7} }
+@keyframes pulseDot { 0%,100%{opacity:1} 50%{opacity:.25} }
 
 .two-col { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
 
@@ -787,8 +790,17 @@ footer a { color:var(--navy); text-decoration:none; font-weight:600; }
 .deal-date { font-size:var(--fs-xs); color:var(--muted); }
 
 /* ── SEND QUEUE (Module) ── */
+/* Today : contenu + rail 296px, passe en colonne sous 1180px (meme structure que demo-private.html). */
+.today-layout { display: flex; gap: 28px; align-items: flex-start; }
+.today-main { flex: 1; min-width: 0; }
+.today-rail { width: 296px; flex-shrink: 0; border-left: 1px solid var(--border); padding-left: 20px; }
+@media (max-width: 1180px) {
+  .today-layout { flex-direction: column; align-items: stretch; }
+  .today-rail { width: 100%; border-left: none; border-top: 1px solid var(--border); padding-left: 0; padding-top: 20px; margin-top: 4px; }
+}
 .today-step-divider { display: flex; align-items: center; gap: 10px; margin: 22px 0 14px; }
 .today-step-divider:first-child { margin-top: 0; }
+#send-list > .today-step-divider:first-child { margin-bottom:4px; }   /* vue Send : « Due now » colle a sa premiere carte */
 .today-step-label { font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
 .today-step-rule { flex: 1; height: 1px; background: var(--border); }
 .send-card { display:flex; flex-direction:column; gap:10px; }
@@ -948,6 +960,8 @@ body.ask-open { overflow:hidden; }
 .pd-stat-value { font-family:'IBM Plex Mono',monospace; font-size:14px; font-weight:600; color:var(--ink); display:flex; align-items:center; gap:5px; white-space:nowrap; }
 .pd-stat-edit { cursor:pointer; color:var(--muted); background:none; border:none; padding:0; font-size:11px; line-height:1; flex-shrink:0; }
 .pd-stat-edit:hover { color:var(--accent); }
+#drawer-rescore-btn { max-width: 100%; padding-left: 8px; padding-right: 8px; white-space: nowrap; } /* ne deborde plus de sa colonne a 390 px */
+@media (max-width: 480px) { .pd-stats .pd-stat:first-child { flex: 1.7 1 0; } }
 .pd-links { display:flex; gap:12px; flex-wrap:wrap; margin-top:12px; }
 .pd-link { font-size:12px; color:#2757e0; text-decoration:none; }
 .pd-link:hover { text-decoration:underline; }
@@ -1209,6 +1223,14 @@ h1, h2, .k-card-name, .k-card-company { overflow-wrap:break-word; word-break:bre
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+/* Barre du haut : 58 px sur une ligne (mandat a gauche, Ask Corridor et profil a droite) ; sous 768 px le selecteur de mandat prend sa propre ligne. */
+#primary-nav { height: 58px; padding: 0 24px; }
+@media (max-width: 768px) {
+  #primary-nav, body.new-nav #primary-nav { flex-wrap: wrap; row-gap: 8px; height: auto; min-height: 58px; padding: 8px 16px; }
+  #primary-nav .mandate-bar { order: 2; flex: 1 1 100%; max-width: 100%; overflow: visible; }
+  #primary-nav #mandate-select { width: 100%; max-width: 100%; flex: 1 1 100%; }
+  #primary-nav .user-avatar { position: static !important; transform: none !important; width: 32px !important; height: 32px !important; }
 }
 /* Cibles tactiles >= 44 px sous 768 px (design pass, port demo-private). Aucun changement de logique. */
 @media (max-width: 768px) {
@@ -1538,21 +1560,26 @@ body.new-nav { padding-left: 220px; }
   <button class="mtab-item" data-nav="settings" onclick="_navSection('settings')"><span class="mtab-ico"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg></span><span class="mtab-label">Config.</span></button>
 </nav>
 
-<!-- NAV -->
+<!-- NAV + MANDATE BAR (fusionnes, comme demo-private.html) : logo (doublon .snav-logo) et badge ACTIVE retires ;
+     #mandate-bar reste l'id/le mecanisme de bascule display de _loadMandateOptions(), seul son role visuel change
+     (sous-groupe flex dans <nav> plutot que barre empilee). Sign out reste visible dans <nav> sur mobile. -->
 <div class="top-chrome-wrapper">
 <nav id="primary-nav" aria-label="Primary navigation">
-  <a href="index.html" class="logo">
-    <div class="logo-mark"><span></span><span></span><span></span><span></span></div>
-    <div class="logo-text">
-      <span class="logo-name">CORRIDOR</span>
-      <span class="logo-tagline">GTM System</span>
-    </div>
-  </a>
-  <div id="nav-badge-wrap" style="position:absolute;left:50%;transform:translateX(-50%);display:flex;align-items:center;height:100%;">
-    <div class="nav-badge" id="nav-status-badge"></div>
+  <div class="mandate-bar" id="mandate-bar" style="display:none;">
+    <span class="mandate-bar-label" data-en="MANDATE">MANDATE</span>
+    <select class="input-select" id="mandate-select" onchange="_onMandateChange()">
+      <option value="" data-en="Consolidated view (all)">Consolidated view (all)</option>
+    </select>
+    <select class="input-select" id="deal-select" style="display:none;" onchange="_onDealChange()">
+      <option value="" data-en="No specific deal">No specific deal</option>
+    </select>
   </div>
 
-  <div style="display:flex;align-items:center;gap:14px;margin-left:auto;padding-right:8px;">
+  <div style="display:flex;align-items:center;gap:14px;margin-left:auto;">
+    <button onclick="_openAskFromMandate()" style="flex-shrink:0;display:flex;align-items:center;gap:7px;font-size:var(--fs-xs);font-weight:600;padding:6px 14px;border:none;border-radius:var(--radius-pill);background:var(--ink);color:#fff;cursor:pointer;height:30px;">
+      <span data-en="Ask Corridor">Ask Corridor</span>
+      <span style="width:6px;height:6px;border-radius:50%;background:var(--success);display:inline-block;flex-shrink:0;animation:pulseDot 2.4s ease-in-out infinite;"></span>
+    </button>
     <div class="user-profile" id="user-profile-btn" style="display:none" onclick="openProfileModal()">
       <div class="user-avatar" id="nav-avatar"></div>
       <div class="user-info">
@@ -1587,19 +1614,6 @@ body.new-nav { padding-left: 220px; }
     <button class="sec-tab" data-view="agents" onclick="_navView('agents')"><span>Agents</span></button>
   </div>
 </nav>
-
-<!-- MANDATE SELECTOR BAR -->
-<div class="mandate-bar" id="mandate-bar" style="display:none;">
-  <span class="mandate-bar-label" data-en="📁 MANDATE">📁 MANDATE</span>
-  <select class="input-select" id="mandate-select" onchange="_onMandateChange()">
-    <option value="" data-en="Consolidated view (all)">Consolidated view (all)</option>
-  </select>
-  <select class="input-select" id="deal-select" style="display:none;" onchange="_onDealChange()">
-    <option value="" data-en="No specific deal">No specific deal</option>
-  </select>
-  <button onclick="_openAskFromMandate()" style="flex-shrink:0;display:flex;align-items:center;gap:6px;font-size:var(--fs-xs);font-weight:700;padding:4px 12px;border:1px solid var(--blue);border-radius:var(--radius-pill);background:transparent;color:var(--blue-ink);cursor:pointer;height:28px;" data-en="Ask Corridor">Ask Corridor</button>
-</div>
-
 
 </div><!-- /.top-chrome-wrapper -->
 
@@ -1963,7 +1977,7 @@ body.new-nav { padding-left: 220px; }
 
   <!-- ══ TAB: PRIORITIES VIEW ══ -->
   <div class="tab-panel" id="tab-priorities">
-    <div style="padding:24px 16px 0;max-width:800px;margin:0 auto;">
+    <div style="padding:24px 16px 0;max-width:1120px;margin:0 auto;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
         <h2 style="font-size:var(--fs-lg);font-weight:700;color:var(--navy);margin:0;" data-en="Today's run">Today's run</h2>
         <div style="display:flex;align-items:center;gap:8px;">
@@ -1976,17 +1990,29 @@ body.new-nav { padding-left: 220px; }
           </button>
         </div>
       </div>
-      <div id="today-capacity-bars" style="max-width:280px;margin-bottom:18px;"></div>
-      <div class="card" style="margin-bottom:18px;">
-        <div class="card-header" style="display:flex;align-items:center;gap:8px;">
-          <span class="card-title" data-en="Agents at work">Agents at work</span>
-          <span class="card-badge badge-auto" data-en="LIVE">LIVE</span>
-        </div>
-        <div id="agents-at-work-list" style="font-size:var(--fs-sm);color:var(--muted);overflow-wrap:anywhere;word-break:break-word;" data-en="Loading...">Loading...</div>
-      </div>
-      <div class="pipe-stats-row" id="today-stats-row" style="margin-bottom:16px;"></div>
+      <!-- Bloc stats reelles, rempli par _loadTodayStats() (vide tant que le JS n'a pas tourne). -->
+      <div id="today-stats-row" style="display:flex;flex-wrap:wrap;margin-bottom:16px;background:#fff;border:1px solid var(--border);border-radius:var(--radius-panel);overflow:hidden;"></div>
+      <!-- Preuve visible des retours appris (lecture seule) : rempli par _loadLearnedProof(), masque tant qu'aucune donnee reelle n'existe. -->
+      <div id="today-learned-proof" hidden style="margin-bottom:16px;padding:10px 14px;background:#fff;border:1px solid var(--border);border-radius:var(--radius-panel);font-size:var(--fs-sm);color:var(--text-secondary);line-height:1.5;"></div>
       <div class="section-sub"><span id="priorities-queued-count">0</span><span data-en=" actions queued by your agents. Work top to bottom. The system re-ranks after each send."> actions queued by your agents. Work top to bottom. The system re-ranks after each send.</span></div>
-      <div id="priorities-container"></div>
+      <div class="today-layout">
+        <div class="today-main">
+          <div id="priorities-container"></div>
+        </div>
+        <div class="today-rail">
+          <div class="card" style="margin-bottom:16px;">
+            <div class="card-header" style="display:flex;align-items:center;gap:8px;">
+              <span class="card-title" data-en="Agents at work">Agents at work</span>
+              <span class="card-badge badge-auto" data-en="LIVE">LIVE</span>
+            </div>
+            <div id="agents-at-work-list" style="font-size:var(--fs-sm);color:var(--muted);overflow-wrap:anywhere;word-break:break-word;" data-en="Loading...">Loading...</div>
+          </div>
+          <div class="card">
+            <div class="card-header"><span class="card-title" data-en="Today's capacity">Today's capacity</span></div>
+            <div id="today-capacity-bars" style="font-size:var(--fs-sm);color:var(--muted);" data-en="Loading...">Loading...</div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -2327,12 +2353,6 @@ body.new-nav { padding-left: 220px; }
 
   <!-- ══ TAB: STATS ══ -->
   <div class="tab-panel" id="tab-stats">
-    <!-- Section A: Funnel -->
-    <div class="card stats-section">
-      <div class="card-header"><span class="card-title" title="Prospects per current stage, not a cumulative funnel">Current stage breakdown</span><span class="card-badge badge-auto" data-en="LIVE">LIVE</span></div>
-      <div id="stats-funnel"></div>
-    </div>
-
     <!-- Section B: Distribution -->
     <div class="two-col">
       <div class="card stats-section">
@@ -2343,14 +2363,6 @@ body.new-nav { padding-left: 220px; }
         <div class="card-header"><span class="card-title" data-en="By Country">By Country</span></div>
         <div id="stats-country"></div>
       </div>
-    </div>
-
-    <!-- Section C: KPI cards -->
-    <div class="score-grid">
-      <div class="score-kpi"><span class="score-kpi-val" id="score-kpi-active">25</span><span class="score-kpi-label" data-en="Active prospects">Active prospects</span></div>
-      <div class="score-kpi"><span class="score-kpi-val" id="score-kpi-inconv">2</span><span class="score-kpi-label" data-en="In conversation">In conversation</span></div>
-      <div class="score-kpi"><span class="score-kpi-val" id="score-kpi-naemea">18 / 7</span><span class="score-kpi-label" data-en="North America / EMEA">North America / EMEA</span></div>
-      <div class="score-kpi"><span class="score-kpi-val green" style="font-size:17px">Building</span><span class="score-kpi-label" data-en="Corridor pipeline">Corridor pipeline</span></div>
     </div>
 
     <!-- Section D: Revenue — Closed Deals -->
@@ -2568,6 +2580,11 @@ body.new-nav { padding-left: 220px; }
           </div>
           <div class="ai-box-body" id="pr-output" data-en="Click to run the pipeline review...">Click to run the pipeline review...</div>
         </div>
+      </div>
+      <div class="card" id="learned-preferences-card" style="margin-top:16px;display:none;">
+        <div class="card-header"><span class="card-title" data-en="Learned Preferences">Learned Preferences</span></div>
+        <div id="learned-preferences-body" style="font-size:var(--fs-sm);line-height:1.6;"></div>
+        <div id="learned-preferences-meta" style="font-size:var(--fs-xs);color:var(--muted);margin-top:10px;"></div>
       </div>
       <div class="card" style="margin-top:16px;">
         <div class="card-header"><span class="card-title" data-en="Stage conversion">Stage conversion</span></div>
@@ -3237,7 +3254,7 @@ function _switchSysTab(key) {
   const sidebarKey = key === 'reports' ? 'weekly' : key;
   _newNavActive('system-' + sidebarKey);
   if (key === 'reports') { _switchRptTab('weekly'); _loadWeeklyReports(); }
-  if (key === 'pipeintel') { _renderSignalLearningSummary(); _loadStageConversion(); }
+  if (key === 'pipeintel') { _renderSignalLearningSummary(); _loadLearnedPreferences(); _loadStageConversion(); }
 }
 
 // Compatibilite : ancienne API (tab, sysHint) -> cle de vue. « more » (liste mobile supprimee) retombe sur Today.
@@ -3920,7 +3937,7 @@ function switchTab(name, fromClick = false) {
   if (name === 'proposals') loadProposalsView();
   if (name === 'pending-actions') loadPendingActionsView();
   if (name === 'review') loadReviewView();
-  if (name === 'priorities') { loadDailyPriorities(); _loadAgentsAtWork(); _fetchTodaySendCounts().catch(err => console.error('_fetchTodaySendCounts:', err)); _loadTodayStats(); }
+  if (name === 'priorities') { loadDailyPriorities(); _loadLearnedProof(); _loadAgentsAtWork(); _fetchTodaySendCounts().catch(err => console.error('_fetchTodaySendCounts:', err)); _loadTodayStats(); }
   if (name === 'stats') { if (!_kanbanLoaded) { loadKanban().then(() => renderStats()); } else { renderStats(); } }
   if (name === 'clients') loadClientsKanban();
   if (name === 'integrations') loadIntegrationsTab();
@@ -3936,13 +3953,10 @@ function switchTab(name, fromClick = false) {
       // seul matchait donc le mauvais element sur mobile (hauteur 58px au lieu de la vraie nav).
       const nav = document.querySelector('#primary-nav');
       const tabsNav = document.querySelector('.tabs-nav');
-      const mBar = document.getElementById('mandate-bar');
-      const mBarH = (mBar && mBar.style.display !== 'none' && mBar.offsetHeight > 0)
-        ? mBar.offsetHeight : 0;
+      // mandate-bar ne compte plus a part : sous-groupe flex dans <nav>, deja inclus dans sa hauteur.
       let offset = 0;
       if (nav) offset += nav.getBoundingClientRect().height;
       if (tabsNav) offset += tabsNav.getBoundingClientRect().height;
-      offset += mBarH;
       const mainEl = document.querySelector('main');
       const mainPaddingTop = mainEl ? parseFloat(window.getComputedStyle(mainEl).paddingTop) || 0 : 32;
       offset += mainPaddingTop;
@@ -3950,7 +3964,6 @@ function switchTab(name, fromClick = false) {
       console.log('[SWITCHTAB DEBUG]', name, {
         navH: nav ? nav.getBoundingClientRect().height : null,
         tabsNavH: tabsNav ? tabsNav.getBoundingClientRect().height : null,
-        mBarH,
         offset,
         panelTopBeforeScroll: panel.getBoundingClientRect().top,
         scrollYBefore: window.scrollY,
@@ -5826,11 +5839,12 @@ async function _buildPipelineSnapshot() {
       .sort((a, b) => (_psDaysSince(b.last_contact) || 0) - (_psDaysSince(a.last_contact) || 0))
       .slice(0, 5)
       .map(p => '  - ' + p.name + ' (' + (p.company || '?') + ') | ' + p.stage + ' | last contact: ' + (_psDaysSince(p.last_contact) === null ? 'never' : _psDaysSince(p.last_contact) + 'd ago'));
+    await _loadDeprioritizedTypes();
     const topSignals = _psAll
-      .filter(p => p.score_signal_strength && ['Identified', '1st Contact'].includes(p.stage))
-      .sort((a, b) => (b.score_signal_strength || 0) - (a.score_signal_strength || 0))
+      .filter(p => _effectiveSignalStrength(p) && ['Identified', '1st Contact'].includes(p.stage))
+      .sort((a, b) => (_effectiveSignalStrength(b) || 0) - (_effectiveSignalStrength(a) || 0))
       .slice(0, 5)
-      .map(p => '  - ' + p.name + ' (' + (p.company || '?') + ') | strength: ' + p.score_signal_strength + ' | ' + (p.signal || '?'));
+      .map(p => '  - ' + p.name + ' (' + (p.company || '?') + ') | strength: ' + _effectiveSignalStrength(p) + ' | ' + (p.signal || '?'));
     const lines = [
       'PIPELINE SNAPSHOT (live data):',
       'Total active prospects: ' + active.length,
@@ -6193,13 +6207,15 @@ async function runMorningScan() {
 
   try {
     await loadKanban(true);
+    await _loadDeprioritizedTypes();
 
     // 1. Score pipeline: ICP fit + timing signal bonus, top 20
     const _eligible = (_allProspects || [])
       .filter(p => !p.archived && p.icp_score != null && !!(p.signal && p.signal.replace(/<[^>]*>/g,'').trim().length > 0))
       .map(p => {
         const icp = Number(p.icp_score) || 0;
-        const signalNorm = (p.score_signal_strength >= 4) ? (p.score_signal_strength - 4) / 6 : 0;
+        const _effSS = _effectiveSignalStrength(p);
+        const signalNorm = (_effSS >= 4) ? (_effSS - 4) / 6 : 0;
         const growthNorm = (p.score_growth != null) ? p.score_growth / 10 : 0;
         const combinedScore = icp + (10 - icp) * (0.7 * signalNorm + 0.3 * growthNorm);
         return { ...p, combinedScore, hasSignal: true };
@@ -7634,21 +7650,30 @@ function _applySendFilters() {
   });
   readyJ0 = _sortEMEAFirst(readyJ0);
 
+  // 2 paliers (comme demo-private.html, touches propres a ce fichier : invitation puis J+0) : « Due now » = tete de la file triee,
+  // « Scheduled today » = le reste de cette meme file.
+  const queue = [
+    ...readyInvite.map(p => ({ p, touch: 'invite' })),
+    ...readyJ0.map(p => ({ p, touch: 'j0' })),
+  ];
   const totalDue = totalInvite + readyJ0.length;
   const countEl = document.getElementById('send-count');
   if (countEl) countEl.textContent = totalDue;
   _setSendBadge(totalDue);
 
   let html = '';
-  if (readyInvite.length) {
-    html += _renderSendSection(currentLang==='fr' ? 'Invitations à envoyer' : 'Invitations to send', readyInvite, 'invite');
-    if (totalInvite > 25) html += `<div style="text-align:center;font-size:var(--fs-sm);color:var(--muted);padding:8px 0 16px">${_esc(currentLang==='fr'
-      ? `${totalInvite - 25} invitation${totalInvite - 25 > 1 ? 's' : ''} supplémentaire${totalInvite - 25 > 1 ? 's' : ''} non affichée${totalInvite - 25 > 1 ? 's' : ''} -- augmentez le filtre ICP ou marquez-en comme envoyées pour voir le lot suivant.`
-      : `${totalInvite - 25} more invitation${totalInvite - 25 > 1 ? 's' : ''} not shown -- raise ICP filter or mark some as sent to see the next batch.`)}</div>`;
-  }
-  if (readyJ0.length)        html += _renderSendSection(currentLang==='fr' ? 'Connexions acceptées — J+0' : 'Accepted connections — J+0', readyJ0, 'j0');
-  if (!totalDue) {
-    html = '<div style="padding:32px 0;text-align:center;color:var(--muted);font-size:var(--fs-base)">Nothing due. Adjust filters or check back tomorrow.</div>';
+  if (queue.length) {
+    const dueNow = queue[0];
+    const scheduled = queue.slice(1);
+    html += `<div class="today-step-divider"><span class="today-step-label">Due now</span><span class="today-step-rule"></span></div>`;
+    html += _sendCardHTML(dueNow.p, dueNow.touch, true);
+    if (totalInvite > 25) html += `<div style="text-align:center;font-size:var(--fs-sm);color:var(--muted);padding:8px 0 16px">${_esc(`${totalInvite - 25} more invitation${totalInvite - 25 > 1 ? 's' : ''} not shown -- raise ICP filter or mark some as sent to see the next batch.`)}</div>`;
+    if (scheduled.length) {
+      html += `<div class="today-step-divider"><span class="today-step-label">Scheduled today</span><span class="today-step-rule"></span><span class="today-step-count">${scheduled.length}</span></div>`;
+      html += scheduled.map(item => _sendCardHTML(item.p, item.touch, false)).join('');
+    }
+  } else {
+    html += '<div style="padding:32px 0;text-align:center;color:var(--muted);font-size:var(--fs-base)">Nothing due. Adjust filters or check back tomorrow.</div>';
   }
 
   listEl.innerHTML = html;
@@ -7657,8 +7682,9 @@ function _applySendFilters() {
 
 // _deriveScore supprimé — remplacé par _calcICP() (scoring unifié, Phase 4)
 
-function _renderSendSection(title, prospects, touchType) {
-  const items = prospects.map(p => {
+// Carte invite/j0 : reutilisee telle quelle pour « Due now » (expanded=true) et « Scheduled today » (expanded=false), comme demo-private.html.
+function _sendCardHTML(p, touchType, expanded = false) {
+  {
     const seq = (_sendSequences[p.id]||[]).find(s => s.touch === touchType);
     const hasBody = seq && seq.body;
     const isReady = seq && seq.status === 'ready';
@@ -7667,13 +7693,17 @@ function _renderSendSection(title, prospects, touchType) {
     const sendBlocked = touchType !== 'invite' && !isConnected;
     const sendDisabled = !isReady || sendBlocked;
     const sendTitle = sendBlocked ? (currentLang==='fr' ? 'Connexion pas encore acceptée' : 'Connection not yet accepted') : '';
+    // Emphase « Due now » (bordure/ombre renforcees) vs ligne dense « Scheduled today » (padding resserre) : purement cosmetique.
+    const cardStyle = expanded
+      ? 'padding:26px;border-color:var(--accent);box-shadow:0 2px 10px rgba(47,107,255,0.12);'
+      : 'padding:14px 18px;';
     return `
-      <div class="card send-card" id="sc-${p.id}" data-pid="${_esc(p.id)}" data-touch="${_esc(touchType)}" data-seq-id="${_esc(seqId||'')}">
+      <div class="card send-card" id="sc-${p.id}" style="${cardStyle}" data-pid="${_esc(p.id)}" data-touch="${_esc(touchType)}" data-seq-id="${_esc(seqId||'')}">
         <div class="send-row">
           <div class="send-avatar" style="background:${_sendAvatarColor(p.name)}">${_esc(_sendInitials(p.name))}</div>
           <div class="send-id">
             <div class="send-name">${_esc(p.name)}</div>
-            <div class="send-company">${_esc(p.company)}${p.region ? ' · ' + _esc(p.region) : ''}</div>
+            <div class="send-company">${_esc(p.company || '')}${p.region ? ' · ' + _esc(p.region) : ''}</div>
             ${p.signal ? `<div style="margin-top:3px;">${_sigBadge(p.signal_type)}</div>` : ''}
           </div>
           <!-- Fix 2026-09-18 (meme bug reproduit et corrige ce soir sur wominds.html, cas reel
@@ -7691,7 +7721,7 @@ function _renderSendSection(title, prospects, touchType) {
               ? `<span class="send-touch" style="background:var(--chip-bg);color:var(--indigo);">${currentLang==='fr'?'Brouillon enregistré':'Draft saved'}</span>`
               : `<span class="send-touch" style="background:#f3f4f6;color:#5a6270;">${currentLang==='fr'?'Aucun brouillon':'No draft'}</span>`}`}
         </div>
-        <div class="send-expand" id="se-${p.id}" style="display:none">
+        <div class="send-expand" id="se-${p.id}" style="display:${expanded ? 'block' : 'none'}">
           <div class="ai-box" style="margin-top:10px">
             <div class="ai-box-header">
               <span class="ai-box-label">Message</span>
@@ -7716,15 +7746,10 @@ function _renderSendSection(title, prospects, touchType) {
           </div>
         </div>
         <div class="send-actions">
-          <button class="btn-secondary" onclick="_toggleSendCard('${p.id}')" style="width:100%">${hasBody ? '▼ Review & send' : '▼ Draft message'}</button>
+          <button class="btn-secondary" onclick="_toggleSendCard('${p.id}')" style="width:100%">${expanded ? '▲ Collapse' : (hasBody ? '▼ Review & send' : '▼ Draft message')}</button>
         </div>
       </div>`;
-  }).join('');
-  return `
-    <div style="margin-bottom:24px">
-      <div style="font-size:var(--fs-micro);font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);margin-bottom:12px">${_esc(title)}</div>
-      ${items}
-    </div>`;
+  }
 }
 
 function _toggleSendCard(pid) {
@@ -8514,6 +8539,52 @@ async function _fetchTodaySendCounts() {
 // nettoyage est un chantier separe (go Thomas) -- ces nouveaux elements visent directement
 // l'etat final 100% EN sans en dependre. content_type <> objection_response : meme convention
 // que loadProposalsView (6486), pas celle de demo-private.html qui l'inclut.
+// Bloc « Learned from your feedback » (Today, lecture seule). Sources : types deprioritises EFFECTIFS (_loadDeprioritizedTypes : meme
+// regle que le classement), feedback_count de learned_preferences (agent 'signal_interpretation', ligne la plus recente) et, si le scan
+// l'ecrit, scan_entries.applied_rules du dernier Morning Scan (forme {demoted,dropped} en priorite ; repli : nombre, tableau ou objet
+// {excluded|excluded_count|count|total}) -- forme inconnue = non affiche. Aucune ligne apprise = bloc masque, aucun chiffre invente.
+let _learnedProof = null;
+function _learnedProofExcluded(ar) {
+  if (ar && typeof ar === 'object' && !Array.isArray(ar) && (Array.isArray(ar.demoted) || Array.isArray(ar.dropped)))
+    return (Array.isArray(ar.demoted) ? ar.demoted.length : 0) + (Array.isArray(ar.dropped) ? ar.dropped.length : 0);
+  if (Number.isFinite(ar)) return ar;
+  if (Array.isArray(ar)) return ar.length;
+  if (ar && typeof ar === 'object') for (const k of ['excluded', 'excluded_count', 'count', 'total']) if (Number.isFinite(ar[k])) return ar[k];
+  return null;
+}
+function _renderLearnedProof() {
+  const box = document.getElementById('today-learned-proof'); if (!box) return;
+  const p = _learnedProof;
+  if (!p || (!p.types.length && p.feedback == null)) { box.hidden = true; box.innerHTML = ''; return; }
+  const rows = [];
+  rows.push(`<div><strong>Deprioritised types :</strong> ${p.types.length ? p.types.map(t => `<code>${_esc(t)}</code>`).join(', ') : 'none'}</div>`);
+  if (p.feedback != null) rows.push(`<div><strong>Feedback taken into account :</strong> ${_esc(String(p.feedback))}</div>`);
+  if (p.excluded != null) rows.push(`<div><strong>Entries set aside by these rules ${p.scanIsToday ? 'today' : '(' + _esc(p.scanDate || '') + ')'} :</strong> ${_esc(String(p.excluded))}</div>`);
+  box.innerHTML = `<div style="font-weight:700;color:var(--ink);margin-bottom:2px;">Learned from your feedback</div>${rows.join('')}`;
+  box.hidden = false;
+}
+async function _loadLearnedProof() {
+  try {
+    await _loadDeprioritizedTypes();
+    const { data } = await sbClient.from('learned_preferences').select('deprioritized_types,feedback_count')
+      .eq('client_id', CLIENT_ID).is('mandate_id', null).eq('agent_name', 'signal_interpretation')
+      .order('generated_at', { ascending: false, nullsFirst: false }).limit(1);
+    const row = data && data[0] ? data[0] : null;
+    const types = _deprioTypes ? [..._deprioTypes] : (row && Array.isArray(row.deprioritized_types) ? row.deprioritized_types : []);
+    const proof = { types, feedback: row && Number.isFinite(row.feedback_count) ? row.feedback_count : null, excluded: null, scanDate: null, scanIsToday: false };
+    try {
+      const { data: sc } = await sbClient.from('morning_scan_email_cache').select('scan_date, scan_entries')
+        .eq('client_id', CLIENT_ID).order('scan_date', { ascending: false }).limit(1);
+      const r = sc && sc[0];
+      if (r && r.scan_entries && typeof r.scan_entries === 'object') {
+        proof.excluded = _learnedProofExcluded(r.scan_entries.applied_rules);
+        proof.scanDate = r.scan_date; proof.scanIsToday = r.scan_date === new Date().toISOString().slice(0, 10);
+      }
+    } catch (e) { /* champ facultatif : jamais bloquant */ }
+    _learnedProof = proof;
+  } catch (e) { console.warn('[_loadLearnedProof]', e); _learnedProof = null; }
+  _renderLearnedProof();
+}
 async function _loadTodayStats() {
   const el = document.getElementById('today-stats-row');
   if (!el) return;
@@ -8530,15 +8601,24 @@ async function _loadTodayStats() {
     await _fetchTodaySendCounts().catch(() => {});
     const sentToday = (_todaySendCounts.invitesSent || 0) + (_todaySendCounts.emailsSent || 0);
     const waitingOnYou = _priorityShownProspects.length;
+    const waitingCount = waitingOnYou;
     const stats = [
-      { label: 'SIGNALS FOUND', value: signalsFound || 0 },
-      { label: 'MESSAGES DRAFTED', value: messagesDrafted || 0 },
-      { label: 'SENT TODAY', value: sentToday },
-      { label: 'WAITING ON YOU', value: waitingOnYou },
+      { label: 'SIGNALS FOUND', value: signalsFound || 0, note: 'today' },
+      { label: 'MESSAGES DRAFTED', value: messagesDrafted || 0, note: 'openers, replies, posts' },
+      { label: 'SENT TODAY', value: sentToday, note: 'manual + autopilot', color: '#166b48' }
     ];
-    el.innerHTML = stats.map(function (s) {
-      return '<div class="pipe-stat"><span class="pipe-stat-val">' + s.value + '</span><span class="pipe-stat-label">' + s.label + '</span></div>';
-    }).join('');
+    // Rendu identique a demo-private.html (carte a tuiles separees, libelle, valeur, note) ; compteurs propres a ce fichier.
+    el.innerHTML = stats.map((s, i) => `
+      <div style="flex:1 1 120px;min-width:110px;padding:12px 16px;box-sizing:border-box;${i > 0 ? 'border-left:1px solid var(--border);' : ''}">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.1em;color:var(--muted);">${_esc(s.label)}</div>
+        <div style="margin-top:4px;font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;letter-spacing:-.02em;color:${s.color || 'var(--ink)'};">${s.value}</div>
+        <div style="margin-top:2px;font-size:11px;color:var(--muted);">${_esc(s.note)}</div>
+      </div>`).join('')
+      + `<div style="flex:1 1 120px;min-width:110px;padding:12px 16px;box-sizing:border-box;border-left:1px solid var(--border);">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.1em;color:var(--muted);">WAITING ON YOU</div>
+        <div id="today-stat-waiting-value" style="margin-top:4px;font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;letter-spacing:-.02em;color:${waitingCount ? 'var(--navy)' : '#166b48'};">${waitingCount}</div>
+        <div id="today-stat-waiting-note" style="margin-top:2px;font-size:11px;color:var(--muted);">${waitingCount ? 'ranked below' : 'all clear'}</div>
+      </div>`;
   } catch (e) {
     console.error('[_loadTodayStats]', e);
     el.innerHTML = '';
@@ -9720,9 +9800,50 @@ function _pdOpenEditDetails(focusId) {
   det.scrollIntoView({ behavior: 'smooth', block: 'start' });
   if (focusId) setTimeout(() => document.getElementById(focusId)?.focus(), 250);
 }
-// Decompose le score de priorite de la liste Today (MEME formule que loadDailyPriorities : (ICP*0.7 + force*recence*0.3) * penalite
-// identite). Lecture seule, aucune nouvelle requete. Port de demo-private.html SANS la ligne « preference apprise » : ce tableau de
-// bord ne charge pas les preferences apprises (pas de force effective), la force utilisee est donc la force stockee, comme le classement.
+// ── Force de signal EFFECTIVE : preferences apprises appliquees aux classements du dashboard ──────────────────────────────
+// Port de demo-private.html (meme regle, plafond 0) : effective = 0 si prospect.signal_type figure dans
+// learned_preferences.deprioritized_types (client, mandate_id NULL, agent 'signal_interpretation', ligne la plus recente), sinon la
+// force stockee (null reste null). Lecture seule, filtree sur CLIENT_ID ; ce fichier ne lit pas les regles validables
+// (learned_rule_states) : aucune regle decidee = comportement historique de la page de reference. UNE fonction pour tous les points
+// de classement. Lecture impossible = repli sur la force stockee, jamais un blocage de l'ecran.
+let _deprioTypes = null;      // Set des types deprioritises, null = pas charge
+let _deprioClientId = null;   // client pour lequel le Set a ete charge (CLIENT_ID est resolu dynamiquement)
+let _deprioPromise = null;
+function _loadDeprioritizedTypes() {
+  if (_deprioPromise && _deprioClientId === CLIENT_ID) return _deprioPromise;
+  const forClient = CLIENT_ID;
+  _deprioClientId = forClient;
+  _deprioPromise = (async () => {
+    try {
+      const { data, error } = await sbClient.from('learned_preferences').select('deprioritized_types')
+        .eq('client_id', forClient).is('mandate_id', null).eq('agent_name', 'signal_interpretation')
+        .order('generated_at', { ascending: false, nullsFirst: false }).limit(1);
+      if (error) throw error;
+      const arr = (data && data[0] && Array.isArray(data[0].deprioritized_types)) ? data[0].deprioritized_types : [];
+      _deprioTypes = new Set(arr);
+    } catch (e) {
+      console.warn('[_loadDeprioritizedTypes]', e);
+      _deprioTypes = null;
+      _deprioPromise = null; // nouvel essai au prochain appel
+    }
+    return _deprioTypes;
+  })();
+  return _deprioPromise;
+}
+// A appeler apres `await _loadDeprioritizedTypes()`. Prospect sans signal_type ou types non charges : force stockee.
+// Facteur de force restante pour ce prospect : null = aucune regle ne s'applique ; 0 = force annulee.
+function _deprioFactorFor(p) {
+  if (!p || !p.signal_type || !_deprioTypes) return null;
+  return _deprioTypes.has(p.signal_type) ? 0 : null;
+}
+function _effectiveSignalStrength(p) {
+  const f = _deprioFactorFor(p);
+  if (f === null) return p ? p.score_signal_strength : null;
+  return 0;
+}
+// Decompose le score de priorite de la liste Today (MEME formule que loadDailyPriorities : (ICP*0.7 + force_effective*recence*0.3) * penalite
+// identite) et montre l'effet de la preference apprise (type de signal deprioritise -> force effective 0). Lecture seule, aucune nouvelle
+// requete : _deprioTypes est deja charge par loadDailyPriorities ; non charge -> ligne preference omise.
 function _priDecayFactor(d) {
   if (!d) return 0.05;
   const days = (Date.now() - new Date(d).getTime()) / 86400000;
@@ -9735,19 +9856,32 @@ function _priDecayFactor(d) {
 function _priorityWeightHTML(p, fr) {
   if (!p || p.icp_score == null) return '';
   const icp = Number(p.icp_score) || 0;
-  const eff = Number(p.score_signal_strength) || 0;
+  const raw = Number(p.score_signal_strength) || 0;
+  const eff = Number(_effectiveSignalStrength(p)) || 0;
   const decay = _priDecayFactor(p.signal_date);
   const idPen = p.identity_confidence === 'low' ? 0.85 : 1.0;
   const f1 = n => (Math.round(n * 10) / 10).toFixed(1);
   const icpPart = icp * 0.7;
   const sigPart = eff * decay * 0.3;
   const total = (icpPart + sigPart) * idPen;
+  const _prefF = _deprioFactorFor(p);
+  const prefApplies = _prefF !== null;
+  const lost = prefApplies ? raw * decay * 0.3 * idPen * (1 - _prefF) : 0;
+  let prefLine = '';
+  if (prefApplies) {
+    prefLine = p.score_signal_strength == null
+      ? `<div style="margin-top:6px;color:#92400e;font-weight:600">Learned preference applied : signals of type « ${_esc(p.signal_type)} » are deprioritised, signal strength is set to 0.</div>`
+      : `<div style="margin-top:6px;color:#92400e;font-weight:600">Learned preference applied : signals of type « ${_esc(p.signal_type)} » are deprioritised, signal strength goes from ${f1(raw)} to 0 (−${f1(lost)} pts of score).</div>`;
+  } else if (_deprioTypes && p.signal_type) {
+    prefLine = `<div style="margin-top:6px;color:var(--muted)">No learned preference applies to signal type « ${_esc(p.signal_type)} ».</div>`;
+  }
   return `<div style="margin-top:8px;background:var(--chip-bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-xs);color:var(--ink);line-height:1.5">
     <span style="font-weight:700;letter-spacing:0.04em;text-transform:uppercase;font-size:11px;opacity:0.65;display:block;margin-bottom:3px">${fr ? 'Pondération du classement Today' : 'Today ranking weight'}</span>
     ICP ${f1(icp)} × 0,7 = ${f1(icpPart)}<br>
     ${fr ? 'Signal' : 'Signal'} ${f1(eff)} × ${fr ? 'récence' : 'recency'} ${decay} × 0,3 = ${f1(sigPart)}<br>
     ${idPen < 1 ? (fr ? 'Pénalité identité faible' : 'Low identity penalty') + ' × ' + idPen + '<br>' : ''}
     <strong>${fr ? 'Score de classement' : 'Ranking score'} : ${f1(total)}</strong>
+    ${prefLine}
   </div>`;
 }
 // ── Re-score d'une fiche (bouton du tiroir) ────────────────────────────────────────────────────────────────
@@ -10754,10 +10888,11 @@ async function loadDailyPriorities() {
       if (days <= 30) return 0.2;
       return 0.05;
     }
+    await _loadDeprioritizedTypes();
     merged.forEach(p => {
       const _idPenalty = p.identity_confidence === 'low' ? 0.85 : 1.0;
       p._combinedScore = ((p.icp_score || 0) * 0.7
-        + ((p.score_signal_strength || 0) * _priDecay(p.signal_date)) * 0.3) * _idPenalty;
+        + ((_effectiveSignalStrength(p) || 0) * _priDecay(p.signal_date)) * 0.3) * _idPenalty;
     });
     merged.sort((a, b) => b._combinedScore - a._combinedScore);
 
@@ -13662,15 +13797,6 @@ function _renderPipelineStatsCard({ counts, total, inConv, highPrio, emea, na })
 function renderStats(){
   const active = (_allProspects || []).filter(p => !p.archived);
   const tot = active.length;
-  // Funnel par stage (vocabulaire kanban via _stageKey, "Engaged" = libellé kanban et valeur DB)
-  const counts = {};
-  KANBAN_STAGES.forEach(s => counts[s] = 0);
-  active.forEach(p => { const k = _stageKey(p.stage); counts[k] = (counts[k] || 0) + 1; });
-  const maxC = Math.max(1, ...KANBAN_STAGES.map(s => counts[s]));
-  const fEl = document.getElementById('stats-funnel');
-  if (fEl) fEl.innerHTML = KANBAN_STAGES.map(s =>
-    `<div class="funnel-row"><span class="funnel-label">${_esc(s)}</span><div class="funnel-track"><div class="funnel-fill" style="transform:scaleX(${Math.round(counts[s]/maxC*100)/100})"></div></div><span class="funnel-count">${counts[s]}</span></div>`
-  ).join('');
   // Distribution secteur (top 6)
   const sec = {};
   active.forEach(p => { const s = (p.sector && p.sector.trim()) || 'Other'; sec[s] = (sec[s] || 0) + 1; });
@@ -13680,12 +13806,10 @@ function renderStats(){
     const pct = tot ? Math.round(c/tot*100) : 0;
     return `<div class="dist-row"><div class="dist-meta"><span class="dist-name">${_esc(name)}</span><span class="dist-pct">${pct}%</span></div><div class="dist-track"><div class="dist-fill" style="width:${pct}%"></div></div></div>`;
   }).join('');
-  // Distribution région (conservé pour le KPI card NA / EMEA)
-  const emea = active.filter(p => _regionTag(p.region) === 'EMEA').length;
-  const na = tot - emea;
-  // Distribution pays — colonne country (top 8 + Other ; null → '—')
+  // Distribution pays — colonne country (top 8 + Other ; null → '—'). _deriveCountry (deja utilisee par les filtres kanban) plutot que
+  // p.country.trim() brut : normalise "London, UK" -> "United Kingdom" au lieu de compter plusieurs variantes comme des pays distincts.
   const cty = {};
-  active.forEach(p => { const c = (p.country && p.country.trim()) || '—'; cty[c] = (cty[c] || 0) + 1; });
+  active.forEach(p => { const c = _deriveCountry(p.country) || '—'; cty[c] = (cty[c] || 0) + 1; });
   const ctySorted = Object.entries(cty).sort((a,b) => b[1]-a[1]);
   const topCty = ctySorted.slice(0,8);
   const otherCount = ctySorted.slice(8).reduce((s,[,n]) => s+n, 0);
@@ -13694,13 +13818,6 @@ function renderStats(){
     const pct = tot ? Math.round(c/tot*100) : 0;
     return `<div class="dist-row"><div class="dist-meta"><span class="dist-name">${_esc(name)}</span><span class="dist-pct">${pct}%</span></div><div class="dist-track"><div class="dist-fill" style="width:${pct}%"></div></div></div>`;
   }).join('') + (otherCount > 0 ? `<div class="dist-row"><div class="dist-meta"><span class="dist-name" style="color:var(--muted)">Other (${ctySorted.length - 8})</span><span class="dist-pct">${tot ? Math.round(otherCount/tot*100) : 0}%</span></div><div class="dist-track"><div class="dist-fill" style="width:${tot ? Math.round(otherCount/tot*100) : 0}%"></div></div></div>` : '');
-  // KPI cards de l'onglet Stats (mêmes ids que renderKanban)
-  const setT = (id,v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
-  setT('score-kpi-active', tot);
-  const inConvStages = ['1st Contact','Engaged','Replied','Proposal','Negotiation'];
-  setT('score-kpi-inconv', active.filter(p => inConvStages.includes(p.stage)).length);
-  const naEmeaEl = document.getElementById('score-kpi-naemea');
-  if (naEmeaEl) naEmeaEl.innerHTML = na + '<span class="numsplit"> / </span>' + emea;
   renderStatsRevenue();
   renderStatsSignal();
   renderStatsLearning();
@@ -13762,6 +13879,34 @@ async function renderStatsLearning() {
   html += '</tbody></table></div>';
   el.innerHTML = html;
 }
+// Learned Preferences (Pipeline health) : synthese du feedback vote accumule (resume ecrit cote workflow), distincte de la vitesse de
+// conversion par signal (_renderSignalLearningSummary) -- deux sources, deux blocs, pas de fusion. Rien affiche tant qu'aucune ligne
+// n'existe : la carte reste display:none par defaut dans le HTML.
+async function _loadLearnedPreferences() {
+  const card = document.getElementById('learned-preferences-card');
+  if (!card) return;
+  try {
+    const { data, error } = await sbClient.from('learned_preferences')
+      .select('summary_text,feedback_count,generated_at')
+      .eq('client_id', CLIENT_ID).is('mandate_id', null).eq('agent_name', 'signal_interpretation')
+      .maybeSingle();
+    if (error) throw error;
+    if (!data || !data.summary_text) { card.style.display = 'none'; return; }
+    const bodyEl = document.getElementById('learned-preferences-body');
+    const metaEl = document.getElementById('learned-preferences-meta');
+    if (bodyEl) bodyEl.innerHTML = renderMarkdown(data.summary_text);
+    if (metaEl) {
+      const votesLabel = (data.feedback_count != null) ? 'Based on ' + data.feedback_count + (data.feedback_count === 1 ? ' vote' : ' votes') : null;
+      const updatedLabel = data.generated_at ? 'updated ' + _relDate(data.generated_at) : null;
+      metaEl.textContent = [votesLabel, updatedLabel].filter(Boolean).join(', ');
+    }
+    card.style.display = '';
+  } catch (e) {
+    console.warn('[_loadLearnedPreferences]', e);
+    card.style.display = 'none';
+  }
+}
+
 async function _renderSignalLearningSummary() {
   const el = document.getElementById('signal-learning-summary');
   if (!el) return;
@@ -14336,7 +14481,24 @@ function _mscDecisionCardHTML(d, live) {
     : '';
   const mandateHtml = isEntry && d.mandate ? `<span style="font-size:var(--fs-xs);color:var(--text-secondary);">${fr ? 'Mandat' : 'Mandate'} : ${_esc(d.mandate)}</span>` : '';
   const sigType = isEntry ? ((d.signal && d.signal.type) || (live && live.signal_type) || '') : '';
-  const sigBadge = sigType && typeof _sigBadge === 'function' ? _sigBadge(sigType) : '';
+  // Type « firmographic-match » : la fiche correspond a l'ICP mais n'a aucun signal d'intention -> badge « Fit, no signal » a la place du badge
+  // de type, et, quand signal.text est null, un libelle lisible derive du seul type (jamais un texte invente, jamais de JSON brut).
+  const _sigTypeKey = String(sigType || '').toLowerCase().replace(/_/g, '-');
+  const _isFit = _sigTypeKey === 'firmographic-match';
+  const _SIG_TYPE_LABELS = {
+    'firmographic-match': 'Firmographic match, no buying-intent signal',
+    'leadership-change': 'Leadership change',
+    'expansion': 'Expansion',
+    'active-hiring': 'Active hiring',
+    'hiring': 'Hiring',
+    'operating-partner-activity': 'Operating partner activity',
+    'pre-deal-signal': 'Pre-deal signal',
+    'thought-leadership': 'Thought leadership',
+  };
+  const _sigTypeLabel = Object.prototype.hasOwnProperty.call(_SIG_TYPE_LABELS, _sigTypeKey) ? _SIG_TYPE_LABELS[_sigTypeKey] : '';
+  const sigBadge = _isFit
+    ? `<span title="${_esc(_SIG_TYPE_LABELS['firmographic-match'])}" style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:var(--radius-pill);white-space:nowrap;color:#6b7280;background:#f3f4f6;border:1px solid #d1d5db;">Fit, no signal</span>`
+    : (sigType && typeof _sigBadge === 'function' ? _sigBadge(sigType) : '');
   // Date du signal (propre a Kaizenology : pas de force affichee) : instantane du scan, sinon valeur live.
   const sigDate = isEntry ? String((d.signal && d.signal.date) || (live && live.signal_date) || '') : '';
   const sigDateChip = /^\d{4}-\d{2}-\d{2}/.test(sigDate) ? `<span style="font-size:var(--fs-xs);color:var(--text-secondary);">${_esc(sigDate.slice(0, 10))}</span>` : '';
@@ -14350,8 +14512,9 @@ function _mscDecisionCardHTML(d, live) {
   // Raison ICP visible (en plus de l'infobulle, invisible au toucher) : 2 lignes max, texte complet en title.
   const reasonText = icpScore != null ? cleanText(live.icp_reason || '') : '';
   const reasonHtml = reasonText ? `<div class="msc-reason" title="${_esc(reasonText)}">${_esc(reasonText)}</div><button type="button" class="msc-more" hidden onclick="_mscReasonToggle(this,event)">See more</button>` : '';
-  const signalBlock = (signal || signalInterp)
-    ? `<div style="margin-top:6px;font-size:var(--fs-xs);color:var(--text-secondary);line-height:1.4;">${signal ? `<strong>Signal :</strong> ${_esc(signal)}` : ''}${signal && signalInterp ? '<br>' : ''}${signalInterp ? `<strong>${fr ? 'Interprétation' : 'Interpretation'} :</strong> ${_esc(signalInterp)}` : ''}</div>`
+  const signalHead = signal ? `<strong>Signal :</strong> ${_esc(signal)}` : (_sigTypeLabel ? `<strong>Signal :</strong> ${_esc(_sigTypeLabel)}` : '');
+  const signalBlock = (signalHead || signalInterp)
+    ? `<div style="margin-top:6px;font-size:var(--fs-xs);color:var(--text-secondary);line-height:1.4;">${signalHead}${signalHead && signalInterp ? '<br>' : ''}${signalInterp ? `<strong>${fr ? 'Interprétation' : 'Interpretation'} :</strong> ${_esc(signalInterp)}` : ''}</div>`
     : '';
   const actionLabel = fr ? 'Action recommandée' : 'Recommended action';
   const actionBody = scanAction
