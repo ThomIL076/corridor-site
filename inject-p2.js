@@ -209,7 +209,6 @@ if (mode === '--validate') {
   // Generate *-p2test.html for manual review before promoting
   const targets = [
     { in: 'yellowwood-demo.html', out: 'yellowwood-demo-p2test.html' },
-    { in: 'phci-demo.html',       out: 'phci-demo-p2test.html'       },
     { in: 'lka-demo.html',        out: 'lka-demo-p2test.html'        },
   ];
   for (const t of targets) {
@@ -229,7 +228,6 @@ if (mode === '--validate') {
   const TARGETS = [
     'kaizenology.html',
     'yellowwood-demo.html',
-    'phci-demo.html',
     'lka-demo.html',
     'partner-demo.html',
   ];
@@ -320,7 +318,7 @@ if (mode === '--validate') {
 } else {
   console.log('Usage:');
   console.log('  node inject-p2.js --validate       # idempotency check on demo-private + kaizenology');
-  console.log('  node inject-p2.js --inject         # generate *-p2test.html files for yellowwood/phci/lka (priorities + inbox)');
+  console.log('  node inject-p2.js --inject         # generate *-p2test.html files for yellowwood/lka (priorities + inbox)');
   console.log('  node inject-p2.js --inject-inbox   # add inbox to kaizenology (already has priorities)');
   console.log('  node inject-p2.js --drift          # P1.2 config drift report across all 6 dashboard files');
 }

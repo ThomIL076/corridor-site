@@ -43,8 +43,7 @@ const FALLBACK_OWNER_EMAIL_BY_CLIENT = {
   thomas: 'thomas@corridor.systems',
   kaizenology: 'hello@stephanerogovsky.com',
   'yellowwood-demo': 'eric@yellowwood.com',
-  'lka-demo': 'wael@lka.com',
-  'phci-demo': 'thomas@corridor.systems'
+  'lka-demo': 'wael@lka.com'
 };
 const MAX_BODY_CHARS = 200000;
 const MAX_SUBJECT_CHARS = 300;

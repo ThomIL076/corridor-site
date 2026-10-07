@@ -37,10 +37,6 @@
       "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
     },
     {
-      "source": "/phci-demo.html",
-      "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
-    },
-    {
       "source": "/lka-demo.html",
       "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
     },
