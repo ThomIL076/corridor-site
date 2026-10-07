@@ -273,6 +273,22 @@ else
   else
     echo "  ✅ upsert avec mandate_id NULL : 2 écritures sur la même clé = 1 seule ligne, relue par « tous mandats », nettoyée"
   fi
+  # Droits du rôle 'authenticated' (le navigateur écrit avec la session de l'utilisateur) : has_table_privilege, appelé via la
+  # fonction smoke_has_table_privilege (migration scripts/migration-signals-feed-cache-grant-2026-10-07.sql, partie optionnelle).
+  SF_PRIV=""
+  for P in INSERT UPDATE; do
+    SF_PRIV_R=$(_sf_call POST "$SUPABASE_URL/rest/v1/rpc/smoke_has_table_privilege" "{\"p_role\":\"authenticated\",\"p_table\":\"public.signals_feed_cache\",\"p_priv\":\"$P\"}")
+    if echo "$SF_PRIV_R" | grep -q 'PGRST202\|Could not find the function'; then
+      echo "  ⏭ SAUTÉ : fonction smoke_has_table_privilege absente (partie optionnelle de la migration non appliquée) -- GRANT $P non vérifié"
+      SF_PRIV="skip"; break
+    elif [ "$SF_PRIV_R" != "true" ]; then
+      echo "  ❌ has_table_privilege('authenticated', 'public.signals_feed_cache', '$P') = $SF_PRIV_R : le navigateur ne peut pas écrire ce cache (42501)"
+      FAILED=$((FAILED + 1)); SF_PRIV="ko"
+    fi
+  done
+  if [ -z "$SF_PRIV" ]; then
+    echo "  ✅ le rôle 'authenticated' a INSERT et UPDATE sur signals_feed_cache"
+  fi
 fi
 
 # ------------------------------------------------------------
