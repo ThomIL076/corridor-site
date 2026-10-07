@@ -3461,7 +3461,12 @@ const NAV_VIEWS = {
   'agents':           { sec: 'settings',      slug: 'agents',       tab: 'agents' },
 };
 const NAV_SECTION_DEFAULT = { today: 'priorities', prospects: 'pipeline', conversations: 'review', results: 'stats', settings: 'mandate' };
-const _initialNavHash = location.hash; // lu avant que quoi que ce soit ne le reecrive (login, init)
+// Vue de depart : le hash n'est honore que pour une vraie navigation (lien colle, favori, nouvel onglet). Un rechargement ou un onglet
+// restaure (type 'reload' / 'back_forward') garde l'ancien hash ecrit par l'appli : on l'ignore, on ouvre sur Aujourd'hui.
+const _navEntryType = (() => { try { return (performance.getEntriesByType('navigation')[0] || {}).type || 'navigate'; } catch (e) { return 'navigate'; } })();
+// Exception : le rechargement qui suit la connexion (shell de middleware.js) depose le hash de lien profond dans sessionStorage ; lu une seule fois.
+const _loginHash = (() => { try { const h = sessionStorage.getItem('corridor_login_hash'); sessionStorage.removeItem('corridor_login_hash'); return h || ''; } catch (e) { return ''; } })();
+const _initialNavHash = (_navEntryType === 'reload' || _navEntryType === 'back_forward') ? (_loginHash && _loginHash === location.hash ? _loginHash : '') : location.hash; // lu avant que quoi que ce soit ne le reecrive (login, init)
 let _navHashReady = false;             // le hash n'est ecrit qu'apres la connexion et la vue de depart
 let _currentNavKey = null;
 const _lastNavBySec = {};

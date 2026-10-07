@@ -121,6 +121,8 @@ const DEMO_PRIVATE_SHELL = `<!doctype html>
     // suivante -- pas de gap possible ou le middleware verrait une requete sans cookie pose.
     var maxAge = res.data.session.expires_in || 3600;
     document.cookie = 'corridor_session=' + encodeURIComponent(res.data.session.access_token) + '; Secure; SameSite=Lax; Path=/; Max-Age=' + maxAge;
+    // lien profond (#/section/vue) : le rechargement post-connexion le rend a demo-private.html, qui l'ignore sinon (rechargement = Aujourd'hui)
+    try { sessionStorage.setItem('corridor_login_hash', location.hash); } catch (e) {}
     window.location.reload();
   });
 </script>
