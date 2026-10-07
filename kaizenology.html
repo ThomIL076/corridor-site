@@ -788,6 +788,12 @@ footer a { color:var(--navy); text-decoration:none; font-weight:600; }
   .send-pend-more { min-height:44px; }
 }
 
+/* Cartes du Morning Scan / Aujourd'hui : raison ICP sur 3 lignes max, texte complet au clic (bouton seulement si le texte depasse). */
+.msc-reason{margin-top:4px;font-size:var(--fs-xs);color:var(--text-secondary);line-height:1.4;overflow-wrap:anywhere;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;line-clamp:3;overflow:hidden;}
+.msc-reason.open{display:block;-webkit-line-clamp:unset;line-clamp:unset;overflow:visible;}
+.msc-more{margin-top:2px;padding:6px 0;min-height:32px;background:none;border:none;color:var(--accent);font:inherit;font-size:var(--fs-xs);font-weight:600;cursor:pointer;}
+.msc-more[hidden]{display:none;}
+
 /* ── TOAST ── */
 #toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(20px); background:var(--navy); color:#fff; padding:12px 22px; border-radius:var(--radius-panel); font-size:var(--fs-base); font-weight:600; box-shadow:0 8px 24px rgba(26,43,94,0.25); opacity:0; pointer-events:none; transition:all 0.3s; z-index:9000; }
 #toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
@@ -13775,6 +13781,26 @@ function _mscCountryLabel(row, fr) {
   }
   return typeof row.country === 'string' ? row.country.trim() : '';
 }
+// Raison ICP des cartes : le bouton « See more » n'apparait que si le texte depasse les 3 lignes (mesure apres rendu,
+// quand l'element est visible ; les rendus par innerHTML sont captes par un MutationObserver unique).
+function _mscReasonToggle(btn, ev) {
+  if (ev) ev.stopPropagation();
+  const el = btn.previousElementSibling; if (!el) return;
+  const open = el.classList.toggle('open');
+  btn.textContent = open ? 'See less' : 'See more';
+}
+function _mscFitReasons() {
+  document.querySelectorAll('.msc-reason').forEach(el => {
+    const btn = el.nextElementSibling; if (!btn || !btn.classList.contains('msc-more')) return;
+    const want = el.classList.contains('open') ? false : (!el.offsetParent ? btn.hidden : !(el.scrollHeight > el.clientHeight + 1)); // masque : on garde l'etat, remesure au prochain rendu
+    if (btn.hidden !== want) btn.hidden = want; // n'ecrire que si ca change : sinon le MutationObserver se rappelle sans fin
+  });
+}
+(function () {
+  let t = 0; const run = () => { cancelAnimationFrame(t); t = requestAnimationFrame(_mscFitReasons); };
+  const start = () => { new MutationObserver(run).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style', 'hidden'] }); window.addEventListener('resize', run); run(); };
+  if (document.body) start(); else document.addEventListener('DOMContentLoaded', start);
+})();
 function _mscDecisionCardHTML(d, live) {
   const isEntry = !!d._scanEntry;
   const pid = _mscSafeId(d.id);
@@ -13840,7 +13866,7 @@ function _mscDecisionCardHTML(d, live) {
     : '';
   // Raison ICP visible (en plus de l'infobulle, invisible au toucher) : 2 lignes max, texte complet en title.
   const reasonText = icpScore != null ? cleanText(live.icp_reason || '') : '';
-  const reasonHtml = reasonText ? `<div title="${_esc(reasonText)}" style="margin-top:4px;font-size:var(--fs-xs);color:var(--text-secondary);line-height:1.4;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden;overflow-wrap:anywhere;">${_esc(reasonText)}</div>` : '';
+  const reasonHtml = reasonText ? `<div class="msc-reason" title="${_esc(reasonText)}">${_esc(reasonText)}</div><button type="button" class="msc-more" hidden onclick="_mscReasonToggle(this,event)">See more</button>` : '';
   const signalBlock = (signal || signalInterp)
     ? `<div style="margin-top:6px;font-size:var(--fs-xs);color:var(--dim);line-height:1.4;">${signal ? `<strong>Signal :</strong> ${_esc(signal)}` : ''}${signal && signalInterp ? '<br>' : ''}${signalInterp ? `<strong>${fr ? 'Interprétation' : 'Interpretation'} :</strong> ${_esc(signalInterp)}` : ''}</div>`
     : '';
