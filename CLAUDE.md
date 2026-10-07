@@ -82,3 +82,13 @@ seulement à ce pattern précis de catch purement `console.*`.
 (toast) soit, a minima, être couvert par un smoke test qui vérifie qu'une
 écriture avec `mandate_id: null` réussit réellement — pas seulement que la
 requête ne lève pas d'exception côté client.
+
+## n8n — liste de clients à mettre à jour à chaque nouveau client (2026-10-07)
+
+Le workflow **Website Backfill via Exa** (`4dj2JjeS10UtLwBP`, actif, tous les jours à 04:00) ne filtrait aucun client
+et dépensait ses 30 recherches Exa quotidiennes sur toutes les fiches, démos comprises. Depuis le 07/10 son nœud
+« Fetch Prospects » filtre `client_id=in.(thomas,kaizenology,wominds)`.
+
+**À chaque nouveau client** : ajouter son `client_id` à cette liste (nœud « Fetch Prospects », paramètre `client_id`).
+À chaque client retiré : l'enlever. Les démos PHCI, Yellowwood, LKA et SignaTrust ont été supprimées le 07/10/2026
+(sauvegardes `backup_*_20261007` en base, workflows n8n archivés, pages retirées du dépôt).
