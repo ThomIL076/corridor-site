@@ -2558,6 +2558,7 @@ body.new-nav { padding-left: 220px; }
      (demo-private.html/kaizenology.html/wominds.html), chargees avant le script principal. -->
 <script src="shared.js"></script>
 <script>
+const SIGNAL_LEARNING_MIN_PER_TYPE = 10; // seuil minimum de suivis par type de signal avant d'afficher un taux (une seule constante, lue par les trois cartes d'apprentissage)
 // ══════════════════════════════════════════════════════════════════════════
 // CORRIDOR — WOMINDS (client_id='wominds')
 // Dashboard francais natif (pas de toggle EN/FR, cf. brief 2026-09-12). Architecture identique
@@ -10478,33 +10479,39 @@ async function _loadSignalLearning() {
   if (error || !data || !data.length) return { total: 0, byType: {}, firstDate: null };
   const REPLY_PLUS = new Set(['Replied', 'Proposal', 'Closed']);
   const byType = {}; let firstDate = null;
+  let kept = 0;
   for (const row of data) {
-    const k = (row.signal_type || 'INCONNU').toUpperCase();
+    if (row.from_stage === row.to_stage) continue; // ligne « meme etape » : jamais un mouvement (securite si un ancien tracker en reecrit)
+    const named = typeof row.signal_type === 'string' && row.signal_type.trim() !== '';
+    if (row.from_stage == null && !named) continue; // etape d'origine inconnue ET aucun signal : ni suivie ni convertie
+    const k = (named ? row.signal_type.trim() : 'INCONNU').toUpperCase();
     if (!byType[k]) byType[k] = { tracked: 0, converted: 0 };
-    byType[k].tracked++;
-    if (REPLY_PLUS.has(row.to_stage)) byType[k].converted++;
+    byType[k].tracked++; kept++;
+    if (row.from_stage != null && REPLY_PLUS.has(row.to_stage)) byType[k].converted++; // jamais « convertie » sans etape d'origine connue
     if (row.occurred_at && (!firstDate || row.occurred_at < firstDate)) firstDate = row.occurred_at;
   }
-  return { total: data.length, byType, firstDate };
+  return { total: kept, byType, firstDate };
 }
 async function renderStatsLearning() {
   const el = document.getElementById('stats-signal-learning');
   if (!el) return;
   el.innerHTML = '<span style="color:var(--muted);font-size:var(--fs-sm)">Chargement…</span>';
   const { total, byType, firstDate } = await _loadSignalLearning();
-  if (total < 10) {
+  if (!Object.values(byType).some(d => d.tracked >= SIGNAL_LEARNING_MIN_PER_TYPE)) { // aucun type n'atteint le seuil : message actuel
     const dateStr = firstDate ? 'Suivi démarré le ' + new Date(firstDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) + '. ' : '';
     el.innerHTML = `<div style="color:var(--muted);font-size:var(--fs-sm);padding:8px 0">${_esc(dateStr + total + (total !== 1 ? ' signaux suivis' : ' signal suivi') + ' pour l\'instant, pas encore assez de données pour un taux de conversion.')}</div>`;
     return;
   }
   const taxonomy = await _loadSignalTaxonomy();
-  const rows = Object.entries(byType).map(([code, d]) => ({ code, tracked: d.tracked, converted: d.converted, rate: d.tracked > 0 ? Math.round(d.converted / d.tracked * 100) : 0 })).sort((a, b) => b.rate - a.rate);
+  const rows = Object.entries(byType)
+    .map(([code, d]) => ({ code, tracked: d.tracked, converted: d.converted, enough: d.tracked >= SIGNAL_LEARNING_MIN_PER_TYPE, rate: d.tracked > 0 ? Math.round(d.converted / d.tracked * 100) : 0 }))
+    .sort((a, b) => (b.enough - a.enough) || (a.enough ? b.rate - a.rate : b.tracked - a.tracked));
   let html = '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:var(--fs-sm)">';
   html += '<thead><tr style="text-align:left;border-bottom:1px solid var(--border)"><th style="padding:6px 8px;font-weight:600;color:var(--muted)">Type de signal</th><th style="padding:6px 8px;font-weight:600;color:var(--muted);text-align:right">Suivis</th><th style="padding:6px 8px;font-weight:600;color:var(--muted);text-align:right">Convertis (réponse+)</th><th style="padding:6px 8px;font-weight:600;color:var(--muted);text-align:right">Taux</th></tr></thead><tbody>';
   rows.forEach(r => {
     const t = taxonomy[r.code];
     const lbl = t ? ((t.icon ? t.icon + ' ' : '') + (t.label || r.code)) : r.code;
-    html += `<tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 8px">${_esc(lbl)}</td><td style="padding:6px 8px;text-align:right">${r.tracked}</td><td style="padding:6px 8px;text-align:right">${r.converted}</td><td style="padding:6px 8px;text-align:right;font-weight:600">${r.rate}%</td></tr>`;
+    html += `<tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 8px">${_esc(lbl)}</td><td style="padding:6px 8px;text-align:right">${r.tracked}</td>${r.enough ? `<td style="padding:6px 8px;text-align:right">${r.converted}</td><td style="padding:6px 8px;text-align:right;font-weight:600">${r.rate}%</td>` : `<td colspan="2" style="padding:6px 8px;text-align:right;color:var(--muted)">pas assez de données</td>`}</tr>`;
   });
   html += '</tbody></table></div>';
   el.innerHTML = html;
