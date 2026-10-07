@@ -2393,6 +2393,8 @@ body.new-nav { padding-left: 220px; }
       <!-- AJOUT 29/09 (refonte v2 "While you were away", Phase 2, go Thomas) : bloc stats reelles,
            rempli par _loadTodayStats(). Vide tant que le JS n'a pas tourne (pas de donnee d'exemple). -->
       <div id="today-stats-row" style="display:flex;flex-wrap:wrap;margin-bottom:16px;background:#fff;border:1px solid var(--border);border-radius:var(--radius-panel);overflow:hidden;"></div>
+      <!-- Preuve visible des retours appris (lecture seule) : rempli par _loadLearnedProof(), masque tant qu'aucune donnee reelle n'existe. -->
+      <div id="today-learned-proof" hidden style="margin-bottom:16px;padding:10px 14px;background:#fff;border:1px solid var(--border);border-radius:var(--radius-panel);font-size:var(--fs-sm);color:var(--text-secondary);line-height:1.5;"></div>
       <div class="section-sub"><span id="priorities-queued-count">0</span><span data-en=" actions queued today. Work top to bottom. The system re-ranks after each send." data-fr=" actions en file aujourd'hui. Traitez-les de haut en bas. Le système reclasse après chaque envoi."> actions queued today. Work top to bottom. The system re-ranks after each send.</span></div>
       <div class="today-layout">
         <div class="today-main">
@@ -2592,11 +2594,6 @@ body.new-nav { padding-left: 220px; }
       <div id="pipe-stats-scope" style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:8px;"></div>
       <div class="pipe-stats-row">
         <div class="pipe-stat">
-          <span class="pipe-stat-val" id="pipe-conversion">—</span>
-          <span class="pipe-stat-label" data-en="Conversion" data-fr="Conversion">Conversion</span>
-          <span id="pipe-conversion-sub" style="display:block;font-size:var(--fs-xs);color:var(--muted);margin-top:2px;"></span>
-        </div>
-        <div class="pipe-stat">
           <span class="pipe-stat-val" id="pipe-inconv">—</span>
           <span class="pipe-stat-label" data-en="In conversation" data-fr="En conversation">In conversation</span>
         </div>
@@ -2608,6 +2605,17 @@ body.new-nav { padding-left: 220px; }
           <span class="pipe-stat-val" id="pipe-intlna" style="color:var(--dim)">—</span>
           <span class="pipe-stat-label" data-en="Intl / NA" data-fr="Intl / NA">Intl / NA</span>
         </div>
+      </div>
+      <!-- Passage etape par etape sur une periode (remplace le taux global « Clôturé / total » toutes periodes) : rempli par _renderStageFlow(). -->
+      <div id="pipe-flow" style="margin:6px 0 4px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:6px;">
+          <span id="pipe-flow-title" style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;"></span>
+          <select id="pipe-flow-days" aria-label="Période" onchange="_stageFlowDays=+this.value;_renderStageFlow()" style="padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:var(--fs-xs);font-family:inherit;background:#fff;color:var(--text);">
+            <option value="7">7</option><option value="30" selected>30</option><option value="90">90</option>
+          </select>
+        </div>
+        <div id="pipe-flow-rows" style="display:flex;flex-wrap:wrap;gap:6px 10px;"></div>
+        <div id="pipe-flow-note" style="font-size:var(--fs-xs);color:var(--muted);margin-top:6px;line-height:1.4;"></div>
       </div>
       <div class="pipe-funnel-title" data-en="Current stage breakdown" data-fr="Répartition actuelle" data-en-title="Prospects per current stage, not a cumulative funnel" data-fr-title="Prospects par étape actuelle, pas un entonnoir cumulatif" title="Prospects per current stage, not a cumulative funnel">Current stage breakdown</div>
       <div class="pipe-funnel-bar" id="pipe-funnel-bar"></div>
@@ -5083,11 +5091,28 @@ function _mscDecisionCardHTML(d, live) {
     : '';
   const mandateHtml = isEntry && d.mandate ? `<span style="font-size:var(--fs-xs);color:var(--text-secondary);">${fr ? 'Mandat' : 'Mandate'} : ${_esc(d.mandate)}</span>` : '';
   const sigType = isEntry ? ((d.signal && d.signal.type) || (live && live.signal_type) || '') : '';
-  const sigBadge = sigType && typeof _sigBadge === 'function' ? _sigBadge(sigType) : '';
+  // Type « firmographic-match » : la fiche correspond a l'ICP mais n'a aucun signal d'intention -> badge « Fit sans signal » a la place du badge de type,
+  // et, quand signal.text est null, un libelle lisible derive du seul type (jamais un texte invente, jamais de JSON brut).
+  const _sigTypeKey = String(sigType || '').toLowerCase().replace(/_/g, '-');
+  const _isFit = _sigTypeKey === 'firmographic-match';
+  const _SIG_TYPE_LABELS = {
+    'firmographic-match': fr ? "Correspondance firmographique, sans signal d'intention" : 'Firmographic match, no buying-intent signal',
+    'leadership-change': fr ? 'Changement de direction' : 'Leadership change',
+    'expansion': 'Expansion',
+    'active-hiring': fr ? 'Recrutement actif' : 'Active hiring',
+    'hiring': fr ? 'Recrutement' : 'Hiring',
+    'operating-partner-activity': fr ? 'Activité Operating Partner' : 'Operating partner activity',
+    'pre-deal-signal': fr ? 'Signal pré-deal' : 'Pre-deal signal',
+    'thought-leadership': fr ? "Leadership d'opinion" : 'Thought leadership',
+  };
+  const _sigTypeLabel = Object.prototype.hasOwnProperty.call(_SIG_TYPE_LABELS, _sigTypeKey) ? _SIG_TYPE_LABELS[_sigTypeKey] : '';
+  const sigBadge = _isFit
+    ? `<span title="${_esc(_SIG_TYPE_LABELS['firmographic-match'])}" style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:var(--radius-pill);white-space:nowrap;color:#6b7280;background:#f3f4f6;border:1px solid #d1d5db;">${fr ? 'Fit sans signal' : 'Fit, no signal'}</span>`
+    : (sigType && typeof _sigBadge === 'function' ? _sigBadge(sigType) : '');
   // Force (0-10) et date du signal : uniquement dans l'instantane du scan (ni l'un ni l'autre n'a de
   // colonne live equivalente pour la force ; la date live comble le trou).
   const sigMetaParts = [];
-  if (isEntry && d.signal && Number.isFinite(d.signal.strength)) sigMetaParts.push(`${fr ? 'Force' : 'Strength'} ${d.signal.strength}${d.signal.strength >= 0 && d.signal.strength <= 10 ? '/10' : ''}`);
+  if (isEntry && d.signal && Number.isFinite(d.signal.strength) && !(String(sigType || '').toLowerCase().replace(/_/g, '-') === 'firmographic-match' && !signal)) sigMetaParts.push(`${fr ? 'Force' : 'Strength'} ${d.signal.strength}${d.signal.strength >= 0 && d.signal.strength <= 10 ? '/10' : ''}`);
   const sigDateLabel = isEntry ? _mscFmtDate((d.signal && d.signal.date) || (live && live.signal_date)) : '';
   if (sigDateLabel) sigMetaParts.push(sigDateLabel);
   const sigMeta = sigMetaParts.join(' · ');
@@ -5102,7 +5127,7 @@ function _mscDecisionCardHTML(d, live) {
   const signalLabel = `<strong>Signal${colon}</strong>`;
   const signalHead = signal
     ? `${signalLabel} ${signalFrFb ? _frFallbackBadgeHTML() : ''}${_esc(signal)}${sigMeta ? ` <span style="opacity:.75;">(${_esc(sigMeta)})</span>` : ''}`
-    : (sigMeta ? `${signalLabel} ${_esc(sigMeta)}` : '');
+    : (_sigTypeLabel ? `${signalLabel} ${_esc(_sigTypeLabel)}${sigMeta ? ` <span style="opacity:.75;">(${_esc(sigMeta)})</span>` : ''}` : (sigMeta ? `${signalLabel} ${_esc(sigMeta)}` : ''));
   // Raison ICP visible (en plus de l'infobulle, invisible au toucher) : 2 lignes max, texte complet en title.
   const _reasonR = icpScore != null ? _bilingualReasonOrFr(live, 'icp_reason', 'icp_reason_en') : { text: '', fallback: false };
   const reasonText = _reasonR.text ? cleanText(_reasonR.text) : '';
@@ -5921,6 +5946,7 @@ function setLang(lang) {
   // deja elle-meme si son conteneur n'existe pas, meme garde-fou que le reste de cette liste).
   if (typeof loadReviewView === 'function') loadReviewView();
   if (typeof _loadTodayStats === 'function') _loadTodayStats();
+  if (typeof _renderLearnedProof === 'function') _renderLearnedProof();
   if (typeof _loadActorAutonomy === 'function') _loadActorAutonomy();
   if (typeof _loadAgentsAtWork === 'function') _loadAgentsAtWork();
   // FIX 30/09 (meme classe de bug, repere par Thomas sur Mandat & ICP : contenu reste dans la
@@ -6053,6 +6079,53 @@ async function _loadAgentsAtWork() {
 // "sans vous" vs "par vous" pour l'instant -- limitation connue, a fermer si un marqueur sent_via
 // est ajoute plus tard. "En attente de vous" reutilise EXACTEMENT le meme compte que
 // priorities-queued-count (_updateQueuedCount), jamais recalcule differemment ailleurs.
+// Bloc « Appris de tes retours » (Aujourd'hui, lecture seule). Sources : types dependrioritises EFFECTIFS (_loadDeprioritizedTypes : meme regle que le
+// classement, regles validees comprises), feedback_count de learned_preferences (agent 'signal_interpretation', ligne la plus recente) et, si le scan
+// l'ecrit, scan_entries.applied_rules du dernier Morning Scan (forme n8n {demoted,dropped} en priorite ; repli : nombre, tableau ou objet {excluded|excluded_count|count|total}) -- forme inconnue = non affiche.
+let _learnedProof = null;
+function _learnedProofExcluded(ar) {
+  // Forme ecrite par n8n : { v:1, deprioritized_types:[..], demoted:[{name,company,rule,from}], dropped:[{name,company,rule}] } -> demoted + dropped.
+  if (ar && typeof ar === 'object' && !Array.isArray(ar) && (Array.isArray(ar.demoted) || Array.isArray(ar.dropped)))
+    return (Array.isArray(ar.demoted) ? ar.demoted.length : 0) + (Array.isArray(ar.dropped) ? ar.dropped.length : 0);
+  if (Number.isFinite(ar)) return ar;
+  if (Array.isArray(ar)) return ar.length;
+  if (ar && typeof ar === 'object') for (const k of ['excluded', 'excluded_count', 'count', 'total']) if (Number.isFinite(ar[k])) return ar[k];
+  return null;
+}
+function _renderLearnedProof() {
+  const box = document.getElementById('today-learned-proof'); if (!box) return;
+  const p = _learnedProof;
+  if (!p || (!p.types.length && p.feedback == null)) { box.hidden = true; box.innerHTML = ''; return; }
+  const fr = currentLang === 'fr';
+  const rows = [];
+  rows.push(`<div><strong>${fr ? 'Types dépriorisés' : 'Deprioritised types'} :</strong> ${p.types.length ? p.types.map(t => `<code>${_esc(t)}</code>`).join(', ') : (fr ? 'aucun' : 'none')}</div>`);
+  if (p.feedback != null) rows.push(`<div><strong>${fr ? 'Retours pris en compte' : 'Feedback taken into account'} :</strong> ${_esc(String(p.feedback))}</div>`);
+  if (p.excluded != null) rows.push(`<div><strong>${fr ? 'Entrées écartées par ces règles' : 'Entries set aside by these rules'} ${p.scanIsToday ? (fr ? "aujourd'hui" : 'today') : '(' + _esc(p.scanDate || '') + ')'} :</strong> ${_esc(String(p.excluded))}</div>`);
+  box.innerHTML = `<div style="font-weight:700;color:var(--ink);margin-bottom:2px;">${fr ? 'Appris de tes retours' : 'Learned from your feedback'}</div>${rows.join('')}`;
+  box.hidden = false;
+}
+async function _loadLearnedProof() {
+  try {
+    await _loadDeprioritizedTypes();
+    const { data } = await sbClient.from('learned_preferences').select('deprioritized_types,feedback_count')
+      .eq('client_id', CLIENT_ID).is('mandate_id', null).eq('agent_name', 'signal_interpretation')
+      .order('generated_at', { ascending: false, nullsFirst: false }).limit(1);
+    const row = data && data[0] ? data[0] : null;
+    const types = _deprioTypes ? [..._deprioTypes] : (row && Array.isArray(row.deprioritized_types) ? row.deprioritized_types : []);
+    const proof = { types, feedback: row && Number.isFinite(row.feedback_count) ? row.feedback_count : null, excluded: null, scanDate: null, scanIsToday: false };
+    try {
+      const { data: sc } = await sbClient.from('morning_scan_email_cache').select('scan_date, scan_entries')
+        .eq('client_id', CLIENT_ID).order('scan_date', { ascending: false }).limit(1);
+      const r = sc && sc[0];
+      if (r && r.scan_entries && typeof r.scan_entries === 'object') {
+        proof.excluded = _learnedProofExcluded(r.scan_entries.applied_rules);
+        proof.scanDate = r.scan_date; proof.scanIsToday = r.scan_date === new Date().toISOString().slice(0, 10);
+      }
+    } catch (e) { /* champ facultatif : jamais bloquant */ }
+    _learnedProof = proof;
+  } catch (e) { console.warn('[_loadLearnedProof]', e); _learnedProof = null; }
+  _renderLearnedProof();
+}
 async function _loadTodayStats() {
   const el = document.getElementById('today-stats-row');
   if (!el) return;
@@ -6122,7 +6195,7 @@ function switchTab(name, fromClick = false) {
   if (name === 'pipeline') { const sh = document.getElementById('kanban-swipe-hint'); if (sh) { sh.style.opacity = '1'; setTimeout(() => { sh.style.opacity = '0'; }, 3000); } }
   if (name === 'send') loadSendView();
   if (name === 'agents') _showAgentsMap();
-  if (name === 'priorities') { loadDailyPriorities(); _loadAgentsAtWork(); _fetchTodaySendCounts().catch(err => console.error('_fetchTodaySendCounts:', err)); _loadFollowUpsDue(); _loadTodayStats(); }
+  if (name === 'priorities') { loadDailyPriorities(); _loadLearnedProof(); _loadAgentsAtWork(); _fetchTodaySendCounts().catch(err => console.error('_fetchTodaySendCounts:', err)); _loadFollowUpsDue(); _loadTodayStats(); }
   // AJOUT 29/09 (refonte v2 Phase 3) : inbox/proposals/pending-actions ne sont plus atteints par
   // la nav (fusionnes dans review, cf. _switchNewNav) -- loaders laisses intacts, jamais appeles
   // en pratique, aucune suppression de code pour rester reversible si besoin.
@@ -16872,15 +16945,90 @@ function renderKanban(rows){
 // pas de reprise de conversion_targets/pipeline_insights qui mesurent autre chose -- cibles et
 // dimensions, pas un taux global reel). Pas de delta "vs 90d" (README) : aucune baseline
 // historique reelle, pas de chiffre invente.
+// Passage etape par etape sur une periode. SOURCE : prospects.created_at (etape « Identifies » = fiches creees pendant la periode, archivees comprises) et
+// signal_outcomes (journal des changements d'etape : occurred_at, from_stage -> to_stage ; lecture seule, RLS par client). Une etape compte les prospects
+// DISTINCTS entres pendant la periode (premier contact = rang >= 1st Contact, reponse = rang >= Replied, cloture = Closed), uniquement sur les mouvements
+// vers l'avant. Cloture : « non suivie » tant que signal_outcomes n'a aucune ligne Closed (aucun 0 % devine). Taux = etape / etape precedente : un flux sur la periode, pas une cohorte suivie. Perimetre = prospects deja charges par la page
+// (mandat actif compris). Aucune ecriture, aucune definition d'etape modifiee (_stageRank / KANBAN_STAGES inchanges).
+let _stageFlowDays = 30;
+let _stageFlowCache = null; // { key, at, rows }
+async function _fetchStageEvents(sinceIso) {
+  const key = CLIENT_ID + '|' + sinceIso.slice(0, 10);
+  if (_stageFlowCache && _stageFlowCache.key === key && Date.now() - _stageFlowCache.at < 60000) return _stageFlowCache.rows;
+  const rows = [];
+  for (let from = 0; from < 20000; from += 1000) {
+    const { data, error } = await sbClient.from('signal_outcomes').select('prospect_id, from_stage, to_stage, occurred_at')
+      .eq('client_id', CLIENT_ID).gte('occurred_at', sinceIso).in('to_stage', ['1st Contact', 'Engaged', 'Replied', 'Proposal', 'Negotiation', 'Closed'])
+      .order('occurred_at', { ascending: true }).range(from, from + 999);
+    if (error) throw error;
+    rows.push(...(data || []));
+    if (!data || data.length < 1000) break;
+  }
+  _stageFlowCache = { key, at: Date.now(), rows };
+  return rows;
+}
+let _closedLoggedCache = null; // { at, value }
+async function _stageLogCoversClosed() {
+  if (_closedLoggedCache && Date.now() - _closedLoggedCache.at < 300000) return _closedLoggedCache.value;
+  const { count, error } = await sbClient.from('signal_outcomes').select('id', { count: 'exact', head: true }).eq('client_id', CLIENT_ID).eq('to_stage', 'Closed');
+  if (error) throw error;
+  _closedLoggedCache = { at: Date.now(), value: (count || 0) > 0 };
+  return _closedLoggedCache.value;
+}
+async function _renderStageFlow() {
+  const rowsEl = document.getElementById('pipe-flow-rows'); if (!rowsEl) return;
+  const fr = currentLang === 'fr', days = _stageFlowDays;
+  const nf = n => Number(n).toLocaleString(fr ? 'fr-FR' : 'en-GB');
+  const since = new Date(Date.now() - days * 86400000), sinceIso = since.toISOString();
+  const fmt = d => d.toLocaleDateString(fr ? 'fr-FR' : 'en-GB', { day: 'numeric', month: 'short' });
+  const titleEl = document.getElementById('pipe-flow-title'), noteEl = document.getElementById('pipe-flow-note'), selEl = document.getElementById('pipe-flow-days');
+  if (selEl && selEl.value !== String(days)) selEl.value = String(days);
+  if (selEl) [...selEl.options].forEach(o => { o.textContent = o.value + (fr ? ' jours' : ' days'); });
+  if (titleEl) titleEl.textContent = (fr ? 'Passage par étape · du ' : 'Stage-to-stage · ') + fmt(since) + (fr ? ' au ' : ' – ') + fmt(new Date());
+  const mySeq = window._stageFlowSeq = (window._stageFlowSeq || 0) + 1;
+  try {
+    const scope = Array.isArray(_allProspects) && _allProspects.length ? _allProspects : null;
+    const ids = scope ? new Set(scope.map(p => p.id)) : null;
+    const identified = scope ? scope.filter(p => p.created_at && p.created_at >= sinceIso).length : null;
+    const events = await _fetchStageEvents(sinceIso);
+    const closedLogged = await _stageLogCoversClosed();
+    if (mySeq !== window._stageFlowSeq) return; // un rendu plus recent a pris la main
+    const rank = s => (_stageRank[s] === undefined ? -1 : _stageRank[s]);
+    const fwd = events.filter(e => e.from_stage !== e.to_stage && rank(e.to_stage) > rank(e.from_stage) && (!ids || ids.has(e.prospect_id)));
+    const distinct = minRank => new Set(fwd.filter(e => rank(e.to_stage) >= minRank).map(e => e.prospect_id)).size;
+    const steps = [
+      { label: fr ? 'Identifiés' : 'Identified', n: identified },
+      { label: fr ? 'Premier contact' : 'First contact', n: distinct(_stageRank['1st Contact']) },
+      { label: fr ? 'Réponse' : 'Reply', n: distinct(_stageRank['Replied']) },
+      { label: fr ? 'Clôture' : 'Closed', n: closedLogged ? distinct(_stageRank['Closed']) : null, untracked: !closedLogged },
+    ];
+    rowsEl.innerHTML = steps.map((st, i) => {
+      const prev = i > 0 ? steps[i - 1].n : null;
+      if (st.untracked) return '<div style="flex:1 1 120px;min-width:110px;padding:8px 10px;border:1px dashed var(--border);border-radius:var(--radius-sm);background:#fff;">'
+        + '<div style="font-size:var(--fs-xs);color:var(--muted);">' + _esc(st.label) + '</div>'
+        + '<div style="font-weight:700;font-size:var(--fs-lg);color:var(--muted);">—</div>'
+        + '<div style="font-size:var(--fs-xs);color:var(--text-secondary);">' + (fr ? 'non suivie' : 'not tracked') + '</div></div>';
+      const rate = (i > 0 && prev > 0 && st.n != null) ? (st.n / prev * 100).toLocaleString(fr ? 'fr-FR' : 'en-GB', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' %' : '—';
+      return '<div style="flex:1 1 120px;min-width:110px;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:#fff;">'
+        + '<div style="font-size:var(--fs-xs);color:var(--muted);">' + _esc(st.label) + '</div>'
+        + '<div style="font-weight:700;font-size:var(--fs-lg);color:var(--ink);">' + (st.n == null ? '—' : nf(st.n)) + '</div>'
+        + '<div style="font-size:var(--fs-xs);color:var(--text-secondary);">' + (i === 0 ? (fr ? 'créés sur la période' : 'created in period') : (fr ? 'passage ' : 'conversion ') + rate) + '</div></div>';
+    }).join('');
+    if (noteEl) noteEl.textContent = (fr
+      ? "Flux sur la période : chaque étape compte les prospects distincts qui y sont entrés (historique des changements d'étape), pas une cohorte suivie. Le taux est le passage depuis l'étape précédente. Historique partiel : les chiffres de réponse peuvent être sous-estimés."
+      : 'Flow over the period: each step counts distinct prospects that entered it (stage-change history), not a tracked cohort. The rate is the pass-through from the previous step. Partial history: reply figures may be understated.')
+      + (closedLogged ? '' : (fr ? " Clôture : le journal d'étapes ne couvre pas encore la clôture." : ' Closed: the stage log does not cover closing yet.'));
+  } catch (e) {
+    console.warn('[_renderStageFlow]', e);
+    rowsEl.innerHTML = ''; if (noteEl) noteEl.textContent = fr ? "Impossible de charger l'historique des étapes pour le moment." : 'Unable to load stage history right now.';
+  }
+}
 function _renderPipelineStatsCard({ counts, total, inConv, highPrio, emea, na }) {
   const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
   // Zero reel vs donnee absente : aucun prospect dans le perimetre = pas de taux (« — »), pas 0,0 %.
   const fr = currentLang === 'fr';
   const nf = n => Number(n).toLocaleString(fr ? 'fr-FR' : 'en-GB');
-  setTxt('pipe-conversion', total > 0 ? (counts['Closed'] / total * 100).toFixed(1) + '%' : '—');
-  setTxt('pipe-conversion-sub', total > 0
-    ? nf(counts['Closed']) + ' / ' + nf(total) + (fr ? (total === 1 ? ' prospect' : ' prospects') + ' · étape actuelle « Clôturé », toutes périodes' : (total === 1 ? ' prospect' : ' prospects') + ' · current stage "Closed", all time')
-    : (fr ? 'aucun prospect dans ce périmètre' : 'no prospects in this scope'));
+  _renderStageFlow();
   const base = window._pipeBase;
   const filtered = !!base && total !== (_showArchived ? base.all : base.active);
   setTxt('pipe-stats-scope', filtered
