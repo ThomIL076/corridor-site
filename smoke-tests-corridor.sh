@@ -238,6 +238,44 @@ else
 fi
 
 # ------------------------------------------------------------
+# TEST 5bis — signals_feed_cache : écriture réelle avec mandate_id NULL (cache « tous mandats » de kaizenology.html)
+# ------------------------------------------------------------
+# Même règle que TEST 5 : _saveFeedCache upserte avec onConflict 'client_id,mandate_id' et mandate_id NULL ; on rejoue
+# l'écriture en service_role avec un client_id factice (aucune clé étrangère sur cette table), deux fois = UNE ligne, puis on
+# nettoie. Couvre l'index unique NULLS NOT DISTINCT et la nullabilité. NE couvre PAS les GRANT du rôle 'authenticated'
+# (chemin réel : le navigateur écrit avec la session de l'utilisateur) -- au 07/10/2026 ce rôle n'a que SELECT sur la table
+# alors qu'une politique d'écriture existe : l'écriture réelle du navigateur est refusée (42501), voir CLAUDE.md.
+echo ""
+echo "--- TEST 5bis : signals_feed_cache, écriture réelle avec mandate_id NULL ---"
+if [ -z "$SUPABASE_SECRET_KEY" ]; then
+  echo "  ⚠ NON EXÉCUTÉ : SUPABASE_SECRET_KEY n'est pas définie."
+else
+  SF_URL="$SUPABASE_URL/rest/v1/signals_feed_cache"
+  SF_CLIENT="__smoke_test__"
+  _sf_call() { # méthode, URL, corps éventuel, en-tête Prefer éventuel
+    curl -s -X "$1" "$2" -H "apikey: $SUPABASE_SECRET_KEY" -H "Authorization: Bearer $SUPABASE_SECRET_KEY"       -H "Content-Type: application/json" ${4:+-H "Prefer: $4"} ${3:+-d "$3"}
+  }
+  _sf_call DELETE "$SF_URL?client_id=eq.$SF_CLIENT" > /dev/null   # reliquat éventuel d'un run interrompu
+  SF_UPSERT="$SF_URL?on_conflict=client_id,mandate_id"
+  SF_R1=$(_sf_call POST "$SF_UPSERT" "{\"client_id\":\"$SF_CLIENT\",\"mandate_id\":null,\"morning_items\":[1],\"live_items\":[]}" "resolution=merge-duplicates,return=minimal")
+  SF_R2=$(_sf_call POST "$SF_UPSERT" "{\"client_id\":\"$SF_CLIENT\",\"mandate_id\":null,\"morning_items\":[1,2],\"live_items\":[]}" "resolution=merge-duplicates,return=minimal")
+  SF_READ=$(_sf_call GET "$SF_URL?client_id=eq.$SF_CLIENT&mandate_id=is.null&select=morning_items")
+  _sf_call DELETE "$SF_URL?client_id=eq.$SF_CLIENT" > /dev/null
+  SF_LEFT=$(_sf_call GET "$SF_URL?client_id=eq.$SF_CLIENT&select=client_id")
+  if echo "$SF_R1$SF_R2" | grep -q '"code"'; then
+    echo "  ❌ upsert signals_feed_cache (mandate_id NULL) REFUSE -- $SF_R1 $SF_R2"
+    FAILED=$((FAILED + 1))
+  elif [ "$SF_READ" != '[{"morning_items":[1, 2]}]' ] && [ "$SF_READ" != '[{"morning_items":[1,2]}]' ]; then
+    echo "  ❌ relecture inattendue (attendu : une seule ligne, morning_items=[1,2]) -- reçu : $SF_READ"
+    FAILED=$((FAILED + 1))
+  elif [ "$SF_LEFT" != "[]" ]; then
+    echo "  ⚠ écriture OK mais NETTOYAGE incomplet (client_id '$SF_CLIENT' encore présent) : $SF_LEFT"
+  else
+    echo "  ✅ upsert avec mandate_id NULL : 2 écritures sur la même clé = 1 seule ligne, relue par « tous mandats », nettoyée"
+  fi
+fi
+
+# ------------------------------------------------------------
 # TEST 6 / TEST 7 — client_onboarding et change_requests : écriture réelle avec mandate_id NULL
 # ------------------------------------------------------------
 # Règle CLAUDE.md (upsert/écritures silencieuses) : une écriture avec mandate_id NULL doit réellement réussir.
