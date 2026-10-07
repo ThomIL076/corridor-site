@@ -1992,11 +1992,6 @@ body.new-nav { padding-left: 220px; }
       <div id="pipe-stats-scope" style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:8px;"></div>
       <div class="pipe-stats-row">
         <div class="pipe-stat">
-          <span class="pipe-stat-val" id="pipe-conversion">—</span>
-          <span class="pipe-stat-label" data-en="Conversion">Conversion</span>
-          <span id="pipe-conversion-sub" style="display:block;font-size:var(--fs-xs);color:var(--muted);margin-top:2px;"></span>
-        </div>
-        <div class="pipe-stat">
           <span class="pipe-stat-val" id="pipe-inconv">—</span>
           <span class="pipe-stat-label" data-en="In conversation">In conversation</span>
         </div>
@@ -2008,6 +2003,17 @@ body.new-nav { padding-left: 220px; }
           <span class="pipe-stat-val" id="pipe-intlna" style="color:var(--dim)">—</span>
           <span class="pipe-stat-label" data-en="Intl / NA">Intl / NA</span>
         </div>
+      </div>
+      <!-- Stage-to-stage pass-through over a period (replaces the all-time "Closed / total" rate): filled by _renderStageFlow(). -->
+      <div id="pipe-flow" style="margin:6px 0 4px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:6px;">
+          <span id="pipe-flow-title" style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;"></span>
+          <select id="pipe-flow-days" aria-label="Period" onchange="_stageFlowDays=+this.value;_renderStageFlow()" style="padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:var(--fs-xs);font-family:inherit;background:#fff;color:var(--text);">
+            <option value="7">7</option><option value="30" selected>30</option><option value="90">90</option>
+          </select>
+        </div>
+        <div id="pipe-flow-rows" style="display:flex;flex-wrap:wrap;gap:6px 10px;"></div>
+        <div id="pipe-flow-note" style="font-size:var(--fs-xs);color:var(--muted);margin-top:6px;line-height:1.4;"></div>
       </div>
       <div class="pipe-funnel-title" title="Prospects per current stage, not a cumulative funnel">Current stage breakdown</div>
       <div class="pipe-funnel-bar" id="pipe-funnel-bar"></div>
@@ -2447,8 +2453,9 @@ body.new-nav { padding-left: 220px; }
            visuellement des boutons de generation a la demande ci-dessous -- ce bloc montre ce qui a
            reellement ete envoye, les boutons regenerent un nouveau contenu independant. -->
       <div class="ai-box" id="last-morning-scan-box" style="margin-bottom:16px;">
-        <div class="ai-box-header">
+        <div class="ai-box-header" style="flex-wrap:wrap;gap:8px;">
           <span class="ai-box-label" data-en="Last Morning Scan Sent">Last Morning Scan Sent</span>
+          <select id="msc-day-select" aria-label="Morning Scan day" onchange="_mscPickDay(this.value)" hidden style="margin-left:auto;max-width:100%;min-height:36px;padding:5px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:var(--fs-xs);font-family:inherit;background:#fff;color:var(--text);"></select>
         </div>
         <div class="ai-box-body" id="last-morning-scan-body">…</div>
       </div>
@@ -10352,12 +10359,14 @@ async function _drawerAI() {
 }
 
 let _priorityCurrentBatch = 1;
+let _priorityPendingInvites = 0; // scan decisions left out of the list because the invitation is already sent (count from loadDailyPriorities, read only)
 let _priorityShownProspects = [];
 
 async function loadDailyPriorities() {
   const container = document.getElementById('priorities-container');
   if (!container) return;
   container.innerHTML = '<div style="padding:32px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">' + (currentLang === 'fr' ? 'Chargement des priorités…' : 'Loading priorities…') + '</div>';
+  _priorityPendingInvites = 0;
 
   try {
     const _pbMandateId = (activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null;
@@ -10376,7 +10385,7 @@ async function loadDailyPriorities() {
 
     // Etape B (2026-09-21) : + icp_reason, signal_interpretation, signal_url, identity_verdict, lues par la carte partagee _mscDecisionCardHTML (la ligne est
     // passee comme fiche « live »). Les 4 colonnes existent dans la vue prospects_scan_window (information_schema verifie) : vue security_invoker sur prospects.
-    const COLS = 'id,name,company,sector,country,icp_score,icp_confidence,score_signal_strength,signal,signal_type,signal_date,mandate_id,stage,next_action_cache,next_action_generated_at,priority_batch_number,last_priority_shown_at,email,reminder_date,last_contact,linkedin,company_verified,identity_confidence,icp_reason,signal_interpretation,signal_interpretation_updated_at,signal_url,identity_verdict';
+    const COLS = 'id,name,company,sector,country,icp_score,icp_confidence,score_signal_strength,signal,signal_type,signal_date,mandate_id,stage,next_action_cache,next_action_generated_at,priority_batch_number,last_priority_shown_at,email,reminder_date,last_contact,linkedin,company_verified,identity_confidence,icp_reason,signal_interpretation,signal_interpretation_updated_at,signal_url,identity_verdict,company_size';
 
     // Priorite Morning Scan (arbitrage Thomas) : si le scan du jour a deja produit des decisions
     // explicites (today_action/opportunistic_connection), elles remplacent entierement le calcul
@@ -10417,6 +10426,7 @@ async function loadDailyPriorities() {
         if (_pcErr) console.warn('[loadDailyPriorities] comptage invitations en attente:', _pcErr);
         else _decisionsPending = _pc || 0;
       }
+      _priorityPendingInvites = _decisionsPending;
       const _catRank = { today_action: 0, opportunistic_connection: 1 };
       _priorityShownProspects = (decisionProspects || [])
         .map(p => { p._morningScanCategory = _decisionByProspect[p.id] || null; return p; })
@@ -10573,10 +10583,19 @@ function _renderPriorityCards(prospects, emptyReason = 'batch-exhausted') {
   container.innerHTML = prospects.map(p => {
     const pid = _mscSafeId(p.id);
     const cardHtml = _mscDecisionCardHTML(_mscDecisionFromProspect(p), p);
-    const footerHtml = pid && !p.next_action_cache ? _priorityGenerateFooterHTML(pid) : '';
+    const footerHtml = pid && !p.next_action_cache ? _priorityGenerateFooterHTML(pid, p) : '';
     const merged = footerHtml ? cardHtml.replace(/(\s*<\/div>\s*<\/div>)\s*$/, footerHtml + '$1') : cardHtml;
     return `<div class="priority-card"${pid ? ` data-id="${pid}"` : ''} style="margin-bottom:10px;">${merged}</div>`;
   }).join('');
+  // Invitations already sent (left out of the list by the linkedin_tag = 'invite-sent' filter): one discreet line under the cards, only if N > 0.
+  const nPending = _priorityPendingInvites;
+  if (nPending > 0) {
+    const note = document.createElement('div');
+    note.id = 'priorities-pending-note';
+    note.style.cssText = 'margin:2px 0 12px;font-size:var(--fs-xs);color:var(--muted);';
+    note.textContent = nPending + ' invitation(s) already sent, awaiting connection';
+    container.appendChild(note);
+  }
 }
 
 // Pied de carte propre a Today (etape B) : bouton Generate + emplacement du resultat. _priorityGenerate est INCHANGEE et cherche #pri-gen-<id> / #pri-action-<id> ;
@@ -10585,7 +10604,12 @@ function _renderPriorityCards(prospects, emptyReason = 'batch-exhausted') {
 // pose sur le pied pour qu'un clic sur le bouton ou sur le resultat n'atteigne plus le onclick d'ouverture du tiroir porte par le div carte
 // (necessaire maintenant que le pied est un enfant de ce div, plus un frere). Bouton compact : memes declarations CSS que le bouton
 // « + Add to pipeline » du Comite d'achat (_addBtnHtml), pas un style invente.
-function _priorityGenerateFooterHTML(pid) {
+function _priorityGenerateFooterHTML(pid, p) {
+  // Missing qualification data (no e-mail and no valid network URL, or unknown size): prepare a draft, nothing is locked. A field absent from the row (undefined) is
+  // not "unknown": it is just not loaded, so it is not judged.
+  const noChannel = p && ('email' in p) && ('linkedin' in p) && !(p.email && String(p.email).trim()) && !_mscSafeUrl(p.linkedin);
+  const sizeUnknown = p && p.company_size !== undefined && (p.company_size == null || String(p.company_size).trim() === '');
+  const draftLabel = (noChannel || sizeUnknown) ? 'Prepare a draft' : null;
   // FIX 25/09 (chantier langue, bouton "Générer" repere ce matin) : le libelle initial etait en
   // dur en anglais alors que _priorityGenerate() (etats "Generating…"/"Régénérer" ci-dessous) est
   // deja bilingue depuis le debut -- seul l'etat de depart du bouton avait ete oublie. Meme
@@ -10593,7 +10617,7 @@ function _priorityGenerateFooterHTML(pid) {
   return `<div class="pri-action" id="pri-action-${pid}" style="margin-top:6px;text-align:right;" onclick="event.stopPropagation()">
     <button id="pri-gen-${pid}" onclick="_priorityGenerate('${pid}')"
       style="font-size:var(--fs-xs);padding:4px 11px;background:var(--navy);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer">
-      ${currentLang==='fr' ? 'Générer' : 'Generate'}
+      ${draftLabel || (currentLang==='fr' ? 'Générer' : 'Generate')}
     </button>
   </div>`;
 }
@@ -13196,15 +13220,87 @@ function renderKanban(rows){
 
 // Stats + funnel card (portage demo-private.html) : rendu partage, appele depuis renderKanban()
 // (jeu complet) et _updateKpiCards() (sous-ensemble filtre) -- un seul endroit construit le HTML.
+// Stage-to-stage pass-through over a period (same mechanism as demo-private.html). SOURCE: prospects.created_at ("Identified" = records created in the period, archived
+// included) and signal_outcomes (stage-change log, read only, per-client access). A step counts DISTINCT prospects that entered it during the period (first contact = rank
+// >= 1st Contact, reply = rank >= Replied, closed = Closed), forward moves only. Closed: "not tracked" while signal_outcomes holds no Closed row (no guessed 0 %).
+// Rate = step / previous step: a flow, not a tracked cohort. No writes.
+let _stageFlowDays = 30;
+let _stageFlowCache = null; // { key, at, rows }
+async function _fetchStageEvents(sinceIso) {
+  const key = CLIENT_ID + '|' + sinceIso.slice(0, 10);
+  if (_stageFlowCache && _stageFlowCache.key === key && Date.now() - _stageFlowCache.at < 60000) return _stageFlowCache.rows;
+  const rows = [];
+  for (let from = 0; from < 20000; from += 1000) {
+    const { data, error } = await sbClient.from('signal_outcomes').select('prospect_id, from_stage, to_stage, occurred_at')
+      .eq('client_id', CLIENT_ID).gte('occurred_at', sinceIso).in('to_stage', ['1st Contact', 'Engaged', 'Replied', 'Proposal', 'Negotiation', 'Closed'])
+      .order('occurred_at', { ascending: true }).range(from, from + 999);
+    if (error) throw error;
+    rows.push(...(data || []));
+    if (!data || data.length < 1000) break;
+  }
+  _stageFlowCache = { key, at: Date.now(), rows };
+  return rows;
+}
+let _closedLoggedCache = null; // { at, value }
+async function _stageLogCoversClosed() {
+  if (_closedLoggedCache && Date.now() - _closedLoggedCache.at < 300000) return _closedLoggedCache.value;
+  const { count, error } = await sbClient.from('signal_outcomes').select('id', { count: 'exact', head: true }).eq('client_id', CLIENT_ID).eq('to_stage', 'Closed');
+  if (error) throw error;
+  _closedLoggedCache = { at: Date.now(), value: (count || 0) > 0 };
+  return _closedLoggedCache.value;
+}
+async function _renderStageFlow() {
+  const rowsEl = document.getElementById('pipe-flow-rows'); if (!rowsEl) return;
+  const days = _stageFlowDays;
+  const nf = n => Number(n).toLocaleString('en-GB');
+  const since = new Date(Date.now() - days * 86400000), sinceIso = since.toISOString();
+  const fmt = d => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  const titleEl = document.getElementById('pipe-flow-title'), noteEl = document.getElementById('pipe-flow-note'), selEl = document.getElementById('pipe-flow-days');
+  if (selEl && selEl.value !== String(days)) selEl.value = String(days);
+  if (selEl) [...selEl.options].forEach(o => { o.textContent = o.value + ' days'; });
+  if (titleEl) titleEl.textContent = 'Stage-to-stage · ' + fmt(since) + ' – ' + fmt(new Date());
+  const mySeq = window._stageFlowSeq = (window._stageFlowSeq || 0) + 1;
+  try {
+    const scope = Array.isArray(_allProspects) && _allProspects.length ? _allProspects : null;
+    const ids = scope ? new Set(scope.map(p => p.id)) : null;
+    const identified = scope ? scope.filter(p => p.created_at && p.created_at >= sinceIso).length : null;
+    const events = await _fetchStageEvents(sinceIso);
+    const closedLogged = await _stageLogCoversClosed();
+    if (mySeq !== window._stageFlowSeq) return; // a more recent render took over
+    const rank = s => (_stageRank[s] === undefined ? -1 : _stageRank[s]);
+    const fwd = events.filter(e => e.from_stage !== e.to_stage && rank(e.to_stage) > rank(e.from_stage) && (!ids || ids.has(e.prospect_id)));
+    const distinct = minRank => new Set(fwd.filter(e => rank(e.to_stage) >= minRank).map(e => e.prospect_id)).size;
+    const steps = [
+      { label: 'Identified', n: identified },
+      { label: 'First contact', n: distinct(_stageRank['1st Contact']) },
+      { label: 'Reply', n: distinct(_stageRank['Replied']) },
+      { label: 'Closed', n: closedLogged ? distinct(_stageRank['Closed']) : null, untracked: !closedLogged },
+    ];
+    rowsEl.innerHTML = steps.map((st, i) => {
+      const prev = i > 0 ? steps[i - 1].n : null;
+      if (st.untracked) return '<div style="flex:1 1 120px;min-width:110px;padding:8px 10px;border:1px dashed var(--border);border-radius:var(--radius-sm);background:#fff;">'
+        + '<div style="font-size:var(--fs-xs);color:var(--muted);">' + _esc(st.label) + '</div>'
+        + '<div style="font-weight:700;font-size:var(--fs-lg);color:var(--muted);">—</div>'
+        + '<div style="font-size:var(--fs-xs);color:var(--text-secondary);">not tracked</div></div>';
+      const rate = (i > 0 && prev > 0 && st.n != null) ? (st.n / prev * 100).toLocaleString('en-GB', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' %' : '—';
+      return '<div style="flex:1 1 120px;min-width:110px;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:#fff;">'
+        + '<div style="font-size:var(--fs-xs);color:var(--muted);">' + _esc(st.label) + '</div>'
+        + '<div style="font-weight:700;font-size:var(--fs-lg);color:var(--ink);">' + (st.n == null ? '—' : nf(st.n)) + '</div>'
+        + '<div style="font-size:var(--fs-xs);color:var(--text-secondary);">' + (i === 0 ? 'created in period' : 'conversion ' + rate) + '</div></div>';
+    }).join('');
+    if (noteEl) noteEl.textContent = 'Flow over the period: each step counts distinct prospects that entered it (stage-change history), not a tracked cohort. The rate is the pass-through from the previous step. Partial history: reply figures may be understated.'
+      + (closedLogged ? '' : ' Closed: the stage log does not cover closing yet.');
+  } catch (e) {
+    console.warn('[_renderStageFlow]', e);
+    rowsEl.innerHTML = ''; if (noteEl) noteEl.textContent = 'Unable to load stage history right now.';
+  }
+}
 function _renderPipelineStatsCard({ counts, total, inConv, highPrio, emea, na }) {
   const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
   // Zero reel vs donnee absente : aucun prospect dans le perimetre = pas de taux (« — »), pas 0.0 %.
   const nf = n => Number(n).toLocaleString('en-GB');
   const pl = total === 1 ? ' prospect' : ' prospects';
-  setTxt('pipe-conversion', total > 0 ? (counts['Closed'] / total * 100).toFixed(1) + '%' : '—');
-  setTxt('pipe-conversion-sub', total > 0
-    ? nf(counts['Closed']) + ' / ' + nf(total) + pl + ' · current stage "Closed", all time'
-    : 'no prospects in this scope');
+  _renderStageFlow();
   const base = window._pipeBase;
   const filtered = !!base && total !== (_showArchived ? base.all : base.active);
   setTxt('pipe-stats-scope', filtered
@@ -14257,6 +14353,39 @@ async function _mscRenderScanEntriesPanel(entries, emailHtml) {
 // scan comme avant. Fourni (nouveaux liens de la liste "Derniere activite" ci-dessous), recharge le
 // meme panneau avec CE scan precis -- reutilise integralement le meme rendu (cartes/iframe), aucune
 // duplication de logique d'affichage.
+// Morning Scan history selector (same mechanism as demo-private.html): the 28 latest DISTINCT scan_date values of the client (read only), always visible in the card
+// header, the displayed date is selected. Picking the most recent day = default view (no "Back" link).
+window._mscDays = null; // dates, most recent first, null = not loaded yet
+function _mscDayLabel(d) {
+  let txt = d;
+  try { txt = new Date(d + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }); } catch (e) { /* raw date */ }
+  const rel = typeof _relDate === 'function' ? _relDate(d) : '';
+  return rel && rel !== d ? txt + ' · ' + rel : txt;
+}
+function _mscRenderDaySelect(shown) {
+  const sel = document.getElementById('msc-day-select'); if (!sel) return;
+  const days = window._mscDays || [];
+  if (!days.length) { sel.hidden = true; return; }
+  const list = shown && !days.includes(shown) ? [shown].concat(days) : days;
+  sel.innerHTML = list.map(d => `<option value="${_esc(d)}">${_esc(_mscDayLabel(d))}</option>`).join('');
+  sel.value = shown || days[0];
+  sel.hidden = false;
+}
+async function _mscSyncDaySelect(shown, reload) {
+  try {
+    if (reload || !window._mscDays) {
+      const { data } = await sbClient.from('morning_scan_email_cache').select('scan_date').eq('client_id', CLIENT_ID).order('scan_date', { ascending: false }).limit(400);
+      const seen = [];
+      for (const r of (data || [])) if (r.scan_date && !seen.includes(r.scan_date)) { seen.push(r.scan_date); if (seen.length >= 28) break; }
+      window._mscDays = seen;
+    }
+  } catch (e) { /* decorative: the main panel never depends on the list */ }
+  _mscRenderDaySelect(shown);
+}
+function _mscPickDay(d) {
+  const latest = window._mscDays && window._mscDays[0];
+  _loadLastMorningScanEmail(d && d !== latest ? d : undefined);
+}
 async function _loadLastMorningScanEmail(scanDate) {
   const el = document.getElementById('last-morning-scan-body');
   if (!el) return;
@@ -14264,9 +14393,12 @@ async function _loadLastMorningScanEmail(scanDate) {
     let q = sbClient.from('morning_scan_email_cache')
       .select('subject, email_html, scan_date, generated_at, decisions_json, scan_entries')
       .eq('client_id', CLIENT_ID);
-    q = scanDate ? q.eq('scan_date', scanDate) : q.order('scan_date', { ascending: false }).limit(1);
+    // A date can hold several rows (manual re-runs): the most recent one (generated_at) wins, never a "multiple rows" error.
+    q = scanDate ? q.eq('scan_date', scanDate) : q.order('scan_date', { ascending: false });
+    q = q.order('generated_at', { ascending: false }).limit(1);
     const { data, error } = await q.maybeSingle();
     if (error) throw error;
+    _mscSyncDaySelect(data ? data.scan_date : null, !scanDate);
     if (!data) {
       el.innerHTML = `<div style="color:var(--dim);font-size:var(--fs-sm);">${currentLang === 'fr' ? 'Aucun Morning Scan envoyé pour l’instant.' : 'No Morning Scan sent yet.'}</div>`;
       return;
