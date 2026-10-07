@@ -12878,6 +12878,7 @@ async function _drawerAI() {
 }
 
 let _priorityCurrentBatch = 1;
+let _priorityPendingInvites = 0; // decisions du scan retirees de la liste car l'invitation LinkedIn est deja envoyee (comptage de loadDailyPriorities, lecture seule)
 let _priorityShownProspects = [];
 // Step 2 (Reminders due) : promue en global au meme titre que _priorityShownProspects --
 // auparavant un `const rows` local a _loadFollowUpsDue(), invisible depuis loadDailyPriorities().
@@ -12920,6 +12921,7 @@ async function loadDailyPriorities() {
   const container = document.getElementById('priorities-container');
   if (!container) return;
   container.innerHTML = '<div style="padding:32px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">' + (currentLang === 'fr' ? 'Chargement des priorités…' : 'Loading priorities…') + '</div>';
+  _priorityPendingInvites = 0;
 
   try {
     const _pbMandateId = (activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null;
@@ -12941,7 +12943,7 @@ async function loadDailyPriorities() {
     // company_verified/identity_confidence/score_completeness deja presents.
     // icp_reason/signal_url/identity_verdict_checked_at/company_checked_at ajoutes (F16,
     // 2026-09-17) : tiroir "Pourquoi Corridor, maintenant" / "Raison de la priorite" ci-dessous.
-    const COLS = 'id,name,company,sector,country,icp_score,icp_confidence,icp_reason,icp_reason_en,signal_en,signal_interpretation_en,score_signal_strength,score_role,score_size,score_recency,score_mandate_fit,score_completeness,signal,signal_type,signal_interpretation,signal_interpretation_updated_at,signal_date,signal_url,mandate_id,stage,next_action_cache,next_action_generated_at,priority_batch_number,last_priority_shown_at,last_surfaced_in_scan_at,email,reminder_date,last_contact,linkedin,company_verified,identity_confidence,identity_verdict,identity_verdict_checked_at,company_checked_at,hard_criteria_met,website_url';
+    const COLS = 'id,name,company,sector,country,icp_score,icp_confidence,icp_reason,icp_reason_en,signal_en,signal_interpretation_en,score_signal_strength,score_role,score_size,score_recency,score_mandate_fit,score_completeness,signal,signal_type,signal_interpretation,signal_interpretation_updated_at,signal_date,signal_url,mandate_id,stage,next_action_cache,next_action_generated_at,priority_batch_number,last_priority_shown_at,last_surfaced_in_scan_at,email,reminder_date,last_contact,linkedin,company_verified,identity_confidence,identity_verdict,identity_verdict_checked_at,company_checked_at,hard_criteria_met,website_url,company_size';
 
     // Priorite Morning Scan (arbitrage Thomas, meme fix que kaizenology.html) : si le scan du jour
     // a deja produit des decisions explicites (today_action/opportunistic_connection), elles
@@ -12984,6 +12986,7 @@ async function loadDailyPriorities() {
         if (_pcErr) console.warn('[loadDailyPriorities] comptage invitations en attente:', _pcErr);
         else _decisionsPending = _pc || 0;
       }
+      _priorityPendingInvites = _decisionsPending;
       const _catRank = { today_action: 0, opportunistic_connection: 1 };
       // Fix 2026-09-29 (Thomas) : un envoi (_markSent/_startEmailSeq, LinkedIn ou email, depuis la
       // fiche prospect ou la vue Send) pose deja priority_batch_number = _priorityCurrentBatch sur
@@ -13202,6 +13205,17 @@ function _renderPriorityCards(prospects, emptyReason = 'batch-exhausted') {
     const merged = footerHtml ? cardHtml.replace(/(\s*<\/div>\s*<\/div>)\s*$/, footerHtml + '$1') : cardHtml;
     return `<div class="priority-card" data-id="${_esc(_mscSafeId(p.id))}" style="margin-bottom:12px;">${merged}</div>`;
   }).join('');
+  // Invitations deja envoyees (retirees de la liste par le filtre linkedin_tag = 'invite-sent') : une ligne discrete sous les cartes, seulement si N > 0.
+  const nPending = _priorityPendingInvites;
+  if (nPending > 0) {
+    const note = document.createElement('div');
+    note.id = 'priorities-pending-note';
+    note.style.cssText = 'margin:2px 0 12px;font-size:var(--fs-xs);color:var(--muted);';
+    note.textContent = currentLang === 'fr'
+      ? nPending + ' invitation(s) déjà envoyée(s), en attente de connexion'
+      : nPending + ' invitation(s) already sent, awaiting connection';
+    container.appendChild(note);
+  }
 }
 
 // ── Today, Step 2 : Reminders due (README) ────────────────────────────────────────────────────
@@ -18085,7 +18099,14 @@ function _qualificationNote(p) {
 // _drawerAI inchanges) -- seul le texte change.
 function _actionButtonLabel(p, cachedLabel, freshLabel) {
   if (_scoreReliabilityBadge(p)) return currentLang === 'fr' ? '⚠ Vérifier la source d\'abord' : '⚠ Verify source first';
-  return p.next_action_cache ? cachedLabel : freshLabel;
+  if (p.next_action_cache) return cachedLabel;
+  // Donnee de qualification manquante (ni e-mail ni URL LinkedIn valide, ou taille inconnue) : on prepare un brouillon, sans rien verrouiller.
+  // Un champ absent de la ligne (undefined) n'est pas « inconnu » : il n'est juste pas charge, on ne le juge pas.
+  const channelKnown = ('email' in p) && ('linkedin' in p);
+  const noChannel = channelKnown && !_hasEmail(p) && !_mscSafeUrl(p.linkedin);
+  const sizeUnknown = p.company_size !== undefined && (p.company_size == null || String(p.company_size).trim() === '');
+  if (noChannel || sizeUnknown) return currentLang === 'fr' ? 'Préparer un brouillon' : 'Prepare a draft';
+  return freshLabel;
 }
 
 // FIX 23/09 (chantier langue tiroir, point 5, GO Thomas) : table de correspondance dediee pour les
