@@ -2459,6 +2459,22 @@ function _passesCountryFilter(p) {
 }
 const OWNER_EMAIL = 'thomas@corridor.systems'; // accès complet permanent (compte propriétaire)
 let _blockedKind = null;
+// Mandat actif (meme role que dans demo-private.html : lu par _calcICP de shared.js pour estimer un score quand la fiche n'en a pas). Wominds n'a
+// qu'UN mandat actif : il est charge une fois au demarrage (_loadActiveMandate). null = pas de mandat resolu (aucune valeur inventee) ; _calcICP
+// gere null (optional chaining) et retombe sur ses criteres generiques de role et de taille.
+let _activeMandate = null;
+async function _loadActiveMandate() {
+  try {
+    const { data, error } = await sbClient.from('mandates')
+      .select('id, client_id, segment, name, status, icp_criteria, geography, sectors, decision_makers, signals, exclusions, min_employees, max_employees, target_role_keywords')
+      .eq('client_id', CLIENT_ID).eq('status', 'active');
+    if (error) throw error;
+    _activeMandate = (data && data.length === 1) ? data[0] : null; // 0 ou plusieurs mandats actifs : pas de choix implicite
+  } catch (e) {
+    console.error('[_loadActiveMandate]', e);
+    _activeMandate = null;
+  }
+}
 let _demoStarted = false;
 
 function _esc(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
@@ -2680,6 +2696,7 @@ async function showDemo(){
   const ab = document.getElementById('access-blocked'); if (ab) ab.style.display = 'none';
   hideProfileError();
   document.body.classList.add('new-nav');
+  await _loadActiveMandate(); // avant tout chargement de fiches : _calcICP lit _activeMandate
   _loadLastMorningScanEmail(); // dernier Morning Scan reellement envoye, fire-and-forget, au boot (pas derriere l'onglet Signaux)
   if (!_demoStarted) {
     _demoStarted = true;
