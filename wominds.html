@@ -5387,8 +5387,8 @@ function _calcConfidence(p) {
 }
 // ── Selection multiple + bulk actions pipeline (port demo-private.html:14629-14795/kaizenology.html,
 // 23/09, GO Thomas). _bulkArchive et _bulkChangeStage reutilisent la meme forme de mise a jour que les
-// fonctions unitaires deja en place (archiveProspect() ligne ~6083 : {archived:true, updated_at:...}, pas
-// de stage:'Archived' -- Wominds n'a pas ce concept, KANBAN_STAGES ne le liste pas). _bulkStartEmailSeq
+// fonctions unitaires deja en place (archiveProspect() : {archived:true, stage:'Archived', ...}, comme
+// demo-private.html ; le kanban replie un stage inconnu sur Identified, la fiche archivee reste masquee par archived). _bulkStartEmailSeq
 // adapte le calcul de campaign_id : Wominds n'a ni _activeMandate ni constante EMAIL_CAMPAIGN_ID
 // (contrairement a Corridor/Kaizenology), seul _clientProfile?.email_campaign_id existe cote Wominds.
 const _selectedPids = new Set();
@@ -5438,7 +5438,7 @@ async function _bulkArchive() {
   const pids = Array.from(_selectedPids);
   if (!(await _confirmModal('Archiver ' + pids.length + ' prospects ? Ils ne seront plus visibles dans le pipeline actif.'))) return;
   const { error } = await sbClient.from('prospects')
-    .update({ archived: true, updated_at: new Date().toISOString() }).in('id', pids).eq('client_id', CLIENT_ID);
+    .update({ archived: true, stage: 'Archived' }).in('id', pids).eq('client_id', CLIENT_ID);
   if (error) { showToast('Erreur : ' + error.message); return; }
   showToast(pids.length + ' prospects archivés');
   _bulkClear();
@@ -7009,7 +7009,7 @@ async function _rescoreProspect(prospectId) {
     const b = document.getElementById('drawer-rescore-btn');
     if (!b || !_drawerProspect || String(_drawerProspect.id) !== String(prospectId)) return;
     b.disabled = busy;
-    b.textContent = busy ? 'Re-scoring…' : '↻ Re-scorer';
+    b.textContent = busy ? 'Re-score en cours…' : '↻ Re-scorer';
   };
   setBusy(true);
   const readRow = () => sbClient.from('prospects').select('icp_score, icp_reason, archived, updated_at')
@@ -7728,8 +7728,8 @@ async function saveProspectEdit(id) {
   };
   // Toggle "Voir les archivés" (GO Thomas 23/09, parite demo-private.html/kaizenology.html) :
   // Edit details est une action disponible sur une fiche archivee affichee via le toggle -- sans
-  // ceci, sauvegarder l'edition laisserait archived=true (archiveProspect() ne pose ici QUE
-  // archived, pas de stage synthetique, mais la fiche resterait invisible par defaut malgre
+  // ceci, sauvegarder l'edition laisserait archived=true (archiveProspect() pose archived +
+  // stage:'Archived', la fiche resterait invisible par defaut malgre
   // l'edition explicite). Toute sauvegarde explicite sur une fiche archivee la reactive.
   const _wasArchived = p.archived === true;
   if (_wasArchived) row.archived = false;
@@ -7749,7 +7749,7 @@ async function archiveProspect(id) {
   if (!id) return;
   if (!(await _confirmModal('Archiver ce prospect ? Il ne sera plus visible dans le pipeline actif.'))) return;
   try {
-    const { error } = await sbClient.from('prospects').update({ archived: true, updated_at: new Date().toISOString() }).eq('client_id', CLIENT_ID).eq('id', id);
+    const { error } = await sbClient.from('prospects').update({ archived: true, stage: 'Archived', updated_at: new Date().toISOString() }).eq('client_id', CLIENT_ID).eq('id', id);
     if (error) throw error;
     showToast('Prospect archivé');
     closeProspectDetail();
@@ -9170,7 +9170,6 @@ async function _reminderClose(id) {
 // les tables ci-dessous, repli sur la valeur brute si non répertoriée -- jamais un texte inventé. Aucune ligne = état vide explicite.
 const _AGENT_DISPLAY_FR = {
   'Daily Digest': 'Digest quotidien',
-  'Outlook Reply Capture': 'Capture réponses Outlook',
 };
 const _ACTION_SUMMARY_DISPLAY_FR = {
   'Published daily digest': 'Digest quotidien publié',
@@ -9805,7 +9804,7 @@ async function _sendViaLinkedIn(pid, touch, elPrefix = '') {
 
 // Bookkeeping manuel par defaut (Elodie envoie elle-meme via son propre LinkedIn/email et le
 // note ici) -- meme logique generique que demo-private.html:7987-8038, sans /api/linkedin-remove
-// ni priority_batch_number (mecaniques specifiques a l'automatisation par lots, absentes ici).
+// (priority_batch_number : pose depuis le 2026-10-07, voir plus bas).
 // Fix 2026-09-14 (activation envoi reel LinkedIn) : auto/msgText ajoutes (meme signature que
 // kaizenology.html:7206 _markSent) pour que l'historique distingue un vrai envoi automatise
 // (_sendViaLinkedIn) d'une note manuelle -- avant ce fix, tout envoi reel aurait ete
@@ -9859,25 +9858,45 @@ async function _markSent(pid, touch, auto = false, msgText = '', elPrefix = '') 
     note: sentNote, touch,
   });
   if (intErr) console.error('[_markSent] interactions:', intErr);
+  // Chaque ecriture de suivi lit son erreur (parite demo-private.html _markSent) : un echec ne doit plus etre avale par un simple
+  // console.error suivi du toast de succes -- l'envoi a bien eu lieu, c'est le suivi en base qui est incomplet, et le dit.
+  let eLastContact = null;
   if (touch !== 'invite') {
-    await sbClient.from('prospects').update({ last_contact: new Date().toISOString().slice(0, 10) }).eq('id', pid).eq('client_id', CLIENT_ID);
+    ({ error: eLastContact } = await sbClient.from('prospects').update({ last_contact: new Date().toISOString().slice(0, 10) }).eq('id', pid).eq('client_id', CLIENT_ID));
+    if (eLastContact) console.error('[_markSent] last_contact:', eLastContact);
   }
   const p = _sendProspects.find(x => x.id === pid) || _prospectsById[pid];
   const newStage = TOUCH_NEXT_STAGE[touch];
   const curRank = _stageRank[p?.stage] ?? -1;
   const newRank = _stageRank[newStage] ?? -1;
+  let eStage = null;
   if (p && newStage && newRank > curRank) {
-    await sbClient.from('prospects').update({ stage: newStage }).eq('id', pid).eq('client_id', CLIENT_ID);
-    if (p) p.stage = newStage;
+    ({ error: eStage } = await sbClient.from('prospects').update({ stage: newStage }).eq('id', pid).eq('client_id', CLIENT_ID));
+    if (eStage) console.error('[_markSent] stage:', eStage);
+    else p.stage = newStage;
   }
+  let eLinkedinTag = null;
   if (touch === 'invite') {
-    await sbClient.from('prospects').update({ linkedin_tag: 'invite-sent' }).eq('id', pid).eq('client_id', CLIENT_ID);
+    ({ error: eLinkedinTag } = await sbClient.from('prospects').update({ linkedin_tag: 'invite-sent' }).eq('id', pid).eq('client_id', CLIENT_ID));
+    if (eLinkedinTag) console.error('[_markSent] linkedin_tag:', eLinkedinTag);
   }
   const daysNext = TOUCH_NEXT_REMINDER[touch];
+  let eReminder = null;
   if (daysNext != null) {
-    await sbClient.from('prospects').update({ reminder_date: new Date(Date.now() + daysNext * 86400000).toISOString() }).eq('id', pid).eq('client_id', CLIENT_ID);
+    ({ error: eReminder } = await sbClient.from('prospects').update({ reminder_date: new Date(Date.now() + daysNext * 86400000).toISOString() }).eq('id', pid).eq('client_id', CLIENT_ID));
+    if (eReminder) console.error('[_markSent] reminder_date:', eReminder);
   }
-  showToast('Marqué comme envoyé ✓');
+  // Un envoi n'excluait pas le prospect du calcul de « À traiter » : seul priority_batch_number (avance par _prioritiesNext/_prioritiesSkip)
+  // le fait (filtres de loadDailyPriorities). On le pose ici (meme regle que demo-private.html/kaizenology.html _markSent), sans ecraser un
+  // lot deja pose ; _priorityCurrentBatch vaut 1 des sa declaration, le || 1 est une securite.
+  const { error: ePriorityBatch } = await sbClient.from('prospects')
+    .update({ priority_batch_number: _priorityCurrentBatch || 1 })
+    .eq('id', pid).eq('client_id', CLIENT_ID)
+    .or('priority_batch_number.is.null,priority_batch_number.eq.0');
+  if (ePriorityBatch) console.error('[_markSent] priority_batch_number:', ePriorityBatch);
+  else if (document.getElementById('tab-today')?.classList.contains('active')) loadDailyPriorities();
+  if (intErr || eLastContact || eStage || eLinkedinTag || eReminder || ePriorityBatch) showToast('⚠ Envoyé mais pas totalement suivi');
+  else showToast('Marqué comme envoyé ✓');
   if (_liJ5) _fetchTodaySendCounts().catch(() => {});   // « Relances traitées » : la relance LinkedIn vient d'etre traitee
   if (card) card.style.opacity = '0.4';
   setTimeout(() => {
