@@ -32,3 +32,11 @@ GRANT EXECUTE ON FUNCTION public.smoke_has_table_privilege(text, text, text) TO 
 -- CREATE POLICY signals_feed_cache_owner ON public.signals_feed_cache
 --   AS PERMISSIVE FOR ALL TO public
 --   USING (client_id = (SELECT clients.client_id FROM clients WHERE clients.auth_user_id = auth.uid()));
+
+-- ============ MIGRATION 2 (GO de Thomas, 07/10/2026) : droits inutiles retires ============
+-- anon et authenticated avaient TRUNCATE, REFERENCES et TRIGGER sur la table (droits par defaut) : la securite par ligne (RLS)
+-- ne protege pas contre TRUNCATE. Le code n'en a pas besoin.
+-- Appliquee : signals_feed_cache_revoke_truncate_references_trigger_20261007
+-- REVOKE TRUNCATE, REFERENCES, TRIGGER ON public.signals_feed_cache FROM anon, authenticated;
+-- ROLLBACK de la migration 2 (rend les droits d'origine) :
+-- GRANT TRUNCATE, REFERENCES, TRIGGER ON public.signals_feed_cache TO anon, authenticated;
