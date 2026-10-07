@@ -279,3 +279,27 @@ function _corridorModalShow(message, kind) {
 }
 function _confirmModal(message) { return _corridorModalShow(message, 'confirm'); }
 function _alertModal(message) { return _corridorModalShow(message, 'alert').then(() => {}); }
+
+// AJOUT 07/10 (audit erreurs ignorees, regle CLAUDE.md « Fiabilite - ecritures silencieuses ») :
+// supabase-js ne LEVE PAS sur un refus HTTP (l'erreur revient dans { data, error, status }) et un
+// fetch ne leve jamais sur un 4xx/5xx -- un try/catch autour ne voit donc rien. _dbErr(result, label)
+// prend ce resultat (supabase-js, ou Response d'un fetch) et renvoie true s'il y a echec : result.error
+// pose, ou result.ok === false (Response). opts.expectRows : un UPDATE/INSERT ... .select() qui renvoie
+// 0 ligne (refus RLS silencieux, sans error) compte aussi comme echec. Journalise toujours (console.error)
+// et affiche UN toast generique par minute au plus (horodatage module) ; opts.silent : journal + retour
+// seulement, pour l'appelant qui affiche son propre message precis (jamais bride). Ne lit aucun global
+// non garde : showToast / currentLang sont testes par typeof (currentLang absent sur wominds.html).
+let _dbErrLastToast = 0;
+function _dbErr(result, label, opts) {
+  opts = opts || {};
+  const r = result || {};
+  const failed = !!r.error || r.ok === false || (!!opts.expectRows && Array.isArray(r.data) && r.data.length === 0);
+  if (!failed) return false;
+  console.error('[' + label + ']', r.error ? (r.error.message || r.error) : (r.ok === false ? 'HTTP ' + r.status : 'aucune ligne modifiee (refus possible par les droits)'));
+  if (!opts.silent && typeof showToast === 'function' && Date.now() - _dbErrLastToast > 60000) {
+    _dbErrLastToast = Date.now();
+    const fr = typeof currentLang === 'undefined' || currentLang === 'fr';
+    showToast(fr ? 'Échec de l\'enregistrement (' + label + ')' : 'Could not save (' + label + ')');
+  }
+  return true;
+}

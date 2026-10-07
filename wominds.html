@@ -5427,13 +5427,16 @@ async function _bulkChangeStage() {
     .update({ stage }).in('id', pids).eq('client_id', CLIENT_ID);
   if (error) { showToast('Erreur : ' + error.message); return; }
   const advancedStages = ['1st Contact','Engaged','Replied','Proposal','Closed'];
+  let tagFailed = 0;   // prospects dont le stage est pose mais pas le linkedin_tag (conditionne l'envoi) : plus comptes comme « deplaces »
   if (advancedStages.includes(stage)) {
     const toUpgrade = pids.filter(id => (_prospectsById[id] || {}).linkedin_tag === 'invite-sent');
     if (toUpgrade.length > 0) {
-      await sbClient.from('prospects').update({ linkedin_tag: 'connection-accepted' }).in('id', toUpgrade).eq('client_id', CLIENT_ID);
+      const tagRes = await sbClient.from('prospects').update({ linkedin_tag: 'connection-accepted' }).in('id', toUpgrade).eq('client_id', CLIENT_ID);
+      if (_dbErr(tagRes, '_bulkChangeStage linkedin_tag', { silent: true })) tagFailed = toUpgrade.length;
     }
   }
-  showToast(pids.length + ' prospects déplacés vers ' + (STAGE_LABEL_FR[stage] || stage));
+  if (tagFailed) showToast((pids.length - tagFailed) + ' sur ' + pids.length + ' déplacés vers ' + (STAGE_LABEL_FR[stage] || stage) + ', ' + tagFailed + ' en échec (statut LinkedIn non mis à jour)');
+  else showToast(pids.length + ' prospects déplacés vers ' + (STAGE_LABEL_FR[stage] || stage));
   _bulkClear();
   await loadKanban(true);
 }
@@ -6675,9 +6678,12 @@ Le champ brief_fr ne contient que le contenu HTML. Pas de préambule, pas de doc
       client_id: CLIENT_ID, prospect_id: p.id, mandate_id: null,
       type: 'discovery_brief', note: JSON.stringify({ brief_fr: briefFr })
     }).select('id,type,note,created_at').single();
-    if (briefErr) console.error('[_sendDiscoveryBrief] insert interactions:', briefErr);
-    else if (briefRow && _drawerPid() === p.id) { _drawerInteractions = [briefRow, ..._drawerInteractions]; _renderDrawerInteractions(); }
-    showToast('Brief envoyé dans votre boîte de réception');
+    // L'e-mail est deja parti ici : un echec d'archivage n'est ni un succes complet ni un echec d'envoi.
+    if (_dbErr({ error: briefErr }, '_sendDiscoveryBrief interactions', { silent: true })) showToast('⚠ Brief envoyé par e-mail, mais non enregistré dans l\'historique du prospect (erreur)');
+    else {
+      if (briefRow && _drawerPid() === p.id) { _drawerInteractions = [briefRow, ..._drawerInteractions]; _renderDrawerInteractions(); }
+      showToast('Brief envoyé dans votre boîte de réception');
+    }
     if (btn) { btn.disabled = false; btn.textContent = origLabel; }
   } catch(e) {
     showToast('Erreur : ' + e.message);
@@ -10935,23 +10941,32 @@ async function _weeklyVote(reportId, vote) {
   if (likeBtn)   likeBtn.disabled = true;
   if (unlikeBtn) unlikeBtn.disabled = true;
   try {
-    const { data: existing } = await sbClient.from('agent_feedback')
+    // supabase-js ne leve pas sur un refus : on lit l'erreur de la lecture ET de l'ecriture avant de basculer l'etat.
+    // Changer un vote deja pose = UPDATE ; role authenticated sans droit UPDATE sur agent_feedback a ce jour (refus attendu, montre).
+    const selRes = await sbClient.from('agent_feedback')
       .select('id').eq('agent_name', 'weekly_report').eq('client_id', CLIENT_ID).eq('item_id', reportId).maybeSingle();
+    if (_dbErr(selRes, '_weeklyVote select', { silent: true })) throw selRes.error || new Error('HTTP ' + selRes.status);
+    const existing = selRes.data;
+    let wRes;
     if (existing) {
-      await sbClient.from('agent_feedback').update({ vote }).eq('id', existing.id);
+      wRes = await sbClient.from('agent_feedback').update({ vote }).eq('id', existing.id).select('id');
+      if (_dbErr(wRes, '_weeklyVote update', { silent: true, expectRows: true })) throw wRes.error || new Error('0 ligne modifiée');
     } else {
-      await sbClient.from('agent_feedback').insert({
+      wRes = await sbClient.from('agent_feedback').insert({
         agent_name: 'weekly_report', client_id: CLIENT_ID, mandate_id: null,
         item_id: reportId, item_type: 'weekly_report', vote
       });
+      if (_dbErr(wRes, '_weeklyVote insert', { silent: true })) throw wRes.error;
     }
     if (likeBtn)   { likeBtn.classList.toggle('active-like',   vote === 'like');   likeBtn.disabled = false; }
     if (unlikeBtn) { unlikeBtn.classList.toggle('active-unlike', vote === 'unlike'); unlikeBtn.disabled = false; }
     if (statusEl)  statusEl.textContent = vote === 'like' ? 'Marqué utile' : 'Marqué pas utile';
   } catch(e) {
     console.error('[_weeklyVote]', e);
+    // Rien n'a ete bascule avant l'ecriture : on remet seulement les boutons actifs, l'etat affiche reste le vote reellement enregistre.
     if (likeBtn)   likeBtn.disabled = false;
     if (unlikeBtn) unlikeBtn.disabled = false;
+    showToast('Vote non enregistré : ' + ((e && e.message) || ''));
   }
 }
 const _RPT_METRIC_COLS = [

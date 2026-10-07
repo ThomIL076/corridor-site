@@ -3886,23 +3886,32 @@ async function _weeklyVote(reportId, vote) {
   if (likeBtn)   { likeBtn.disabled = true; }
   if (unlikeBtn) { unlikeBtn.disabled = true; }
   try {
-    const { data: existing } = await sbClient.from('agent_feedback')
+    // supabase-js ne leve pas sur un refus : on lit l'erreur de la lecture ET de l'ecriture avant de basculer l'etat.
+    // Changer un vote deja pose = UPDATE ; role authenticated sans droit UPDATE sur agent_feedback a ce jour (refus attendu, montre).
+    const selRes = await sbClient.from('agent_feedback')
       .select('id').eq('agent_name', 'weekly_report').eq('client_id', CLIENT_ID).eq('item_id', reportId).maybeSingle();
+    if (_dbErr(selRes, '_weeklyVote select', { silent: true })) throw selRes.error || new Error('HTTP ' + selRes.status);
+    const existing = selRes.data;
+    let wRes;
     if (existing) {
-      await sbClient.from('agent_feedback').update({ vote }).eq('id', existing.id);
+      wRes = await sbClient.from('agent_feedback').update({ vote }).eq('id', existing.id).select('id');
+      if (_dbErr(wRes, '_weeklyVote update', { silent: true, expectRows: true })) throw wRes.error || new Error('0 ligne modifiée');
     } else {
-      await sbClient.from('agent_feedback').insert({
+      wRes = await sbClient.from('agent_feedback').insert({
         agent_name: 'weekly_report', client_id: CLIENT_ID, mandate_id: null,
         item_id: reportId, item_type: 'weekly_report', vote
       });
+      if (_dbErr(wRes, '_weeklyVote insert', { silent: true })) throw wRes.error;
     }
     if (likeBtn)   { likeBtn.classList.toggle('active-like',   vote === 'like');   likeBtn.disabled = false; }
     if (unlikeBtn) { unlikeBtn.classList.toggle('active-unlike', vote === 'unlike'); unlikeBtn.disabled = false; }
     if (statusEl)  { const fr = typeof currentLang !== 'undefined' && currentLang === 'fr'; statusEl.textContent = vote === 'like' ? (fr ? 'Marqué utile' : 'Marked useful') : (fr ? 'Marqué pas utile' : 'Marked not useful'); }
   } catch(e) {
     console.error('[_weeklyVote]', e);
+    // Rien n'a ete bascule avant l'ecriture : on remet seulement les boutons actifs, l'etat affiche reste le vote reellement enregistre.
     if (likeBtn)   likeBtn.disabled = false;
     if (unlikeBtn) unlikeBtn.disabled = false;
+    showToast((typeof currentLang !== 'undefined' && currentLang === 'fr' ? 'Vote non enregistré : ' : 'Vote not saved: ') + ((e && e.message) || ''));
   }
 }
 
@@ -11009,12 +11018,15 @@ async function _markSent(pid, touch, auto = false, msgText = '', elPrefix = '', 
     ({ error: eLinkedinTag } = await sbClient.from('prospects').update({ linkedin_tag: 'invite-sent' }).eq('id', pid).eq('client_id', CLIENT_ID));
     if (eLinkedinTag) console.error('_markSent linkedin_tag:', eLinkedinTag);
   }
+  // Un fetch ne leve pas sur un 4xx/5xx : la reponse est lue (res.ok) avant le toast final. Le retrait de la
+  // sequence d'automatisation LinkedIn part en parallele des ecritures suivantes, on n'attend qu'a la fin.
+  let _liRemoveP = null;
   if ((touch === 'j0' || touch === 'invite') && p && p.linkedin) {
-    _authFetch('/api/linkedin-remove', {
+    _liRemoveP = _authFetch('/api/linkedin-remove', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ linkedinUrl: p.linkedin, client_id: _drawerClientId() })
-    }).catch(err => console.error('[_markSent] linkedin-remove failed:', err));
+    }).catch(err => { console.error('[_markSent] linkedin-remove failed:', err); return null; });
   }
   const daysNext = TOUCH_NEXT_REMINDER[touch];
   let eReminder = null;
@@ -11045,8 +11057,14 @@ async function _markSent(pid, touch, auto = false, msgText = '', elPrefix = '', 
     if (countEl) countEl.textContent = remaining;
     _setSendBadge(remaining);
   }, 600);
+  const _liRes = _liRemoveP ? await _liRemoveP : null;
+  const _liFail = !!_liRemoveP && (!_liRes || _dbErr(_liRes, '_markSent linkedin-remove', { silent: true }));
+  const _liFr = currentLang === 'fr';
+  const _liSuffix = _liFail ? (_liFr ? ' (+ retrait de la séquence LinkedIn refusé)' : ' (+ removal from the LinkedIn sequence refused)') : '';
   if (eLastContact || eStage || eLinkedinTag || eReminder || ePriorityBatch) {
-    showToast(currentLang==='fr' ? '⚠ Envoyé mais pas totalement suivi' : '⚠ Sent but not fully tracked');
+    showToast((currentLang==='fr' ? '⚠ Envoyé mais pas totalement suivi' : '⚠ Sent but not fully tracked') + _liSuffix);
+  } else if (_liFail) {
+    showToast(_liFr ? '⚠ Envoyé, mais le retrait de la séquence LinkedIn a été refusé' + (_liRes ? ' (HTTP ' + _liRes.status + ')' : ' (réseau)') + ' : le prospect peut encore recevoir des messages automatiques' : '⚠ Sent, but removal from the LinkedIn sequence was refused' + (_liRes ? ' (HTTP ' + _liRes.status + ')' : ' (network)') + ': the prospect may still receive automated messages');
   } else if (!auto) {
     showToast(currentLang==='fr' ? 'Marqué comme envoyé ✓' : 'Marked as sent ✓');
   }
@@ -14810,11 +14828,13 @@ Each of brief_fr/brief_en must contain the HTML content only for that language. 
     // Le brief complet (pas un texte de statut) est persiste ici : la carte "Call prep brief"
     // du tiroir (restructuration scroll) le relit depuis cette meme interaction, a tout moment --
     // l'envoi email reste en plus, mais n'est plus la seule trace du contenu genere.
-    await sbClient.from('interactions').insert({
+    // L'e-mail est deja parti ici : un echec d'archivage ne doit pas etre presente comme un succes complet, ni comme un echec d'envoi.
+    const briefIns = await sbClient.from('interactions').insert({
       client_id: CLIENT_ID, prospect_id: p.id, mandate_id: p.mandate_id ?? null,
       type: 'discovery_brief', note: JSON.stringify({ brief_fr: briefFr, brief_en: briefEn })
     });
-    showToast(currentLang==='fr' ? 'Brief envoyé dans votre boîte de réception' : 'Brief sent to your inbox');
+    if (_dbErr(briefIns, '_sendDiscoveryBrief interactions', { silent: true })) showToast(currentLang==='fr' ? '⚠ Brief envoyé par e-mail, mais non enregistré dans l\'historique du prospect (erreur)' : '⚠ Brief emailed, but not saved to the prospect history (error)');
+    else showToast(currentLang==='fr' ? 'Brief envoyé dans votre boîte de réception' : 'Brief sent to your inbox');
   } catch(e) {
     showToast((currentLang==='fr' ? 'Erreur : ' : 'Error: ') + e.message);
     if (btn) { btn.disabled = false; btn.textContent = origLabel; }
@@ -14945,9 +14965,10 @@ Rules: no em-dashes, no markdown headers, factual only, base everything on the n
   // le texte de la langue affichee : _parseDebrief() doit pouvoir re-rendre dans l'autre langue si
   // currentLang change avant la prochaine ouverture du tiroir (chantier langue, 2026-09-23).
   try {
-    const { data: intData } = await sbClient.from('interactions')
+    const { data: intData, error: intErr } = await sbClient.from('interactions')
       .insert({ prospect_id: pid, client_id: _drawerClientId(), mandate_id: p?.mandate_id ?? null, type: 'call', note: JSON.stringify(debriefObj) })
       .select('id,type,note,created_at').single();
+    if (intErr) throw intErr;   // supabase-js ne leve pas : sans ce throw le catch (et son toast) etait inatteignable
     if (intData) {
       _drawerInteractions = [intData, ..._drawerInteractions];
       _pdRefreshMessageHistory();
@@ -16675,13 +16696,16 @@ async function _bulkChangeStage() {
     .update({ stage }).in('id', pids).eq('client_id', CLIENT_ID);
   if (error) { showToast((currentLang==='fr'?'Erreur : ':'Error: ') + error.message); return; }
   const advancedStages = ['1st Contact','Engaged','Replied','Proposal','Closed'];
+  let tagFailed = 0;   // prospects dont le stage est pose mais pas le linkedin_tag (conditionne l'envoi) : plus comptes comme « deplaces »
   if (advancedStages.includes(stage)) {
     const toUpgrade = pids.filter(id => (_prospectsById[id] || {}).linkedin_tag === 'invite-sent');
     if (toUpgrade.length > 0) {
-      await sbClient.from('prospects').update({ linkedin_tag: 'connection-accepted' }).in('id', toUpgrade).eq('client_id', CLIENT_ID);
+      const tagRes = await sbClient.from('prospects').update({ linkedin_tag: 'connection-accepted' }).in('id', toUpgrade).eq('client_id', CLIENT_ID);
+      if (_dbErr(tagRes, '_bulkChangeStage linkedin_tag', { silent: true })) tagFailed = toUpgrade.length;
     }
   }
-  showToast(currentLang==='fr' ? (pids.length + ' prospects déplacés vers ' + stage) : (pids.length + ' prospects moved to ' + stage));
+  if (tagFailed) showToast(currentLang==='fr' ? ((pids.length - tagFailed) + ' sur ' + pids.length + ' déplacés vers ' + stage + ', ' + tagFailed + ' en échec (statut LinkedIn non mis à jour)') : ((pids.length - tagFailed) + ' of ' + pids.length + ' moved to ' + stage + ', ' + tagFailed + ' failed (LinkedIn status not updated)'));
+  else showToast(currentLang==='fr' ? (pids.length + ' prospects déplacés vers ' + stage) : (pids.length + ' prospects moved to ' + stage));
   _bulkClear();
   await loadKanban();
 }
@@ -19518,7 +19542,20 @@ async function _hsTestConnection() {
     });
     const data = await res.json();
 
+    // La cle n'est declaree « connectee » que si son enregistrement a reellement abouti (error lue ; 0 ligne = refus par les droits, sans error).
+    let saveMsg = null;
     if (data.success) {
+      const saveRes = await sbClient.from('clients').update({ hubspot_api_key: apiKey }).eq('client_id', CLIENT_ID).select('client_id');
+      if (_dbErr(saveRes, '_hsTestConnection save', { silent: true, expectRows: true })) saveMsg = (saveRes.error && saveRes.error.message) || (currentLang==='fr' ? 'aucune ligne modifiée (droits)' : 'no row updated (permissions)');
+    }
+    if (data.success && saveMsg !== null) {
+      resultEl.textContent = (currentLang==='fr' ? '✗ Connexion testée, mais la clé n\'a pas pu être enregistrée — ' : '✗ Connection tested, but the key could not be saved — ') + saveMsg;
+      resultEl.style.color = 'var(--red, #dc2626)';
+      badge.textContent    = currentLang==='fr' ? 'Erreur' : 'Error';
+      badge.className      = 'card-badge';
+      badge.style.cssText  = 'background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;';
+      badge.style.display  = '';
+    } else if (data.success) {
       _hsStages        = data.stages || [];
       _hsPipelineCount = data.pipelineCount || 0;
       resultEl.textContent = currentLang==='fr'?`✓ Connecté — ${_hsStages.length} étape${_hsStages.length !== 1 ? 's' : ''} trouvée${_hsStages.length !== 1 ? 's' : ''}`:`✓ Connected — ${_hsStages.length} stage${_hsStages.length !== 1 ? 's' : ''} found`;
@@ -19527,7 +19564,6 @@ async function _hsTestConnection() {
       badge.className      = 'card-badge badge-ai';
       badge.style.cssText  = '';
       badge.style.display  = '';
-      await sbClient.from('clients').update({ hubspot_api_key: apiKey }).eq('client_id', CLIENT_ID);
       if (_clientProfile) _clientProfile.hubspot_api_key = apiKey;
       _hsRenderStageMapping(_hsStages, _clientProfile?.hubspot_stage_mapping || {});
     } else {
@@ -19675,15 +19711,10 @@ async function _sfTestConnection() {
     });
     const data = await res.json();
 
+    // La cle n'est declaree « connectee » que si son enregistrement a reellement abouti (error lue ; 0 ligne = refus par les droits, sans error).
+    let saveMsg = null, updates = null;
     if (data.success) {
-      _sfStages = data.stages || [];
-      resultEl.textContent = currentLang==='fr'?`✓ Connecté — ${_sfStages.length} étape${_sfStages.length !== 1 ? 's' : ''} trouvée${_sfStages.length !== 1 ? 's' : ''}`:`✓ Connected — ${_sfStages.length} stage${_sfStages.length !== 1 ? 's' : ''} found`;
-      resultEl.style.color = 'var(--green, #16a34a)';
-      badge.textContent    = (currentLang==='fr'?'Connecté':'Connected');
-      badge.className      = 'card-badge badge-ai';
-      badge.style.cssText  = '';
-      badge.style.display  = '';
-      const updates = {
+      updates = {
         salesforce_enabled: true,
         salesforce_client_id: creds.clientId,
         salesforce_client_secret: creds.clientSecret,
@@ -19691,7 +19722,24 @@ async function _sfTestConnection() {
         salesforce_password: creds.password,
         salesforce_instance_url: creds.instanceUrl || data.instanceUrl || '',
       };
-      await sbClient.from('clients').update(updates).eq('client_id', CLIENT_ID);
+      const saveRes = await sbClient.from('clients').update(updates).eq('client_id', CLIENT_ID).select('client_id');
+      if (_dbErr(saveRes, '_sfTestConnection save', { silent: true, expectRows: true })) saveMsg = (saveRes.error && saveRes.error.message) || (currentLang==='fr' ? 'aucune ligne modifiée (droits)' : 'no row updated (permissions)');
+    }
+    if (data.success && saveMsg !== null) {
+      resultEl.textContent = (currentLang==='fr' ? '✗ Connexion testée, mais la clé n\'a pas pu être enregistrée — ' : '✗ Connection tested, but the key could not be saved — ') + saveMsg;
+      resultEl.style.color = 'var(--red, #dc2626)';
+      badge.textContent    = currentLang==='fr' ? 'Erreur' : 'Error';
+      badge.className      = 'card-badge';
+      badge.style.cssText  = 'background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;';
+      badge.style.display  = '';
+    } else if (data.success) {
+      _sfStages = data.stages || [];
+      resultEl.textContent = currentLang==='fr'?`✓ Connecté — ${_sfStages.length} étape${_sfStages.length !== 1 ? 's' : ''} trouvée${_sfStages.length !== 1 ? 's' : ''}`:`✓ Connected — ${_sfStages.length} stage${_sfStages.length !== 1 ? 's' : ''} found`;
+      resultEl.style.color = 'var(--green, #16a34a)';
+      badge.textContent    = (currentLang==='fr'?'Connecté':'Connected');
+      badge.className      = 'card-badge badge-ai';
+      badge.style.cssText  = '';
+      badge.style.display  = '';
       if (_clientProfile) Object.assign(_clientProfile, updates);
       _sfRenderStageMapping(_sfStages, _clientProfile?.salesforce_stage_mapping || {});
       _intRenderGrid();
@@ -19810,7 +19858,20 @@ async function _pdrvTestConnection() {
     });
     const data = await res.json();
 
+    // La cle n'est declaree « connectee » que si son enregistrement a reellement abouti (error lue ; 0 ligne = refus par les droits, sans error).
+    let saveMsg = null;
     if (data.success) {
+      const saveRes = await sbClient.from('clients').update({ pipedrive_enabled: true, pipedrive_api_key: apiKey }).eq('client_id', CLIENT_ID).select('client_id');
+      if (_dbErr(saveRes, '_pdrvTestConnection save', { silent: true, expectRows: true })) saveMsg = (saveRes.error && saveRes.error.message) || (currentLang==='fr' ? 'aucune ligne modifiée (droits)' : 'no row updated (permissions)');
+    }
+    if (data.success && saveMsg !== null) {
+      resultEl.textContent = (currentLang==='fr' ? '✗ Connexion testée, mais la clé n\'a pas pu être enregistrée — ' : '✗ Connection tested, but the key could not be saved — ') + saveMsg;
+      resultEl.style.color = 'var(--red, #dc2626)';
+      badge.textContent    = currentLang==='fr' ? 'Erreur' : 'Error';
+      badge.className      = 'card-badge';
+      badge.style.cssText  = 'background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;';
+      badge.style.display  = '';
+    } else if (data.success) {
       _pdrvStages        = data.stages || [];
       _pdrvPipelineCount = data.pipelineCount || 0;
       resultEl.textContent = currentLang==='fr'?`✓ Connecté — ${_pdrvStages.length} étape${_pdrvStages.length !== 1 ? 's' : ''} trouvée${_pdrvStages.length !== 1 ? 's' : ''}`:`✓ Connected — ${_pdrvStages.length} stage${_pdrvStages.length !== 1 ? 's' : ''} found`;
@@ -19819,7 +19880,6 @@ async function _pdrvTestConnection() {
       badge.className      = 'card-badge badge-ai';
       badge.style.cssText  = '';
       badge.style.display  = '';
-      await sbClient.from('clients').update({ pipedrive_enabled: true, pipedrive_api_key: apiKey }).eq('client_id', CLIENT_ID);
       if (_clientProfile) { _clientProfile.pipedrive_enabled = true; _clientProfile.pipedrive_api_key = apiKey; }
       _pdrvRenderStageMapping(_pdrvStages, _clientProfile?.pipedrive_stage_mapping || {});
       _intRenderGrid();
