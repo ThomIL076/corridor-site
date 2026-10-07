@@ -199,6 +199,10 @@ body {
 /* ── TOP CHROME WRAPPER (fixed, stacks nav + bars) ── */
 .top-chrome-wrapper {
   position: fixed; top:0; left:0; right:0; z-index:200;
+  /* Application installee (apple-mobile-web-app-capable + barre d'etat « black-translucent ») : la page passe SOUS l'encoche / la barre d'etat.
+     La zone sure est reservee en haut (0 dans un navigateur ordinaire : aucun changement visible) et peinte de la couleur du theme pour que
+     l'heure et la batterie (texte blanc) restent lisibles ; le corps suit automatiquement (ResizeObserver sur ce conteneur). */
+  padding-top: env(safe-area-inset-top, 0px); background: #12213f;
 }
 body.new-nav .top-chrome-wrapper { left: 220px; }
 
@@ -293,7 +297,7 @@ nav {
 }
 /* Barre du haut mobile : le selecteur de mandat passait a ~35 px (« V ») ; il prend maintenant sa propre ligne. */
 @media (max-width: 768px) {
-  #primary-nav { flex-wrap: wrap; row-gap: 8px; }
+  #primary-nav { flex-wrap: wrap; row-gap: 8px; height: auto; min-height: 58px; padding-top: 8px; padding-bottom: 8px; }
   #primary-nav .mandate-bar { order: 2; flex: 1 1 100%; max-width: 100%; overflow: visible; }
   #primary-nav #mandate-select { width: 100%; max-width: 100%; flex: 1 1 100%; }
   .today-step-divider { flex-wrap: wrap; }
@@ -301,7 +305,11 @@ nav {
 }
 .sec-tab-mobile-only { display: none; }
 @media (max-width: 768px) {
-  .sec-tabs { padding: 0 8px; }
+  /* Cause du chevauchement : .sec-tabs est un <nav> et heritait de `nav { height: 58px; align-items: center }` : le groupe Configuration
+     (onglets + « Se deconnecter » sur 2 lignes) debordait de ce cadre fixe, centre vers le HAUT sous la barre du haut, et « Se deconnecter »
+     etait rogne par overflow. Hauteur automatique, contenu aligne en haut ; la barre du haut (#primary-nav, 2 lignes avec le mandat) pareil. */
+  .sec-tabs { padding: 0 8px; height: auto; align-items: flex-start; }
+  .sec-tab { padding: 0 10px; }   /* 3 onglets de Configuration sur une seule ligne des 360 px (evite 48 px de barre fixe en plus) */
   .sec-tabs-group[data-sec="settings"] { flex-wrap: wrap; width: 100%; }
   .sec-tab-mobile-only { display: flex; flex: 1 0 100%; justify-content: center; margin: 6px 4px 8px; border: 1px solid var(--danger); border-bottom: 1px solid var(--danger); border-radius: var(--radius-sm); color: var(--danger); font-weight: 600; }
   .sec-tab-mobile-only:hover { color: var(--danger); background: #fef2f2; }
@@ -1157,6 +1165,20 @@ footer a { color:var(--navy); text-decoration:none; font-weight:600; }
 
 .send-expand { display:none; }
 .send-badge-count { display:inline-flex; align-items:center; justify-content:center; min-width:22px; height:22px; padding:0 7px; border-radius:11px; background:var(--red); color:#fff; font-size:var(--fs-sm); font-weight:700; }
+/* En-tete de la vue Send : titre + pastille, detail compact, note de fraicheur (tailles decroissantes 14 / 12 / 11 px). */
+.send-head { margin-bottom: 14px; }
+.send-head-title { display: flex; align-items: center; gap: 8px; }
+.send-head-h { font-size: var(--fs-base); font-weight: 700; line-height: 1.3; color: var(--navy); }
+.send-head-meta { margin-top: 4px; }
+.send-head-detail { font-size: var(--fs-xs); line-height: 1.4; color: var(--muted); font-variant-numeric: tabular-nums; }
+.send-head-note { margin-top: 2px; font-size: var(--fs-micro); line-height: 1.4; color: var(--muted); }
+.send-head-detail:empty, .send-head-note:empty { display: none; }
+/* Bureau : detail et note sur UNE ligne (garde la premiere carte « Due now » visible sans defiler a 1400x900) ; mobile : 3 niveaux empiles. */
+@media (min-width: 769px) {
+  .send-head { margin-bottom: 10px; }
+  .send-head-meta { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 14px; }
+  .send-head-note { margin-top: 0; }
+}
 /* LOT F : ligne [capacite | connexions en attente] de la vue Send. La carte « en attente » est positionnee en absolu dans sa cellule :
    elle ne contribue pas a la hauteur de la ligne, qui est celle de la carte capacite (min 196 px) ; sa liste defile a l'interieur. */
 .send-top-row { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-bottom:12px; min-height:196px; }
@@ -2670,12 +2692,17 @@ body.new-nav { padding-left: 220px; }
 
   <!-- ══ TAB: SEND ══ -->
   <div class="tab-panel" id="tab-send">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
-      <span style="font-size:14px;font-weight:700;color:var(--navy)" data-en="Today's send queue" data-fr="File d'envoi du jour">Today's send queue</span>
-      <span class="send-badge-count" id="send-badge"><span id="send-count">–</span></span>
-      <span style="font-size:var(--fs-sm);color:var(--muted)" data-en="messages due today" data-fr="messages à envoyer aujourd'hui">messages due today</span>
+    <!-- En-tete compose en 3 niveaux : titre + pastille ; detail compact (chiffres de send_queue_counts) ; note de fraicheur. -->
+    <div class="send-head">
+      <div class="send-head-title">
+        <span class="send-head-h" data-en="Today's send queue" data-fr="File d'envoi du jour">Today's send queue</span>
+        <span class="send-badge-count" id="send-badge"><span id="send-count">–</span></span>
+      </div>
+      <div class="send-head-meta">
+        <div id="send-queue-def" class="send-head-detail"></div>
+        <div id="send-queue-note" class="send-head-note"></div>
+      </div>
     </div>
-    <div id="send-queue-def" style="margin:-12px 0 16px;font-size:var(--fs-sm);color:var(--muted);"></div>
     <!-- TODAY'S CAPACITY (README) : meme composant partage que Today, _renderCapacityBars(),
          zero retouche a la fonction -- deuxieme containerId monte ici. Remplace le texte plat
          #sent-counter. -->
@@ -9534,6 +9561,7 @@ function _applySendFilters() {
 
   listEl.innerHTML = html;
   if (typeof applyLang === 'function') applyLang();
+  _renderSendQueueDef();
   if (_noEmailJ5.length) _loadNoEmailReplies(_noEmailJ5).then(() => _fillNoEmailReplies()).catch(e => console.error('[_loadNoEmailReplies]', e));
 }
 
@@ -10622,24 +10650,38 @@ let _todayJ5PendingCount = 0;
 // "a envoyer" = du aujourd'hui, "brouillons" = sequences draft non archivees, jour calcule en heure d'Israel).
 // Affichage informatif et date : le badge/la liste restent calcules par _applySendFilters (filtres de l'ecran) ;
 // si leur total differe de celui-ci, c'est la preuve d'un filtre actif ou d'un envoi posterieur au calcul.
-async function _loadSendQueueDef() {
+// Dernier releve de send_queue_counts : conserve pour re-ecrire l'en-tete quand la langue change (setLang -> _applySendFilters).
+let _sendQueueCounts = null;
+function _renderSendQueueDef() {
   const el = document.getElementById('send-queue-def');
+  const note = document.getElementById('send-queue-note');
   if (!el) return;
+  const data = _sendQueueCounts;
+  if (!data) { el.textContent = ''; if (note) note.textContent = ''; return; }
+  const fr = currentLang === 'fr';
+  let hhmm = '';
+  try { hhmm = new Date(data.computed_at).toLocaleTimeString(fr ? 'fr-FR' : 'en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jerusalem' }); } catch (e) {}
+  const dr = Number(data.drafts) || 0;
+  // Meme chiffres qu'avant (vue send_queue_counts) : seule la mise en forme change ; le total « du jour » est le badge a cote du titre.
+  el.textContent = fr
+    ? `Invitations ${data.due_invite} · J+0 ${data.due_j0} · J+5 ${data.due_j5_high} · ${dr} ${dr === 1 ? 'brouillon' : 'brouillons'}`
+    : `Invitations ${data.due_invite} · J+0 ${data.due_j0} · J+5 ${data.due_j5_high} · ${dr} ${dr === 1 ? 'draft' : 'drafts'}`;
+  if (note) note.textContent = fr
+    ? `Mis à jour à ${hhmm} (heure d'Israël) · même décompte que l'e-mail du Morning Scan`
+    : `Updated ${hhmm} (Israel time) · same count as the Morning Scan email`;
+}
+async function _loadSendQueueDef() {
+  if (!document.getElementById('send-queue-def')) return;
   try {
     const { data, error } = await sbClient.from('send_queue_counts').select('*').eq('client_id', CLIENT_ID).maybeSingle();
     if (error) throw error;
-    if (!data) { el.textContent = ''; return; }
-    const fr = currentLang === 'fr';
-    let hhmm = '';
-    try { hhmm = new Date(data.computed_at).toLocaleTimeString(fr ? 'fr-FR' : 'en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jerusalem' }); } catch (e) {}
-    el.textContent = fr
-      ? `Dû aujourd'hui : ${data.due_total} (invitations ${data.due_invite}, J+0 ${data.due_j0}, J+5 ${data.due_j5_high}) · ${data.drafts} brouillons · calculé à ${hhmm} (heure d'Israël), même définition que le Morning Scan par e-mail.`
-      : `Due today: ${data.due_total} (invitations ${data.due_invite}, J+0 ${data.due_j0}, J+5 ${data.due_j5_high}) · ${data.drafts} drafts · computed at ${hhmm} (Israel time), same definition as the Morning Scan email.`;
+    _sendQueueCounts = data || null;
   } catch (e) {
     // Jamais bloquant : le libelle est informatif. Erreur visible en console, pas de toast (la file reste utilisable).
     console.error('[_loadSendQueueDef] send_queue_counts:', e);
-    el.textContent = '';
+    _sendQueueCounts = null;
   }
+  _renderSendQueueDef();
 }
 
 function _updateSentCounter() {
