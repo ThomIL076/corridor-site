@@ -3484,16 +3484,23 @@ async function _loadDealOptions(mandateId, dealSel) {
   }
 }
 
+let _sfcLastToast = 0;
 async function _saveFeedCache() {
   const _sfcId = (activeMandateId && activeMandateId !== '__ALL__') ? activeMandateId : null;
   try {
-    await sbClient.from('signals_feed_cache').upsert(
+    // supabase-js ne leve pas d'exception sur un refus HTTP : l'echec arrive dans { error }
+    const { error } = await sbClient.from('signals_feed_cache').upsert(
       { client_id: CLIENT_ID, mandate_id: _sfcId,
         morning_items: _morningItems, live_items: _liveAlertItems,
         updated_at: new Date().toISOString() },
       { onConflict: 'client_id,mandate_id' }
     );
-  } catch(e) { console.warn('[_saveFeedCache]', e); }
+    if (error) throw error;
+  } catch(e) {
+    console.error('[_saveFeedCache]', e);
+    // au plus un toast par minute : la sauvegarde est rappelee a chaque rafraichissement du flux
+    if (Date.now() - _sfcLastToast > 60000) { _sfcLastToast = Date.now(); showToast('Could not save the signals cache'); }
+  }
 }
 
 async function _loadFeedCache(mandateId) {
@@ -3503,9 +3510,10 @@ async function _loadFeedCache(mandateId) {
       .select('morning_items, live_items')
       .eq('client_id', CLIENT_ID);
     q = _sfcId ? q.eq('mandate_id', _sfcId) : q.is('mandate_id', null);
-    const { data } = await q.maybeSingle();
+    const { data, error } = await q.maybeSingle();
+    if (error) throw error;
     return data || null;
-  } catch(e) { return null; }
+  } catch(e) { console.error('[_loadFeedCache]', e); return null; }
 }
 
 async function _onDealChange() {
