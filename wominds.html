@@ -175,68 +175,31 @@ body {
 }
 body.new-nav .top-chrome-wrapper { left: 220px; }
 
-/* ── SPINE (parcours Signal→Client, parité demo-private.html) ── */
-.journey-spine {
-  display: flex;
-  background: #fff;
-  border-bottom: 1px solid var(--border);
-  padding: 16px 26px 15px;
-  min-width: 1120px;
-  overflow-x: auto;
-  box-sizing: border-box;
-}
-.spine-stage {
-  flex: 1; position: relative;
-  border: none; background: none; text-align: left;
-  font-family: 'Instrument Sans', 'Plus Jakarta Sans', sans-serif; cursor: pointer; padding: 0;
-}
-.spine-stage + .spine-stage { border-left: 1px solid var(--border); padding-left: 16px; margin-left: 16px; }
-.spine-dot { width: 7px; height: 7px; border-radius: 50%; background: #c6d1e2; display: inline-block; margin-bottom: 6px; }
-.spine-label { display: block; font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
-.spine-row { display: flex; align-items: baseline; gap: 8px; white-space: nowrap; }
-.spine-count { font-family: 'IBM Plex Mono', monospace; font-size: 21px; font-weight: 600; color: var(--ink); }
-.spine-note { font-size: 13px; color: var(--muted); }
-.spine-rail { position: absolute; left: 16px; right: 16px; bottom: -15px; height: 2px; background: transparent; }
-.spine-stage.active .spine-dot { background: var(--accent); }
-.spine-stage.active .spine-count { color: #2757e0; }   /* 4.50 -> 5.96:1 */
-.spine-stage.active .spine-rail { background: var(--accent); }
+/* ── ONGLETS DE SECTION (navigation a 5 entrees, meme CSS que demo-private.html) ── */
+.sec-tabs { display: flex; height: 58px; background: #fff; border-bottom: 1px solid var(--border); padding: 0 26px; overflow-x: auto; scrollbar-width: none; box-sizing: border-box; }
+.sec-tabs::-webkit-scrollbar { display: none; }
+.sec-tabs[hidden], .sec-tabs-group[hidden] { display: none; }
+.sec-tabs-group { display: flex; gap: 4px; }
+.sec-tab { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px; border: none; border-bottom: 2px solid transparent; background: none; font-family: inherit; font-size: var(--fs-sm); font-weight: 500; color: var(--muted); cursor: pointer; white-space: nowrap; }
+.sec-tab:hover { color: var(--ink); }
+.sec-tab.active { color: var(--ink); font-weight: 600; border-bottom-color: var(--accent); }
+.sec-count { font-family: 'IBM Plex Mono', monospace; font-size: 11px; padding: 1px 7px; border-radius: 999px; background: var(--chip-bg, #f0f3fb); color: var(--ink); }
+.sec-count:empty { display: none; }
+.sec-tab.active .sec-count { background: #2757e0; color: #fff; }
 @media (max-width: 760px) {
-  .journey-spine { min-width: 0; }
-  .spine-stage { flex: 0 0 110px; }
   .module-title { font-size:21px; }
 }
-/* Bandeau mobile (polish 05/10/2026) : rail de puces defilantes pensees pour le pouce. Etape active centree par _updateSpineActive,
-   fondu aux deux bords (mask-image : le contenu s'estompe, pas de degrade gris par-dessus), cibles de 44px, libelles de 12px.
-   La note (« a qualifier », « dus aujourd'hui »...) reste lue par les lecteurs d'ecran mais n'est plus affichee : le compteur en
-   pastille a cote du libelle suffit. Bureau (> 768px) inchange. */
+.sec-tab-mobile-only { display: none; }
 @media (max-width: 768px) {
-  .journey-spine {
-    min-width: 0; gap: 8px; align-items: center; padding: 10px 36px 10px 16px;
-    overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; scroll-padding-inline: 16px;
-    scrollbar-width: none; -webkit-overflow-scrolling: touch;
-    -webkit-mask-image: linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 32px), transparent 100%);
-            mask-image: linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 32px), transparent 100%);
-  }
-  .journey-spine::-webkit-scrollbar { display: none; }
-  .spine-stage, .spine-stage + .spine-stage {
-    flex: 0 0 auto; display: flex; align-items: center; gap: 8px; min-height: 44px; margin-left: 0; padding: 0 14px;
-    border: 1px solid var(--border); border-radius: 999px; background: #fff; scroll-snap-align: center; white-space: nowrap;
-    -webkit-tap-highlight-color: transparent; touch-action: manipulation;
-    transition: background-color .15s ease-out, border-color .15s ease-out;
-  }
-  .spine-stage:active { background: var(--chip-bg, #f0f3fb); }
-  .spine-dot { margin: 0; flex: none; }
-  .spine-label { display: inline; margin: 0; font-size: 12px; letter-spacing: 0.08em; color: var(--text); }
-  .spine-row { display: contents; }
-  .spine-count { min-width: 24px; padding: 2px 8px; border-radius: 999px; background: var(--chip-bg, #f0f3fb); font-size: 12px; line-height: 1.4; text-align: center; color: var(--ink); }
-  .spine-count:empty { display: none; }
-  .spine-note { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-  .spine-rail { display: none; }
-  .spine-stage.active { background: var(--ink); border-color: var(--ink); }
-  .spine-stage.active .spine-label { color: #fff; }
-  .spine-stage.active .spine-count { background: #2757e0; color: #fff; }   /* blanc sur #2757e0 : 5.96:1 (etait 4.50) */
+  /* Cause du chevauchement : .sec-tabs est un <nav> et heritait de `nav { height: 58px; align-items: center }` : le groupe Configuration
+     (onglets + « Se deconnecter » sur 2 lignes) debordait de ce cadre fixe, centre vers le HAUT sous la barre du haut, et « Se deconnecter »
+     etait rogne par overflow. Hauteur automatique, contenu aligne en haut ; la barre du haut (#primary-nav, 2 lignes avec le mandat) pareil. */
+  .sec-tabs, body.new-nav .sec-tabs { padding: 0 8px; height: auto; align-items: flex-start; } /* body.new-nav nav {padding-left:60px} visait aussi cette <nav> */
+  .sec-tab { padding: 0 10px; }   /* 3 onglets de Configuration sur une seule ligne des 360 px (evite 48 px de barre fixe en plus) */
+  .sec-tabs-group[data-sec="settings"] { flex-wrap: wrap; width: 100%; }
+  .sec-tab-mobile-only { display: flex; flex: 1 0 100%; justify-content: center; margin: 6px 4px 8px; border: 1px solid var(--danger); border-bottom: 1px solid var(--danger); border-radius: var(--radius-sm); color: var(--danger); font-weight: 600; }
+  .sec-tab-mobile-only:hover { color: var(--danger); background: #fef2f2; }
 }
-@media (max-width: 768px) and (prefers-reduced-motion: reduce) { .spine-stage { transition: none; } }
 
 /* ── NAV ── */
 nav {
@@ -1395,15 +1358,7 @@ body.new-nav { padding-left: 220px; }
   font-size: 11px; font-weight: 600; line-height: 18px; text-align: center; box-shadow: 0 0 0 2px var(--mtab-bg);
 }
 @media (prefers-reduced-motion: reduce) { .mobile-tabbar, .mtab-item { transition: none; } }
-.more-list { display: flex; flex-direction: column; }
-.more-row {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 14px 4px; border: none; border-bottom: 1px solid var(--border);
-  background: none; text-align: left; width: 100%;
-  font-family: 'Instrument Sans', sans-serif; font-size: 15px; color: var(--text); cursor: pointer;
-}
-.more-row .snav-icon { margin-right: 8px; }
-.more-chevron { color: var(--muted); font-size: 18px; }
+
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
@@ -1558,76 +1513,24 @@ body.new-nav { padding-left: 220px; }
     <div class="snav-logo-mark"><span></span><span></span><span></span><span></span></div>
     <span class="snav-logo-text">CORRIDOR</span>
   </div>
-  <!-- F15 (port wominds, 2026-09-17) : regroupe en 4 taches principales + Configuration attenue,
-       meme structure que demo-private.html/kaizenology.html -- ids/onclick de wominds inchanges,
-       pas de data-en/data-fr (wominds est 100% francais, pas de bilingue ici contrairement aux 2
-       autres dashboards). "Propositions" renomme "Brouillons et validations" -- meme collision de
-       mot avec le stage pipeline "Proposal" que sur demo-private.html/kaizenology.html (confirme :
-       KANBAN_STAGES contient 'Proposal'). Aucun badge invente sur Propositions : contrairement a
-       kaizenology.html, aucun _setProposalsBadge n'existe cote wominds -- pas de compteur reel a
-       afficher. "SEO" (sans equivalent chez Corridor/Kaizenology) regroupe avec Signaux/Sante du
-       pipeline/Rapports sous Resultats, meme logique de reporting. -->
+  <!-- Navigation a 5 entrees (meme structure que demo-private.html). Les anciens ecrans (Signaux, Sante du pipeline, Rapports, SEO, Clients,
+       Envoi, Revue, Boite de reception, Agents, Integrations, Mandat) sont des onglets internes a leur section (#sec-tabs) ; NAV_VIEWS fait le lien. -->
   <div class="snav-section">
-    <span class="snav-section-label">Aujourd'hui</span>
-    <button class="snav-item" data-nav="today" onclick="switchTab('today')">
+    <button class="snav-item" data-nav="today" onclick="_navSection('today')">
       <span>Aujourd'hui</span>
     </button>
-  </div>
-  <div class="snav-section">
-    <span class="snav-section-label">Prospects</span>
-    <button class="snav-item" data-nav="pipeline" onclick="switchTab('pipeline')">
-      <span>Pipeline</span>
+    <button class="snav-item" data-nav="prospects" onclick="_navSection('prospects')">
+      <span>Prospects</span>
     </button>
-    <button class="snav-item" data-nav="clients" onclick="switchTab('clients')">
-      <span>Clients</span>
+    <button class="snav-item" data-nav="conversations" onclick="_navSection('conversations')">
+      <span>Conversations</span>
+      <span class="snav-badge" id="snav-badge-conv"></span>
     </button>
-    <button class="snav-item snav-sub" data-nav="signals" onclick="switchTab('signals')">
-      <span>Signaux</span>
+    <button class="snav-item" data-nav="results" onclick="_navSection('results')">
+      <span>Résultats</span>
     </button>
-  </div>
-  <div class="snav-section">
-    <span class="snav-section-label">Conversations</span>
-    <button class="snav-item" data-nav="send" onclick="switchTab('send')">
-      <span>Envoyer</span>
-      <span class="send-badge-count" id="send-badge"><span id="send-count">–</span></span>
-    </button>
-    <button class="snav-item" data-nav="inbox" onclick="switchTab('inbox')">
-      <span>Boîte de réception</span>
-    </button>
-    <!-- Refonte v2 (portage demo-private.html -> Wominds, 30/09, go Thomas) : fusionne "Actions
-         en attente" et "Brouillons et validations" en Revue -- memes actions reelles, juste
-         affichage fusionne + filtre. Boite de reception INCHANGEE, non fusionnee (bascule
-         Pending/Historique reelle, distincte du pattern carte-liste-filtre de Revue). -->
-    <button class="snav-item" data-nav="review" onclick="switchTab('review')">
-      <span>Revue</span>
-      <span class="send-badge-count" id="review-badge"><span id="review-count">–</span></span>
-    </button>
-  </div>
-  <div class="snav-section">
-    <span class="snav-section-label">Résultats</span>
-    <button class="snav-item" data-nav="stats" onclick="switchTab('stats')">
-      <span>Stats</span>
-    </button>
-    <button class="snav-item snav-sub" data-nav="pipeintel" onclick="switchTab('pipeintel')">
-      <span>Santé du pipeline</span>
-    </button>
-    <button class="snav-item snav-sub" data-nav="reports" onclick="switchTab('reports')">
-      <span>Rapports</span>
-    </button>
-    <button class="snav-item snav-sub" data-nav="seo" onclick="switchTab('seo')">
-      <span>SEO</span>
-    </button>
-  </div>
-  <div class="snav-section snav-section-muted">
-    <span class="snav-section-label">Configuration</span>
-    <button class="snav-item" data-nav="agents" onclick="switchTab('agents')">
-      <span>Agents</span>
-    </button>
-    <button class="snav-item" data-nav="integrations" onclick="switchTab('integrations')">
-      <span>Intégrations</span>
-    </button>
-    <button class="snav-item" data-nav="mandate" onclick="switchTab('mandate')">
-      <span>Mandat &amp; ICP</span>
+    <button class="snav-item" data-nav="settings" onclick="_navSection('settings')">
+      <span>Configuration</span>
     </button>
   </div>
   <div class="snav-scanner-zone">
@@ -1652,14 +1555,13 @@ body.new-nav { padding-left: 220px; }
 </button>
 <div class="snav-backdrop" id="snav-backdrop" onclick="_toggleSnavMenu()"></div>
 
-<!-- BARRE D'ONGLETS MOBILE (4 principaux, meme decoupage que demo-private.html/kaizenology.html
-     -- le reste dans "Plus" plutot que d'entasser 6 boutons dans une barre de 58px) -->
+<!-- BARRE D'ONGLETS MOBILE : 5 entrees, comme demo-private.html (les ecrans secondaires sont des onglets de section, plus de panneau « Plus ») -->
 <nav class="mobile-tabbar" id="mobile-tabbar" aria-label="Navigation mobile">
-  <button class="mtab-item" data-nav="today" onclick="switchTab('today')"><span class="mtab-ico"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3" y="4.5" width="18" height="16.5" rx="2.5"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4M9 15l2 2 4-4"/></svg></span><span class="mtab-label">Aujourd'hui</span></button>
-  <button class="mtab-item" data-nav="pipeline" onclick="switchTab('pipeline')"><span class="mtab-ico"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3.5" y="3.5" width="17" height="17" rx="3"/><path d="M8.5 7.5v6M12 7.5v9M15.5 7.5v4"/></svg></span><span class="mtab-label">Pipeline</span></button>
-  <button class="mtab-item" data-nav="send" onclick="switchTab('send')"><span class="mtab-ico"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M21 3 10.5 13.5M21 3l-6.5 18-4-7.5L3 9.5 21 3z"/></svg><span class="mtab-badge" id="mtab-badge-send"></span></span><span class="mtab-label">Envoyer</span></button>
-  <button class="mtab-item" data-nav="inbox" onclick="switchTab('inbox')"><span class="mtab-ico"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3.5 13.5 6.1 6.3A2 2 0 0 1 8 5h8a2 2 0 0 1 1.9 1.3l2.6 7.2V18a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2v-4.5zM3.5 13.5H8a1 1 0 0 1 1 1 3 3 0 0 0 6 0 1 1 0 0 1 1-1h4.5"/></svg></span><span class="mtab-label">Boîte de réception</span></button>
-  <button class="mtab-item" id="mtab-more-btn" onclick="switchTab('more')"><span class="mtab-ico"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="5.5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="18.5" cy="12" r="1.3"/></svg></span><span class="mtab-label">Plus</span></button>
+  <button class="mtab-item" data-nav="today" onclick="_navSection('today')"><span class="mtab-ico"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3" y="4.5" width="18" height="16.5" rx="2.5"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4M9 15l2 2 4-4"/></svg></span><span class="mtab-label">Aujourd'hui</span></button>
+  <button class="mtab-item" data-nav="prospects" onclick="_navSection('prospects')"><span class="mtab-ico"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3.5" y="3.5" width="17" height="17" rx="3"/><path d="M8.5 7.5v6M12 7.5v9M15.5 7.5v4"/></svg></span><span class="mtab-label">Prospects</span></button>
+  <button class="mtab-item" data-nav="conversations" onclick="_navSection('conversations')"><span class="mtab-ico"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M21 3 10.5 13.5M21 3l-6.5 18-4-7.5L3 9.5 21 3z"/></svg><span class="mtab-badge" id="mtab-badge-conv"></span></span><span class="mtab-label">Conversations</span></button>
+  <button class="mtab-item" data-nav="results" onclick="_navSection('results')"><span class="mtab-ico"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></span><span class="mtab-label">Résultats</span></button>
+  <button class="mtab-item" data-nav="settings" onclick="_navSection('settings')"><span class="mtab-ico"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg></span><span class="mtab-label">Config.</span></button>
 </nav>
 
 <!-- NAV -->
@@ -1683,54 +1585,32 @@ body.new-nav { padding-left: 220px; }
   </div>
 </nav>
 
-<!-- SPINE (parcours Signal→Client, parité demo-private.html) -->
-<div class="journey-spine" id="journey-spine">
-  <!-- AJOUT 29/09 (audit Thomas, meme fix que demo-private.html) : Today est l'ecran
-       d'atterrissage reel de l'app mais manquait de sa propre etape dans la spine -- ajoutee en
-       tete, sans compte (meme choix assume que Signal juste apres : aucun compte invente). -->
-  <button class="spine-stage" data-spine="today" onclick="switchTab('today')">
-    <span class="spine-dot"></span>
-    <span class="spine-label">Aujourd'hui</span>
-    <span class="spine-rail"></span>
-  </button>
-  <button class="spine-stage" data-spine="signal" onclick="switchTab('signals')">
-    <span class="spine-dot"></span>
-    <span class="spine-label">Signal</span>
-    <span class="spine-rail"></span>
-  </button>
-  <button class="spine-stage" data-spine="qualify" onclick="switchTab('pipeline')">
-    <span class="spine-dot"></span>
-    <span class="spine-label">Qualifier</span>
-    <div class="spine-row"><span class="spine-count" id="spine-count-qualify">–</span><span class="spine-note">à qualifier</span></div>
-    <span class="spine-rail"></span>
-  </button>
-  <button class="spine-stage" data-spine="send" onclick="switchTab('send')">
-    <span class="spine-dot"></span>
-    <span class="spine-label">Envoyer</span>
-    <div class="spine-row"><span class="spine-count" id="spine-count-send">–</span><span class="spine-note">dus aujourd'hui</span></div>
-    <span class="spine-rail"></span>
-  </button>
-  <button class="spine-stage" data-spine="reply" onclick="switchTab('inbox')">
-    <span class="spine-dot"></span>
-    <span class="spine-label">Répondre</span>
-    <div class="spine-row"><span class="spine-count" id="spine-count-reply">–</span><span class="spine-note">à trier</span></div>
-    <span class="spine-rail"></span>
-  </button>
-  <button class="spine-stage" data-spine="indeal" onclick="switchTab('pipeline')">
-    <span class="spine-dot"></span>
-    <!-- F10 (port wominds, 2026-09-17) : "Engagé+" est deja le titre, la note "engagés+" est
-         retiree pour ne plus etre redondante avec lui -- meme fix que demo-private.html. -->
-    <span class="spine-label" title="Prospects à l'étape Engagé ou au-delà (Engagé, Répondu, Proposition, Négociation), hors Clôturés.">Engagé+</span>
-    <div class="spine-row"><span class="spine-count" id="spine-count-indeal">–</span><span class="spine-note"></span></div>
-    <span class="spine-rail"></span>
-  </button>
-  <button class="spine-stage" data-spine="client" onclick="switchTab('clients')">
-    <span class="spine-dot"></span>
-    <span class="spine-label">Client</span>
-    <div class="spine-row"><span class="spine-count" id="spine-count-client">–</span><span class="spine-note">sous gestion</span></div>
-    <span class="spine-rail"></span>
-  </button>
-</div>
+<!-- ONGLETS DE SECTION : remplacent le parcours (journey-spine). Les compteurs gardent les ids ecrits par les chargeurs de chaque ecran. -->
+<nav class="sec-tabs" id="sec-tabs" aria-label="Vues de la section" hidden>
+  <div class="sec-tabs-group" data-sec="prospects" hidden>
+    <button class="sec-tab" data-view="pipeline" onclick="_navView('pipeline')"><span>Pipeline</span></button>
+    <button class="sec-tab" data-view="signals" onclick="_navView('signals')"><span>Signaux</span></button>
+    <button class="sec-tab" data-view="pipeintel" onclick="_navView('pipeintel')"><span>Santé du pipeline</span></button>
+  </div>
+  <div class="sec-tabs-group" data-sec="conversations" hidden>
+    <button class="sec-tab" data-view="review" onclick="_navView('review')"><span>Revue</span> <span class="sec-count" id="review-count"></span></button>
+    <button class="sec-tab" data-view="send" onclick="_navView('send')"><span>Envoi</span> <span class="sec-count" id="spine-count-send"></span></button>
+    <button class="sec-tab" data-view="inbox" onclick="_navView('inbox')"><span>Boîte de réception</span> <span class="sec-count" id="spine-count-reply"></span></button>
+  </div>
+  <div class="sec-tabs-group" data-sec="results" hidden>
+    <button class="sec-tab" data-view="stats" onclick="_navView('stats')"><span>Stats</span></button>
+    <button class="sec-tab" data-view="reports" onclick="_navView('reports')"><span>Rapports</span></button>
+    <button class="sec-tab" data-view="clients" onclick="_navView('clients')"><span>Clients</span> <span class="sec-count" id="spine-count-client"></span></button>
+    <button class="sec-tab" data-view="seo" onclick="_navView('seo')"><span>SEO</span></button>
+  </div>
+  <div class="sec-tabs-group" data-sec="settings" hidden>
+    <button class="sec-tab" data-view="mandate" onclick="_navView('mandate')"><span>Mandat &amp; ICP</span></button>
+    <button class="sec-tab" data-view="integrations" onclick="_navView('integrations')"><span>Intégrations</span></button>
+    <button class="sec-tab" data-view="agents" onclick="_navView('agents')"><span>Agents</span></button>
+    <!-- Mobile uniquement : la barre laterale (donc « Se déconnecter ») est inaccessible sous 768 px depuis la suppression de la liste « Plus ». -->
+    <button class="sec-tab sec-tab-mobile-only" onclick="signOut()"><span>Se déconnecter</span></button>
+  </div>
+</nav>
 </div>
 
 <main class="main" id="main-content" aria-label="Corridor - Wominds">
@@ -2344,34 +2224,6 @@ body.new-nav { padding-left: 220px; }
     </div>
   </div>
 
-  <!-- ══ ONGLET : PLUS (mobile uniquement, < 768px -- destinations secondaires) ══ -->
-  <div class="tab-panel" id="tab-more">
-    <h2 style="font-size:var(--fs-lg);font-weight:700;color:var(--navy);margin:0 0 16px;">Plus</h2>
-    <div class="more-list">
-      <!-- Refonte v2 (portage Wominds, 30/09) : "Actions en attente" + "Propositions" fusionnes
-           en Revue, meme raison que la nav desktop (snav-section "Conversations"). -->
-      <button class="more-row" onclick="switchTab('review')">
-        <span style="display:flex;align-items:center;gap:8px;">
-          <span>Revue</span>
-          <span class="mtab-badge" id="mtab-badge-review-more"></span>
-        </span>
-        <span class="more-chevron">›</span>
-      </button>
-      <button class="more-row" onclick="switchTab('agents')"><span>Agents</span><span class="more-chevron">›</span></button>
-      <button class="more-row" onclick="switchTab('signals')"><span>Signaux</span><span class="more-chevron">›</span></button>
-      <button class="more-row" onclick="switchTab('pipeintel')"><span>Santé du pipeline</span><span class="more-chevron">›</span></button>
-      <button class="more-row" onclick="switchTab('reports')"><span>Rapports</span><span class="more-chevron">›</span></button>
-      <button class="more-row" onclick="switchTab('seo')"><span>SEO</span><span class="more-chevron">›</span></button>
-      <button class="more-row" onclick="switchTab('clients')"><span>Clients</span><span class="more-chevron">›</span></button>
-      <button class="more-row" onclick="switchTab('integrations')"><span>Intégrations</span><span class="more-chevron">›</span></button>
-      <button class="more-row" onclick="switchTab('stats')"><span>Stats</span><span class="more-chevron">›</span></button>
-      <button class="more-row" onclick="openScannerPanel()"><span>Scanner</span><span class="more-chevron">›</span></button>
-      <button class="more-row" onclick="_openAskPanel()"><span>Demander à Corridor</span><span class="more-chevron">›</span></button>
-      <button class="more-row" onclick="switchTab('mandate')"><span>Mandat &amp; ICP</span><span class="more-chevron">›</span></button>
-      <button class="more-row" onclick="signOut()"><span>Se déconnecter</span><span class="more-chevron">›</span></button>
-    </div>
-  </div>
-
 </main>
 
 <div id="toast"></div>
@@ -2648,29 +2500,104 @@ function _frAuthError(msg){
   return "Une erreur est survenue. Réessayez.";
 }
 
-// ── NAVIGATION ──────────────────────────────────────────────────────────
-// Primaire = les 4 boutons directs de la barre mobile ; le reste vit dans "Plus" (meme
-// decoupage que demo-private.html/kaizenology.html une fois qu'il y a plus de 4 destinations).
-const MOBILE_TAB_PRIMARY = { 'today': true, 'pipeline': true, 'send': true, 'inbox': true };
+// ── NAVIGATION : 5 sections, onglets internes, vue active memorisee dans le hash (#/section/vue) ──
+// Cle de vue = ancien identifiant d'onglet (switchTab('inbox'), switchTab('signals')... restent valides : liens profonds et favoris conserves).
+const NAV_VIEWS = {
+  'today':        { sec: 'today',         slug: 'today' },
+  'pipeline':     { sec: 'prospects',     slug: 'pipeline' },
+  'signals':      { sec: 'prospects',     slug: 'signals' },
+  'pipeintel':    { sec: 'prospects',     slug: 'health' },
+  'review':       { sec: 'conversations', slug: 'review' },
+  'send':         { sec: 'conversations', slug: 'send' },
+  'inbox':        { sec: 'conversations', slug: 'inbox' },
+  'stats':        { sec: 'results',       slug: 'stats' },
+  'reports':      { sec: 'results',       slug: 'reports' },
+  'clients':      { sec: 'results',       slug: 'clients' },
+  'seo':          { sec: 'results',       slug: 'seo' },
+  'mandate':      { sec: 'settings',      slug: 'mandate' },
+  'integrations': { sec: 'settings',      slug: 'integrations' },
+  'agents':       { sec: 'settings',      slug: 'agents' },
+};
+const NAV_SECTION_DEFAULT = { today: 'today', prospects: 'pipeline', conversations: 'review', results: 'stats', settings: 'mandate' };
+// Anciens identifiants sans ecran propre : « Plus » (panneau supprime) -> Aujourd'hui ; Actions en attente / Propositions (fusionnees) -> Revue.
+const NAV_LEGACY_TAB = { 'more': 'today', 'pending-actions': 'review', 'proposals': 'review' };
+// Vue de depart : le hash n'est honore que pour une vraie navigation (lien colle, favori, nouvel onglet) ; un rechargement garde l'ancien hash ecrit par l'appli, on l'ignore.
+const _navEntryType = (() => { try { return (performance.getEntriesByType('navigation')[0] || {}).type || 'navigate'; } catch (e) { return 'navigate'; } })();
+// Exception : le rechargement qui suit la connexion (shell de middleware.js) depose le hash de lien profond dans sessionStorage ; lu une seule fois.
+const _loginHash = (() => { try { const h = sessionStorage.getItem('corridor_login_hash'); sessionStorage.removeItem('corridor_login_hash'); return h || ''; } catch (e) { return ''; } })();
+const _initialNavHash = (_navEntryType === 'reload' || _navEntryType === 'back_forward') ? (_loginHash && _loginHash === location.hash ? _loginHash : '') : location.hash;
+let _navHashReady = false; // le hash n'est ecrit qu'apres la connexion et la vue de depart
+let _currentNavKey = null;
+const _lastNavBySec = {};
+function _navHash(key) { const v = NAV_VIEWS[key]; return v ? '#/' + v.sec + '/' + v.slug : ''; }
+function _navKeyFromHash(h) {
+  const old = /^#([a-z-]+)$/.exec(h || ''); // ancien format : #inbox, #signals...
+  if (old) { const t = NAV_LEGACY_TAB[old[1]] || old[1]; return NAV_VIEWS[t] ? t : null; }
+  const m = /^#\/([a-z]+)(?:\/([a-z]+))?$/.exec(h || '');
+  if (!m) return null;
+  if (!m[2]) return NAV_SECTION_DEFAULT[m[1]] || null;
+  return Object.keys(NAV_VIEWS).find(k => NAV_VIEWS[k].sec === m[1] && NAV_VIEWS[k].slug === m[2]) || null;
+}
+// Etat visuel uniquement (entree de menu, onglet, barre mobile, hash) -- ne change pas de panneau.
+function _newNavActive(key) {
+  const v = NAV_VIEWS[key];
+  if (!v) return;
+  _currentNavKey = key;
+  _lastNavBySec[v.sec] = key;
+  document.querySelectorAll('.snav-item[data-nav]').forEach(el => {
+    const on = el.dataset.nav === v.sec;
+    el.classList.toggle('active', on);
+    if (on) el.setAttribute('aria-current', 'page'); else el.removeAttribute('aria-current');
+  });
+  const bar = document.getElementById('sec-tabs');
+  if (bar) {
+    let hasTabs = false;
+    bar.querySelectorAll('.sec-tabs-group').forEach(g => {
+      const on = g.dataset.sec === v.sec;
+      g.hidden = !on;
+      if (on) hasTabs = true;
+      g.querySelectorAll('.sec-tab[data-view]').forEach(b => {
+        const a = b.dataset.view === key;
+        b.classList.toggle('active', a);
+        if (a) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+      });
+    });
+    bar.hidden = !hasTabs; // Aujourd'hui : une seule vue, pas d'onglets
+  }
+  document.querySelectorAll('#mobile-tabbar .mtab-item').forEach(el => {
+    const on = el.dataset.nav === v.sec;
+    el.classList.toggle('active', on);
+    if (on) el.setAttribute('aria-current', 'page'); else el.removeAttribute('aria-current');
+  });
+  if (_navHashReady) { const h = _navHash(key); if (location.hash !== h) location.hash = h; }
+}
+function _navView(key) { switchTab(NAV_VIEWS[key] ? key : 'today'); }
+function _navSection(sec) { _navView(_lastNavBySec[sec] || NAV_SECTION_DEFAULT[sec] || 'today'); }
+// Total « Conversations » = Revue + Envoi + Boite de reception, lu sur les compteurs des onglets.
+function _watchNavCounters() {
+  const ids = ['review-count', 'spine-count-send', 'spine-count-reply'];
+  const upd = () => {
+    const n = ids.reduce((t, id) => t + (parseInt(document.getElementById(id)?.textContent, 10) || 0), 0);
+    ['snav-badge-conv', 'mtab-badge-conv'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = n > 0 ? (n > 99 ? '99+' : String(n)) : ''; });
+  };
+  const mo = new MutationObserver(upd);
+  ids.forEach(id => { const el = document.getElementById(id); if (el) mo.observe(el, { childList: true, characterData: true, subtree: true }); });
+  upd();
+}
+window.addEventListener('hashchange', () => {
+  if (!_navHashReady) return;
+  const k = _navKeyFromHash(location.hash);
+  if (k && k !== _currentNavKey) _navView(k);
+  else if (!k && _currentNavKey) location.replace(_navHash(_currentNavKey)); // hash inconnu : on revient a la vue courante
+});
 function switchTab(name){
+  name = NAV_LEGACY_TAB[name] || name;
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
   const panel = document.getElementById('tab-' + name);
   if (panel) panel.classList.add('active');
-  document.querySelectorAll('.snav-item[data-nav]').forEach(el => el.classList.remove('active'));
-  const navEl = document.querySelector('.snav-item[data-nav="' + name + '"]');
-  if (navEl) navEl.classList.add('active');
-  document.querySelectorAll('.mtab-item').forEach(el => el.classList.remove('active'));
-  if (MOBILE_TAB_PRIMARY[name]) {
-    const mtabEl = document.querySelector('.mtab-item[data-nav="' + name + '"]');
-    if (mtabEl) mtabEl.classList.add('active');
-  } else {
-    const moreBtn = document.getElementById('mtab-more-btn');
-    if (moreBtn) moreBtn.classList.add('active');
-  }
-  document.querySelectorAll('.mtab-item').forEach(el => { if (el.classList.contains('active')) el.setAttribute('aria-current', 'page'); else el.removeAttribute('aria-current'); }); // etat actif expose aux lecteurs d'ecran
+  _newNavActive(name);
   _closeSnav();
   window.scrollTo({ top: 0, behavior: 'instant' });
-  _updateSpineActive(name);
   if (name === 'today') { loadDailyPriorities(); _loadAgentsAtWork(); _fetchTodaySendCounts().catch(err => console.error('_fetchTodaySendCounts:', err)); _loadFollowUpsDue(); _loadTodayStats(); }
   if (name === 'pipeline') loadKanban();
   if (name === 'send') loadSendView();
@@ -2686,23 +2613,6 @@ function switchTab(name){
   if (name === 'clients') loadClientsView();
   if (name === 'integrations') loadIntegrationsTab();
   if (name === 'stats') { renderStatsSector(); renderStatsCountry(); renderStatsRevenue(); renderStatsSignal(); renderStatsLearning(); }
-}
-const SPINE_ACTIVE_MAP = { 'today': 'today', 'pipeline': 'qualify', 'send': 'send', 'inbox': 'reply', 'clients': 'client', 'signals': 'signal', 'pipeintel': 'indeal' };
-function _updateSpineActive(key) {
-  const spine = document.getElementById('journey-spine');
-  if (!spine) return;
-  spine.querySelectorAll('.spine-stage').forEach(el => { el.classList.remove('active'); el.removeAttribute('aria-current'); });
-  const active = SPINE_ACTIVE_MAP[key];
-  if (active) {
-    const el = spine.querySelector('.spine-stage[data-spine="' + active + '"]');
-    if (el) { el.classList.add('active'); el.setAttribute('aria-current', 'step'); _centerSpineStage(spine, el); }
-  }
-}
-// Mobile (rail defilant) : ramene l'etape active au centre du bandeau, sans jamais faire defiler la page elle-meme.
-function _centerSpineStage(spine, el) {
-  if (!window.matchMedia('(max-width: 768px)').matches || spine.scrollWidth <= spine.clientWidth) return;
-  const left = el.getBoundingClientRect().left - spine.getBoundingClientRect().left + spine.scrollLeft - (spine.clientWidth - el.offsetWidth) / 2;
-  spine.scrollTo({ left: Math.max(0, left), behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
 }
 function _toggleSnavMenu(){ document.body.classList.toggle('snav-open'); }
 function _closeSnav(){ document.body.classList.remove('snav-open'); }
@@ -2785,8 +2695,13 @@ async function showDemo(){
     // "Aujourd'hui" redevient l'ecran par defaut (meme convention que demo-private.html/
     // kaizenology.html) -- arbitrage Thomas 2026-09-12 : le sourcing Apollo alimente desormais
     // reellement cette vue, elle n'est plus un ecran vide au premier lancement.
-    switchTab('today');
+    // Vue de depart : celle du hash (#/section/vue ou ancien #onglet) si valide, sinon Aujourd'hui. Le hash n'est ecrit qu'a partir d'ici.
+    const _startKey = _navKeyFromHash(_initialNavHash) || 'today';
+    switchTab(_startKey);
+    _navHashReady = true;
+    _newNavActive(_startKey);
     window.scrollTo({ top: 0, behavior: 'instant' });
+    _watchNavCounters();
     _preloadNavBadges();
   }
 }
