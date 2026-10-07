@@ -1898,11 +1898,6 @@ body.new-nav { padding-left: 220px; }
         <div id="pipe-stats-scope" style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:8px;"></div>
         <div class="pipe-stats-row">
           <div class="pipe-stat">
-            <span class="pipe-stat-val" id="pipe-conversion">N/D</span>
-            <span class="pipe-stat-label">Conversion</span>
-            <span id="pipe-conversion-sub" style="display:block;font-size:var(--fs-xs);color:var(--muted);margin-top:2px;"></span>
-          </div>
-          <div class="pipe-stat">
             <span class="pipe-stat-val" id="pipe-inconv">N/D</span>
             <span class="pipe-stat-label">En conversation</span>
           </div>
@@ -1914,6 +1909,17 @@ body.new-nav { padding-left: 220px; }
             <span class="pipe-stat-val" id="pipe-intlna" style="color:var(--dim)">N/D</span>
             <span class="pipe-stat-label">France / Inconnu</span>
           </div>
+        </div>
+        <!-- Passage etape par etape sur une periode (remplace le taux global « Clôturé / total » toutes periodes) : rempli par _renderStageFlow(). -->
+        <div id="pipe-flow" style="margin:6px 0 4px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:6px;">
+            <span id="pipe-flow-title" style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;"></span>
+            <select id="pipe-flow-days" aria-label="Période" onchange="_stageFlowDays=+this.value;_renderStageFlow()" style="padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:var(--fs-xs);font-family:inherit;background:#fff;color:var(--text);">
+              <option value="7">7</option><option value="30" selected>30</option><option value="90">90</option>
+            </select>
+          </div>
+          <div id="pipe-flow-rows" style="display:flex;flex-wrap:wrap;gap:6px 10px;"></div>
+          <div id="pipe-flow-note" style="font-size:var(--fs-xs);color:var(--muted);margin-top:6px;line-height:1.4;"></div>
         </div>
         <div class="pipe-funnel-title" title="Prospects par étape actuelle, pas un entonnoir cumulatif">Répartition actuelle</div>
         <div class="pipe-funnel-bar" id="pipe-funnel-bar"></div>
@@ -2201,8 +2207,9 @@ body.new-nav { padding-left: 220px; }
            visuellement des boutons de generation a la demande ci-dessous -- ce bloc montre ce qui a
            reellement ete envoye, les boutons regenerent un nouveau contenu independant. -->
       <div class="ai-box" id="last-morning-scan-box" style="margin-bottom:16px;">
-        <div class="ai-box-header">
+        <div class="ai-box-header" style="flex-wrap:wrap;gap:8px;">
           <span class="ai-box-label">Dernier Morning Scan envoyé</span>
+          <select id="msc-day-select" aria-label="Jour du Morning Scan" onchange="_mscPickDay(this.value)" hidden style="margin-left:auto;max-width:100%;min-height:36px;padding:5px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:var(--fs-xs);font-family:inherit;background:#fff;color:var(--text);"></select>
         </div>
         <div class="ai-box-body" id="last-morning-scan-body">…</div>
       </div>
@@ -3472,6 +3479,39 @@ async function _mscFetchLiveProspects(ids) {
 // scan comme avant. Fourni (nouveaux liens de la liste "Derniere activite" ci-dessous), recharge le
 // meme panneau avec CE scan precis -- reutilise integralement le meme rendu (cartes/iframe), aucune
 // duplication de logique d'affichage.
+// Sélecteur d'historique du Morning Scan (même mécanisme que demo-private.html) : les 28 dernières scan_date DISTINCTES du client (lecture seule), toujours visible
+// dans l'en-tête de la carte, la date affichée est sélectionnée. Choisir le jour le plus récent = vue par défaut (sans lien « Retour »).
+window._mscDays = null; // dates triées du plus récent au plus ancien, null = pas encore chargées
+function _mscDayLabel(d) {
+  let txt = d;
+  try { txt = new Date(d + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }); } catch (e) { /* date brute */ }
+  const rel = typeof _relDate === 'function' ? _relDate(d) : '';
+  return rel && rel !== d ? txt + ' · ' + rel : txt;
+}
+function _mscRenderDaySelect(shown) {
+  const sel = document.getElementById('msc-day-select'); if (!sel) return;
+  const days = window._mscDays || [];
+  if (!days.length) { sel.hidden = true; return; }
+  const list = shown && !days.includes(shown) ? [shown].concat(days) : days;
+  sel.innerHTML = list.map(d => `<option value="${_esc(d)}">${_esc(_mscDayLabel(d))}</option>`).join('');
+  sel.value = shown || days[0];
+  sel.hidden = false;
+}
+async function _mscSyncDaySelect(shown, reload) {
+  try {
+    if (reload || !window._mscDays) {
+      const { data } = await sbClient.from('morning_scan_email_cache').select('scan_date').eq('client_id', CLIENT_ID).order('scan_date', { ascending: false }).limit(400);
+      const seen = [];
+      for (const r of (data || [])) if (r.scan_date && !seen.includes(r.scan_date)) { seen.push(r.scan_date); if (seen.length >= 28) break; }
+      window._mscDays = seen;
+    }
+  } catch (e) { /* décoratif : le panneau principal ne dépend jamais de la liste */ }
+  _mscRenderDaySelect(shown);
+}
+function _mscPickDay(d) {
+  const latest = window._mscDays && window._mscDays[0];
+  _loadLastMorningScanEmail(d && d !== latest ? d : undefined);
+}
 async function _loadLastMorningScanEmail(scanDate) {
   const el = document.getElementById('last-morning-scan-body');
   if (!el) return;
@@ -3479,9 +3519,12 @@ async function _loadLastMorningScanEmail(scanDate) {
     let q = sbClient.from('morning_scan_email_cache')
       .select('subject, email_html, scan_date, generated_at, decisions_json, scan_entries')
       .eq('client_id', CLIENT_ID);
-    q = scanDate ? q.eq('scan_date', scanDate) : q.order('scan_date', { ascending: false }).limit(1);
+    // Une date peut avoir plusieurs lignes (relances manuelles) : la plus récente (generated_at) l'emporte, jamais d'erreur « plusieurs lignes ».
+    q = scanDate ? q.eq('scan_date', scanDate) : q.order('scan_date', { ascending: false });
+    q = q.order('generated_at', { ascending: false }).limit(1);
     const { data, error } = await q.maybeSingle();
     if (error) throw error;
+    _mscSyncDaySelect(data ? data.scan_date : null, !scanDate);
     if (!data) {
       el.innerHTML = '<div style="color:var(--muted);font-size:var(--fs-sm);">Aucun Morning Scan envoyé pour l’instant.</div>';
       return;
@@ -4652,16 +4695,89 @@ async function persistStage(id, stage, previousStage, prospect) {
     showToast('Échec de la sauvegarde, réessaie.');
   }
 }
+// Passage etape par etape sur une periode (meme mecanisme que demo-private.html). SOURCE : prospects.created_at (etape « Identifies » = fiches creees pendant la
+// periode, archivees comprises) et signal_outcomes (journal des changements d'etape, lecture seule, RLS par client). Une etape compte les prospects DISTINCTS
+// entres pendant la periode (premier contact = rang >= 1st Contact, reponse = rang >= Replied, cloture = Closed), uniquement vers l'avant. Cloture : « non suivie »
+// tant que signal_outcomes n'a aucune ligne Closed (aucun 0 % devine). Taux = etape / etape precedente : un flux, pas une cohorte. Aucune ecriture.
+let _stageFlowDays = 30;
+let _stageFlowCache = null; // { key, at, rows }
+async function _fetchStageEvents(sinceIso) {
+  const key = CLIENT_ID + '|' + sinceIso.slice(0, 10);
+  if (_stageFlowCache && _stageFlowCache.key === key && Date.now() - _stageFlowCache.at < 60000) return _stageFlowCache.rows;
+  const rows = [];
+  for (let from = 0; from < 20000; from += 1000) {
+    const { data, error } = await sbClient.from('signal_outcomes').select('prospect_id, from_stage, to_stage, occurred_at')
+      .eq('client_id', CLIENT_ID).gte('occurred_at', sinceIso).in('to_stage', ['1st Contact', 'Engaged', 'Replied', 'Proposal', 'Negotiation', 'Closed'])
+      .order('occurred_at', { ascending: true }).range(from, from + 999);
+    if (error) throw error;
+    rows.push(...(data || []));
+    if (!data || data.length < 1000) break;
+  }
+  _stageFlowCache = { key, at: Date.now(), rows };
+  return rows;
+}
+let _closedLoggedCache = null; // { at, value }
+async function _stageLogCoversClosed() {
+  if (_closedLoggedCache && Date.now() - _closedLoggedCache.at < 300000) return _closedLoggedCache.value;
+  const { count, error } = await sbClient.from('signal_outcomes').select('id', { count: 'exact', head: true }).eq('client_id', CLIENT_ID).eq('to_stage', 'Closed');
+  if (error) throw error;
+  _closedLoggedCache = { at: Date.now(), value: (count || 0) > 0 };
+  return _closedLoggedCache.value;
+}
+async function _renderStageFlow() {
+  const rowsEl = document.getElementById('pipe-flow-rows'); if (!rowsEl) return;
+  const days = _stageFlowDays;
+  const nf = n => Number(n).toLocaleString('fr-FR');
+  const since = new Date(Date.now() - days * 86400000), sinceIso = since.toISOString();
+  const fmt = d => d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+  const titleEl = document.getElementById('pipe-flow-title'), noteEl = document.getElementById('pipe-flow-note'), selEl = document.getElementById('pipe-flow-days');
+  if (selEl && selEl.value !== String(days)) selEl.value = String(days);
+  if (selEl) [...selEl.options].forEach(o => { o.textContent = o.value + ' jours'; });
+  if (titleEl) titleEl.textContent = 'Passage par étape · du ' + fmt(since) + ' au ' + fmt(new Date());
+  const mySeq = window._stageFlowSeq = (window._stageFlowSeq || 0) + 1;
+  try {
+    const base = (Array.isArray(_kanbanAllRows) && _kanbanAllRows.length) ? _kanbanAllRows : _allProspects;
+    const scope = Array.isArray(base) && base.length ? base : null;
+    const ids = scope ? new Set(scope.map(p => p.id)) : null;
+    const identified = scope ? scope.filter(p => p.created_at && p.created_at >= sinceIso).length : null;
+    const events = await _fetchStageEvents(sinceIso);
+    const closedLogged = await _stageLogCoversClosed();
+    if (mySeq !== window._stageFlowSeq) return; // un rendu plus recent a pris la main
+    const rank = s => (_stageRank[s] === undefined ? -1 : _stageRank[s]);
+    const fwd = events.filter(e => e.from_stage !== e.to_stage && rank(e.to_stage) > rank(e.from_stage) && (!ids || ids.has(e.prospect_id)));
+    const distinct = minRank => new Set(fwd.filter(e => rank(e.to_stage) >= minRank).map(e => e.prospect_id)).size;
+    const steps = [
+      { label: 'Identifiés', n: identified },
+      { label: 'Premier contact', n: distinct(_stageRank['1st Contact']) },
+      { label: 'Réponse', n: distinct(_stageRank['Replied']) },
+      { label: 'Clôture', n: closedLogged ? distinct(_stageRank['Closed']) : null, untracked: !closedLogged },
+    ];
+    rowsEl.innerHTML = steps.map((st, i) => {
+      const prev = i > 0 ? steps[i - 1].n : null;
+      if (st.untracked) return '<div style="flex:1 1 120px;min-width:110px;padding:8px 10px;border:1px dashed var(--border);border-radius:var(--radius-sm);background:#fff;">'
+        + '<div style="font-size:var(--fs-xs);color:var(--muted);">' + _esc(st.label) + '</div>'
+        + '<div style="font-weight:700;font-size:var(--fs-lg);color:var(--muted);">—</div>'
+        + '<div style="font-size:var(--fs-xs);color:var(--text-secondary);">non suivie</div></div>';
+      const rate = (i > 0 && prev > 0 && st.n != null) ? (st.n / prev * 100).toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' %' : '—';
+      return '<div style="flex:1 1 120px;min-width:110px;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:#fff;">'
+        + '<div style="font-size:var(--fs-xs);color:var(--muted);">' + _esc(st.label) + '</div>'
+        + '<div style="font-weight:700;font-size:var(--fs-lg);color:var(--ink);">' + (st.n == null ? '—' : nf(st.n)) + '</div>'
+        + '<div style="font-size:var(--fs-xs);color:var(--text-secondary);">' + (i === 0 ? 'créés sur la période' : 'passage ' + rate) + '</div></div>';
+    }).join('');
+    if (noteEl) noteEl.textContent = "Flux sur la période : chaque étape compte les prospects distincts qui y sont entrés (historique des changements d'étape), pas une cohorte suivie. Le taux est le passage depuis l'étape précédente. Historique partiel : les chiffres de réponse peuvent être sous-estimés."
+      + (closedLogged ? '' : " Clôture : le journal d'étapes ne couvre pas encore la clôture.");
+  } catch (e) {
+    console.warn('[_renderStageFlow]', e);
+    rowsEl.innerHTML = ''; if (noteEl) noteEl.textContent = "Impossible de charger l'historique des étapes pour le moment.";
+  }
+}
 function _renderPipelineStatsCard({ counts, total, inConv, highPrio, france, unknownCountry }) {
   const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
   // Zero reel vs donnee absente : aucun prospect dans le perimetre = pas de taux (« — »), pas 0,0 %.
   // Ces indicateurs portent toujours sur le portefeuille ACTIF (non archive) : les filtres de la vue ne les recalculent pas.
   const nf = n => Number(n).toLocaleString('fr-FR');
   const plur = (n, one, many) => n < 2 ? one : many;   // français : 0 et 1 au singulier
-  setTxt('pipe-conversion', total > 0 ? (counts['Closed'] / total * 100).toFixed(1) + '%' : '—');
-  setTxt('pipe-conversion-sub', total > 0
-    ? nf(counts['Closed']) + ' / ' + nf(total) + plur(total, ' prospect', ' prospects') + ' · étape actuelle « Clôturé », toutes périodes'
-    : 'aucun prospect dans ce périmètre');
+  _renderStageFlow();
   setTxt('pipe-stats-scope', 'Portefeuille actif — ' + nf(total) + plur(total, ' prospect', ' prospects') + ' (hors archivés ; les filtres de la vue ne modifient pas ces indicateurs)');
   setTxt('pipe-inconv', inConv);
   setTxt('pipe-highprio', highPrio);
@@ -7455,6 +7571,7 @@ async function _loadReviewHandled() {
 // _prospectsById avec la même fiche complète).
 const _TODAY_PROSPECT_COLS = 'id,name,company,title,sector,stage,icp_score,icp_reason,signal,signal_url,signal_type,signal_interpretation,signal_interpretation_updated_at,signal_date,created_at,email,phone,linkedin,website_url,region,country,country_code,company_size,funding_stage,last_funding_date,total_funding,hard_criteria_met,company_verified,identity_confidence,identity_verdict,identity_verdict_checked_at,company_checked_at,score_role,score_size,score_signal_strength,score_recency,score_mandate_fit,score_completeness,reminder_date,last_contact,priority_batch_number,deal_value,deal_currency,deal_structure,deal_weighted,next_action,next_action_date,next_action_cache,next_action_generated_at,origin';
 let _priorityCurrentBatch = 1;
+let _priorityPendingInvites = 0; // decisions du scan retirees de la liste car l'invitation est deja envoyee (comptage de loadDailyPriorities, lecture seule)
 let _priorityShownProspects = [];
 // « À traiter maintenant » (reminder_date de J-7 à aujourd'hui) et backlog (reminder_date < J-7) : tableaux distincts pour que
 // « N actions en file » ne compte jamais le backlog. _reminderBacklogTotal = count exact Supabase (peut dépasser les lignes rendues).
@@ -7692,6 +7809,7 @@ async function loadDailyPriorities() {
   const container = document.getElementById('priorities-container');
   if (!container) return;
   container.innerHTML = '<div style="padding:32px;text-align:center;color:var(--muted);font-size:var(--fs-sm);">Chargement des priorités…</div>';
+  _priorityPendingInvites = 0;
 
   try {
     // Vue consolidée Wominds : mandate_id = NULL pour priority_batches (index unique (client_id, mandate_id) NULLS NOT DISTINCT).
@@ -7749,6 +7867,7 @@ async function loadDailyPriorities() {
         if (_pcErr) console.warn('[loadDailyPriorities] comptage invitations en attente:', _pcErr);
         else _decisionsPending = _pc || 0;
       }
+      _priorityPendingInvites = _decisionsPending;
       // Un envoi (LinkedIn ou email) pose déjà priority_batch_number = _priorityCurrentBatch sur la fiche : signal « traité dans ce
       // lot, ne plus le remontrer ».
       _priorityShownProspects = (decisionProspects || [])
@@ -7889,7 +8008,14 @@ function _mscDecisionFromProspect(p) {
 // Ne bloque jamais le clic, même gestionnaire derrière (_priorityGenerate).
 function _actionButtonLabel(p, cachedLabel, freshLabel) {
   if (_scoreReliabilityBadge(p)) return '⚠ Vérifier la source d\'abord';
-  return p.next_action_cache ? cachedLabel : freshLabel;
+  if (p.next_action_cache) return cachedLabel;
+  // Donnée de qualification manquante (ni e-mail ni URL de réseau pro valide, ou taille inconnue) : on prépare un brouillon, sans rien verrouiller.
+  // Un champ absent de la ligne (undefined) n'est pas « inconnu » : il n'est juste pas chargé, on ne le juge pas.
+  const channelKnown = ('email' in p) && ('linkedin' in p);
+  const noChannel = channelKnown && !(p.email && String(p.email).trim()) && !_mscSafeUrl(p.linkedin);
+  const sizeUnknown = p.company_size !== undefined && (p.company_size == null || String(p.company_size).trim() === '');
+  if (noChannel || sizeUnknown) return 'Préparer un brouillon';
+  return freshLabel;
 }
 
 // Pied « Générer » injecté À L'INTÉRIEUR du div cliquable retourné par _mscDecisionCardHTML (cf. _renderPriorityCards) pour que le
@@ -7933,6 +8059,15 @@ function _renderPriorityCards(prospects, emptyReason = 'batch-exhausted') {
     const merged = footerHtml ? cardHtml.replace(/(\s*<\/div>\s*<\/div>)\s*$/, footerHtml + '$1') : cardHtml;
     return `<div class="priority-card" data-id="${_esc(_mscSafeId(p.id))}" style="margin-bottom:12px;">${merged}</div>`;
   }).join('');
+  // Invitations deja envoyees (retirees de la liste par le filtre linkedin_tag = 'invite-sent') : une ligne discrete sous les cartes, seulement si N > 0.
+  const nPending = _priorityPendingInvites;
+  if (nPending > 0) {
+    const note = document.createElement('div');
+    note.id = 'priorities-pending-note';
+    note.style.cssText = 'margin:2px 0 12px;font-size:var(--fs-xs);color:var(--muted);';
+    note.textContent = nPending + ' invitation(s) déjà envoyée(s), en attente de connexion';
+    container.appendChild(note);
+  }
 }
 
 async function _priorityGenerate(prospectId) {
@@ -8358,15 +8493,21 @@ function _applySendFilters() {
   const touchFilter = document.getElementById('send-filter-touch')?.value || 'all';
   const fiveDaysAgo = new Date(Date.now() - 5 * 86400000).toISOString().slice(0, 10);
 
-  let queue = _sendProspects
-    .map(p => ({ p, touch: _isJ5Eligible(p, fiveDaysAgo) ? 'j5' : _suggestTouch(p) }))
-    .filter(({ p, touch }) => {
-      if (touch === 'invite' && (p.stage || 'Identified') !== 'Identified') return false;
-      if (touch === 'j0' && p.stage !== '1st Contact') return false;
-      return true;
-    });
-  _todayJ5PendingCount = queue.filter(q => q.touch === 'j5').length;
-  if (icpMin > 0) queue = queue.filter(({ p }) => (p.icp_score || 0) >= icpMin);
+  // Éligibilité alignée sur demo-private.html. La liste ET la pastille (_setSendBadge ci-dessous) viennent de cette seule file :
+  //  - invitation : stade Identifié, jamais contacté, ni invitation envoyée ni connexion acceptée, ICP >= 8, URL de réseau pro, plafond 25 ;
+  //  - J+0 : connexions acceptées seulement (URL présente, jamais contacté) ;
+  //  - J+5 : fiches éligibles (1er contact, dernier contact depuis 5 jours ou plus) avec ICP >= 8 seulement.
+  const _passes = p => !(icpMin > 0) || (p.icp_score || 0) >= icpMin;
+  const _icp8 = p => parseFloat(p.icp_score) >= 8;
+  const _byIcp = (a, b) => (b.icp_score || 0) - (a.icp_score || 0);
+  const j5Eligible = _sendProspects.filter(p => _isJ5Eligible(p, fiveDaysAgo));
+  _todayJ5PendingCount = j5Eligible.length; // capacité du jour : toutes les relances éligibles, quel que soit l'ICP
+  const invites = _sendProspects.filter(p => (p.stage || 'Identified') === 'Identified' && !p.last_contact
+    && p.linkedin_tag !== 'invite-sent' && p.linkedin_tag !== 'connection-accepted' && _icp8(p) && !!p.linkedin && _passes(p)).sort(_byIcp).slice(0, 25);
+  const j0 = _sendProspects.filter(p => p.linkedin_tag === 'connection-accepted' && p.stage !== 'Archived' && !p.last_contact && !!p.linkedin
+    && !(_sendSequences[p.id] || []).some(s => s.touch === 'j0' && s.status === 'sent') && _passes(p));
+  const j5 = j5Eligible.filter(p => _icp8(p) && _passes(p));
+  let queue = [...invites.map(p => ({ p, touch: 'invite' })), ...j0.map(p => ({ p, touch: 'j0' })), ...j5.map(p => ({ p, touch: 'j5' }))];
   if (touchFilter !== 'all') queue = queue.filter(({ touch }) => touch === touchFilter);
   queue.sort((a, b) => (b.p.icp_score || 0) - (a.p.icp_score || 0));
 
