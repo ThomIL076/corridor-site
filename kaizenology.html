@@ -1436,6 +1436,10 @@ body.new-nav { padding-left: 220px; }
   .k-ri-toggle { font-size:var(--fs-xs);color:var(--navy);background:none;border:none;padding:0;cursor:pointer;font-family:inherit;font-weight:600; }
   .k-ri-toggle:hover { color:var(--blue); }
   .k-reply-intel h1,.k-reply-intel h2,.k-reply-intel h3,.k-reply-intel h4,.k-reply-intel strong { color:var(--text) !important; }
+/* Champs a 16 px sous 768 px : evite le zoom automatique du navigateur mobile au focus (cases, boutons, curseurs et fichiers exclus). !important : la plupart des champs portent un font-size en attribut style ou en regle #id. */
+@media (max-width: 768px) {
+  input:not([type=checkbox]):not([type=radio]):not([type=button]):not([type=submit]):not([type=range]):not([type=file]):not([type=color]), textarea, select { font-size: 16px !important; }
+}
 </style>
 </head>
 <body>
@@ -1978,7 +1982,7 @@ body.new-nav { padding-left: 220px; }
   <!-- ══ TAB: PRIORITIES VIEW ══ -->
   <div class="tab-panel" id="tab-priorities">
     <div style="padding:24px 16px 0;max-width:1120px;margin:0 auto;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px;">
         <h2 style="font-size:var(--fs-lg);font-weight:700;color:var(--navy);margin:0;" data-en="Today's run">Today's run</h2>
         <div style="display:flex;align-items:center;gap:8px;">
           <button id="priorities-skip-btn" class="btn-secondary" onclick="_prioritiesSkip()">
