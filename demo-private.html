@@ -3009,8 +3009,9 @@ body.new-nav { padding-left: 220px; }
            visuellement des boutons de generation a la demande ci-dessous -- ce bloc montre ce qui a
            reellement ete envoye, les boutons regenerent un nouveau contenu independant. -->
       <div class="ai-box" id="last-morning-scan-box" style="margin-bottom:16px;">
-        <div class="ai-box-header">
+        <div class="ai-box-header" style="flex-wrap:wrap;gap:8px;">
           <span class="ai-box-label" data-en="Last Morning Scan Sent" data-fr="Dernier Morning Scan envoyé">Last Morning Scan Sent</span>
+          <select id="msc-day-select" aria-label="Jour du Morning Scan" onchange="_mscPickDay(this.value)" hidden style="margin-left:auto;max-width:100%;min-height:36px;padding:5px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:var(--fs-xs);font-family:inherit;background:#fff;color:var(--text);"></select>
         </div>
         <div class="ai-box-body" id="last-morning-scan-body">…</div>
       </div>
@@ -5544,6 +5545,41 @@ function _mscRenderScanEntries(decisions, liveById, emailHtml) {
 // scan comme avant. Fourni (nouveaux liens de la liste "Derniere activite" ci-dessous), recharge le
 // meme panneau avec CE scan precis -- reutilise integralement le meme rendu (cartes/iframe), aucune
 // duplication de logique d'affichage.
+// Selecteur d'historique du Morning Scan : les 28 dernieres scan_date DISTINCTES du client (lecture seule), toujours visible dans l'en-tete de la carte,
+// la date affichee est selectionnee. Choisir le jour le plus recent = vue par defaut (sans lien « Retour »). Liste relue a chaque chargement par defaut.
+window._mscDays = null; // dates triees du plus recent au plus ancien, null = pas encore chargees
+function _mscDayLabel(d) {
+  const fr = currentLang === 'fr';
+  let txt = d;
+  try { txt = new Date(d + 'T12:00:00').toLocaleDateString(fr ? 'fr-FR' : 'en-GB', { weekday: 'short', day: 'numeric', month: 'short' }); } catch (e) { /* date brute */ }
+  const rel = typeof _relDate === 'function' ? _relDate(d) : '';
+  return rel && rel !== d ? txt + ' · ' + rel : txt;
+}
+function _mscRenderDaySelect(shown) {
+  const sel = document.getElementById('msc-day-select'); if (!sel) return;
+  const days = window._mscDays || [];
+  if (!days.length) { sel.hidden = true; return; }
+  const list = shown && !days.includes(shown) ? [shown].concat(days) : days;
+  sel.innerHTML = list.map(d => `<option value="${_esc(d)}">${_esc(_mscDayLabel(d))}</option>`).join('');
+  sel.value = shown || days[0];
+  sel.setAttribute('aria-label', currentLang === 'fr' ? 'Jour du Morning Scan' : 'Morning Scan day');
+  sel.hidden = false;
+}
+async function _mscSyncDaySelect(shown, reload) {
+  try {
+    if (reload || !window._mscDays) {
+      const { data } = await sbClient.from('morning_scan_email_cache').select('scan_date').eq('client_id', CLIENT_ID).order('scan_date', { ascending: false }).limit(400);
+      const seen = [];
+      for (const r of (data || [])) if (r.scan_date && !seen.includes(r.scan_date)) { seen.push(r.scan_date); if (seen.length >= 28) break; }
+      window._mscDays = seen;
+    }
+  } catch (e) { /* decoratif : le panneau principal ne depend jamais de la liste */ }
+  _mscRenderDaySelect(shown);
+}
+function _mscPickDay(d) {
+  const latest = window._mscDays && window._mscDays[0];
+  _loadLastMorningScanEmail(d && d !== latest ? d : undefined);
+}
 async function _loadLastMorningScanEmail(scanDate) {
   const el = document.getElementById('last-morning-scan-body');
   if (!el) return;
@@ -5552,9 +5588,12 @@ async function _loadLastMorningScanEmail(scanDate) {
     let q = sbClient.from('morning_scan_email_cache')
       .select('subject, email_html, scan_date, generated_at, decisions_json, scan_entries')
       .eq('client_id', CLIENT_ID);
-    q = scanDate ? q.eq('scan_date', scanDate) : q.order('scan_date', { ascending: false }).limit(1);
+    // Une date peut avoir plusieurs lignes (relances manuelles) : la plus recente (generated_at) l'emporte, jamais d'erreur « plusieurs lignes ».
+    q = scanDate ? q.eq('scan_date', scanDate) : q.order('scan_date', { ascending: false });
+    q = q.order('generated_at', { ascending: false }).limit(1);
     const { data, error } = await q.maybeSingle();
     if (error) throw error;
+    _mscSyncDaySelect(data ? data.scan_date : null, !scanDate);
     if (!data) {
       el.innerHTML = `<div style="color:var(--text-secondary);font-size:var(--fs-sm);">${currentLang === 'fr' ? 'Aucun Morning Scan envoyé pour l’instant.' : 'No Morning Scan sent yet.'}</div>`;
       return;
