@@ -8374,7 +8374,9 @@ function _priorityWeightHTML(p, fr) {
   const lost = prefApplies ? raw * decay * 0.3 * idPen * (1 - _prefF) : 0;
   let prefLine = '';
   if (prefApplies) {
-    prefLine = `<div style="margin-top:6px;color:#92400e;font-weight:600">${fr ? 'Préférence apprise appliquée' : 'Learned preference applied'} : ${fr ? 'les signaux de type' : 'signals of type'} « ${_esc(p.signal_type)} » ${fr ? 'sont déprioritisés, la force du signal passe de' : 'are deprioritised, signal strength goes from'} ${f1(raw)} ${fr ? 'à' : 'to'} 0 (−${f1(lost)} ${fr ? 'pt de score' : 'pts of score'}).</div>`;
+    prefLine = p.score_signal_strength == null
+      ? `<div style="margin-top:6px;color:#92400e;font-weight:600">${fr ? 'Préférence apprise appliquée' : 'Learned preference applied'} : ${fr ? 'les signaux de type' : 'signals of type'} « ${_esc(p.signal_type)} » ${fr ? 'sont déprioritisés, la force du signal est mise à 0.' : 'are deprioritised, signal strength is set to 0.'}</div>`
+      : `<div style="margin-top:6px;color:#92400e;font-weight:600">${fr ? 'Préférence apprise appliquée' : 'Learned preference applied'} : ${fr ? 'les signaux de type' : 'signals of type'} « ${_esc(p.signal_type)} » ${fr ? 'sont déprioritisés, la force du signal passe de' : 'are deprioritised, signal strength goes from'} ${f1(raw)} ${fr ? 'à' : 'to'} 0 (−${f1(lost)} ${fr ? 'pt de score' : 'pts of score'}).</div>`;
   } else if (_deprioTypes && p.signal_type) {
     prefLine = `<div style="margin-top:6px;color:var(--muted)">${fr ? 'Aucune préférence apprise ne s’applique au type de signal' : 'No learned preference applies to signal type'} « ${_esc(p.signal_type)} ».</div>`;
   }
