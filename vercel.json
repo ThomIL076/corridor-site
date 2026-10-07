@@ -33,14 +33,6 @@
       "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
     },
     {
-      "source": "/yellowwood-demo.html",
-      "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
-    },
-    {
-      "source": "/lka-demo.html",
-      "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
-    },
-    {
       "source": "/partner-demo",
       "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
     },

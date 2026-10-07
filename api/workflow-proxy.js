@@ -41,9 +41,7 @@ const ACTIONS = {
 // dashboards (une seule adresse par client, jamais une adresse choisie par l'appelant).
 const FALLBACK_OWNER_EMAIL_BY_CLIENT = {
   thomas: 'thomas@corridor.systems',
-  kaizenology: 'hello@stephanerogovsky.com',
-  'yellowwood-demo': 'eric@yellowwood.com',
-  'lka-demo': 'wael@lka.com'
+  kaizenology: 'hello@stephanerogovsky.com'
 };
 const MAX_BODY_CHARS = 200000;
 const MAX_SUBJECT_CHARS = 300;

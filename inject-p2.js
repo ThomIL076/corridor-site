@@ -8,7 +8,6 @@
  *
  * Usage:
  *   node inject-p2.js --validate   # run on source files; diff must be empty
- *   node inject-p2.js --inject     # generate *-p2test.html files for review
  */
 
 const fs   = require('fs');
@@ -205,21 +204,6 @@ if (mode === '--validate') {
     fs.unlinkSync(path.join(BASE, t.out)); // clean up test files
   }
 
-} else if (mode === '--inject') {
-  // Generate *-p2test.html for manual review before promoting
-  const targets = [
-    { in: 'yellowwood-demo.html', out: 'yellowwood-demo-p2test.html' },
-    { in: 'lka-demo.html',        out: 'lka-demo-p2test.html'        },
-  ];
-  for (const t of targets) {
-    injectP2(path.join(BASE, t.in), path.join(BASE, t.out));
-  }
-  console.log('\n--- Review diffs before promoting ---');
-  for (const t of targets) {
-    console.log(`  diff ${t.in} ${t.out}`);
-  }
-  console.log('\nTo promote: copy *-p2test.html → original filename, then deploy.');
-
 } else if (mode === '--drift') {
   // ── P1.2: Config drift detection ────────────────────────────────────────────
   // Compares each target file against demo-private.html (reference).
@@ -227,8 +211,6 @@ if (mode === '--validate') {
   //          (2) key global declarations that diverged unexpectedly.
   const TARGETS = [
     'kaizenology.html',
-    'yellowwood-demo.html',
-    'lka-demo.html',
     'partner-demo.html',
   ];
 
@@ -318,7 +300,6 @@ if (mode === '--validate') {
 } else {
   console.log('Usage:');
   console.log('  node inject-p2.js --validate       # idempotency check on demo-private + kaizenology');
-  console.log('  node inject-p2.js --inject         # generate *-p2test.html files for yellowwood/lka (priorities + inbox)');
   console.log('  node inject-p2.js --inject-inbox   # add inbox to kaizenology (already has priorities)');
-  console.log('  node inject-p2.js --drift          # P1.2 config drift report across all 6 dashboard files');
+  console.log('  node inject-p2.js --drift          # P1.2 config drift report across the dashboard files');
 }

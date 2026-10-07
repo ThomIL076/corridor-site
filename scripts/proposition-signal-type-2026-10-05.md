@@ -144,7 +144,7 @@ Aucune préférence apprise, et la taxonomie propre à Kaizenology (conseil en l
 |---|---|---|
 | demo-private, Pipeline, carte funnel | effectifs par étape actuelle | titre « Répartition actuelle » déjà posé (e1c14ce) |
 | kaizenology, wominds : `#pipe-funnel-bar` | mêmes effectifs par étape actuelle | **libellé « Répartition actuelle » ajouté** (ce lot) |
-| `#stats-funnel` (onglet Stats hérité) : kaizenology, lka-demo, yellowwood-demo, partner-demo (+ variantes p2test) | barres « Pipeline Funnel » = effectifs par étape actuelle | **légende « Répartition actuelle » ajoutée** (ce lot) ; le titre de carte « Pipeline Funnel » est inchangé |
+| `#stats-funnel` (onglet Stats hérité) : kaizenology, partner-demo (+ variantes p2test) | barres « Pipeline Funnel » = effectifs par étape actuelle | **légende « Répartition actuelle » ajoutée** (ce lot) ; le titre de carte « Pipeline Funnel » est inchangé |
 | demo-private, Système > santé du pipeline, « Stage conversion » (`_loadStageConversion`) | déjà **cumulatif** (« a atteint au moins l'étape » = rang d'étape actuel ≥ étape) vs cibles `conversion_targets` | correct mais approximatif : exclut les fiches archivées (3 962 `Archived` pour thomas) qui ont perdu leur étape maximale |
 | « While you were away » (`_loadTodayStats`) | signaux du jour, messages rédigés, envoyés, en attente : aucune notion d'étape | rien à faire |
 | Ask Corridor, snapshot pipeline (`By stage: …`) | effectifs bruts par étape, libellé « By stage » | correct |
