@@ -201,6 +201,16 @@ body.new-nav .top-chrome-wrapper { left: 220px; }
   .sec-tab-mobile-only:hover { color: var(--danger); background: #fef2f2; }
 }
 
+/* Boutons de la barre du haut : « Demander à Corridor » (pilule, comme demo-private.html) ; boutons compacts scanner/question sous 768 px. */
+.nav-ask-btn { flex-shrink:0; display:flex; align-items:center; gap:7px; font-family:inherit; font-size:var(--fs-xs); font-weight:600; padding:6px 14px; border:none; border-radius:var(--radius-pill); background:var(--ink); color:#fff; cursor:pointer; height:30px; }
+.nav-ask-dot { width:6px; height:6px; border-radius:50%; background:var(--success); display:inline-block; flex-shrink:0; animation:pulseDot 2.4s ease-in-out infinite; }
+.nav-mob-btn { display:none; position:relative; flex-shrink:0; align-items:center; justify-content:center; width:44px; height:44px; padding:0; border:1px solid var(--border); border-radius:var(--radius-sm); background:#fff; color:var(--ink); cursor:pointer; }
+.nav-mob-btn svg { width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+.nav-mob-btn .nav-ask-dot { position:absolute; top:8px; right:8px; }
+@media (max-width: 768px) {
+  .nav-ask-btn { display:none; }
+  .nav-mob-btn { display:flex; }
+}
 /* ── NAV ── */
 nav {
   display:flex; align-items:center; justify-content:space-between; gap:12px;
@@ -997,6 +1007,8 @@ body.ask-open { overflow:hidden; }
 .pd-stat-value { font-family:'IBM Plex Mono',monospace; font-size:14px; font-weight:600; color:var(--ink); display:flex; align-items:center; gap:5px; white-space:nowrap; }
 .pd-stat-edit { cursor:pointer; color:var(--muted); background:none; border:none; padding:0; font-size:11px; line-height:1; flex-shrink:0; }
 .pd-stat-edit:hover { color:var(--accent); }
+#drawer-rescore-btn { max-width: 100%; padding-left: 8px; padding-right: 8px; white-space: nowrap; } /* ne deborde plus de sa colonne a 390 px */
+@media (max-width: 480px) { .pd-stats .pd-stat:first-child { flex: 1.7 1 0; } }
 .pd-body { flex:1; min-height:0; overflow-y:auto; padding:0 22px; }
 .pd-section { padding:18px 0; border-bottom:1px solid var(--border); }
 .pd-section-label { font-family:'IBM Plex Mono',monospace; font-size:10.5px; font-weight:600; letter-spacing:0.14em; text-transform:uppercase; color:var(--muted); margin-bottom:10px; }
@@ -1583,6 +1595,19 @@ body.new-nav { padding-left: 220px; }
     </div>
   </div>
   <div style="display:flex;align-items:center;gap:14px;margin-left:auto;padding-right:8px;">
+    <!-- « Demander à Corridor » (même bouton que demo-private.html, même panneau que l'entrée de la barre latérale) ; sous 768 px la barre latérale
+         est masquée : le scanner d'entreprise et la question passent en boutons compacts dans cette barre (perdus avec l'ancien panneau « Plus »). -->
+    <button type="button" class="nav-ask-btn" onclick="_openAskPanel()" aria-label="Demander à Corridor">
+      <span>Demander à Corridor</span>
+      <span class="nav-ask-dot" aria-hidden="true"></span>
+    </button>
+    <button type="button" class="nav-mob-btn" onclick="openScannerPanel()" aria-label="Ouvrir le scanner d'entreprise" title="Scanner">
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
+    </button>
+    <button type="button" class="nav-mob-btn" onclick="_openAskPanel()" aria-label="Demander à Corridor" title="Demander à Corridor">
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 5.5h16v10H9.5L5.5 19v-3.5H4z"/></svg>
+      <span class="nav-ask-dot" aria-hidden="true"></span>
+    </button>
     <div class="user-profile" id="user-profile-btn" style="display:none" onclick="openProfileModal()">
       <div class="user-avatar" id="nav-avatar"></div>
       <div class="user-info">
@@ -1626,7 +1651,7 @@ body.new-nav { padding-left: 220px; }
   <!-- ══ ONGLET : AUJOURD'HUI (parité totale avec demo-private.html, règle « Parité produit totale pour
        tout nouveau client » -- remplace la version simplifiée du 2026-09-12, abrogée). Même structure,
        mêmes ids et mêmes composants que Corridor ; seuls les textes (FR uniquement) et les sources de
-       données propres à Wominds diffèrent. Pas de panneau « Capacité du jour » ici (décision Thomas). ══ -->
+       données propres à Wominds diffèrent. La carte « Capacité du jour » est aussi dans le rail de droite (lot 5, comme demo-private.html). ══ -->
   <div class="tab-panel active" id="tab-today">
     <div style="padding:24px 16px 0;max-width:1120px;margin:0 auto;">
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px;">
@@ -1643,6 +1668,8 @@ body.new-nav { padding-left: 220px; }
       </div>
       <!-- Bloc stats réelles, rempli par _loadTodayStats(). Vide tant que le JS n'a pas tourné (pas de donnée d'exemple). -->
       <div id="today-stats-row" style="display:flex;flex-wrap:wrap;margin-bottom:16px;background:#fff;border:1px solid var(--border);border-radius:var(--radius-panel);overflow:hidden;"></div>
+      <!-- Preuve visible des retours appris (lecture seule) : rempli par _loadLearnedProof(), masqué tant qu'aucune donnée réelle n'existe. -->
+      <div id="today-learned-proof" hidden style="margin-bottom:16px;padding:10px 14px;background:#fff;border:1px solid var(--border);border-radius:var(--radius-panel);font-size:var(--fs-sm);color:var(--text-secondary);line-height:1.5;"></div>
       <div class="section-sub"><span id="priorities-queued-count">0</span><span> actions en file aujourd'hui. Traitez-les de haut en bas. Le système reclasse après chaque envoi.</span></div>
       <div class="today-layout">
         <div class="today-main">
@@ -1675,6 +1702,10 @@ body.new-nav { padding-left: 220px; }
               <span class="card-badge badge-auto">EN DIRECT</span>
             </div>
             <div id="agents-at-work-list" style="font-size:var(--fs-sm);color:var(--muted);overflow-wrap:anywhere;word-break:break-word;">Chargement…</div>
+          </div>
+          <div class="card">
+            <div class="card-header"><span class="card-title">Capacité du jour</span></div>
+            <div id="today-capacity-bars" style="font-size:var(--fs-sm);color:var(--muted);">Chargement…</div>
           </div>
         </div>
       </div>
@@ -2083,7 +2114,7 @@ body.new-nav { padding-left: 220px; }
   </div>
 
   <!-- ══ ONGLET : SIGNAUX ══ Parite demo-private.html:2606-2643 (brief 2026-09-12, 241 prospects
-       reels Trigify/Gojiberry deja en base pour Wominds -- plus de banniere "pas configure"). ══ -->
+       reels deja en base pour Wominds -- plus de banniere "pas configure"). ══ -->
   <div class="tab-panel" id="tab-signals">
     <div style="padding:24px 16px 0;max-width:800px;margin:0 auto;">
       <div class="module-header" style="margin-bottom:20px;">
@@ -2205,16 +2236,19 @@ body.new-nav { padding-left: 220px; }
       <div class="module-header" style="margin-bottom:20px;">
         <div class="module-title">Stats</div>
       </div>
-      <div class="card stats-section" style="margin-bottom:16px;">
-        <div class="card-header"><span class="card-title">Par secteur</span></div>
-        <div id="stats-sector"></div>
+      <!-- Secteur et pays côte à côte (comme demo-private.html) ; une colonne sous 768 px (règle .two-col du fichier). -->
+      <div class="two-col" style="margin-bottom:16px;">
+        <div class="card stats-section">
+          <div class="card-header"><span class="card-title">Par secteur</span></div>
+          <div id="stats-sector"></div>
+        </div>
+        <div class="card stats-section">
+          <div class="card-header"><span class="card-title">Par pays</span></div>
+          <div id="stats-country"></div>
+        </div>
       </div>
       <div class="card stats-section" style="margin-bottom:16px;">
-        <div class="card-header"><span class="card-title">Par pays</span></div>
-        <div id="stats-country"></div>
-      </div>
-      <div class="card stats-section" style="margin-bottom:16px;">
-        <div class="card-header"><span class="card-title">Revenu · Deals clôturés</span></div>
+        <div class="card-header"><span class="card-title">Revenus — Deals clôturés</span></div>
         <div id="stats-revenue"></div>
       </div>
       <div class="card stats-section" style="margin-bottom:16px;">
@@ -2605,7 +2639,7 @@ function switchTab(name){
   _newNavActive(name);
   _closeSnav();
   window.scrollTo({ top: 0, behavior: 'instant' });
-  if (name === 'today') { loadDailyPriorities(); _loadAgentsAtWork(); _fetchTodaySendCounts().catch(err => console.error('_fetchTodaySendCounts:', err)); _loadFollowUpsDue(); _loadTodayStats(); }
+  if (name === 'today') { loadDailyPriorities(); _loadLearnedProof(); _loadAgentsAtWork(); _fetchTodaySendCounts().catch(err => console.error('_fetchTodaySendCounts:', err)); _loadFollowUpsDue(); _loadTodayStats(); }
   if (name === 'pipeline') loadKanban();
   if (name === 'send') loadSendView();
   if (name === 'inbox') loadInboxDrafts();
@@ -2701,7 +2735,7 @@ async function showDemo(){
   if (!_demoStarted) {
     _demoStarted = true;
     // "Aujourd'hui" redevient l'ecran par defaut (meme convention que demo-private.html/
-    // kaizenology.html) -- arbitrage Thomas 2026-09-12 : le sourcing Apollo alimente desormais
+    // kaizenology.html) -- arbitrage Thomas 2026-09-12 : le sourcing alimente desormais
     // reellement cette vue, elle n'est plus un ecran vide au premier lancement.
     // Vue de depart : celle du hash (#/section/vue ou ancien #onglet) si valide, sinon Aujourd'hui. Le hash n'est ecrit qu'a partir d'ici.
     const _startKey = _navKeyFromHash(_initialNavHash) || 'today';
@@ -3307,11 +3341,29 @@ function _mscDecisionCardHTML(d, live) {
     : '';
   const mandateHtml = isEntry && d.mandate ? `<span style="font-size:var(--fs-xs);color:var(--text-secondary);">Mandat : ${_esc(d.mandate)}</span>` : '';
   const sigType = isEntry ? ((d.signal && d.signal.type) || (live && live.signal_type) || '') : '';
-  const sigBadge = sigType && typeof _sigBadge === 'function' ? _sigBadge(sigType) : '';
+  // Type « firmographic-match » : la fiche correspond a l'ICP mais n'a aucun signal d'intention -> badge « Fit sans signal » a la place du badge
+  // de type et, quand signal.text est null, un libelle lisible derive du seul type (jamais un texte invente, jamais de JSON brut). Meme table que
+  // demo-private.html ; un type hors table n'affiche aucun libelle.
+  const _sigTypeKey = String(sigType || '').toLowerCase().replace(/_/g, '-');
+  const _isFit = _sigTypeKey === 'firmographic-match';
+  const _SIG_TYPE_LABELS = {
+    'firmographic-match': "Correspondance firmographique, sans signal d'intention",
+    'leadership-change': 'Changement de direction',
+    'expansion': 'Expansion',
+    'active-hiring': 'Recrutement actif',
+    'hiring': 'Recrutement',
+    'operating-partner-activity': 'Activité Operating Partner',
+    'pre-deal-signal': 'Signal pré-deal',
+    'thought-leadership': "Leadership d'opinion",
+  };
+  const _sigTypeLabel = Object.prototype.hasOwnProperty.call(_SIG_TYPE_LABELS, _sigTypeKey) ? _SIG_TYPE_LABELS[_sigTypeKey] : '';
+  const sigBadge = _isFit
+    ? `<span title="${_esc(_SIG_TYPE_LABELS['firmographic-match'])}" style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:var(--radius-pill);white-space:nowrap;color:#6b7280;background:#f3f4f6;border:1px solid #d1d5db;">Fit sans signal</span>`
+    : (sigType && typeof _sigBadge === 'function' ? _sigBadge(sigType) : '');
   // Force (0-10) et date du signal : uniquement dans l'instantane du scan (la force n'a pas de colonne live equivalente ; la date live
   // comble le trou).
   const sigMetaParts = [];
-  if (isEntry && d.signal && Number.isFinite(d.signal.strength)) sigMetaParts.push(`Force ${d.signal.strength}${d.signal.strength >= 0 && d.signal.strength <= 10 ? '/10' : ''}`);
+  if (isEntry && d.signal && Number.isFinite(d.signal.strength) && !(_isFit && !signal)) sigMetaParts.push(`Force ${d.signal.strength}${d.signal.strength >= 0 && d.signal.strength <= 10 ? '/10' : ''}`);
   const sigDateLabel = isEntry ? _mscFmtDate((d.signal && d.signal.date) || (live && live.signal_date)) : '';
   if (sigDateLabel) sigMetaParts.push(sigDateLabel);
   const sigMeta = sigMetaParts.join(' · ');
@@ -3325,7 +3377,7 @@ function _mscDecisionCardHTML(d, live) {
   const signalLabel = '<strong>Signal :</strong>';
   const signalHead = signal
     ? `${signalLabel} ${_esc(signal)}${sigMeta ? ` <span style="opacity:.75;">(${_esc(sigMeta)})</span>` : ''}`
-    : (sigMeta ? `${signalLabel} ${_esc(sigMeta)}` : '');
+    : (_sigTypeLabel ? `${signalLabel} ${_esc(_sigTypeLabel)}${sigMeta ? ` <span style="opacity:.75;">(${_esc(sigMeta)})</span>` : ''}` : (sigMeta ? `${signalLabel} ${_esc(sigMeta)}` : ''));
   // Raison ICP visible (en plus de l'infobulle, invisible au toucher) : 2 lignes max, texte complet en title.
   const reasonText = icpScore != null ? cleanText(live.icp_reason || '') : '';
   const reasonHtml = reasonText ? `<div class="msc-reason" title="${_esc(reasonText)}">${_esc(reasonText)}</div><button type="button" class="msc-more" hidden onclick="_mscReasonToggle(this,event)">Voir plus</button>` : '';
@@ -7988,7 +8040,7 @@ function _removePendingActionCard(id) {
 // - Aujourd'hui : simplifications levees le 2026-10-05 (parite totale avec demo-private.html, cf. bloc AUJOURD'HUI plus bas).
 // - Envoyer/Boite de reception : structure complete et fonctionnelle (generation, brouillons,
 //   Mark ready, Mark as sent, Dismiss), mais le bouton d'ENVOI REEL est desactive avec bandeau
-//   explicatif (option (a) choisie par Thomas) -- HeyReach/Smartlead Wominds n'existent pas.
+//   explicatif (option (a) choisie par Thomas) -- ces outils d'envoi n'existent pas cote Wominds.
 // - Le PROMPT de generation (_generateSequenceMessage) est volontairement generique/factuel :
 //   aucune voix de marque Wominds n'a ete inventee. A affiner avec Thomas/Elodie une fois leur
 //   positionnement/ton disponible -- signale explicitement, pas une decision definitive.
@@ -8011,9 +8063,11 @@ function _dayBoundsUTC() {
 const INVITE_DAILY_LIMIT = 30;
 const INVITE_WARN_AT = 25;
 const EMAIL_DAILY_LIMIT = 40;
-let _todaySendCounts = { invitesSent: 0, emailsSent: 0, liFollowupsSent: 0 };
+// invitesSent = total du compteur ; invitesManual = lignes sequences avec sent_at (ecrites par _markSent apres l'envoi depuis le tableau de bord) ;
+// invitesAuto = lignes sans sent_at (mises en file par l'automatisation, l'envoi reel se fait ensuite, a son rythme). Meme decoupage que demo-private.html.
+let _todaySendCounts = { invitesSent: 0, invitesManual: 0, invitesAuto: 0, emailsSent: 0, liFollowupsSent: 0 };
 let _todayJ5PendingCount = 0; // alimente par _applySendFilters() ; 0 tant que Send n'a pas tourne, pas un bug
-function _renderCapacityBars(containerId, inv, em, followUpsCleared, followUpsDue) {
+function _renderCapacityBars(containerId, inv, em, followUpsCleared, followUpsDue, withInviteDetail) {
   const el = document.getElementById(containerId);
   if (!el) return;
   const bar = (label, val, max, tip) => {
@@ -8038,8 +8092,12 @@ function _renderCapacityBars(containerId, inv, em, followUpsCleared, followUpsDu
         : `Vous approchez du seuil quotidien : ${inv}/${INVITE_DAILY_LIMIT} invitations (envoyées ou mises en file).`}</div>`;
   }
   const inviteTip = "Limite quotidienne réglée dans l'outil d'envoi, non appliquée ici (repère d'affichage).";
+  const { invitesManual: man, invitesAuto: auto } = _todaySendCounts;
+  const detailHtml = (withInviteDetail && inv > 0)
+    ? `<div style="font-size:var(--fs-xs);color:var(--muted);margin:-4px 0 10px;line-height:1.4;">${man} envoyée${man > 1 ? 's' : ''} depuis Aujourd'hui (manuel) · ${auto} mise${auto > 1 ? 's' : ''} en file par l'automatisation (l'outil d'envoi les envoie à son rythme)</div>`
+    : '';
   el.innerHTML = warnHtml +
-    bar('Invitations LinkedIn', inv, INVITE_DAILY_LIMIT, inviteTip) +
+    bar('Invitations LinkedIn', inv, INVITE_DAILY_LIMIT, inviteTip) + detailHtml +
     bar('Emails', em, EMAIL_DAILY_LIMIT) +
     bar('Relances traitées', followUpsCleared, followUpsDue);
 }
@@ -8049,22 +8107,73 @@ function _updateSentCounter() {
   // « dues » = celles encore dans la file J+5 + celles deja traitees. La barre « Emails » ne compte que les email_j5.
   const followUpsCleared = em + _todaySendCounts.liFollowupsSent;
   const followUpsDue = _todayJ5PendingCount + followUpsCleared;
-  _renderCapacityBars('send-capacity-bars', inv, em, followUpsCleared, followUpsDue);
+  // Rendu partage Today/Envoi : une seule fonction, montee sur deux conteneurs (comme demo-private.html).
+  _renderCapacityBars('today-capacity-bars', inv, em, followUpsCleared, followUpsDue, true);
+  _renderCapacityBars('send-capacity-bars', inv, em, followUpsCleared, followUpsDue, true);
 }
 async function _fetchTodaySendCounts() {
   const { start: todayStart, end: tomorrowStart } = _dayBoundsUTC();
   const _todayOrFilter = `and(sent_at.gte.${todayStart},sent_at.lt.${tomorrowStart}),and(sent_at.is.null,created_at.gte.${todayStart},created_at.lt.${tomorrowStart})`;
   const [{ data: invRows }, { data: emRows }, { data: liRows }] = await Promise.all([
-    sbClient.from('sequences').select('id').eq('client_id', CLIENT_ID).eq('touch', 'invite').eq('status', 'sent').or(_todayOrFilter),
+    sbClient.from('sequences').select('id, sent_at').eq('client_id', CLIENT_ID).eq('touch', 'invite').eq('status', 'sent').or(_todayOrFilter),
     sbClient.from('interactions').select('id').eq('client_id', CLIENT_ID).eq('type', 'email_j5').gte('created_at', todayStart).lt('created_at', tomorrowStart),
     sbClient.from('interactions').select('id').eq('client_id', CLIENT_ID).eq('type', 'linkedin').eq('touch', 'j5').gte('created_at', todayStart).lt('created_at', tomorrowStart),
   ]);
   _todaySendCounts.liFollowupsSent = (liRows || []).length;
   _todaySendCounts.invitesSent = (invRows || []).length;
+  _todaySendCounts.invitesManual = (invRows || []).filter(r => r.sent_at).length;
+  _todaySendCounts.invitesAuto = (invRows || []).filter(r => !r.sent_at).length;
   _todaySendCounts.emailsSent = (emRows || []).length;
   _updateSentCounter();
 }
 
+// Bloc « Appris de tes retours » (Aujourd'hui, lecture seule ; portage de demo-private.html). Sources : types déprioritisés EFFECTIFS
+// (_loadDeprioritizedTypes : même règle que le classement, règles validées comprises), feedback_count de learned_preferences (agent
+// 'signal_interpretation', ligne la plus récente) et, si le scan l'écrit, scan_entries.applied_rules du dernier Morning Scan (forme
+// {demoted,dropped} en priorité ; repli : nombre, tableau ou objet {excluded|excluded_count|count|total}) -- forme inconnue = non affiché.
+// Aucun chiffre sans source : bloc masqué si ni type déprioritisé ni retour compté. Aucune écriture.
+let _learnedProof = null;
+function _learnedProofExcluded(ar) {
+  if (ar && typeof ar === 'object' && !Array.isArray(ar) && (Array.isArray(ar.demoted) || Array.isArray(ar.dropped)))
+    return (Array.isArray(ar.demoted) ? ar.demoted.length : 0) + (Array.isArray(ar.dropped) ? ar.dropped.length : 0);
+  if (Number.isFinite(ar)) return ar;
+  if (Array.isArray(ar)) return ar.length;
+  if (ar && typeof ar === 'object') for (const k of ['excluded', 'excluded_count', 'count', 'total']) if (Number.isFinite(ar[k])) return ar[k];
+  return null;
+}
+function _renderLearnedProof() {
+  const box = document.getElementById('today-learned-proof'); if (!box) return;
+  const p = _learnedProof;
+  if (!p || (!p.types.length && p.feedback == null)) { box.hidden = true; box.innerHTML = ''; return; }
+  const rows = [];
+  rows.push(`<div><strong>Types dépriorisés :</strong> ${p.types.length ? p.types.map(t => `<code>${_esc(t)}</code>`).join(', ') : 'aucun'}</div>`);
+  if (p.feedback != null) rows.push(`<div><strong>Retours pris en compte :</strong> ${_esc(String(p.feedback))}</div>`);
+  if (p.excluded != null) rows.push(`<div><strong>Entrées écartées par ces règles ${p.scanIsToday ? "aujourd'hui" : '(' + _esc(p.scanDate || '') + ')'} :</strong> ${_esc(String(p.excluded))}</div>`);
+  box.innerHTML = `<div style="font-weight:700;color:var(--ink);margin-bottom:2px;">Appris de tes retours</div>${rows.join('')}`;
+  box.hidden = false;
+}
+async function _loadLearnedProof() {
+  try {
+    await _loadDeprioritizedTypes();
+    const { data } = await sbClient.from('learned_preferences').select('deprioritized_types,feedback_count')
+      .eq('client_id', CLIENT_ID).is('mandate_id', null).eq('agent_name', 'signal_interpretation')
+      .order('generated_at', { ascending: false, nullsFirst: false }).limit(1);
+    const row = data && data[0] ? data[0] : null;
+    const types = _deprioTypes ? [..._deprioTypes] : (row && Array.isArray(row.deprioritized_types) ? row.deprioritized_types : []);
+    const proof = { types, feedback: row && Number.isFinite(row.feedback_count) ? row.feedback_count : null, excluded: null, scanDate: null, scanIsToday: false };
+    try {
+      const { data: sc } = await sbClient.from('morning_scan_email_cache').select('scan_date, scan_entries')
+        .eq('client_id', CLIENT_ID).order('scan_date', { ascending: false }).limit(1);
+      const r = sc && sc[0];
+      if (r && r.scan_entries && typeof r.scan_entries === 'object') {
+        proof.excluded = _learnedProofExcluded(r.scan_entries.applied_rules);
+        proof.scanDate = r.scan_date; proof.scanIsToday = r.scan_date === new Date().toISOString().slice(0, 10);
+      }
+    } catch (e) { /* champ facultatif : jamais bloquant */ }
+    _learnedProof = proof;
+  } catch (e) { console.warn('[_loadLearnedProof]', e); _learnedProof = null; }
+  _renderLearnedProof();
+}
 // Bloc stats « Aujourd'hui » (portage de _loadTodayStats, demo-private.html) : 4 chiffres réels, aucune donnée d'exemple. « Envoyés
 // aujourd'hui » = invitations LinkedIn + emails de relance (_fetchTodaySendCounts, seules sources de données d'envoi de Wominds).
 // « En attente de vous » est écrit par _updateQueuedCount() (seule source de vérité, appelée au bon moment par les deux chargeurs de
@@ -8971,10 +9080,11 @@ function _renderFollowUpRows(rows) {
   }).join('');
 }
 
+// Libelle du palier « envois programmes » de la file Envoyer : texte unique (demo-private.html l'affiche en anglais meme en francais, pas de FR de reference).
+const _SEND_SCHEDULED_LABEL = "Envois programmés aujourd'hui";
 // « Envoyer la relance » ne doit pas appeler _startEmailSeq directement (exige un brouillon déjà généré+prêt). Le critère d'éligibilité
 // de Today (reminder_date <= aujourd'hui) et celui de la file Envoyer (_isJ5Eligible) ne se recouvrent pas systématiquement : la carte
-// peut ne pas exister dans Envoyer au moment du clic, d'où la vérification explicite plutôt qu'un scroll vers rien. (Les cartes Envoyer de
-// Wominds sont toujours dépliées : pas de _toggleSendCard.)
+// peut ne pas exister dans Envoyer au moment du clic, d'où la vérification explicite plutôt qu'un scroll vers rien. (Les cartes « envois programmés » sont repliées : dépliées ici avant le défilement.)
 async function _goToJ5Followup(id) {
   switchTab('send');
   await loadSendView();
@@ -8983,6 +9093,8 @@ async function _goToJ5Followup(id) {
     showToast("Plus dans la file d'envoi actuellement — l'étape a peut-être changé, ou la relance a déjà été envoyée.");
     return;
   }
+  const _exp = document.getElementById('se-' + id);
+  if (_exp && _exp.style.display === 'none') _toggleSendCard(id); // carte « envois programmés » repliée : on la déplie avant de la montrer
   card.scrollIntoView({ behavior: 'smooth', block: 'center' });
   card.style.outline = '2px solid #f59e0b';
   card.style.outlineOffset = '2px';
@@ -9225,12 +9337,27 @@ function _applySendFilters() {
     if (emptyBanner) emptyBanner.style.display = 'block';
   } else {
     if (emptyBanner) emptyBanner.style.display = 'none';
-    listEl.innerHTML = queue.map(({ p, touch }) => _sendCardHTML(p, touch)).join('');
+    // 2 paliers (comme demo-private.html) : « À envoyer maintenant » = tête de la file triée (carte dépliée, mise en avant) ; « Programmés
+    // aujourd'hui » = le reste de la même file (cartes repliées, « Relire et envoyer »). Même file, même ordre, même total que la pastille.
+    const dueNow = queue[0], scheduled = queue.slice(1);
+    let html = `<div class="today-step-divider"><span class="today-step-label">À envoyer maintenant</span><span class="today-step-rule"></span></div>`
+      + _sendCardHTML(dueNow.p, dueNow.touch, '', 'due');
+    if (scheduled.length) {
+      html += `<div class="today-step-divider"><span class="today-step-label">${_SEND_SCHEDULED_LABEL}</span><span class="today-step-rule"></span><span class="today-step-count">${scheduled.length}</span></div>`
+        + scheduled.map(({ p, touch }) => _sendCardHTML(p, touch, '', 'sched')).join('');
+    }
+    listEl.innerHTML = html;
   }
   _updateSentCounter();
 }
 
-function _sendCardHTML(p, touchType, elPrefix = '') {
+// tier : 'due' (carte dépliée, mise en avant) | 'sched' (carte repliée, bouton « Relire et envoyer ») | absent (carte dépliée sans palier : panneau
+// manuel « m- » et tiroir « d- »).
+function _toggleSendCard(pid, elPrefix = '') {
+  const el = document.getElementById(elPrefix + 'se-' + pid);
+  if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+function _sendCardHTML(p, touchType, elPrefix = '', tier = '') {
   const seq = (_sendSequences[p.id]||[]).find(s => s.touch === touchType);
   const hasBody = seq && seq.body;
   const isReady = seq && seq.status === 'ready';
@@ -9244,8 +9371,13 @@ function _sendCardHTML(p, touchType, elPrefix = '') {
   const sendDisabled = !isReady || sendBlocked;
   // J+5 = relance LinkedIn MANUELLE : pas de chemin d'envoi verifie, le bouton « Envoyer » est remplace par un lien vers le profil.
   const safeLiUrl = /^https?:\/\//i.test(p.linkedin || '') ? p.linkedin : '';
+  const expanded = tier !== 'sched';
+  const cardStyle = tier === 'due' ? 'padding:26px;border-color:var(--accent);box-shadow:0 2px 10px rgba(47,107,255,0.12);' : (tier === 'sched' ? 'padding:14px 18px;' : '');
+  const toggleHtml = tier
+    ? `<div class="send-actions"><button class="btn-secondary btn-md" onclick="_toggleSendCard('${p.id}','${elPrefix}')" style="width:100%">${expanded ? '▲ Réduire' : (hasBody ? '▼ Relire et envoyer' : '▼ Écrire un message')}</button></div>`
+    : '';
   return `
-    <div class="card send-card" id="${elPrefix}sc-${p.id}" data-pid="${_esc(p.id)}" data-touch="${_esc(touchType)}" data-seq-id="${_esc(seqId||'')}">
+    <div class="card send-card" id="${elPrefix}sc-${p.id}"${cardStyle ? ` style="${cardStyle}"` : ''} data-pid="${_esc(p.id)}" data-touch="${_esc(touchType)}" data-seq-id="${_esc(seqId||'')}">
       <div class="send-row">
         <div class="send-avatar" style="background:${_sendAvatarColor(p.name)}">${_esc(_sendInitials(p.name))}</div>
         <div class="send-id">
@@ -9268,7 +9400,7 @@ function _sendCardHTML(p, touchType, elPrefix = '') {
             ? `<span class="send-touch" style="background:var(--chip-bg);color:var(--indigo);">Brouillon enregistré</span>`
             : `<span class="send-touch" style="background:#f3f4f6;color:#5a6270;">Aucun brouillon</span>`}`}
       </div>
-      <div class="send-expand" id="${elPrefix}se-${p.id}" style="display:block">
+      <div class="send-expand" id="${elPrefix}se-${p.id}" style="display:${expanded ? 'block' : 'none'}">
         <div class="ai-box" style="margin-top:10px">
           <div class="ai-box-header">
             <span class="ai-box-label">Message</span>
@@ -9292,6 +9424,7 @@ function _sendCardHTML(p, touchType, elPrefix = '') {
             : `<button class="btn-primary" style="padding:11px 20px;font-weight:700;margin-left:auto;" onclick="_sendViaLinkedIn('${p.id}','${touchType}','${elPrefix}')" id="${elPrefix}sli-${p.id}" ${sendDisabled?'disabled':''} ${sendBlocked?'title="Connexion pas encore acceptée"':''}>Envoyer</button>`}
         </div>
       </div>
+      ${toggleHtml}
     </div>`;
 }
 
@@ -9394,7 +9527,7 @@ async function _generateSequenceMessage(pid, touch, forceGenerate = false, elPre
   // Fix 2026-09-19 (uniformisation avec demo-private.html:7729/kaizenology.html:6861, demande
   // Thomas) : remplace l'ancien mecanisme (web_search_20250305 natif Anthropic, laisse au modele
   // le soin de decider s'il cherche, cf. commentaire retire ci-dessous) par le meme gate dedie et
-  // separe que les 2 autres fichiers -- recherche Perplexity (_marketIntelSearch, deja utilise
+  // separe que les 2 autres fichiers -- recherche web (_marketIntelSearch, deja utilise
   // ailleurs dans ce fichier) AVANT generation, avec detection explicite de depart ("no longer at",
   // etc.) qui bloque la generation tant que Thomas n'a pas confirme vouloir generer quand meme.
   // Memes conditions de declenchement que les 2 autres fichiers (touch j5, invite, ou j0 sur un
@@ -12055,7 +12188,7 @@ function _openAskFromDrawer() {
   });
 }
 function _askOnEnter(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); _sendAskMessage(); } }
-// Recherche web live (brief 2026-09-12) -- proxy generique /api/web-search (Perplexity cote
+// Recherche web live (brief 2026-09-12) -- proxy generique /api/web-search (fournisseur cote
 // serveur, jamais expose au navigateur), identique a demo-private.html:4412. Partagee par
 // Demander a Corridor et le Scanner (comite d'achat/fiche contact) ci-dessous.
 async function _marketIntelSearch(query, maxTokens = 500, domain = '', _out = null) {
