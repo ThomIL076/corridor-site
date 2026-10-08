@@ -10852,8 +10852,8 @@ function _weeklyRecsHtml(r, vm) {
       <div style="font-size:var(--fs-xs);font-weight:700;color:var(--muted);letter-spacing:0.5px;text-transform:uppercase;margin-bottom:8px;">Recommandations</div>
       <div style="font-size:var(--fs-base);line-height:1.6;">${renderMarkdown(r.recommendations_text || '')}</div>
       <div style="display:flex;gap:8px;margin-top:10px;align-items:center;">
-        <button class="rpt-vote-btn ${existingVote === 'like' ? 'active-like' : ''}" id="vote-like-${_esc(r.id)}" onclick="_weeklyVote('${_esc(r.id)}','like')" title="Utile">👍</button>
-        <button class="rpt-vote-btn ${existingVote === 'unlike' ? 'active-unlike' : ''}" id="vote-unlike-${_esc(r.id)}" onclick="_weeklyVote('${_esc(r.id)}','unlike')" title="Pas utile">👎</button>
+        <button class="rpt-vote-btn ${existingVote === 'like' ? 'active-like' : ''}" id="vote-like-${_esc(r.id)}" ${existingVote ? 'disabled' : ''} onclick="_weeklyVote('${_esc(r.id)}','like')" title="Utile">👍</button>
+        <button class="rpt-vote-btn ${existingVote === 'unlike' ? 'active-unlike' : ''}" id="vote-unlike-${_esc(r.id)}" ${existingVote ? 'disabled' : ''} onclick="_weeklyVote('${_esc(r.id)}','unlike')" title="Pas utile">👎</button>
         <span id="vote-status-${_esc(r.id)}" style="font-size:var(--fs-xs);color:var(--muted);">${existingVote ? (existingVote === 'like' ? 'Marqué utile' : 'Marqué pas utile') : ''}</span>
       </div>
     </div>`;
@@ -10942,15 +10942,18 @@ async function _weeklyVote(reportId, vote) {
   if (unlikeBtn) unlikeBtn.disabled = true;
   try {
     // supabase-js ne leve pas sur un refus : on lit l'erreur de la lecture ET de l'ecriture avant de basculer l'etat.
-    // Changer un vote deja pose = UPDATE ; role authenticated sans droit UPDATE sur agent_feedback a ce jour (refus attendu, montre).
     const selRes = await sbClient.from('agent_feedback')
-      .select('id').eq('agent_name', 'weekly_report').eq('client_id', CLIENT_ID).eq('item_id', reportId).maybeSingle();
+      .select('id, vote').eq('agent_name', 'weekly_report').eq('client_id', CLIENT_ID).eq('item_id', reportId).maybeSingle();
     if (_dbErr(selRes, '_weeklyVote select', { silent: true })) throw selRes.error || new Error('HTTP ' + selRes.status);
     const existing = selRes.data;
     let wRes;
     if (existing) {
-      wRes = await sbClient.from('agent_feedback').update({ vote }).eq('id', existing.id).select('id');
-      if (_dbErr(wRes, '_weeklyVote update', { silent: true, expectRows: true })) throw wRes.error || new Error('0 ligne modifiée');
+      // Vote definitif (decision du 08/10) : le role connecte n'a pas le droit de modifier agent_feedback, un vote pose ne se change pas.
+      // On montre le vote reellement enregistre et on laisse les deux boutons desactives.
+      if (likeBtn)   likeBtn.classList.toggle('active-like',   existing.vote === 'like');
+      if (unlikeBtn) unlikeBtn.classList.toggle('active-unlike', existing.vote === 'unlike');
+      if (statusEl)  statusEl.textContent = 'Vote déjà enregistré (définitif)';
+      return;
     } else {
       wRes = await sbClient.from('agent_feedback').insert({
         agent_name: 'weekly_report', client_id: CLIENT_ID, mandate_id: null,

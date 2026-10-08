@@ -3,6 +3,8 @@
 // Removes a lead from the connections/invitations campaign.
 // Resolves HeyReach credentials from Supabase clients table.
 // Fallback to env vars ONLY for client_id === 'thomas'.
+// Reponse 200 { success:false, skipped:true } = HeyReach non configure pour ce client (rien a retirer, pas une erreur) ;
+// { success:false } sans skipped = refus reel (HeyReach ou lecture de la config).
 
 import { createClient } from '@supabase/supabase-js';
 import { resolveClientId } from './_auth.js';
@@ -67,12 +69,12 @@ export default async function handler(req, res) {
   }
 
   if (!apiKey) {
-    return res.status(200).json({ success: false, error: isThomas
+    return res.status(200).json({ success: false, skipped: true, error: isThomas
       ? 'HEYREACH_API_KEY not configured'
       : `HeyReach not configured for client "${client_id}" — set heyreach_api_key in clients table` });
   }
   if (!campaignId) {
-    return res.status(200).json({ success: false, error: isThomas
+    return res.status(200).json({ success: false, skipped: true, error: isThomas
       ? 'HeyReach campaign not configured'
       : `HeyReach campaign not configured for client "${client_id}" — set heyreach_campaign_connections in clients table` });
   }
