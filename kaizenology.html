@@ -10775,6 +10775,14 @@ let _priorityCurrentBatch = 1;
 let _priorityPendingInvites = 0; // scan decisions left out of the list because the invitation is already sent (count from loadDailyPriorities, read only)
 let _priorityShownProspects = [];
 
+// AJOUT 09/10 (regle produit Thomas, GO Kaizenology) : un prospect sans LinkedIn canonique (https://[xx.]linkedin.com/in/<slug>) n'a rien a faire dans la vue Today.
+// Filtre JS sur les deux sources de loadDailyPriorities() (decisions du scan, classement de repli). La fiche reste en base et dans le pipeline, rien n'est
+// archive : elle revient dans Today des qu'un LinkedIn est trouve. MEME expression que demo-private.html et que la mesure SQL du 09/10.
+const _LINKEDIN_CANONICAL_RE = /^https:\/\/([a-z]{2,3}\.)?linkedin\.com\/in\/[^\/?#\s]+\/?$/i;
+function _hasCanonicalLinkedin(p) {
+  return !!(p && typeof p.linkedin === 'string' && _LINKEDIN_CANONICAL_RE.test(p.linkedin.trim()));
+}
+
 async function loadDailyPriorities() {
   const container = document.getElementById('priorities-container');
   if (!container) return;
@@ -10842,6 +10850,7 @@ async function loadDailyPriorities() {
       _priorityPendingInvites = _decisionsPending;
       const _catRank = { today_action: 0, opportunistic_connection: 1 };
       _priorityShownProspects = (decisionProspects || [])
+        .filter(_hasCanonicalLinkedin)
         .map(p => { p._morningScanCategory = _decisionByProspect[p.id] || null; return p; })
         .sort((a, b) => (_catRank[a._morningScanCategory] ?? 2) - (_catRank[b._morningScanCategory] ?? 2));
       // Repli 2026-09-20 (meme defaut que demo-private.html, verifie ici separement : incident reel Corridor, decisions
@@ -10914,6 +10923,7 @@ async function loadDailyPriorities() {
     const seen = new Set();
     const merged = [];
     for (const p of [...(rowsA || []), ...(rowsB || [])]) {
+      if (!_hasCanonicalLinkedin(p)) continue;
       if (!seen.has(p.id)) { seen.add(p.id); merged.push(p); }
     }
 
