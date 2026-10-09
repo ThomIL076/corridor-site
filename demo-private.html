@@ -5617,6 +5617,94 @@ function _mscDjToDecision(dj) {
     source_url: _mscSafeUrl(dj.source_url) || null, signal: null, icp_at_scan: null,
   };
 }
+// ── Bloc structure du scan (schema v1, ecrit PAR le scan a cote des entrees : scan_entries.structured) + repli « Details du scan » (09/10, GO Thomas) ──────────
+// Le dashboard ne devine rien : les composants (changements, couverture, exclusions) ne s'affichent QUE si scan_entries.structured est present et valide.
+// Dans tous les cas (bloc present ou non), les textes de Stream 2, Stream 3, « Ce qui a change » et « Etat de couverture » vont, paragraphes conserves, dans une section
+// « Details du scan » repliee par defaut. no_linkedin / no_signal : compteurs seulement, jamais de nom. Aucun nom de fournisseur ou d'outil dans ces libelles.
+// Schema ecrit par « Add Structured Block — Corridor » : { v:1, period:{days,label}, exclusions:[{company,person,stream,cause,detail,source_url,date} | {cause,count}],
+//   changes:{baseline,entered:[societe],exited:[societe],counts:{entered,still_active,exited}}, coverage:{period_days,searches:[{stream,web,news}],retained:{section:n}} }
+const _MSC_CAUSE_LABELS = {
+  freshness: ['Fraîcheur', 'Freshness'], icp_size: ['ICP / taille', 'ICP / size'], size_unverified: ['Taille à vérifier', 'Size to verify'],
+  icp_not_established: ['ICP non établi', 'ICP not established'], sector: ['Secteur', 'Sector'], service_model: ['Modèle de service', 'Service model'],
+  need_direction: ['Sens du besoin', 'Direction of need'], contact: ['Interlocuteur hors mandat', 'Contact outside mandate'], channel: ['Canal', 'Channel'], service: ['Service', 'Service'],
+  unverifiable_signal: ['Signal non vérifiable', 'Unverifiable signal'], funding_only: ['Financement seul', 'Funding only'], identity_ambiguous: ['Identité ambiguë', 'Ambiguous identity'],
+  no_linkedin: ['sans profil LinkedIn vérifié', 'without a verified LinkedIn profile'], no_signal: ['sans signal daté', 'without a dated signal'], already_handled: ['Déjà traité', 'Already handled'],
+};
+const _MSC_STREAM_LABELS = { recrutement_commercial: ['Recrutement commercial', 'Sales hiring'], expansion_internationale: ['Expansion internationale', 'International expansion'] };
+const _MSC_RETAINED_LABELS = { today_action: ['Actions du jour', 'Today’s actions'], opportunistic_connection: ['Connexions opportunistes', 'Opportunistic connections'], stream1: ['Stream 1', 'Stream 1'], stakeholder: ['Stakeholders', 'Stakeholders'], market_mention: ['Mentions marché', 'Market mentions'] };
+function _mscCauseLabel(c) {
+  const fr = currentLang === 'fr';
+  return Object.prototype.hasOwnProperty.call(_MSC_CAUSE_LABELS, c) ? _MSC_CAUSE_LABELS[c][fr ? 0 : 1] : String(c || '');
+}
+function _mscValidStructured(st) {
+  if (!st || typeof st !== 'object' || Array.isArray(st) || st.v !== 1) return null;
+  const obj = v => (v && typeof v === 'object' && !Array.isArray(v)) ? v : {};
+  const strs = v => (Array.isArray(v) ? v.map(x => (x && typeof x === 'object') ? x.company : x).filter(x => typeof x === 'string' && x.trim()).map(x => x.trim()) : []);
+  const ch = obj(st.changes), cov = obj(st.coverage), counts = obj(ch.counts);
+  const out = {
+    exclusions: Array.isArray(st.exclusions) ? st.exclusions.filter(x => x && typeof x === 'object' && !Array.isArray(x) && typeof x.cause === 'string') : [],
+    baseline: ch.baseline === true, entered: strs(ch.entered), exited: strs(ch.exited),
+    stillActive: Number.isFinite(Number(counts.still_active)) ? Number(counts.still_active) : null,
+    searches: Array.isArray(cov.searches) ? cov.searches.filter(x => x && typeof x === 'object' && typeof x.stream === 'string') : [],
+    retained: obj(cov.retained), periodLabel: (typeof obj(st.period).label === 'string' && obj(st.period).label.trim()) ? obj(st.period).label.trim() : null,
+  };
+  return (out.exclusions.length || out.entered.length || out.exited.length || out.searches.length || Object.keys(out.retained).length || counts.entered !== undefined) ? out : null;
+}
+function _mscChip(text, tone) {
+  const t = tone === 'warn' ? 'background:var(--amber-bg);color:var(--amber-text);border:1px solid var(--amber-border);' : 'background:var(--chip-bg);color:var(--indigo);border:1px solid var(--border);';
+  return `<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:var(--radius-pill);white-space:nowrap;${t}">${_esc(text)}</span>`;
+}
+function _mscStructuredHTML(S) {
+  const fr = currentLang === 'fr';
+  const box = 'padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:#fff;margin-bottom:10px;';
+  const lbl = 'font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-secondary);opacity:.7;margin-bottom:4px;';
+  const row = 'display:flex;flex-wrap:wrap;gap:4px 6px;';
+  const note = 'font-size:var(--fs-xs);color:var(--text-secondary);line-height:1.5;';
+  let html = '';
+  // Changements depuis hier
+  html += _mscSectionLabel(fr ? 'Ce qui a changé depuis hier' : 'What changed since yesterday');
+  if (!S.baseline) {
+    html += `<div style="${box}"><div style="${note}">${fr ? 'Premier scan avec suivi des changements : pas de comparaison aujourd’hui.' : 'First scan with change tracking: no comparison today.'}</div></div>`;
+  } else {
+    const chips = l => l.length ? l.map(c => _mscChip(c)).join(' ') : `<span style="${note}">${fr ? 'Aucune' : 'None'}</span>`;
+    html += `<div style="${box}"><div style="${lbl}">${fr ? 'Entrées' : 'Entered'} (${S.entered.length})</div><div style="${row}">${chips(S.entered)}</div>`
+      + `<div style="${lbl}margin-top:8px;">${fr ? 'Sorties' : 'Exited'} (${S.exited.length})</div><div style="${row}">${chips(S.exited)}</div>`
+      + (S.stillActive !== null ? `<div style="${note}margin-top:8px;">${fr ? 'Toujours actifs depuis hier' : 'Still active since yesterday'} : ${S.stillActive}</div>` : '') + '</div>';
+  }
+  // Couverture
+  html += _mscSectionLabel(fr ? 'État de couverture' : 'Coverage');
+  const chips = [];
+  if (S.periodLabel) chips.push(_mscChip((fr ? 'Période : ' : 'Period: ') + S.periodLabel));
+  const streams = S.searches.map(s => (Object.prototype.hasOwnProperty.call(_MSC_STREAM_LABELS, s.stream) ? _MSC_STREAM_LABELS[s.stream][fr ? 0 : 1] : s.stream));
+  if (streams.length) chips.push(_mscChip(`${streams.length} ${fr ? 'flux de recherche' : 'search streams'}`));
+  const anyWeb = S.searches.some(s => s.web === true), anySearch = S.searches.length > 0;
+  if (anySearch && !anyWeb) chips.push(_mscChip(fr ? 'Recherche web indisponible' : 'Web search unavailable', 'warn'));
+  const ret = Object.entries(S.retained).filter(([, n]) => Number(n) > 0).map(([k, n]) => _mscChip(`${Object.prototype.hasOwnProperty.call(_MSC_RETAINED_LABELS, k) ? _MSC_RETAINED_LABELS[k][fr ? 0 : 1] : k} ${Number(n)}`));
+  const counters = S.exclusions.filter(e => Number(e.count) > 0 && !e.company && !e.person).map(e => _mscChip(`${Number(e.count)} ${_mscCauseLabel(e.cause)}`));
+  const named = S.exclusions.filter(e => (e.company || e.person));
+  const byCause = {};
+  named.forEach(e => { (byCause[e.cause] = byCause[e.cause] || []).push(e); });
+  const namedHtml = named.length
+    ? `<details onclick="event.stopPropagation()" style="margin-top:8px;${note}"><summary style="cursor:pointer;font-weight:600;">${fr ? 'Écartés' : 'Excluded'} (${named.length})</summary>`
+      + Object.keys(byCause).map(c => `<div style="margin-top:6px;">${_mscChip(`${_mscCauseLabel(c)} ${byCause[c].length}`)} ${byCause[c].map(e => _esc([e.company, e.person].filter(Boolean).join(' — '))).join(' · ')}</div>`).join('') + '</details>'
+    : '';
+  html += `<div style="${box}">`
+    + (chips.length ? `<div style="${row}">${chips.join(' ')}</div>` : '')
+    + (ret.length ? `<div style="${lbl}margin-top:8px;">${fr ? 'Retenus' : 'Retained'}</div><div style="${row}">${ret.join(' ')}</div>` : '')
+    + (counters.length ? `<div style="${lbl}margin-top:8px;">${fr ? 'Écartés avant le classement' : 'Set aside before ranking'}</div><div style="${row}">${counters.join(' ')}</div>` : '')
+    + namedHtml + '</div>';
+  return html;
+}
+// Section « Details du scan » : repliee par defaut, contient les textes du mail tels quels (paragraphes conserves).
+function _mscDetailsFoldHTML(innerHtml) {
+  if (!innerHtml) return '';
+  return `<details onclick="event.stopPropagation()" style="margin:6px 0 10px;"><summary style="cursor:pointer;font-weight:600;font-size:var(--fs-sm);color:var(--text-secondary);">${currentLang === 'fr' ? 'Détails du scan' : 'Scan details'}</summary><div style="margin-top:6px;">${innerHtml}</div></details>`;
+}
+// Titres des sections de texte qui vont dans « Details du scan » : Stream 2 et suivants, « Ce qui a change », « Etat de couverture ».
+function _mscIsDetailsHeading(heading) {
+  const n = _mscNorm(heading || '');
+  return (/^stream\s*[2-9]\d*\b/.test(n)) || /^ce qui a change/.test(n) || /^etat de couverture/.test(n) || /^coverage/.test(n);
+}
 // Rendu du panneau v1 (propre a Corridor) : cartes par section dans l'ordre fixe _MSC_V1_SECTIONS,
 // entourees du texte du mail. decisions = _mscDedupeDecisions(_mscEntriesToDecisions(...)). Les
 // sections narratives (synthese, contexte, coverage, ce qui a change...) restent en texte, avec
@@ -5628,7 +5716,7 @@ function _mscDjToDecision(dj) {
 // « ICP · Signal » + libelles de lien). Ordre : narratif place avant la 1re section "personnes" du mail, puis pour chaque
 // section du contrat ses cartes suivies du texte residuel des sections du mail correspondantes,
 // puis le reste du narratif dans l'ordre du mail.
-function _mscRenderScanEntries(decisions, liveById, emailHtml) {
+function _mscRenderScanEntries(decisions, liveById, emailHtml, structured) {
   const emailCards = _mscEmailEntryCards(emailHtml);
   if (emailCards.length) decisions = decisions.map(d => _mscApplyEmailCard(d, emailCards));
   // REGLE PRODUIT 09/10 (Thomas, permanente) : un prospect sans signal reel et date n'a rien a faire dans le morning scan ni dans la vue Signaux. Le Stream 1 ne montre
@@ -5670,7 +5758,10 @@ function _mscRenderScanEntries(decisions, liveById, emailHtml) {
   const firstKeyed = secs.findIndex(x => x.key);
   const cut = firstKeyed < 0 ? 0 : firstKeyed;
   let html = '';
-  secs.slice(0, cut).forEach(x => { html += narrative(x); });
+  // 09/10 : Stream 2 et suivants, « Ce qui a change » et « Etat de couverture » ne sont plus du texte a plat dans la page : ils vont dans « Details du scan » (replie).
+  let detailsHtml = '';
+  const emit = x => { const h = narrative(x); if (_mscIsDetailsHeading(x.s.heading)) detailsHtml += h; else html += h; };
+  secs.slice(0, cut).forEach(emit);
   for (const key of _MSC_V1_SECTIONS) {
     const bucket = decisions.filter(d => d.category === key && !_noRealSignal(d));
     if (bucket.length) {
@@ -5680,9 +5771,11 @@ function _mscRenderScanEntries(decisions, liveById, emailHtml) {
       html += _mscSectionLabel(_mscV1SectionLabel(key))
         + `<div class="kanban-empty" style="padding:14px 8px;">${currentLang === 'fr' ? 'Aucun signal ICP aujourd’hui' : 'No ICP signal today'}</div>`;
     }
-    secs.forEach(x => { if (x.key === key) html += narrative(x); });
+    secs.forEach(x => { if (x.key === key) emit(x); });
   }
-  secs.forEach((x, i) => { if (i >= cut && !x.key) html += narrative(x); });
+  secs.forEach((x, i) => { if (i >= cut && !x.key) emit(x); });
+  if (structured) html += _mscStructuredHTML(structured);
+  html += _mscDetailsFoldHTML(detailsHtml);
   return html;
 }
 // Fix 2026-09-23 (demande Thomas, suite directe du correctif etat vide) : parametre scanDate
@@ -5800,7 +5893,7 @@ async function _loadLastMorningScanEmail(scanDate) {
         const v1Decisions = _mscDedupeDecisions(v1Raw);
         const v1Ids = [...new Set(v1Decisions.filter(d => d.id).map(d => d.id))];
         const v1Live = await _mscFetchLiveProspects(v1Ids);
-        v1Html = _mscRenderScanEntries(v1Decisions, v1Live, data.email_html);
+        v1Html = _mscRenderScanEntries(v1Decisions, v1Live, data.email_html, _mscValidStructured(data.scan_entries && data.scan_entries.structured));
       }
     } catch (e) { console.error('[_loadLastMorningScanEmail] rendu scan_entries', e); v1Html = null; }
     if (v1Html != null) {
