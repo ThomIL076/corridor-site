@@ -5102,7 +5102,10 @@ function _mscDecisionCardHTML(d, live) {
   const source = _mscResolveSource(d, live);
   if (linkedinUrl) links.push(`<a href="${_esc(linkedinUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:var(--accent);text-decoration:none;font-weight:600;white-space:nowrap;">LinkedIn</a>`);
   if (emailAddr) links.push(`<a href="mailto:${_esc(emailAddr)}" title="${_esc(emailAddr)}" onclick="event.stopPropagation()" style="color:var(--accent);text-decoration:none;font-weight:600;white-space:nowrap;">Email</a>`);
-  if (source) links.push(`<a href="${_esc(source.url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:var(--accent);text-decoration:none;font-weight:600;min-width:0;word-break:normal;overflow-wrap:break-word;">${_esc(source.label)}</a>`);
+  // 09/10 : sur une carte alimentee par le mail, la source est une puce « Source » (le titre de l'article reste en infobulle) ; sinon rendu inchange.
+  if (source) links.push(d._email
+    ? `<a href="${_esc(source.url)}" title="${_esc(d._sourceText || source.label)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="font-size:11px;font-weight:700;padding:2px 10px;border:1px solid var(--border);border-radius:var(--radius-pill);color:var(--accent);text-decoration:none;white-space:nowrap;">Source</a>`
+    : `<a href="${_esc(source.url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:var(--accent);text-decoration:none;font-weight:600;min-width:0;word-break:normal;overflow-wrap:break-word;">${_esc(source.label)}</a>`);
   const linksHtml = links.length ? `<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px 12px;font-size:var(--fs-xs);">${links.join('')}</div>` : '';
 
   const structured = isEntry && (d.facts || d.action);
@@ -5160,15 +5163,32 @@ function _mscDecisionCardHTML(d, live) {
   const _reasonR = icpScore != null ? _bilingualReasonOrFr(live, 'icp_reason', 'icp_reason_en') : { text: '', fallback: false };
   const reasonText = _reasonR.text ? cleanText(_reasonR.text) : '';
   const reasonHtml = reasonText ? `<div class="msc-reason" title="${_esc(reasonText)}">${_reasonR.fallback ? _frFallbackBadgeHTML() : ''}${_esc(reasonText)}</div><button type="button" class="msc-more" hidden onclick="_mscReasonToggle(this,event)">${fr ? 'Voir plus' : 'See more'}</button>` : '';
-  const signalBlock = (signalHead || signalInterp)
-    ? `<div style="margin-top:6px;font-size:var(--fs-xs);color:var(--text-secondary);line-height:1.4;">${signalHead}${signalHead && signalInterp ? '<br>' : ''}${signalInterp ? `<strong>${fr ? 'Interprétation' : 'Interpretation'}${colon}</strong> ${interpFrFb ? _frFallbackBadgeHTML() : ''}${_esc(signalInterp)}` : ''}</div>`
+  // 09/10 : carte alimentee par le bloc du mail (d._email) -> l'interpretation n'est plus repetee ici (elle est decoupee en « Pourquoi aujourd'hui » +
+  // « Detail de l'analyse » plus bas) ; le texte n'est jamais coupe en fin de ligne.
+  const _lbl = 'font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-secondary);opacity:.6;margin-bottom:2px;';
+  const signalBlock = d._email ? '' : (signalHead || signalInterp)
+    ? `<div style="margin-top:6px;font-size:var(--fs-xs);color:var(--text-secondary);line-height:1.4;">${signalHead}${signalHead && signalInterp && !d._email ? '<br>' : ''}${signalInterp && !d._email ? `<strong>${fr ? 'Interprétation' : 'Interpretation'}${colon}</strong> ${interpFrFb ? _frFallbackBadgeHTML() : ''}${_esc(signalInterp)}` : ''}</div>`
     : '';
   const actionLabel = fr ? 'Action recommandée' : 'Recommended action';
   const actionBody = scanAction
     ? `<div style="font-size:var(--fs-xs);line-height:1.5;color:var(--text-secondary);">${_esc(scanAction)}</div>`
     : nextActionHtml;
+  const _openBtn = (d._email && pid)
+    ? `<button type="button" onclick="event.stopPropagation();_openDrawerFromPriority('${pid}')" style="flex-shrink:0;font-size:var(--fs-xs);padding:4px 11px;background:var(--navy);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer;">${fr ? 'Ouvrir la fiche' : 'Open record'}</button>`
+    : '';
   const actionBlock = actionBody
-    ? `<div style="margin-top:6px;"><div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-secondary);opacity:.6;margin-bottom:2px;">${actionLabel}</div>${actionBody}</div>`
+    ? (d._email
+      ? `<div style="margin-top:8px;padding:8px 10px;border-left:3px solid var(--accent);background:var(--chip-bg);border-radius:var(--radius-sm);display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;"><div style="flex:1 1 220px;min-width:0;"><div style="${_lbl}">${actionLabel}</div>${actionBody}</div>${_openBtn}</div>`
+      : `<div style="margin-top:6px;"><div style="${_lbl}">${actionLabel}</div>${actionBody}</div>`)
+    : '';
+  const whyBlock = d._email && d._why
+    ? `<div style="margin-top:6px;font-size:var(--fs-sm);color:var(--text-secondary);line-height:1.4;"><div style="${_lbl}">${fr ? "Pourquoi aujourd’hui" : 'Why today'}</div><div>${_esc(d._why)}</div></div>`
+    : '';
+  const detailBlock = d._email && d._detail && d._detail.length
+    ? `<details onclick="event.stopPropagation()" style="margin-top:6px;font-size:var(--fs-xs);color:var(--text-secondary);"><summary style="cursor:pointer;font-weight:600;">${fr ? "Détail de l’analyse" : 'Analysis details'}</summary><ul style="margin:4px 0 0;padding-left:18px;line-height:1.5;">${d._detail.map(x => `<li><strong>${_esc(x.label)}${colon}</strong> ${_esc(x.text)}</li>`).join('')}</ul></details>`
+    : '';
+  const statusChip = d._email && d._badge
+    ? `<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:var(--radius-pill);background:var(--chip-bg);color:var(--indigo);border:1px solid var(--border);white-space:nowrap;">${_esc(d._badge)}</span>`
     : '';
 
   const cardStyleBase = 'display:flex;gap:10px;padding:10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:#fff;';
@@ -5184,11 +5204,13 @@ function _mscDecisionCardHTML(d, live) {
           <span style="font-weight:700;font-size:var(--fs-sm);color:var(--ink);">${name}</span>
           ${company ? `<span style="font-size:var(--fs-xs);color:var(--text-secondary);">${_esc(company)}</span>` : ''}${sectorHtml}${countryHtml}${identityHtml}${mandateHtml}
           ${icpChip}${icpStateChip}${sigBadge}
-          ${confidenceHtml}${typeof d._extraChips === 'function' ? d._extraChips() : ''}
+          ${confidenceHtml}${statusChip}${typeof d._extraChips === 'function' ? d._extraChips() : ''}
         </div>
         ${reasonHtml}${factsBlock}${summary}
         ${signalBlock}
+        ${whyBlock}
         ${actionBlock}
+        ${detailBlock}
         ${linksHtml}
       </div>
     </div>`;
@@ -5514,6 +5536,87 @@ function _mscStream1EntriesFromParagraphs(paragraphs, linksByParagraph) {
   }
   return { entries, consumed };
 }
+// ── Cartes Actions du jour / Connexions opportunistes depuis le mail (09/10, demande Thomas) ─────────────────────────────────────────────
+// Depuis le gabarit du 03/10, chaque dossier de ces deux sections est, dans le mail, un bloc <div> (nom + pastille de statut) suivi d'un tableau
+// FAITS / SOURCE / INTERPRETATION / ACTION. L'ancien filtre (_mscDropLabeledBlocks) attendait « FAITS : » en paragraphes : il ne retirait donc plus
+// rien, le texte brut du mail restait affiche au-dessus/en dessous des cartes. Ici le texte du mail ALIMENTE la carte (Faits, Pourquoi aujourd'hui,
+// Action, Source) et le texte brut de ces deux sections est retire. Aucun bloc reconnu dans le mail (ancien gabarit) -> comportement inchange.
+// Categorie : celle de la BASE (scan_entries / decisions_json, apres les gardes de l'Extraire DECISIONS) fait foi, jamais celle du titre du mail.
+function _mscEmailEntryCards(html) {
+  let doc;
+  try { doc = new DOMParser().parseFromString(html || '', 'text/html'); } catch (e) { return []; }
+  const out = [];
+  let cat = null;
+  const clean = el => (el.textContent || '').replace(/\s+/g, ' ').trim();
+  for (const el of Array.from(doc.body.querySelectorAll('h2, div'))) {
+    if (el.tagName === 'H2') { cat = _MSC_PRIORITY_HEADINGS[_mscNorm(clean(el))] || null; continue; }
+    if (!cat) continue;
+    const head = el.querySelector(':scope > div');
+    const tbl = el.querySelector(':scope > table');
+    if (!head || !tbl) continue;
+    const spans = Array.from(head.querySelectorAll('span'));
+    const title = spans[0] ? clean(spans[0]) : '';
+    if (!title) continue;
+    const card = { cat, title, badge: spans[1] ? clean(spans[1]) : '', rows: {} };
+    for (const tr of Array.from(tbl.querySelectorAll('tr'))) {
+      const cells = Array.from(tr.children).filter(c => /^(td|th)$/i.test(c.tagName));
+      if (cells.length < 2) continue;
+      const label = _mscNorm(clean(cells[0]));
+      if (!/^(faits?|source|interpretation|action)$/.test(label)) continue;
+      card.rows[label.replace(/^faits$/, 'fait')] = { text: clean(cells[1]), links: _mscExtractLinks(cells[1]) };
+    }
+    if (Object.keys(card.rows).length) out.push(card);
+  }
+  return out;
+}
+// INTERPRETATION du mail = lignes de detail (ROLE / FIT / AUTORITE D'ACHAT / CANAL, une par phrase) puis le « pourquoi aujourd'hui » (le reste).
+// Decoupage par phrase ; si rien n'est reconnu, tout le texte reste sous « Pourquoi aujourd'hui » (jamais un texte perdu ni invente).
+function _mscSplitInterpretation(text) {
+  const detail = [];
+  const why = [];
+  const LABELS = [[/^r[oô]le\b/i, 'Rôle'], [/^fit\b/i, 'Fit'], [/^autorit[eé] d['’]achat\b/i, "Autorité d'achat"], [/^canal\b/i, 'Canal']];
+  for (const s of String(text || '').split(/(?<=[.!?])\s+(?=[A-ZÀ-ÝÉ])/)) {
+    const t = s.trim();
+    if (!t) continue;
+    const hit = LABELS.find(([re]) => re.test(t));
+    if (hit) detail.push({ label: hit[1], text: t.replace(hit[0], '').replace(/^\s*:\s*/, '').trim() });
+    else why.push(t);
+  }
+  return { why: why.join(' '), detail };
+}
+// Complete une decision (scan_entries ou decisions_json) avec le bloc du mail qui porte la meme societe, dans la meme section de categorie.
+function _mscApplyEmailCard(d, cards) {
+  if (!d || (d.category !== 'today_action' && d.category !== 'opportunistic_connection')) return d;
+  const co = _mscNorm(d.company || '').replace(/\s+/g, ' ').trim();
+  if (!co) return d;
+  const card = cards.find(c => !c.used && _mscNorm(c.title).replace(/\s+/g, ' ').trim() === co);
+  if (!card) return d;
+  card.used = true;
+  const r = card.rows;
+  const sp = _mscSplitInterpretation(r.interpretation && r.interpretation.text);
+  d._email = true;
+  d._badge = card.badge || '';
+  if (r.fait && r.fait.text) d.facts = r.fait.text;
+  if (r.action && r.action.text) d.action = r.action.text;
+  d._why = sp.why;
+  d._detail = sp.detail;
+  if (r.source && r.source.text) {
+    const l = (r.source.links || []).find(x => _mscSafeUrl(x && x.href));
+    d._sourceText = r.source.text;
+    if (l && !d.source_url) d.source_url = _mscSafeUrl(l.href);
+  }
+  return d;
+}
+// Decision decisions_json (categorie de la base) -> pseudo-entree : pour un dossier present dans decisions_json mais absent de scan_entries.
+function _mscDjToDecision(dj) {
+  const str = v => (typeof v === 'string' && v.trim() ? v : null);
+  return {
+    _scanEntry: true, category: dj.category, id: _mscSafeId(dj.id) || null, name: dj.name, company: str(dj.company), title: str(dj.title),
+    linkedin: _mscSafeUrl(dj.linkedin) || null, mandate: null, confidence: str(dj.confidence), summary: str(dj.summary_fr), summary_fr: str(dj.summary_fr),
+    summary_en: str(dj.summary_en), interpretation: str(dj.interpretation), facts: null, action: str(dj.next_action), source_title: null,
+    source_url: _mscSafeUrl(dj.source_url) || null, signal: null, icp_at_scan: null,
+  };
+}
 // Rendu du panneau v1 (propre a Corridor) : cartes par section dans l'ordre fixe _MSC_V1_SECTIONS,
 // entourees du texte du mail. decisions = _mscDedupeDecisions(_mscEntriesToDecisions(...)). Les
 // sections narratives (synthese, contexte, coverage, ce qui a change...) restent en texte, avec
@@ -5526,6 +5629,8 @@ function _mscStream1EntriesFromParagraphs(paragraphs, linksByParagraph) {
 // section du contrat ses cartes suivies du texte residuel des sections du mail correspondantes,
 // puis le reste du narratif dans l'ordre du mail.
 function _mscRenderScanEntries(decisions, liveById, emailHtml) {
+  const emailCards = _mscEmailEntryCards(emailHtml);
+  if (emailCards.length) decisions = decisions.map(d => _mscApplyEmailCard(d, emailCards));
   const secs = _mscParseEmailSections(emailHtml, { rich: true }).map(s => ({ s, key: _mscSectionKeyForHeading(s.heading) }));
   const matchers = decisions.map(d => {
     const n = _mscNorm(d.name).replace(/\s+/g, ' ');
@@ -5538,7 +5643,11 @@ function _mscRenderScanEntries(decisions, liveById, emailHtml) {
     let items = s.items || [];
     if (key) {
       if (_MSC_PERSON_LIST_KEYS.includes(key)) items = _mscDropEntryBlocks(items, citedBy);
-      else if (_MSC_LABELED_BLOCK_KEYS.includes(key)) items = _mscDropLabeledBlocks(items, citedBy, key, decisions);
+      else if (_MSC_LABELED_BLOCK_KEYS.includes(key)) {
+        // 09/10 : lignes FAITS / SOURCE / INTERPRETATION / ACTION des blocs du mail (gabarit du 03/10) = deja portees par les cartes -> retirees.
+        if (emailCards.length) items = items.filter(it => !(it.tbl >= 0 && /^(faits?|source|interpretation|action)\b/.test(_mscNorm(it.text))));
+        items = _mscDropLabeledBlocks(items, citedBy, key, decisions);
+      }
       else items = items.filter(it => it.header || !cites(it.text));
       // En-tete d'un tableau dont toutes les lignes de donnees sont devenues des cartes : retire aussi.
       const withData = new Set(items.filter(it => !it.header && it.tbl >= 0).map(it => it.tbl));
@@ -5671,7 +5780,15 @@ async function _loadLastMorningScanEmail(scanDate) {
     try {
       const scanEntries = _mscValidScanEntries(data.scan_entries);
       if (scanEntries) {
-        const v1Decisions = _mscDedupeDecisions(_mscEntriesToDecisions(scanEntries));
+        const v1Raw = _mscEntriesToDecisions(scanEntries);
+        // 09/10 : un dossier present dans decisions_json (categorie de la base) mais absent de scan_entries (ex. emnify le 09/10) garde sa carte,
+        // jamais seulement du texte brut.
+        for (const dj of decisions) {
+          if (!dj || (dj.category !== 'today_action' && dj.category !== 'opportunistic_connection')) continue;
+          if (v1Raw.some(v => (dj.id && v.id === _mscSafeId(dj.id)) || _mscPersonKey(v.name, v.company) === _mscPersonKey(dj.name, dj.company))) continue;
+          v1Raw.push(_mscDjToDecision(dj));
+        }
+        const v1Decisions = _mscDedupeDecisions(v1Raw);
         const v1Ids = [...new Set(v1Decisions.filter(d => d.id).map(d => d.id))];
         const v1Live = await _mscFetchLiveProspects(v1Ids);
         v1Html = _mscRenderScanEntries(v1Decisions, v1Live, data.email_html);
@@ -18161,13 +18278,9 @@ function _actionButtonLabel(p, cachedLabel, freshLabel) {
 function _qualificationMention(p) {
   if (!p) return '';
   const fr = currentLang === 'fr';
-  const channelKnown = ('email' in p) && ('linkedin' in p);
-  const noChannel = channelKnown && !_hasEmail(p) && !_mscSafeUrl(p.linkedin);
+  // Decision Thomas 09/10 : la branche « canal a trouver » est retiree (filtre LinkedIn de Today = le canal est toujours present) ; ne reste que la taille.
   const sizeUnknown = p.company_size !== undefined && (p.company_size == null || String(p.company_size).trim() === '');
-  const parts = [];
-  if (noChannel) parts.push(fr ? 'canal à trouver' : 'channel to find');
-  if (sizeUnknown) parts.push(fr ? 'taille inconnue' : 'size unknown');
-  return parts.join(' · ');
+  return sizeUnknown ? (fr ? 'taille inconnue' : 'size unknown') : '';
 }
 
 // FIX 23/09 (chantier langue tiroir, point 5, GO Thomas) : table de correspondance dediee pour les
