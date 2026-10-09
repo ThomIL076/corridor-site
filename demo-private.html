@@ -5716,6 +5716,14 @@ function _mscIsDetailsHeading(heading) {
 // « ICP · Signal » + libelles de lien). Ordre : narratif place avant la 1re section "personnes" du mail, puis pour chaque
 // section du contrat ses cartes suivies du texte residuel des sections du mail correspondantes,
 // puis le reste du narratif dans l'ordre du mail.
+function _mscIsLinkOnlyLine(text) {
+  const raw = String(text || '');
+  if (!raw.trim()) return false;
+  const rest = _mscNorm(raw.replace(/\[[^\]]*\]\([^)]*\)/g, ' ').replace(/https?:\/\/\S+/g, ' ')).replace(/[·|,;:\-–—()[\]]+/g, ' ').trim();
+  const hadLink = /\]\(|https?:\/\//.test(raw);
+  const words = rest ? rest.split(/\s+/) : [];
+  return words.every(w => /^(linkedin|profil|profile|post|source|email|mail|lien|link|voir|view|site|web)$/.test(w)) && (hadLink || words.length > 0);
+}
 function _mscRenderScanEntries(decisions, liveById, emailHtml, structured) {
   const emailCards = _mscEmailEntryCards(emailHtml);
   if (emailCards.length) decisions = decisions.map(d => _mscApplyEmailCard(d, emailCards));
@@ -5734,7 +5742,11 @@ function _mscRenderScanEntries(decisions, liveById, emailHtml, structured) {
   const narrative = ({ s, key }) => {
     let items = s.items || [];
     if (key) {
-      if (_MSC_PERSON_LIST_KEYS.includes(key)) items = _mscDropEntryBlocks(items, citedBy);
+      if (_MSC_PERSON_LIST_KEYS.includes(key)) {
+        items = _mscDropEntryBlocks(items, citedBy);
+        // 09/10 (run 8) : une ligne qui ne porte plus que des liens/libelles de lien (« [LinkedIn](https://…) », « LinkedIn · Profil ») une fois la carte retiree est retiree aussi.
+        items = items.filter(it => it.header || !_mscIsLinkOnlyLine(it.text));
+      }
       else if (_MSC_LABELED_BLOCK_KEYS.includes(key)) {
         // 09/10 : lignes FAITS / SOURCE / INTERPRETATION / ACTION des blocs du mail (gabarit du 03/10) = deja portees par les cartes -> retirees.
         if (emailCards.length) items = items.filter(it => !(it.tbl >= 0 && /^(faits?|source|interpretation|action)\b/.test(_mscNorm(it.text))));
