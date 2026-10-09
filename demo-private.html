@@ -5143,7 +5143,7 @@ function _mscDecisionCardHTML(d, live) {
   // Force (0-10) et date du signal : uniquement dans l'instantane du scan (ni l'un ni l'autre n'a de
   // colonne live equivalente pour la force ; la date live comble le trou).
   const sigMetaParts = [];
-  if (isEntry && d.signal && Number.isFinite(d.signal.strength) && !(String(sigType || '').toLowerCase().replace(/_/g, '-') === 'firmographic-match' && !signal)) sigMetaParts.push(`${fr ? 'Force' : 'Strength'} ${d.signal.strength}${d.signal.strength >= 0 && d.signal.strength <= 10 ? '/10' : ''}`);
+  // 09/10 (retour Thomas, carte Toolhouse) : la « Force x/10 » est une note interne de scoring, elle n'est plus affichee dans la ligne de signal ; seule la date reste.
   const sigDateLabel = isEntry ? _mscFmtDate((d.signal && d.signal.date) || (live && live.signal_date)) : '';
   if (sigDateLabel) sigMetaParts.push(sigDateLabel);
   const sigMeta = sigMetaParts.join(' · ');
