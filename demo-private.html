@@ -5188,7 +5188,7 @@ function _mscDecisionCardHTML(d, live) {
     ? `<details onclick="event.stopPropagation()" style="margin-top:6px;font-size:var(--fs-xs);color:var(--text-secondary);"><summary style="cursor:pointer;font-weight:600;">${fr ? "Détail de l’analyse" : 'Analysis details'}</summary><ul style="margin:4px 0 0;padding-left:18px;line-height:1.5;">${d._detail.map(x => `<li><strong>${_esc(x.label)}${colon}</strong> ${_esc(x.text)}</li>`).join('')}</ul></details>`
     : '';
   const statusChip = d._email && d._badge
-    ? `<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:var(--radius-pill);background:var(--chip-bg);color:var(--indigo);border:1px solid var(--border);white-space:nowrap;">${_esc(d._badge)}</span>`
+    ? `<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:var(--radius-pill);background:var(--chip-bg);color:var(--indigo);border:1px solid var(--border);white-space:normal;max-width:100%;line-height:1.35;overflow-wrap:anywhere;">${_esc(d._badge)}</span>`
     : '';
 
   const cardStyleBase = 'display:flex;gap:10px;padding:10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:#fff;';
