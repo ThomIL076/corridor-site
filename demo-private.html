@@ -4292,6 +4292,14 @@ function _excludePendingInvite(query) {
   return query.or('linkedin_tag.is.null,linkedin_tag.neq.invite-sent');
 }
 
+// AJOUT 09/10 (regle produit Thomas) : un prospect sans LinkedIn canonique (https://[xx.]linkedin.com/in/<slug>) n'a rien a faire dans la vue Today.
+// Filtre JS sur les trois sources de loadDailyPriorities() (decisions du scan, actions reportees, classement de repli). La fiche reste en base et
+// dans le pipeline, rien n'est archive : elle revient dans Today des qu'un LinkedIn est trouve. MEME expression que la mesure SQL du 09/10.
+const _LINKEDIN_CANONICAL_RE = /^https:\/\/([a-z]{2,3}\.)?linkedin\.com\/in\/[^\/?#\s]+\/?$/i;
+function _hasCanonicalLinkedin(p) {
+  return !!(p && typeof p.linkedin === 'string' && _LINKEDIN_CANONICAL_RE.test(p.linkedin.trim()));
+}
+
 async function _onMandateChange() {
   const sel = document.getElementById('mandate-select');
   const val = sel ? sel.value : '';
@@ -13031,6 +13039,7 @@ async function loadDailyPriorities() {
       // un prospect envoye pendant la journee restait donc affiche dans Today jusqu'au recalcul du
       // scan du lendemain, alors que le signal "plus rien d'urgent" existait deja en base.
       _priorityShownProspects = (decisionProspects || [])
+        .filter(_hasCanonicalLinkedin)
         .filter(p => (p.priority_batch_number || 0) !== _priorityCurrentBatch)
         .map(p => { p._morningScanCategory = _decisionByProspect[p.id] || null; return p; })
         .sort((a, b) => (_catRank[a._morningScanCategory] ?? 2) - (_catRank[b._morningScanCategory] ?? 2));
@@ -13058,7 +13067,7 @@ async function loadDailyPriorities() {
           const _have = new Set(_priorityShownProspects.map(p => p.id));
           const _haveKeys = new Set(_priorityShownProspects.map(p => _mscPersonKey(p.name, p.company)));
           (carryRows || [])
-            .filter(p => (p.priority_batch_number || 0) !== _priorityCurrentBatch && !_have.has(p.id) && !_haveKeys.has(_mscPersonKey(p.name, p.company)))
+            .filter(p => _hasCanonicalLinkedin(p) && (p.priority_batch_number || 0) !== _priorityCurrentBatch && !_have.has(p.id) && !_haveKeys.has(_mscPersonKey(p.name, p.company)))
             .slice(0, N - _priorityShownProspects.length)
             .forEach(p => { p._morningScanCategory = 'carryover'; _haveKeys.add(_mscPersonKey(p.name, p.company)); _priorityShownProspects.push(p); });
         } catch (e) { console.warn('[loadDailyPriorities] actions reportees:', e); }
@@ -13136,6 +13145,7 @@ async function loadDailyPriorities() {
     const seen = new Set();
     const merged = [];
     for (const p of [...(rowsA || []), ...(rowsB || [])]) {
+      if (!_hasCanonicalLinkedin(p)) continue;
       if (!seen.has(p.id)) { seen.add(p.id); merged.push(p); }
     }
 
@@ -13195,11 +13205,12 @@ function _priorityFooterHTML(p) {
   const pid = _mscSafeId(p.id);
   if (!pid || p.next_action_cache) return '';
   const fr = currentLang === 'fr';
-  return `<div class="pri-action" id="pri-action-${pid}" style="margin-top:6px;" onclick="event.stopPropagation()">
+  const _mention = _qualificationMention(p);
+  return `<div class="pri-action" id="pri-action-${pid}" style="margin-top:6px;display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;" onclick="event.stopPropagation()">
     <button id="pri-gen-${pid}" onclick="_priorityGenerate('${pid}')"
       style="font-size:var(--fs-xs);padding:4px 11px;background:var(--navy);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer">
       ${_actionButtonLabel(p, fr ? 'Régénérer' : 'Regenerate', fr ? 'Générer' : 'Generate')}
-    </button>
+    </button>${_mention ? `<span class="pri-mention" style="font-size:var(--fs-xs);color:var(--muted);">${_esc(_mention)}</span>` : ''}
   </div>`;
 }
 
@@ -18140,13 +18151,23 @@ function _qualificationNote(p) {
 function _actionButtonLabel(p, cachedLabel, freshLabel) {
   if (_scoreReliabilityBadge(p)) return currentLang === 'fr' ? '⚠ Vérifier la source d\'abord' : '⚠ Verify source first';
   if (p.next_action_cache) return cachedLabel;
-  // Donnee de qualification manquante (ni e-mail ni URL LinkedIn valide, ou taille inconnue) : on prepare un brouillon, sans rien verrouiller.
-  // Un champ absent de la ligne (undefined) n'est pas « inconnu » : il n'est juste pas charge, on ne le juge pas.
+  // FIX 09/10 (demande Thomas) : plus de libelle « Preparer un brouillon » -- le meme bouton s'affiche que la donnee de qualification manque ou non.
+  // La donnee manquante est signalee par _qualificationMention() (mention discrete sur la carte), jamais par le libelle ; rien n'est verrouille.
+  return freshLabel;
+}
+
+// AJOUT 09/10 : mention discrete (canal absent / taille inconnue) a cote du bouton « Generer ». Memes conditions qu'avant dans _actionButtonLabel.
+// Un champ absent de la ligne (undefined) n'est pas « inconnu » : il n'est juste pas charge, on ne le juge pas. Retourne '' si rien ne manque.
+function _qualificationMention(p) {
+  if (!p) return '';
+  const fr = currentLang === 'fr';
   const channelKnown = ('email' in p) && ('linkedin' in p);
   const noChannel = channelKnown && !_hasEmail(p) && !_mscSafeUrl(p.linkedin);
   const sizeUnknown = p.company_size !== undefined && (p.company_size == null || String(p.company_size).trim() === '');
-  if (noChannel || sizeUnknown) return currentLang === 'fr' ? 'Préparer un brouillon' : 'Prepare a draft';
-  return freshLabel;
+  const parts = [];
+  if (noChannel) parts.push(fr ? 'canal à trouver' : 'channel to find');
+  if (sizeUnknown) parts.push(fr ? 'taille inconnue' : 'size unknown');
+  return parts.join(' · ');
 }
 
 // FIX 23/09 (chantier langue tiroir, point 5, GO Thomas) : table de correspondance dediee pour les
