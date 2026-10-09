@@ -5631,6 +5631,10 @@ function _mscDjToDecision(dj) {
 function _mscRenderScanEntries(decisions, liveById, emailHtml) {
   const emailCards = _mscEmailEntryCards(emailHtml);
   if (emailCards.length) decisions = decisions.map(d => _mscApplyEmailCard(d, emailCards));
+  // REGLE PRODUIT 09/10 (Thomas, permanente) : un prospect sans signal reel et date n'a rien a faire dans le morning scan ni dans la vue Signaux. Le Stream 1 ne montre
+  // que des fiches avec un signal date et d'un type autre que « correspondance firmographique » ; les autres (pastille « Fit sans signal ») ne sont pas rendues en carte,
+  // mais restent dans la liste de reconnaissance ci-dessous pour que leurs lignes de texte brut du mail disparaissent aussi. Rien n'est supprime en base.
+  const _noRealSignal = d => d.category === 'stream1' && !(d.signal && d.signal.date && String(d.signal.type || '').toLowerCase().replace(/_/g, '-') !== 'firmographic-match');
   const secs = _mscParseEmailSections(emailHtml, { rich: true }).map(s => ({ s, key: _mscSectionKeyForHeading(s.heading) }));
   const matchers = decisions.map(d => {
     const n = _mscNorm(d.name).replace(/\s+/g, ' ');
@@ -5649,6 +5653,8 @@ function _mscRenderScanEntries(decisions, liveById, emailHtml) {
         items = _mscDropLabeledBlocks(items, citedBy, key, decisions);
       }
       else items = items.filter(it => it.header || !cites(it.text));
+      // 09/10 : la phrase « N autres prospects du pipeline revus aujourd'hui, sans signal suffisamment fort... » est retiree (regle produit ci-dessus).
+      items = items.filter(it => !/autres?\s+prospects?\s+du\s+pipeline\s+revus/.test(_mscNorm(it.text)));
       // En-tete d'un tableau dont toutes les lignes de donnees sont devenues des cartes : retire aussi.
       const withData = new Set(items.filter(it => !it.header && it.tbl >= 0).map(it => it.tbl));
       items = items.filter(it => !(it.header && it.tbl >= 0 && !withData.has(it.tbl)));
@@ -5666,10 +5672,13 @@ function _mscRenderScanEntries(decisions, liveById, emailHtml) {
   let html = '';
   secs.slice(0, cut).forEach(x => { html += narrative(x); });
   for (const key of _MSC_V1_SECTIONS) {
-    const bucket = decisions.filter(d => d.category === key);
+    const bucket = decisions.filter(d => d.category === key && !_noRealSignal(d));
     if (bucket.length) {
       html += _mscSectionLabel(_mscV1SectionLabel(key))
         + `<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;">${bucket.map(cardFor).join('')}</div>`;
+    } else if (key === 'stream1' && (secs.some(x => x.key === 'stream1') || decisions.some(_noRealSignal))) {
+      html += _mscSectionLabel(_mscV1SectionLabel(key))
+        + `<div class="kanban-empty" style="padding:14px 8px;">${currentLang === 'fr' ? 'Aucun signal ICP aujourd’hui' : 'No ICP signal today'}</div>`;
     }
     secs.forEach(x => { if (x.key === key) html += narrative(x); });
   }
